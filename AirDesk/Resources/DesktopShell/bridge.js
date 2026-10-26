@@ -9,9 +9,14 @@
     handler = null;
   }
 
-  var sessionId = String(window.AIRDESK_SESSION_ID || 'preview');
-  var runtime = String(window.AIRDESK_RUNTIME || 'wanixDesktop');
-  var appearance = String(window.AIRDESK_APPEARANCE || 'dark');
+  var query = {};
+  try {
+    var params = new URLSearchParams(window.location.search);
+    params.forEach(function (value, key) { query[key] = value; });
+  } catch (error) { query = {}; }
+  var sessionId = String(window.AIRDESK_SESSION_ID || query.session || 'preview');
+  var runtime = String(window.AIRDESK_RUNTIME || query.runtime || 'wanixDesktop');
+  var appearance = String(window.AIRDESK_APPEARANCE || query.appearance || 'dark');
   var inputHandlers = [];
   var controlHandlers = [];
   var readySent = false;

@@ -184,8 +184,8 @@
       width = Math.min(app.width, vw * 0.64);
       height = Math.min(app.height, availableH - 30);
     } else if (id === 'terminal') {
-      width = Math.min(app.width, vw * 0.58);
-      height = Math.min(app.height, availableH - 40);
+      width = Math.min(app.width, vw * 0.56);
+      height = Math.min(app.height, Math.max(320, availableH * 0.50));
       x = vw - width - Math.max(25, vw * 0.035);
       y = vh - bottom - height - 8;
     } else if (id === 'notes') {

@@ -80,7 +80,7 @@ input, textarea { user-select: text; -webkit-user-select: text; }
   background: #070a12;
   transition: background .5s var(--ease);
 }
-.wallpaper-layer { position: absolute; inset: -12%; filter: saturate(1.05); transition: opacity .6s var(--ease), background .6s var(--ease); }
+.wallpaper-layer { position: absolute; inset: -12%; filter: saturate(1.16) brightness(1.06); transition: opacity .6s var(--ease), background .6s var(--ease); }
 body[data-appearance="light"] .wallpaper { background: #dfe6f4; }
 body[data-wallpaper="aurora"] .layer-a {
   background:
@@ -98,7 +98,7 @@ body[data-wallpaper="aurora"] .layer-b {
   animation: drift-b 34s ease-in-out infinite alternate;
 }
 body[data-wallpaper="aurora"] .layer-c {
-  background: linear-gradient(180deg, rgba(0, 0, 0, .06), rgba(0, 0, 0, .42));
+  background: linear-gradient(180deg, rgba(0, 0, 0, .04), rgba(0, 0, 0, .30));
 }
 body[data-wallpaper="dune"] .layer-a {
   background:
@@ -112,7 +112,7 @@ body[data-wallpaper="dune"] .layer-b {
   background: radial-gradient(30% 26% at 62% 66%, rgba(255, 199, 128, .18), transparent 72%);
   animation: drift-b 31s ease-in-out infinite alternate;
 }
-body[data-wallpaper="dune"] .layer-c { background: linear-gradient(180deg, rgba(0,0,0,.02), rgba(0,0,0,.46)); }
+body[data-wallpaper="dune"] .layer-c { background: linear-gradient(180deg, rgba(0,0,0,.02), rgba(0,0,0,.32)); }
 body[data-wallpaper="graphite"] .layer-a {
   background:
     radial-gradient(50% 50% at 26% 20%, rgba(138, 153, 179, .24), transparent 64%),
@@ -121,7 +121,7 @@ body[data-wallpaper="graphite"] .layer-a {
   animation: drift-a 30s ease-in-out infinite alternate;
 }
 body[data-wallpaper="graphite"] .layer-b { background: radial-gradient(34% 30% at 50% 84%, rgba(185, 198, 220, .10), transparent 72%); }
-body[data-wallpaper="graphite"] .layer-c { background: linear-gradient(180deg, rgba(0,0,0,.04), rgba(0,0,0,.5)); }
+body[data-wallpaper="graphite"] .layer-c { background: linear-gradient(180deg, rgba(0,0,0,.04), rgba(0,0,0,.36)); }
 body[data-appearance="light"][data-wallpaper="aurora"] .layer-a {
   background:
     radial-gradient(42% 46% at 18% 20%, rgba(88, 206, 255, .74), transparent 62%),
