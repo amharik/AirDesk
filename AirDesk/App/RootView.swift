@@ -2,12 +2,14 @@ import SwiftUI
 
 struct RootView: View {
     @EnvironmentObject private var environment: AppEnvironment
+    @EnvironmentObject private var session: SessionCoordinator
+    @EnvironmentObject private var settings: AppSettings
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            switch environment.session.phase {
+            switch session.phase {
             case .connecting:
                 ConnectingView()
                     .transition(.opacity.combined(with: .scale(scale: 1.03)))
@@ -22,45 +24,41 @@ struct RootView: View {
                     .transition(.opacity)
             }
 
-            DesktopSurfaceAnchor(surface: environment.session.desktopSurface)
+            DesktopSurfaceAnchor(surface: session.desktopSurface)
                 .frame(width: 2, height: 2)
                 .opacity(0.01)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
         }
-        .animation(.easeInOut(duration: 0.28), value: environment.session.phase)
-        .environmentObject(environment.session)
-        .environmentObject(environment.settings)
-        .environmentObject(environment.cast)
+        .animation(.easeInOut(duration: 0.28), value: session.phase)
         .sheet(isPresented: $environment.isSettingsPresented) {
             SettingsView()
                 .environmentObject(environment)
-                .environmentObject(environment.settings)
-                .environmentObject(environment.session)
+                .environmentObject(settings)
+                .environmentObject(session)
         }
         .sheet(isPresented: $environment.isDiagnosticsPresented) {
             DiagnosticsView()
                 .environmentObject(environment)
-                .environmentObject(environment.session)
+                .environmentObject(session)
                 .environmentObject(environment.diagnostics)
         }
-        .sheet(isPresented: $environment.session.isPreviewPresented, onDismiss: {
-            environment.session.closePreview()
+        .sheet(isPresented: $session.isPreviewPresented, onDismiss: {
+            session.closePreview()
         }) {
             DesktopPreviewSheet()
                 .environmentObject(environment)
-                .environmentObject(environment.session)
-                .environmentObject(environment.settings)
+                .environmentObject(session)
+                .environmentObject(settings)
         }
-        .onChange(of: environment.settings.desktopAppearance) { _, _ in
-            environment.session.settingsDidChange()
+        .onChange(of: settings.desktopAppearance) { _, _ in
+            session.settingsDidChange()
         }
         .preferredColorScheme(.dark)
     }
 }
 
 struct OnboardingView: View {
-    @EnvironmentObject private var environment: AppEnvironment
     let startAtConnection: Bool
 
     @State private var showConnection: Bool
