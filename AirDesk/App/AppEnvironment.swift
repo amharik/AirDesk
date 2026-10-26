@@ -8,18 +8,21 @@ final class AppEnvironment: ObservableObject {
     let diagnostics: PerformanceMetrics
     let display: DisplayCoordinator
     let cast: CastSessionCoordinator
+    let entitlements: EntitlementManager
     let haptics: Haptics
     lazy var session: SessionCoordinator = {
         SessionCoordinator(
             settings: settings,
             diagnostics: diagnostics,
             display: display,
-            cast: cast
+            cast: cast,
+            entitlements: entitlements
         )
     }()
 
     @Published var isSettingsPresented = false
     @Published var isDiagnosticsPresented = false
+    @Published var isProPresented = false
 
     private var bootstrapped = false
 
@@ -28,6 +31,7 @@ final class AppEnvironment: ObservableObject {
         diagnostics = PerformanceMetrics()
         display = DisplayCoordinator()
         cast = CastSessionCoordinator()
+        entitlements = EntitlementManager()
         haptics = Haptics.shared
     }
 
@@ -46,6 +50,7 @@ final class AppEnvironment: ObservableObject {
             self?.session.castDidReceive(event)
         }
 
+        entitlements.start()
         Haptics.shared.prepare()
         diagnostics.mark("app.launch")
 

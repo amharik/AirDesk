@@ -48,4 +48,13 @@ enum RuntimeChoice: String, CaseIterable, Identifiable, Codable, Sendable {
     var requiresNetwork: Bool {
         self != .wanixDesktop
     }
+
+    var requiresPro: Bool {
+        switch self {
+        case .wanixKernel:
+            return true
+        case .wanixDesktop, .puter:
+            return false
+        }
+    }
 }

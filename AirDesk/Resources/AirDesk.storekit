@@ -1,0 +1,116 @@
+{
+  "identifier" : "A1D5C0DE",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "49.99",
+      "familyShareable" : false,
+      "internalID" : "B7F21A01",
+      "localizations" : [
+        {
+          "description" : "Pay once and keep every AirDesk Pro feature forever.",
+          "displayName" : "AirDesk Pro Lifetime",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.airdesk.pro.lifetime",
+      "referenceName" : "Pro Lifetime",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "C4E8B2A0",
+      "localizations" : [
+
+      ],
+      "name" : "Pro Access",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "2.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "D9A14E10",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "AirDesk Pro with flexible monthly billing.",
+              "displayName" : "AirDesk Pro Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.airdesk.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Pro Monthly",
+          "subscriptionGroupID" : "C4E8B2A0",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "19.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "E2B65F22",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "AirDesk Pro billed annually at the best individual price.",
+              "displayName" : "AirDesk Pro Annual",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.airdesk.pro.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Pro Annual",
+          "subscriptionGroupID" : "C4E8B2A0",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "29.99",
+          "familyShareable" : true,
+          "groupNumber" : 1,
+          "internalID" : "F6C93D44",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "AirDesk Pro for the whole family, billed annually.",
+              "displayName" : "AirDesk Pro Family Annual",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.airdesk.pro.family.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Pro Family Annual",
+          "subscriptionGroupID" : "C4E8B2A0",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 2,
+    "minor" : 0
+  }
+}

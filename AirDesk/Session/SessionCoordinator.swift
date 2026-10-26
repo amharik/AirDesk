@@ -119,6 +119,7 @@ final class SessionCoordinator: ObservableObject {
     private let diagnostics: PerformanceMetrics
     private let display: DisplayCoordinator
     private let cast: CastSessionCoordinator
+    private let entitlements: EntitlementManager
     private let logger = Logger(subsystem: "com.airdesk.ios", category: "Session")
 
     private var runtime: (any DesktopRuntime)?
@@ -131,12 +132,14 @@ final class SessionCoordinator: ObservableObject {
         settings: AppSettings,
         diagnostics: PerformanceMetrics,
         display: DisplayCoordinator,
-        cast: CastSessionCoordinator
+        cast: CastSessionCoordinator,
+        entitlements: EntitlementManager
     ) {
         self.settings = settings
         self.diagnostics = diagnostics
         self.display = display
         self.cast = cast
+        self.entitlements = entitlements
         self.desktopSurface = DesktopSurface()
         self.dispatcher = InputDispatcher()
         self.inputTransport = SessionInputTransport()
@@ -203,6 +206,13 @@ final class SessionCoordinator: ObservableObject {
         selectedDevice = device
         lastError = nil
         notice = nil
+
+        let requestedRuntime = settings.runtimeChoice
+        if requestedRuntime.requiresPro && !entitlements.canUse(requestedRuntime) {
+            settings.runtimeChoice = .wanixDesktop
+            setNotice("\(requestedRuntime.title) requires AirDesk Pro. Using Wanix Desktop for this session.")
+        }
+
         phase = .connecting
         stage = .discovering
         sessionId = Self.makeSessionId()

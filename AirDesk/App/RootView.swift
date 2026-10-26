@@ -4,6 +4,7 @@ struct RootView: View {
     @EnvironmentObject private var environment: AppEnvironment
     @EnvironmentObject private var session: SessionCoordinator
     @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var entitlements: EntitlementManager
 
     var body: some View {
         ZStack {
@@ -36,6 +37,11 @@ struct RootView: View {
                 .environmentObject(environment)
                 .environmentObject(settings)
                 .environmentObject(session)
+                .environmentObject(entitlements)
+        }
+        .sheet(isPresented: $environment.isProPresented) {
+            ProAccessView()
+                .environmentObject(entitlements)
         }
         .sheet(isPresented: $environment.isDiagnosticsPresented) {
             DiagnosticsView()

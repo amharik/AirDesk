@@ -6,6 +6,7 @@ options:
   createIntermediateGroups: true
   developmentLanguage: en
   xcodeVersion: "16.4"
+  schemePathPrefix: "../../../"
 settings:
   base:
     SWIFT_VERSION: "5.0"
@@ -63,6 +64,7 @@ schemes:
         AirDeskTests: [test]
     run:
       config: Debug
+      storeKitConfiguration: AirDesk/Resources/AirDesk.storekit
     test:
       config: Debug
       gatherCoverageData: true

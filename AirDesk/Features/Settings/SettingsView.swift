@@ -4,11 +4,13 @@ struct SettingsView: View {
     @EnvironmentObject private var environment: AppEnvironment
     @EnvironmentObject private var settings: AppSettings
     @EnvironmentObject private var session: SessionCoordinator
+    @EnvironmentObject private var entitlements: EntitlementManager
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             Form {
+                proSection
                 sessionSection
                 cursorSection
                 runtimeSection
@@ -31,8 +33,86 @@ struct SettingsView: View {
             .onChange(of: settings.desktopAppearance) { _, _ in
                 session.settingsDidChange()
             }
+            .task {
+                await entitlements.refresh()
+            }
         }
         .preferredColorScheme(.dark)
+    }
+
+    private var proSection: some View {
+        Section {
+            Button {
+                environment.isProPresented = true
+            } label: {
+                HStack(spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(proTint.opacity(0.14))
+                            .frame(width: 38, height: 38)
+                        Image(systemName: entitlements.isPro ? "checkmark.seal.fill" : "sparkles")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(proTint)
+                    }
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 7) {
+                            Text("AirDesk Pro")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.92))
+                            CapsuleBadge(text: entitlements.status.title, tint: proTint)
+                        }
+                        Text(entitlements.statusDetail)
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(ADTheme.textTertiary)
+                            .multilineTextAlignment(.leading)
+                            .lineSpacing(1.5)
+                    }
+
+                    Spacer(minLength: 4)
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(ADTheme.textTertiary)
+                }
+                .padding(.vertical, 3)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if entitlements.isPro {
+                Button {
+                    Task { await entitlements.showManageSubscriptions() }
+                } label: {
+                    settingAction(icon: "gearshape", title: "Manage subscription", tint: ADTheme.textSecondary)
+                }
+            } else {
+                Button {
+                    Task { await entitlements.restorePurchases() }
+                } label: {
+                    settingAction(
+                        icon: "arrow.clockwise",
+                        title: entitlements.isRestoring ? "Restoring purchases…" : "Restore purchases",
+                        tint: ADTheme.textSecondary
+                    )
+                }
+                .disabled(entitlements.isRestoring)
+            }
+        } header: {
+            sectionHeader("Membership")
+        } footer: {
+            Text("Wanix Desktop is free forever. Pro unlocks the live Wanix Kernel and advanced display features.")
+        }
+        .listRowBackground(rowBackground)
+    }
+
+    private var proTint: Color {
+        switch entitlements.status {
+        case .loading: return ADTheme.textTertiary
+        case .free: return ADTheme.violet
+        case .pro: return ADTheme.accent
+        case .gracePeriod: return ADTheme.amber
+        }
     }
 
     private var sessionSection: some View {
@@ -119,18 +199,25 @@ struct SettingsView: View {
     private var runtimeSection: some View {
         Section {
             ForEach(settings.availableRuntimes) { runtime in
+                let isLocked = runtime.requiresPro && !entitlements.canUse(runtime)
+                let isSelected = settings.runtimeChoice == runtime && !isLocked
+
                 Button {
+                    if isLocked {
+                        environment.isProPresented = true
+                        return
+                    }
                     settings.runtimeChoice = runtime
                     if settings.hapticsEnabled { Haptics.shared.tap() }
                 } label: {
                     HStack(spacing: 12) {
                         ZStack {
                             RoundedRectangle(cornerRadius: 9, style: .continuous)
-                                .fill(ADTheme.accent.opacity(settings.runtimeChoice == runtime ? 0.2 : 0.08))
+                                .fill(ADTheme.accent.opacity(isSelected ? 0.2 : 0.08))
                                 .frame(width: 34, height: 34)
                             Image(systemName: runtime == .wanixKernel ? "terminal.fill" : "macwindow")
                                 .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(settings.runtimeChoice == runtime ? ADTheme.accent : ADTheme.textTertiary)
+                                .foregroundStyle(isSelected ? ADTheme.accent : ADTheme.textTertiary)
                         }
                         VStack(alignment: .leading, spacing: 2) {
                             HStack(spacing: 6) {
@@ -143,6 +230,17 @@ struct SettingsView: View {
                                     .padding(.horizontal, 5)
                                     .padding(.vertical, 2)
                                     .background { Capsule().fill(Color.white.opacity(0.06)) }
+                                if runtime.requiresPro {
+                                    Text("PRO")
+                                        .font(.system(size: 7.5, weight: .bold, design: .monospaced))
+                                        .tracking(0.5)
+                                        .foregroundStyle(isLocked ? ADTheme.amber : ADTheme.accent)
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 2)
+                                        .background {
+                                            Capsule().fill((isLocked ? ADTheme.amber : ADTheme.accent).opacity(0.10))
+                                        }
+                                }
                             }
                             Text(runtime.subtitle)
                                 .font(.system(size: 11.5))
@@ -150,9 +248,9 @@ struct SettingsView: View {
                                 .multilineTextAlignment(.leading)
                         }
                         Spacer()
-                        Image(systemName: settings.runtimeChoice == runtime ? "checkmark.circle.fill" : "circle")
+                        Image(systemName: isLocked ? "lock.fill" : (isSelected ? "checkmark.circle.fill" : "circle"))
                             .font(.system(size: 17))
-                            .foregroundStyle(settings.runtimeChoice == runtime ? ADTheme.accent : Color.white.opacity(0.18))
+                            .foregroundStyle(isLocked ? ADTheme.amber : (isSelected ? ADTheme.accent : Color.white.opacity(0.18)))
                     }
                     .contentShape(Rectangle())
                 }

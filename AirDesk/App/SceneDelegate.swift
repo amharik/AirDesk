@@ -19,6 +19,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             .environmentObject(environment.settings)
             .environmentObject(environment.cast)
             .environmentObject(environment.diagnostics)
+            .environmentObject(environment.entitlements)
         let hosting = UIHostingController(rootView: root)
         hosting.view.backgroundColor = .black
         hosting.overrideUserInterfaceStyle = .dark
