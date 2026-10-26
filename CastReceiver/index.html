@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>AirDesk Cast Receiver</title>
+  <link rel="stylesheet" href="receiver.css">
+</head>
+<body>
+  <iframe id="desktop-frame" title="AirDesk desktop" allow="autoplay; fullscreen"></iframe>
+  <div id="receiver-status" class="receiver-status" role="status">
+    <span class="status-dot"></span>
+    <span id="receiver-status-text">AIRDESK RECEIVER</span>
+  </div>
+  <div id="receiver-debug" class="receiver-debug" hidden>
+    <div><strong>AirDesk Cast Receiver</strong></div>
+    <div>Session <span id="debug-session">-</span></div>
+    <div>Input <span id="debug-count">0</span> · Last <span id="debug-last">-</span></div>
+    <div>State <span id="debug-state">starting</span></div>
+  </div>
+  <script src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+  <script src="receiver.js"></script>
+</body>
+</html>
