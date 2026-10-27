@@ -5,6 +5,7 @@
   var icons = {
     finder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8.2 8.6v3.1M15.8 8.6v3.1"/><path d="M7.7 15.4c1.2 1.3 2.7 1.9 4.3 1.9s3.1-.6 4.3-1.9"/><path d="M12 3.2c4.9 0 8.8 3.6 8.8 8.8S16.9 20.8 12 20.8 3.2 17.2 3.2 12 7.1 3.2 12 3.2Z"/><path d="M12 3.2v1.4"/></svg>',
     terminal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m6.5 8 3.7 3.6-3.7 3.7"/><path d="M12.5 16.2h5"/></svg>',
+    workbench: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.4" y="4.2" width="17.2" height="15.6" rx="2.2"/><path d="M3.4 9h17.2M9 9v10.8M9 14.2h11.6"/></svg>',
     notes: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4.5h12a1.5 1.5 0 0 1 1.5 1.5v12A1.5 1.5 0 0 1 18 19.5H6A1.5 1.5 0 0 1 4.5 18V6A1.5 1.5 0 0 1 6 4.5Z"/><path d="M8 9h8M8 12.5h8M8 16h5"/></svg>',
     settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2.2"/><circle cx="15" cy="17" r="2.2"/></svg>',
     welcome: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 14.1 9l5.9.4-4.5 3.8 1.4 5.7-4.9-3.1L7.1 19l1.4-5.7L4 9.4 9.9 9 12 3.5Z"/></svg>',
@@ -175,8 +176,8 @@
               status.textContent = '0 items';
             } else if (filter === 'Applications') {
               title.textContent = 'Applications';
-              grid.innerHTML = iconTile('terminal', 'Terminal') + iconTile('notes', 'Notes') + iconTile('settings', 'Settings') + iconTile('welcome', 'AirDesk');
-              status.textContent = '4 applications';
+              grid.innerHTML = iconTile('terminal', 'Terminal') + iconTile('workbench', 'Workbench') + iconTile('notes', 'Notes') + iconTile('settings', 'Settings') + iconTile('welcome', 'AirDesk');
+              status.textContent = '5 applications';
             } else if (filter === 'Network') {
               title.textContent = 'Network';
               showEmpty('Network is unavailable', 'The live Wanix namespace runs locally.');
@@ -436,6 +437,155 @@
           hydrate();
         }
         setTimeout(function () { body.focus(); }, 300);
+      }
+    },
+
+    workbench: {
+      name: 'Workbench',
+      menu: 'Workbench',
+      width: 780,
+      height: 500,
+      minWidth: 520,
+      minHeight: 340,
+      render: function () {
+        return '<div class="workbench">' +
+          '<header class="workbench-head">' +
+            '<div><span class="workbench-kicker">LIVE WORKSPACE</span><h1>Workbench</h1><p>Runtime, files, and session health.</p></div>' +
+            '<button class="workbench-refresh" data-workbench-refresh>Refresh</button>' +
+          '</header>' +
+          '<div class="workbench-grid">' +
+            '<section class="workbench-card workbench-runtime">' +
+              '<div class="workbench-card-head"><span>Runtime</span><span class="workbench-live"><span></span>LIVE</span></div>' +
+              '<div class="workbench-metrics">' +
+                '<div><span>Kernel</span><strong data-workbench-kernel>Wanix 0.4</strong></div>' +
+                '<div><span>Persistence</span><strong data-workbench-persistence>Checking…</strong></div>' +
+                '<div><span>Bridge</span><strong>Input v1</strong></div>' +
+                '<div><span>Session</span><strong data-workbench-session>local</strong></div>' +
+              '</div>' +
+              '<div class="workbench-error" data-workbench-error hidden></div>' +
+            '</section>' +
+            '<section class="workbench-card workbench-actions-card">' +
+              '<div class="workbench-card-head"><span>Quick actions</span></div>' +
+              '<div class="workbench-actions">' +
+                '<button class="workbench-action" data-workbench-open="terminal"><span class="workbench-action-icon">' + icons.terminal + '</span><strong>Terminal</strong><small>Run a command</small></button>' +
+                '<button class="workbench-action" data-workbench-open="finder"><span class="workbench-action-icon">' + icons.folder + '</span><strong>Finder</strong><small>Browse workspace</small></button>' +
+                '<button class="workbench-action" data-workbench-open="notes"><span class="workbench-action-icon">' + icons.notes + '</span><strong>Notes</strong><small>Write a note</small></button>' +
+                '<button class="workbench-action" data-workbench-spotlight><span class="workbench-action-icon">' + icons.search + '</span><strong>Spotlight</strong><small>Find anything</small></button>' +
+              '</div>' +
+            '</section>' +
+            '<section class="workbench-card workbench-files-card">' +
+              '<div class="workbench-card-head"><span>Workspace</span><span data-workbench-count>—</span></div>' +
+              '<div class="workbench-files" data-workbench-files><div class="workbench-empty">Reading opfs/…</div></div>' +
+            '</section>' +
+            '<section class="workbench-card workbench-session-card">' +
+              '<div class="workbench-card-head"><span>Session</span></div>' +
+              '<p class="workbench-copy">Finder, Notes, Terminal, and the Air Cursor share one live Wanix namespace. Workspace snapshots restore after a reload.</p>' +
+              '<div class="workbench-foot"><span data-workbench-footprint>—</span><button data-workbench-open="finder">Open Finder</button></div>' +
+            '</section>' +
+          '</div>' +
+        '</div>';
+      },
+      mount: function (root, api) {
+        var kernel = window.AirDeskKernel;
+        var labels = {
+          opfs: 'OPFS',
+          indexeddb: 'IndexedDB snapshot',
+          localstorage: 'localStorage snapshot',
+          ram: 'Memory only'
+        };
+        var error = root.querySelector('[data-workbench-error]');
+        var count = root.querySelector('[data-workbench-count]');
+        var files = root.querySelector('[data-workbench-files]');
+        var footprint = root.querySelector('[data-workbench-footprint]');
+        var session = new URLSearchParams(location.search).get('session') || 'local-preview';
+        var refreshToken = 0;
+
+        root.querySelector('[data-workbench-session]').textContent = session;
+        root.querySelector('[data-workbench-persistence]').textContent =
+          labels[kernel.persistence ? kernel.persistence() : 'opfs'] || 'Unknown';
+
+        var persistError = kernel.lastPersistError ? kernel.lastPersistError() : null;
+        if (persistError) {
+          error.hidden = false;
+          error.textContent = persistError;
+        }
+
+        function formatBytes(bytes) {
+          if (!bytes) return '0 B';
+          if (bytes < 1024) return bytes + ' B';
+          if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+          return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function renderEntries(totalCount, stats) {
+          count.textContent = totalCount + (totalCount === 1 ? ' item' : ' items');
+          var total = stats.reduce(function (sum, item) { return sum + (item.isDir ? 0 : item.size); }, 0);
+          footprint.textContent = formatBytes(total) + ' in opfs';
+          if (!stats.length) {
+            files.innerHTML = '<div class="workbench-empty">The workspace is empty. Create files in Notes or the Terminal.</div>';
+            return;
+          }
+          files.innerHTML = stats.map(function (item) {
+            return '<button class="workbench-file" data-workbench-file="' + escapeHTML(item.path) + '" data-kind="' + (item.isDir ? 'folder' : 'file') + '">' +
+              '<span class="workbench-file-icon">' + (item.isDir ? icons.folder : icons.document) + '</span>' +
+              '<span class="workbench-file-name">' + escapeHTML(item.name) + '</span>' +
+              '<span class="workbench-file-meta">' + (item.isDir ? 'Folder' : formatBytes(item.size)) + '</span>' +
+            '</button>';
+          }).join('');
+        }
+
+        function refresh() {
+          var token = ++refreshToken;
+          count.textContent = 'Reading…';
+          footprint.textContent = '—';
+          kernel.list('opfs').then(function (allEntries) {
+            if (token !== refreshToken) return;
+            var entries = (allEntries || []).slice(0, 8);
+            var stats = entries.map(function (entry) {
+              var isDir = entry.charAt(entry.length - 1) === '/';
+              var name = isDir ? entry.slice(0, -1) : entry;
+              var path = 'opfs/' + name;
+              return kernel.stat(path).then(function (info) {
+                return { name: name, path: path, isDir: isDir, size: info && info.Size || 0 };
+              }).catch(function () {
+                return { name: name, path: path, isDir: isDir, size: 0 };
+              });
+            });
+            Promise.all(stats).then(function (items) {
+              if (token !== refreshToken) return;
+              renderEntries((allEntries || []).length, items);
+            });
+          }).catch(function (cause) {
+            if (token !== refreshToken) return;
+            count.textContent = 'Unavailable';
+            files.innerHTML = '<div class="workbench-empty">' + escapeHTML(String(cause && cause.message || cause)) + '</div>';
+          });
+        }
+
+        root.querySelector('[data-workbench-refresh]').addEventListener('click', refresh);
+        root.querySelectorAll('[data-workbench-open]').forEach(function (button) {
+          button.addEventListener('click', function () {
+            api.openApp(button.getAttribute('data-workbench-open'));
+          });
+        });
+        root.querySelector('[data-workbench-spotlight]').addEventListener('click', function () {
+          if (api.openSpotlight) api.openSpotlight();
+          else api.notify('Spotlight is available from the menu bar.');
+        });
+        files.addEventListener('click', function (event) {
+          var file = event.target.closest('[data-workbench-file]');
+          if (!file) return;
+          if (file.getAttribute('data-kind') === 'folder') {
+            api.openApp('finder');
+          } else {
+            api.openApp('notes', { path: file.getAttribute('data-workbench-file') });
+          }
+        });
+
+        kernel.ready.then(refresh).catch(function (cause) {
+          count.textContent = 'Offline';
+          files.innerHTML = '<div class="workbench-empty">Wanix kernel unavailable: ' + escapeHTML(String(cause && cause.message || cause)) + '</div>';
+        });
       }
     },
 

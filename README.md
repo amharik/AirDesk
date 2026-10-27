@@ -147,4 +147,4 @@ xcodebuild -project AirDesk.xcodeproj -scheme AirDesk \
 - SharedArrayBuffer/COOP-COEP behavior under `file://` is unverified.
 - OPFS is unavailable in Chrome under `file://`; the fallback snapshots `opfs/` to IndexedDB, but terminal writes outside `opfs/` are not persisted.
 - Terminal commands that create missing files (`touch`, redirection, `write`, `cp`) fail with `No such file or directory`; Wanix's `fs.OpenFile` does not honor `O_CREAT` for missing files. Notes and the kernel API can still write to `opfs/`.
-- The full 10-screen controller flow and six TV modules are still being implemented.
+- The full 10-screen controller flow is still being implemented. The six TV modules now include Desktop, Finder, Terminal, Workbench, Notes, and Spotlight.

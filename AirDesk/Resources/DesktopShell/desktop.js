@@ -155,7 +155,7 @@
   }
 
   function dockMarkup() {
-    var order = ['finder', 'terminal', 'notes', 'settings', 'welcome'];
+    var order = ['finder', 'terminal', 'workbench', 'notes', 'settings', 'welcome'];
     var html = order.map(function (id) {
       var app = apps[id];
       return '<button class="dock-item" data-app="' + id + '" aria-label="' + app.name + '">' +
@@ -273,6 +273,7 @@
 
     var api = {
       openApp: function (appId, nextOptions) { return openApp(appId, nextOptions); },
+      openSpotlight: function () { return openSpotlight(); },
       notify: notify,
       close: function () { closeWindow(win); },
       getAppearance: function () { return appearance; },
@@ -1061,7 +1062,7 @@
   }
 
   function spotlightApps() {
-    return ['finder', 'terminal', 'notes', 'settings', 'welcome', 'trash'].map(function (id) {
+    return ['finder', 'terminal', 'workbench', 'notes', 'settings', 'welcome', 'trash'].map(function (id) {
       return { id: id, name: apps[id].name, kind: id === 'trash' ? 'Utility' : 'Application' };
     });
   }
