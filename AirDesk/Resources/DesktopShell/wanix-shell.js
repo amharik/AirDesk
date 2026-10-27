@@ -17,6 +17,17 @@
   var persistent = true;
   var shellStarted = false;
   var terminalPath = '#task/shell/term';
+  var database = null;
+  var persistTimer = 0;
+  var persistInFlight = false;
+  var restoreInFlight = false;
+  var snapshotBackend = 'indexeddb';
+  var lastPersistError = null;
+  var DB_NAME = 'airdesk.workspace.v1';
+  var DB_STORE = 'snapshots';
+  var DB_KEY = 'opfs';
+  var LOCAL_KEY = 'airdesk.workspace.snapshot.v1';
+  var MAX_SNAPSHOT_FILE = 2 * 1024 * 1024;
 
   function bridge() {
     return window.AD || null;
@@ -37,6 +48,7 @@
 
   function useRamWorkspace() {
     persistent = false;
+    snapshotBackend = 'indexeddb';
     var opfsBind = document.getElementById('opfs-bind');
     if (opfsBind) {
       opfsBind.setAttribute('src', '#ramfs/new');
@@ -45,6 +57,177 @@
     }
     var api = bridge();
     if (api) api.state('wanix.ramfs');
+  }
+
+  function openDatabase() {
+    if (database) return Promise.resolve(database);
+    return new Promise(function (resolve, reject) {
+      if (!window.indexedDB) {
+        reject(new Error('IndexedDB is unavailable.'));
+        return;
+      }
+      var request = indexedDB.open(DB_NAME, 1);
+      request.onupgradeneeded = function () {
+        var db = request.result;
+        if (!db.objectStoreNames.contains(DB_STORE)) db.createObjectStore(DB_STORE);
+      };
+      request.onsuccess = function () {
+        database = request.result;
+        resolve(database);
+      };
+      request.onerror = function () {
+        reject(request.error || new Error('IndexedDB could not be opened.'));
+      };
+      request.onblocked = function () {
+        reject(new Error('IndexedDB is blocked by another tab.'));
+      };
+    });
+  }
+
+  function readLocalSnapshot() {
+    try {
+      var raw = localStorage.getItem(LOCAL_KEY);
+      if (!raw) return null;
+      snapshotBackend = 'localstorage';
+      return JSON.parse(raw);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function writeLocalSnapshot(snapshot) {
+    try {
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(snapshot));
+      snapshotBackend = 'localstorage';
+      return true;
+    } catch (error) {
+      snapshotBackend = 'none';
+      return false;
+    }
+  }
+
+  function readSnapshot() {
+    return openDatabase().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var transaction = db.transaction(DB_STORE, 'readonly');
+        var request = transaction.objectStore(DB_STORE).get(DB_KEY);
+        request.onsuccess = function () { resolve(request.result || null); };
+        request.onerror = function () { reject(request.error || new Error('Snapshot read failed.')); };
+      });
+    }).catch(function () {
+      return readLocalSnapshot();
+    });
+  }
+
+  function writeSnapshot(snapshot) {
+    return openDatabase().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var transaction = db.transaction(DB_STORE, 'readwrite');
+        transaction.objectStore(DB_STORE).put(snapshot, DB_KEY);
+        transaction.oncomplete = function () { resolve(true); };
+        transaction.onerror = function () { reject(transaction.error || new Error('Snapshot write failed.')); };
+        transaction.onabort = function () { reject(transaction.error || new Error('Snapshot write aborted.')); };
+      });
+    }).catch(function () {
+      return writeLocalSnapshot(snapshot);
+    });
+  }
+
+  function bytesToBase64(bytes) {
+    var chunk = 0x8000;
+    var binary = '';
+    for (var index = 0; index < bytes.length; index += chunk) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(index, index + chunk));
+    }
+    return btoa(binary);
+  }
+
+  function base64ToBytes(text) {
+    var binary = atob(text);
+    var bytes = new Uint8Array(binary.length);
+    for (var index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+    return bytes;
+  }
+
+  function collectWorkspaceFiles(kernelRoot, directory, relative, files) {
+    return kernelRoot.readDir(directory).then(function (entries) {
+      entries = entries || [];
+      return entries.reduce(function (chain, entry) {
+        return chain.then(function () {
+          var isDirectory = entry.charAt(entry.length - 1) === '/';
+          var name = isDirectory ? entry.slice(0, -1) : entry;
+          var path = directory === '.' ? name : directory + '/' + name;
+          var childRelative = relative ? relative + '/' + name : name;
+          if (isDirectory) return collectWorkspaceFiles(kernelRoot, path, childRelative, files);
+          return kernelRoot.stat(path).then(function (info) {
+            if (info && info.Size > MAX_SNAPSHOT_FILE) return;
+            return kernelRoot.readFile(path).then(function (bytes) {
+              files[childRelative] = bytesToBase64(bytes);
+            });
+          }).catch(function () { /* skip unreadable entries */ });
+        });
+      }, Promise.resolve());
+    }).catch(function () { /* an empty fallback workspace has no opfs directory yet */ });
+  }
+
+  function snapshotWorkspace() {
+    if (persistent || !root || restoreInFlight || persistInFlight) return Promise.resolve(false);
+    persistInFlight = true;
+    var files = {};
+    return collectWorkspaceFiles(root, 'opfs', '', files).then(function () {
+      return writeSnapshot({ version: 1, savedAt: Date.now(), files: files });
+    }).then(function (written) {
+      lastPersistError = written ? null : 'Workspace snapshot could not be stored.';
+      return !!written;
+    }).catch(function (error) {
+      lastPersistError = String(error && error.message || error);
+      return false;
+    }).then(function (result) {
+      persistInFlight = false;
+      return result;
+    });
+  }
+
+  function schedulePersist() {
+    if (persistent) return;
+    clearTimeout(persistTimer);
+    persistTimer = setTimeout(snapshotWorkspace, 600);
+  }
+
+  function restoreWorkspace(kernelRoot) {
+    if (persistent) return Promise.resolve(false);
+    restoreInFlight = true;
+    return readSnapshot().then(function (snapshot) {
+      var files = snapshot && snapshot.files ? snapshot.files : {};
+      return Object.keys(files).reduce(function (chain, relative) {
+        return chain.then(function () {
+          var path = 'opfs/' + relative;
+          var parent = path.split('/').slice(0, -1).join('/');
+          var prepare = parent ? kernelRoot.makeDirAll(parent).catch(function () {}) : Promise.resolve();
+          return prepare.then(function () {
+            return kernelRoot.writeFile(path, base64ToBytes(files[relative]));
+          }).catch(function (error) {
+            lastPersistError = String(error && error.message || error);
+          });
+        });
+      }, Promise.resolve());
+    }).catch(function (error) {
+      lastPersistError = String(error && error.message || error);
+    }).then(function () {
+      restoreInFlight = false;
+      return true;
+    });
+  }
+
+  function startPersistenceLoop() {
+    if (persistent) return;
+    setInterval(function () {
+      if (!document.hidden) snapshotWorkspace();
+    }, 4000);
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) snapshotWorkspace();
+    });
+    window.addEventListener('pagehide', function () { snapshotWorkspace(); });
   }
 
   function prepareWorkspace() {
@@ -85,9 +268,17 @@
       if (failed) return;
       clearTimeout(readyTimer);
       root = host.root;
-      resolveReady(root);
-      var api = bridge();
-      if (api) api.state('wanix.ready');
+      var finish = function () {
+        resolveReady(root);
+        var api = bridge();
+        if (api) api.state('wanix.ready');
+      };
+      if (persistent) {
+        finish();
+      } else {
+        startPersistenceLoop();
+        restoreWorkspace(root).then(finish, finish);
+      }
     });
 
     host.addEventListener('error', function (event) {
@@ -112,6 +303,14 @@
     ready: ready,
     terminalPath: terminalPath,
     persistent: function () { return persistent; },
+    persistence: function () {
+      if (persistent) return 'opfs';
+      if (snapshotBackend === 'localstorage') return 'localstorage';
+      if (snapshotBackend === 'none') return 'ram';
+      return 'indexeddb';
+    },
+    snapshot: function () { return snapshotWorkspace(); },
+    lastPersistError: function () { return lastPersistError; },
     root: function () { return root; },
     startShell: function () {
       if (shellStarted) return Promise.resolve(true);
@@ -141,7 +340,10 @@
     },
     writeText: function (path, text) {
       return handle().then(function (kernelRoot) {
-        return kernelRoot.writeFile(path, text);
+        return kernelRoot.writeFile(path, text).then(function (result) {
+          schedulePersist();
+          return result;
+        });
       });
     }
   };

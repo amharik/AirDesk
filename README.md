@@ -88,7 +88,7 @@ flowchart TD
   TERM --> INPUT["Controller input"]
 ```
 
-The namespace is mounted inside the desktop shell but hidden. Terminal windows create their own `wanix-term`, attach to the shared `#task/shell/term`, and then start the shell task. Finder reads the same root with `readDir`; Notes writes to `opfs/notes.json` and can open arbitrary files from the namespace. When OPFS is unavailable under `file://`, the shell falls back to an in-memory `#ramfs/new` workspace, so Notes remains functional but is not persistent. A small file-URL worker shim converts Wanix's module worker into a self-contained classic worker, which Chrome and WKWebView require for `file://` pages.
+The namespace is mounted inside the desktop shell but hidden. Terminal windows create their own `wanix-term`, attach to the shared `#task/shell/term`, and then start the shell task. Finder reads the same root with `readDir`; Notes writes to `opfs/notes.json` and can open arbitrary files from the namespace. When OPFS is unavailable under `file://`, the shell falls back to `#ramfs/new` and snapshots `opfs/` to IndexedDB (with a localStorage fallback), restoring the workspace on the next load. A small file-URL worker shim converts Wanix's module worker into a self-contained classic worker, which Chrome and WKWebView require for `file://` pages.
 
 ## Repository layout
 
@@ -145,5 +145,6 @@ xcodebuild -project AirDesk.xcodeproj -scheme AirDesk \
 - Android controller and display clients are not started.
 - The Cast receiver must disable v86 and use a receiver budget below 512 MB.
 - SharedArrayBuffer/COOP-COEP behavior under `file://` is unverified.
-- OPFS persistence is unavailable in Chrome under `file://`; the current fallback is RAM-backed and resets on reload.
+- OPFS is unavailable in Chrome under `file://`; the fallback snapshots `opfs/` to IndexedDB, but terminal writes outside `opfs/` are not persisted.
+- Terminal commands that create missing files (`touch`, redirection, `write`, `cp`) fail with `No such file or directory`; Wanix's `fs.OpenFile` does not honor `O_CREAT` for missing files. Notes and the kernel API can still write to `opfs/`.
 - The full 10-screen controller flow and six TV modules are still being implemented.

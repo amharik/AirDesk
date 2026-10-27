@@ -1313,7 +1313,16 @@
       if (bootHidden) return;
       bootHidden = true;
       if (boot) boot.classList.add('hidden');
-      setWanixStatus('KERNEL', false);
+      var persistence = window.AirDeskKernel && window.AirDeskKernel.persistence ? window.AirDeskKernel.persistence() : 'opfs';
+      setWanixStatus(persistence === 'opfs' ? 'KERNEL' : 'KERNEL · LOCAL', false);
+      var status = $('#wanix-status');
+      if (status) {
+        status.title = persistence === 'opfs'
+          ? 'Workspace persists in OPFS'
+          : persistence === 'ram'
+            ? 'Workspace is memory-only'
+            : 'Workspace snapshots to local storage';
+      }
       AD.ready();
       AD.viewport(window.innerWidth, window.innerHeight);
       AD.state('shell.ready');
@@ -1321,7 +1330,8 @@
 
     if (window.AirDeskKernel) {
       window.AirDeskKernel.ready.then(function () {
-        notify('Wanix kernel ready');
+        var persistence = window.AirDeskKernel.persistence ? window.AirDeskKernel.persistence() : 'opfs';
+        notify(persistence === 'opfs' ? 'Wanix kernel ready' : 'Wanix kernel ready · local snapshot');
         revealDesktop();
       }).catch(function (error) {
         bootHidden = true;
