@@ -5,6 +5,7 @@ struct WelcomeView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var showConnection: Bool
     @State private var animateHero = false
+    @State private var showGuide = false
 
     var body: some View {
         ZStack {
@@ -64,6 +65,16 @@ struct WelcomeView: View {
                     .frame(maxWidth: 460)
                     .padding(.top, 30)
 
+                    Button {
+                        showGuide = true
+                    } label: {
+                        Label("How connection works", systemImage: "questionmark.circle")
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .foregroundStyle(ADTheme.textTertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 2)
+
                     HStack(spacing: 14) {
                         Label("AirPlay", systemImage: "appletv")
                         Circle().fill(ADTheme.textTertiary).frame(width: 2.5, height: 2.5)
@@ -86,6 +97,9 @@ struct WelcomeView: View {
             }
         }
         .navigationBarHidden(true)
+        .sheet(isPresented: $showGuide) {
+            ConnectionGuideView()
+        }
         .onAppear {
             guard !reduceMotion else { return }
             withAnimation(.easeInOut(duration: 3.6).repeatForever(autoreverses: true)) {

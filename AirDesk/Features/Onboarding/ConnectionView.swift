@@ -4,7 +4,11 @@ struct ConnectionView: View {
     @EnvironmentObject private var environment: AppEnvironment
     @EnvironmentObject private var session: SessionCoordinator
     @EnvironmentObject private var cast: CastSessionCoordinator
+    @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var entitlements: EntitlementManager
     @State private var appeared = false
+    @State private var showGuide = false
+    @State private var pendingDevice: DisplayDevice?
 
     var body: some View {
         ZStack {
@@ -41,11 +45,21 @@ struct ConnectionView: View {
         .onDisappear {
             cast.stopDiscovery()
         }
+        .sheet(isPresented: $showGuide) {
+            ConnectionGuideView()
+        }
+        .sheet(item: $pendingDevice) { device in
+            SessionSetupView(device: device)
+                .environmentObject(environment)
+                .environmentObject(session)
+                .environmentObject(settings)
+                .environmentObject(entitlements)
+        }
     }
 
     private var header: some View {
         VStack(spacing: 10) {
-            HStack {
+            HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 5) {
                     Text("Choose a display")
                         .font(.system(size: 30, weight: .bold, design: .rounded))
@@ -56,6 +70,25 @@ struct ConnectionView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 16)
+                Button {
+                    showGuide = true
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "questionmark.circle")
+                            .font(.system(size: 11, weight: .bold))
+                        Text("GUIDE")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .tracking(0.7)
+                    }
+                    .foregroundStyle(ADTheme.accent)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 6)
+                    .background {
+                        Capsule().fill(ADTheme.accent.opacity(0.10))
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Open connection guide")
             }
         }
         .padding(.top, 8)
@@ -68,12 +101,12 @@ struct ConnectionView: View {
                 if environment.display.hasExternalDisplay {
                     DeviceRow(
                         device: externalDevice,
-                        action: { connect(to: externalDevice) }
+                        action: { prepare(externalDevice) }
                     )
                 }
                 DeviceRow(
                     device: demoAirPlayDevice,
-                    action: { connect(to: demoAirPlayDevice) }
+                    action: { prepare(demoAirPlayDevice) }
                 )
             }
         }
@@ -114,7 +147,7 @@ struct ConnectionView: View {
 
             VStack(spacing: 8) {
                 ForEach(castDevices) { device in
-                    DeviceRow(device: device, action: { connect(to: device) })
+                    DeviceRow(device: device, action: { prepare(device) })
                 }
 
                 if castDevices.isEmpty {
@@ -156,7 +189,7 @@ struct ConnectionView: View {
             SectionLabel(text: "This device")
             DeviceRow(
                 device: DisplayDevice.previewDevice,
-                action: { connect(to: DisplayDevice.previewDevice) }
+                action: { prepare(DisplayDevice.previewDevice) }
             )
         }
     }
@@ -208,7 +241,7 @@ struct ConnectionView: View {
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 14) {
                     if let device = session.selectedDevice {
-                        Button("Retry") { connect(to: device) }
+                        Button("Retry") { retry(device) }
                             .font(.system(size: 12, weight: .bold))
                             .foregroundStyle(ADTheme.accent)
                     }
@@ -266,7 +299,12 @@ struct ConnectionView: View {
         }
     }
 
-    private func connect(to device: DisplayDevice) {
+    private func prepare(_ device: DisplayDevice) {
+        if environment.settings.hapticsEnabled { Haptics.shared.tap() }
+        pendingDevice = device
+    }
+
+    private func retry(_ device: DisplayDevice) {
         if environment.settings.hapticsEnabled { Haptics.shared.tap() }
         session.beginConnection(to: device)
     }
@@ -357,7 +395,7 @@ struct DeviceRow: View {
                 .onEnded { _ in withAnimation(.easeOut(duration: 0.16)) { pressed = false } }
         )
         .accessibilityLabel("\(device.name). \(device.detail). \(device.statusText)")
-        .accessibilityHint("Starts a desktop session")
+        .accessibilityHint("Opens session setup")
     }
 
     private var iconColors: [Color] {
