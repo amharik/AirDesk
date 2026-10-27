@@ -245,8 +245,7 @@
           });
         }
 
-        window.AirDeskKernel.ready.then(waitForTaskTerm).then(function () {
-          status.hidden = true;
+        function mountTerminal(attempt) {
           host.innerHTML = '';
           var term = document.createElement('wanix-term');
           term.setAttribute('for', 'wanix');
@@ -260,16 +259,46 @@
             try { term.fit(); term.focus(); } catch (error) { /* terminal may still be connecting */ }
           }, 120);
 
-          setTimeout(function () {
+          var settled = false;
+          var watchdogTimer = 0;
+          var connectTimer = 0;
+
+          function settle(error) {
+            if (settled) return;
+            settled = true;
+            clearTimeout(connectTimer);
+            clearTimeout(watchdogTimer);
+            if (!error) {
+              status.hidden = true;
+              api.notify('Terminal attached to live Wanix shell');
+              return;
+            }
+            if (attempt < 3) {
+              showStatus('Reconnecting to the live Wanix shell…');
+              setTimeout(function () { mountTerminal(attempt + 1); }, 250);
+            } else {
+              showStatus('Could not start the Wanix shell: ' + String(error && error.message || error));
+            }
+          }
+
+          connectTimer = setTimeout(function () {
             var connected = term && typeof term.connect === 'function' ? term.connect() : Promise.resolve();
             connected.then(function () {
               return window.AirDeskKernel.startShell();
             }).then(function () {
-              api.notify('Terminal attached to live Wanix shell');
+              settle(null);
             }).catch(function (error) {
-              showStatus('Could not start the Wanix shell: ' + String(error && error.message || error));
+              settle(error);
             });
           }, 300);
+
+          watchdogTimer = setTimeout(function () {
+            settle(new Error('The Wanix shell did not attach in time.'));
+          }, 1800);
+        }
+
+        window.AirDeskKernel.ready.then(waitForTaskTerm).then(function () {
+          mountTerminal(1);
         }).catch(function (error) {
           showStatus('Wanix shell unavailable: ' + String(error && error.message || error));
         });

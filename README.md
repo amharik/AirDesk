@@ -89,7 +89,7 @@ flowchart TD
   TERM --> INPUT["Controller input"]
 ```
 
-The namespace is mounted inside the desktop shell but hidden. Terminal windows create their own `wanix-term`, attach to the shared `#task/shell/term`, and then start the shell task. Finder reads the same root with `readDir`; Notes writes to `opfs/notes.json` and can open arbitrary files from the namespace.
+The namespace is mounted inside the desktop shell but hidden. Terminal windows create their own `wanix-term`, attach to the shared `#task/shell/term`, and then start the shell task. Finder reads the same root with `readDir`; Notes writes to `opfs/notes.json` and can open arbitrary files from the namespace. Terminal attachment has a 1.8 s watchdog and retries up to three times if the PTY handshake stalls.
 
 The native app serves `DesktopShell` from a loopback-only `NWListener` at `http://127.0.0.1:<port>/` instead of loading `file://`. Every response carries `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`, so `WKWebView` reports `crossOriginIsolated === true`, exposes `SharedArrayBuffer`, and allows native OPFS writes from workers. `LocalAssetServerTests` verifies cross-origin isolation, `SharedArrayBuffer`, OPFS file creation, and a worker `createSyncAccessHandle` write on the simulator.
 
