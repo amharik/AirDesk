@@ -45,36 +45,6 @@
       '<span class="file-meta">Application</span></button>';
   }
 
-  var commands = {
-    help: [
-      'AirDesk shell commands',
-      '  help          show this list',
-      '  ls            list the workspace',
-      '  pwd           print working directory',
-      '  whoami        current Wanix user',
-      '  uname -a      runtime information',
-      '  date          current date and time',
-      '  open <app>    open finder, notes, settings, welcome',
-      '  neofetch      system summary',
-      '  clear         clear the terminal'
-    ],
-    ls: ['Applications   Documents   Projects   README.md   welcome.txt   wanix.sock'],
-    pwd: ['/Users/remote/Workspace'],
-    whoami: ['remote'],
-    uname: ['Wanix 0.4 (wasm) arm64 virtual · AirDesk bridge v1'],
-    date: [new Date().toString()],
-    neofetch: [
-      '        .:\'         remote@wanix',
-      '     .:ooo:\'       ------------------',
-      '   .:ooooooo:\'     OS: Wanix 0.4 (wasm)',
-      '  :ooooooooooo:    Host: AirDesk on iPhone',
-      '  :ooooooooooo:    Kernel: coreutils-wasm',
-      '   \':ooooooo:\'     Shell: ash 1.36',
-      '     \':ooo:\'       Runtime: local bundle',
-      '        \':\'        Bridge: AirDesk input v1'
-    ]
-  };
-
   window.AirDeskApps = {
     finder: {
       name: 'Finder',
@@ -86,10 +56,9 @@
       render: function () {
         var favorites = ['AirDesk', 'Workspace', 'Documents', 'Applications', 'Trash'];
         var side = favorites.map(function (item, index) {
-          return '<button class="side-item' + (index === 1 ? ' selected' : '') + '" data-filter="' + item + '">' +
+          return '<button class="side-item' + (index === 0 ? ' selected' : '') + '" data-filter="' + item + '">' +
             '<span class="side-glyph">' + (item === 'AirDesk' ? icons.welcome : item === 'Trash' ? icons.trash : icons.folder) + '</span>' +
             '<span>' + item + '</span>' +
-            (item === 'Trash' ? '<span class="side-count">2</span>' : '') +
             '</button>';
         }).join('');
 
@@ -106,18 +75,13 @@
                 '<button class="icon-button" aria-label="Back">' + icons.back + '</button>' +
                 '<button class="icon-button is-disabled" aria-label="Forward">' + icons.forward + '</button>' +
               '</div>' +
-              '<div class="finder-location"><span class="loc-icon">' + icons.folder + '</span><span class="loc-title">Workspace</span></div>' +
+              '<div class="finder-location"><span class="loc-icon">' + icons.folder + '</span><span class="loc-title">AirDesk</span></div>' +
               '<div class="finder-tools"><button class="icon-button" aria-label="Toggle sidebar">' + icons.sidebar + '</button><span class="finder-tool-label">' + icons.search + ' Search</span></div>' +
             '</header>' +
             '<div class="finder-grid" data-grid>' +
-              fileTile('folder', 'Projects', 'Folder', null) +
-              fileTile('folder', 'Documents', 'Folder', null) +
-              fileTile('code', 'wanix-bridge.js', 'JavaScript · 14 KB', 'notes') +
-              fileTile('doc', 'README.md', 'Markdown · 3 KB', 'notes') +
-              fileTile('doc', 'welcome.txt', 'Text · 1 KB', 'notes') +
-              fileTile('app', 'Wanix Terminal', 'Application', 'terminal') +
+              '<div class="empty-state"><span class="empty-glyph">' + icons.folder + '</span><strong>Connecting to Wanix</strong><span>Reading the live workspace.</span></div>' +
             '</div>' +
-            '<footer class="finder-status"><span data-status>6 items</span><span>Wanix virtual volume · 48.2 GB available</span></footer>' +
+            '<footer class="finder-status"><span data-status>Connecting…</span><span>Live Wanix namespace</span></footer>' +
           '</section>' +
         '</div>';
       },
@@ -125,38 +89,105 @@
         var grid = root.querySelector('[data-grid]');
         var status = root.querySelector('[data-status]');
         var title = root.querySelector('.loc-title');
-        root.querySelectorAll('.side-item').forEach(function (button) {
-          button.addEventListener('click', function () {
-            root.querySelectorAll('.side-item').forEach(function (item) { item.classList.remove('selected'); });
-            button.classList.add('selected');
-            var filter = button.getAttribute('data-filter');
-            title.textContent = filter;
-            if (filter === 'Trash') {
-              grid.innerHTML = '<div class="empty-state"><span class="empty-glyph">' + icons.trash + '</span><strong>Trash is empty</strong><span>Items you delete from the workspace appear here.</span></div>';
-              status.textContent = '0 items';
-            } else if (filter === 'Applications') {
-              grid.innerHTML = iconTile('terminal', 'Terminal') + iconTile('notes', 'Notes') + iconTile('settings', 'Settings') + iconTile('welcome', 'AirDesk');
-              status.textContent = '4 applications';
-            } else {
-              grid.innerHTML = '<button class="file-tile" data-file="Projects"><span class="file-art file-folder">' + icons.folder + '</span><span class="file-name">Projects</span><span class="file-meta">Folder</span></button>' +
-                '<button class="file-tile" data-file="Documents"><span class="file-art file-folder">' + icons.folder + '</span><span class="file-name">Documents</span><span class="file-meta">Folder</span></button>' +
-                '<button class="file-tile" data-open-app="notes"><span class="file-art file-doc">' + icons.document + '</span><span class="file-name">README.md</span><span class="file-meta">Markdown · 3 KB</span></button>' +
-                '<button class="file-tile" data-open-app="notes"><span class="file-art file-doc">' + icons.document + '</span><span class="file-name">welcome.txt</span><span class="file-meta">Text · 1 KB</span></button>';
-              status.textContent = '4 items';
+        var currentPath = '.';
+        var loadToken = 0;
+        var locations = {
+          AirDesk: '.',
+          Workspace: 'opfs',
+          Documents: 'opfs/Documents',
+          iCloud: 'opfs'
+        };
+
+        function basename(path) {
+          var parts = String(path || '').split('/');
+          return parts[parts.length - 1] || 'AirDesk';
+        }
+
+        function joinPath(path, name) {
+          return path === '.' || !path ? name : path + '/' + name;
+        }
+
+        function showEmpty(heading, detail) {
+          grid.innerHTML = '<div class="empty-state"><span class="empty-glyph">' + icons.folder + '</span><strong>' + escapeHTML(heading) + '</strong><span>' + escapeHTML(detail) + '</span></div>';
+        }
+
+        function liveTile(entry, path) {
+          var isDir = entry.charAt(entry.length - 1) === '/';
+          var name = isDir ? entry.slice(0, -1) : entry;
+          var child = joinPath(path, name);
+          var kind = isDir ? 'folder' : /\.(js|json|html|css|go|sh|wasm)$/i.test(name) ? 'code' : 'doc';
+          var glyph = isDir ? icons.folder : kind === 'code' ? icons.code : icons.document;
+          var meta = isDir ? 'Folder' : kind === 'code' ? 'Wanix file' : 'Text file';
+          return '<button class="file-tile" data-path="' + escapeHTML(child) + '" data-kind="' + (isDir ? 'folder' : 'file') + '">' +
+            '<span class="file-art file-' + kind + '">' + glyph + '</span>' +
+            '<span class="file-name">' + escapeHTML(name) + '</span>' +
+            '<span class="file-meta">' + meta + '</span></button>';
+        }
+
+        function loadPath(path, label) {
+          currentPath = path;
+          title.textContent = label || basename(path);
+          status.textContent = 'Reading ' + (path === '.' ? '/' : path) + '…';
+          showEmpty('Reading Wanix workspace', path === '.' ? '/' : path);
+          var token = ++loadToken;
+          window.AirDeskKernel.list(path).then(function (entries) {
+            if (token !== loadToken) return;
+            entries = entries || [];
+            if (!entries.length) {
+              showEmpty('This folder is empty', 'Create files from the live Terminal.');
+              status.textContent = '0 items · ' + (path === '.' ? '/' : path);
+              return;
             }
-            api.notify('Finder · ' + filter);
+            grid.innerHTML = entries.map(function (entry) { return liveTile(entry, path); }).join('');
+            status.textContent = entries.length + ' items · ' + (path === '.' ? '/' : path);
+          }).catch(function (error) {
+            if (token !== loadToken) return;
+            showEmpty('Could not read ' + (path === '.' ? '/' : path), String(error && error.message || error));
+            status.textContent = 'Unavailable';
           });
-        });
+        }
+
+        function selectSide(button) {
+          root.querySelectorAll('.side-item').forEach(function (item) { item.classList.remove('selected'); });
+          button.classList.add('selected');
+        }
+
         function chooseTile(tile, openNow) {
           if (!tile) return;
           grid.querySelectorAll('.file-tile').forEach(function (item) { item.classList.remove('selected'); });
           tile.classList.add('selected');
-          if (openNow) {
-            var open = tile.getAttribute('data-open-app');
-            if (open) api.openApp(open);
-            else api.notify(tile.getAttribute('data-file') + ' · virtual folder');
+          if (!openNow) return;
+          var path = tile.getAttribute('data-path');
+          if (tile.getAttribute('data-kind') === 'folder') {
+            loadPath(path, basename(path));
+          } else {
+            api.openApp('notes', { path: path });
           }
         }
+
+        root.querySelectorAll('.side-item').forEach(function (button) {
+          button.addEventListener('click', function () {
+            selectSide(button);
+            var filter = button.getAttribute('data-filter');
+            if (filter === 'Trash') {
+              title.textContent = 'Trash';
+              grid.innerHTML = '<div class="empty-state"><span class="empty-glyph">' + icons.trash + '</span><strong>Trash is empty</strong><span>Items you delete from the workspace appear here.</span></div>';
+              status.textContent = '0 items';
+            } else if (filter === 'Applications') {
+              title.textContent = 'Applications';
+              grid.innerHTML = iconTile('terminal', 'Terminal') + iconTile('notes', 'Notes') + iconTile('settings', 'Settings') + iconTile('welcome', 'AirDesk');
+              status.textContent = '4 applications';
+            } else if (filter === 'Network') {
+              title.textContent = 'Network';
+              showEmpty('Network is unavailable', 'The live Wanix namespace runs locally.');
+              status.textContent = 'Offline';
+            } else {
+              loadPath(locations[filter] || '.', filter === 'iCloud' ? 'AirDesk Disk' : filter);
+            }
+            api.notify('Finder · ' + filter);
+          });
+        });
+
         grid.addEventListener('click', function (event) {
           var tile = event.target.closest('.file-tile');
           if (!tile) return;
@@ -164,6 +195,13 @@
         });
         grid.addEventListener('dblclick', function (event) {
           chooseTile(event.target.closest('.file-tile'), true);
+        });
+
+        window.AirDeskKernel.ready.then(function () {
+          loadPath('.', 'AirDesk');
+        }).catch(function (error) {
+          showEmpty('Wanix kernel unavailable', String(error && error.message || error));
+          status.textContent = 'Offline';
         });
       }
     },
@@ -176,79 +214,64 @@
       minWidth: 420,
       minHeight: 260,
       render: function () {
-        return '<div class="terminal">' +
-          '<div class="term-scroll" data-term-scroll>' +
-            '<pre class="term-output" data-term-output>' +
-'AirDesk shell · Wanix 0.4\n' +
-'Type "help" for available commands.\n\n' +
-'<span class="term-dim">remote@wanix</span> <span class="term-path">~</span> <span class="term-accent">%</span> ' +
-            '</pre>' +
-            '<div class="term-line"><span class="term-prompt"><span class="term-dim">remote@wanix</span> <span class="term-path">~</span> <span class="term-accent">%</span></span>' +
-            '<input class="term-input" data-term-input spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Terminal input"></div>' +
-          '</div>' +
+        return '<div class="terminal live-terminal">' +
+          '<div class="term-status" data-term-status>Connecting to the live Wanix shell…</div>' +
+          '<div class="term-host" data-term-host></div>' +
         '</div>';
       },
       mount: function (root, api) {
-        var input = root.querySelector('[data-term-input]');
-        var output = root.querySelector('[data-term-output]');
-        var scroll = root.querySelector('[data-term-scroll]');
-        var history = [];
-        var index = 0;
+        var host = root.querySelector('[data-term-host]');
+        var status = root.querySelector('[data-term-status]');
 
-        function scrollDown() { scroll.scrollTop = scroll.scrollHeight; }
-        function write(html) {
-          output.insertAdjacentHTML('beforeend', html + '\n');
-          scrollDown();
-        }
-        function submit() {
-          var raw = input.value;
-          var line = raw.trim();
-          input.value = '';
-          if (!line) { write('<span class="term-dim">remote@wanix</span> <span class="term-path">~</span> <span class="term-accent">%</span> '); return; }
-          history.push(line);
-          index = history.length;
-          write('<span class="term-echo">&gt; ' + escapeHTML(raw) + '</span>');
-          var parts = line.split(/\s+/);
-          var command = parts[0].toLowerCase();
-          var response = commands[command];
-          if (command === 'open' && parts[1]) {
-            api.openApp(parts[1].toLowerCase());
-            write('<span class="term-dim">Opening ' + escapeHTML(parts[1]) + '…</span>');
-          } else if (command === 'clear') {
-            output.innerHTML = '';
-          } else if (response) {
-            if (command === 'uname' && parts[1] !== '-a') {
-              write('Wanix');
-            } else {
-              write('<pre class="term-block">' + response.map(escapeHTML).join('\n') + '</pre>');
-            }
-          } else if (command === 'echo') {
-            write(escapeHTML(parts.slice(1).join(' ')));
-          } else if (command === 'cd') {
-            write('<span class="term-dim">Directories are virtual in this demo workspace.</span>');
-          } else {
-            write('<span class="term-error">ash: ' + escapeHTML(command) + ': command not found</span>');
-          }
-          write('<span class="term-dim">remote@wanix</span> <span class="term-path">~</span> <span class="term-accent">%</span> ');
-          scrollDown();
+        function showStatus(text) {
+          status.hidden = false;
+          status.textContent = text;
         }
 
-        input.addEventListener('keydown', function (event) {
-          if (event.key === 'Enter') {
-            event.preventDefault();
-            submit();
-          } else if (event.key === 'ArrowUp') {
-            event.preventDefault();
-            if (history.length) { index = Math.max(0, index - 1); input.value = history[index]; }
-          } else if (event.key === 'ArrowDown') {
-            event.preventDefault();
-            if (history.length) { index = Math.min(history.length, index + 1); input.value = history[index] || ''; }
-          }
+        function waitForTaskTerm() {
+          return new Promise(function (resolve, reject) {
+            var task = document.querySelector('#wanix wanix-task');
+            var attempts = 0;
+            var timer = setInterval(function () {
+              if (task && task.term) {
+                clearInterval(timer);
+                setTimeout(resolve, 80);
+              } else if (++attempts > 200) {
+                clearInterval(timer);
+                reject(new Error('The shell task did not allocate a terminal.'));
+              }
+            }, 50);
+          });
+        }
+
+        window.AirDeskKernel.ready.then(waitForTaskTerm).then(function () {
+          status.hidden = true;
+          host.innerHTML = '';
+          var term = document.createElement('wanix-term');
+          term.setAttribute('for', 'wanix');
+          term.setAttribute('path', window.AirDeskKernel.terminalPath);
+          term.setAttribute('raw', '');
+          term.setAttribute('cursor-blink', 'true');
+          term.setAttribute('scrollback', '5000');
+          term.className = 'wanix-term';
+          host.appendChild(term);
+          setTimeout(function () {
+            try { term.fit(); term.focus(); } catch (error) { /* terminal may still be connecting */ }
+          }, 120);
+
+          setTimeout(function () {
+            var connected = term && typeof term.connect === 'function' ? term.connect() : Promise.resolve();
+            connected.then(function () {
+              return window.AirDeskKernel.startShell();
+            }).then(function () {
+              api.notify('Terminal attached to live Wanix shell');
+            }).catch(function (error) {
+              showStatus('Could not start the Wanix shell: ' + String(error && error.message || error));
+            });
+          }, 300);
+        }).catch(function (error) {
+          showStatus('Wanix shell unavailable: ' + String(error && error.message || error));
         });
-        root.addEventListener('click', function (event) {
-          if (!event.target.closest('input,textarea,button')) input.focus();
-        });
-        setTimeout(function () { input.focus(); }, 260);
       }
     },
 
@@ -274,11 +297,11 @@
           '</section>' +
         '</div>';
       },
-      mount: function (root, api) {
+      mount: function (root, api, options) {
         var content = {
           welcome: 'AirDesk turns your iPhone into a precise remote for a Wanix desktop.\n\nThis desktop is the same shell used on the external display and the Cast receiver. Pointer, scroll, keyboard, and text input all arrive through one normalized protocol.\n\nTry it:\n  · Swipe the touchpad to move the Air Cursor.\n  · Tap to click, double-tap to open a window.\n  · Long press and move to drag a title bar.\n  · Two-finger drag to scroll.\n  · Two-finger tap to right-click.\n  · Open the keyboard bar to type here.\n\nNothing on this desktop is a screenshot. Every window is live.',
           shortcuts: 'Air Cursor gestures\n\nOne finger move     Move pointer\nTap                 Click\nDouble tap          Double click\nLong press + move   Drag\nTwo-finger move     Scroll\nTwo-finger tap      Right click\n\nKeyboard bar\n\nEsc, Tab, Return, Backspace, arrows, and modifier keys map to native events. The keyboard field inserts text into the focused field.\n\nHardware keyboard\n\nWhen a hardware keyboard is connected, its text is forwarded over the same input channel.',
-          wanix: 'Wanix is a WebAssembly-native workspace. The kernel and userland run inside the browser sandbox, so the desktop state lives with the page.\n\nAirDesk ships a bundled shell for offline use and a live Wanix Kernel runtime for experiments. The runtime announces readiness only after its bridge is live; AirDesk never treats a page load as success.\n\nInput is normalized to 0…1 coordinates, so the same events work on a phone preview, a TV, or a Cast receiver at any resolution.'
+          wanix: 'Wanix is a WebAssembly-native workspace. The kernel and userland run inside the browser sandbox, so the desktop state lives with the page.\n\nAirDesk ships a live Wanix kernel inside this desktop shell. Finder and Notes read and write the same namespace. The runtime announces readiness only after its bridge is live; AirDesk never treats a page load as success.\n\nInput is normalized to 0…1 coordinates, so the same events work on a phone preview, a TV, or a Cast receiver at any resolution.'
         };
         var title = root.querySelector('[data-note-title]');
         var body = root.querySelector('[data-note-body]');
@@ -286,56 +309,132 @@
         var date = root.querySelector('[data-note-date]');
         var active = 'welcome';
         var storageKey = 'airdesk.notes.v1';
+        var store = {};
+        var filePath = null;
+        var saveTimer = 0;
+        options = options || {};
+
+        try { store = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch (error) { store = {}; }
+
+        function defaultTitle(key) {
+          return key === 'welcome' ? 'Welcome to AirDesk' : key === 'shortcuts' ? 'Remote shortcuts' : key === 'wanix' ? 'About Wanix' : 'Note';
+        }
+
+        function basename(path) {
+          var parts = String(path || '').split('/');
+          return parts[parts.length - 1] || 'Note';
+        }
+
+        function persistLocal() {
+          try { localStorage.setItem(storageKey, JSON.stringify(store)); } catch (error) { /* local file storage can be unavailable */ }
+        }
+
+        function selectRow(key) {
+          root.querySelectorAll('.note-row').forEach(function (row) {
+            row.classList.toggle('selected', !!key && row.getAttribute('data-note') === key);
+          });
+        }
 
         function load(key) {
+          filePath = null;
           active = key;
-          try {
-            var stored = JSON.parse(localStorage.getItem(storageKey) || '{}');
-            if (stored[key]) {
-              title.value = stored[key].title;
-              body.value = stored[key].body;
-            } else {
-              title.value = key === 'welcome' ? 'Welcome to AirDesk' : key === 'shortcuts' ? 'Remote shortcuts' : 'About Wanix';
-              body.value = content[key] || '';
-            }
-          } catch (error) {
-            title.value = key === 'welcome' ? 'Welcome to AirDesk' : 'Note';
-            body.value = content[key] || '';
-          }
-          date.textContent = key === 'welcome' ? 'Today at 9:41 PM' : 'Yesterday';
-          root.querySelectorAll('.note-row').forEach(function (row) {
-            row.classList.toggle('selected', row.getAttribute('data-note') === key);
+          var stored = store[key];
+          title.value = stored ? stored.title : defaultTitle(key);
+          body.value = stored ? stored.body : (content[key] || '');
+          date.textContent = key === 'welcome' ? 'Today at 9:41 PM' : stored ? 'Saved in Wanix' : 'Yesterday';
+          saved.textContent = stored ? 'Saved' : 'Local';
+          selectRow(key);
+        }
+
+        function loadFile(path) {
+          filePath = path;
+          active = 'file:' + path;
+          title.value = basename(path);
+          body.value = 'Loading from Wanix…';
+          date.textContent = 'Wanix file';
+          saved.textContent = 'Loading…';
+          selectRow(null);
+          window.AirDeskKernel.readText(path).then(function (text) {
+            body.value = text;
+            saved.textContent = 'Loaded';
+          }).catch(function (error) {
+            body.value = '';
+            saved.textContent = 'Unavailable';
+            api.notify('Could not open ' + basename(path) + ': ' + String(error && error.message || error));
+          });
+        }
+
+        function persistFile() {
+          if (!filePath) return;
+          window.AirDeskKernel.writeText(filePath, body.value).then(function () {
+            saved.textContent = 'Saved';
+          }).catch(function () {
+            saved.textContent = 'Not saved';
+          });
+        }
+
+        function persistStore() {
+          persistLocal();
+          window.AirDeskKernel.writeText('opfs/notes.json', JSON.stringify(store)).then(function () {
+            saved.textContent = 'Saved';
+          }).catch(function () {
+            saved.textContent = 'Local only';
           });
         }
 
         function save() {
           saved.textContent = 'Saving…';
-          try {
-            var stored = JSON.parse(localStorage.getItem(storageKey) || '{}');
-            stored[active] = { title: title.value, body: body.value };
-            localStorage.setItem(storageKey, JSON.stringify(stored));
-            setTimeout(function () { saved.textContent = 'Saved'; }, 320);
-          } catch (error) {
-            saved.textContent = 'Local only';
+          clearTimeout(saveTimer);
+          if (filePath) {
+            saveTimer = setTimeout(persistFile, 280);
+            return;
           }
+          store[active] = { title: title.value, body: body.value };
+          persistLocal();
+          saveTimer = setTimeout(persistStore, 280);
+        }
+
+        function hydrate() {
+          window.AirDeskKernel.ready.then(function () {
+            return window.AirDeskKernel.readText('opfs/notes.json');
+          }).then(function (text) {
+            if (!text) return;
+            try {
+              var remote = JSON.parse(text);
+              Object.keys(remote).forEach(function (key) {
+                if (!store[key]) store[key] = remote[key];
+              });
+            } catch (error) { /* ignore malformed workspace notes */ }
+            if (!filePath) load(active);
+          }).catch(function () { /* notes stay local until OPFS is available */ });
         }
 
         root.querySelectorAll('.note-row').forEach(function (row) {
           row.addEventListener('click', function () { load(row.getAttribute('data-note')); });
         });
         root.querySelector('.notes-head .icon-button').addEventListener('click', function () {
+          filePath = null;
           active = 'new-' + Date.now();
           title.value = 'New note';
           body.value = '';
           date.textContent = 'Just now';
           saved.textContent = 'Draft';
-          root.querySelectorAll('.note-row').forEach(function (row) { row.classList.remove('selected'); });
+          selectRow(null);
           title.focus();
           title.select();
         });
+        root.addEventListener('airdesk-open-file', function (event) {
+          if (event.detail) loadFile(event.detail);
+        });
         title.addEventListener('input', save);
         body.addEventListener('input', save);
-        load('welcome');
+
+        if (options.path) {
+          loadFile(options.path);
+        } else {
+          load('welcome');
+          hydrate();
+        }
         setTimeout(function () { body.focus(); }, 300);
       }
     },

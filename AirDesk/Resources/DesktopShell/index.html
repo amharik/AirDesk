@@ -67,13 +67,39 @@
     <div id="boot" class="boot">
       <div class="boot-mark"><span></span><span></span><span></span></div>
       <div class="boot-label">AIRDESK</div>
-      <div class="boot-sub">starting Wanix workspace</div>
+      <div class="boot-sub">starting live Wanix kernel</div>
     </div>
   </main>
+
+  <div id="wanix-host" hidden>
+    <wanix-namespace
+      id="wanix"
+      wasm="https://cdn.jsdelivr.net/npm/wanix@0.4.0-rc2/dist/wanix.wasm">
+      <wanix-bind dst="." src="#ramfs/new"></wanix-bind>
+      <wanix-bind id="opfs-bind" dst="opfs" src="#web/opfs"></wanix-bind>
+      <wanix-bind dst="tmp" src="#ramfs/new"></wanix-bind>
+      <wanix-bind
+        type="file"
+        dst="rc.wasm"
+        src="https://cdn.jsdelivr.net/npm/wanix-extras@0.4.0-rc2/dist/rc.wasm"></wanix-bind>
+      <wanix-bind type="file" dst="README.md" perm="0644"># AirDesk Wanix Workspace
+
+This desktop is backed by a live Wanix namespace.
+
+- `opfs/` persists in the browser's Origin Private File System.
+- `tmp/` is scratch memory.
+- Finder and Notes read and write the same namespace.
+- The controller sends input through the native AirDesk bridge.
+</wanix-bind>
+      <wanix-task id="shell" cmd="rc.wasm" term></wanix-task>
+    </wanix-namespace>
+  </div>
 
   <noscript>AirDesk requires JavaScript to run the Wanix desktop.</noscript>
   <script src="apps.js"></script>
   <script src="bridge.js"></script>
+  <script src="wanix-file-worker-fix.js"></script>
+  <script src="wanix-shell.js"></script>
   <script src="desktop.js"></script>
 </body>
 </html>

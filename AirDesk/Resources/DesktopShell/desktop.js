@@ -111,8 +111,13 @@
     if (active && active !== document.body && active.closest && active.closest('.window') !== win.el) {
       if (typeof active.blur === 'function') active.blur();
     }
-    if (win.id === 'terminal' || win.id === 'notes') {
-      var field = win.id === 'terminal' ? $('.term-input', win.body) : $('.note-body', win.body);
+    if (win.id === 'terminal') {
+      var term = $('wanix-term', win.body);
+      if (term && document.activeElement !== term && (!active || !active.closest || active.closest('.window') !== win.el)) {
+        try { term.focus(); } catch (error) { /* terminal may still be connecting */ }
+      }
+    } else if (win.id === 'notes') {
+      var field = $('.note-body', win.body);
       if (field && document.activeElement !== field && (!active || !active.closest || active.closest('.window') !== win.el)) {
         field.focus();
       }
@@ -121,6 +126,14 @@
 
   function setActiveApp(name) {
     if (activeAppLabel) activeAppLabel.textContent = name || 'Finder';
+  }
+
+  function setWanixStatus(text, offline) {
+    var status = $('#wanix-status');
+    if (!status) return;
+    var label = status.querySelector('span:last-child');
+    if (label) label.textContent = text;
+    status.classList.toggle('offline', !!offline);
   }
 
   function topWindow(excluding) {
@@ -204,11 +217,14 @@
     };
   }
 
-  function openApp(id) {
+  function openApp(id, options) {
     var app = apps[id];
     if (!app) return null;
     var existing = state.windows.find(function (entry) { return entry.id === id; });
     if (existing) {
+      if (options && options.path) {
+        existing.el.dispatchEvent(new CustomEvent('airdesk-open-file', { detail: options.path }));
+      }
       if (existing.minimized) {
         existing.minimized = false;
         existing.el.classList.remove('minimized');
@@ -222,6 +238,7 @@
     var win = {
       id: id,
       app: app,
+      options: options || {},
       el: document.createElement('section'),
       minimized: false,
       maximized: false,
@@ -255,7 +272,7 @@
     win.body = body;
 
     var api = {
-      openApp: openApp,
+      openApp: function (appId, nextOptions) { return openApp(appId, nextOptions); },
       notify: notify,
       close: function () { closeWindow(win); },
       getAppearance: function () { return appearance; },
@@ -264,7 +281,7 @@
       minimize: function () { minimizeWindow(win); }
     };
     if (typeof app.mount === 'function') {
-      try { app.mount(body, api); } catch (error) { console.error(error); notify('Could not mount ' + app.name); }
+      try { app.mount(body, api, win.options); } catch (error) { console.error(error); notify('Could not mount ' + app.name); }
     }
 
     focusWindow(win);
@@ -692,6 +709,12 @@
       if (win) focusWindow(win);
     }
 
+    var liveTerminal = target.closest('wanix-term');
+    if (liveTerminal) {
+      try { liveTerminal.focus(); } catch (error) { /* terminal may still be connecting */ }
+      return;
+    }
+
     var editable = target.closest('input, textarea, [contenteditable="true"]');
     if (editable) {
       if (typeof editable.focus === 'function') editable.focus();
@@ -756,7 +779,10 @@
     }
 
     dispatchMouse('mousedown', target, p.x, p.y, 0, 1);
-    if (target.closest('input, textarea, [contenteditable="true"]')) {
+    var liveTerminal = target.closest('wanix-term');
+    if (liveTerminal) {
+      try { liveTerminal.focus(); } catch (error) { /* terminal may still be connecting */ }
+    } else if (target.closest('input, textarea, [contenteditable="true"]')) {
       target.focus();
     }
   }
@@ -802,6 +828,12 @@
     var x = state.pointer.x;
     var y = state.pointer.y;
     var target = document.elementFromPoint(x, y);
+    var liveTerminal = target && target.closest ? target.closest('wanix-term') : null;
+    if (liveTerminal && liveTerminal._term && typeof liveTerminal._term.scrollLines === 'function') {
+      var lines = Math.round(Number(event.dy || 0) / 24);
+      if (lines) liveTerminal._term.scrollLines(-clamp(lines, -8, 8));
+      return;
+    }
     var scroller = target;
     while (scroller && scroller !== document.body && scroller !== document.documentElement) {
       var style = window.getComputedStyle(scroller);
@@ -822,14 +854,60 @@
   }
 
   /* Text and keyboard */
+  function focusedTerminal() {
+    if (!state.focused) return null;
+    var term = $('wanix-term', state.focused.body);
+    return term && term._term ? term : null;
+  }
+
+  function terminalKeyData(event) {
+    var key = event.key || '';
+    var modifiers = Array.isArray(event.modifiers) ? event.modifiers : [];
+    var control = modifiers.indexOf('Control') >= 0;
+    var alt = modifiers.indexOf('Alt') >= 0 || modifiers.indexOf('Meta') >= 0;
+    var named = {
+      Enter: '\r', Return: '\r', Backspace: '\x7f', Delete: '\x1b[3~', Tab: '\t', Escape: '\x1b',
+      ArrowUp: '\x1b[A', ArrowDown: '\x1b[B', ArrowRight: '\x1b[C', ArrowLeft: '\x1b[D',
+      Home: '\x1b[H', End: '\x1b[F', PageUp: '\x1b[5~', PageDown: '\x1b[6~', Insert: '\x1b[2~', Space: ' '
+    };
+    var data = '';
+    if (Object.prototype.hasOwnProperty.call(named, key)) {
+      data = named[key];
+    } else if (key.length === 1) {
+      if (control) {
+        var code = key.toUpperCase().charCodeAt(0);
+        data = code >= 64 && code <= 95 ? String.fromCharCode(code & 31) : key;
+      } else {
+        data = key;
+      }
+    } else {
+      return '';
+    }
+    if (alt && data !== '\x1b') data = '\x1b' + data;
+    return data;
+  }
+
+  function sendTerminalData(data) {
+    var term = focusedTerminal();
+    if (!term || !data) return false;
+    try {
+      if (typeof term._term.input === 'function') term._term.input(data, true);
+      else if (typeof term._term.paste === 'function') term._term.paste(data);
+      else if (typeof term.write === 'function') term.write(data);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
   function activeEditable() {
     var element = document.activeElement;
     if (element && (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA' || element.isContentEditable)) {
       return element;
     }
     if (spotlight && !spotlight.hidden) return spotlightInput;
-    if (state.focused) {
-      var selector = state.focused.id === 'terminal' ? '.term-input' : state.focused.id === 'notes' ? '.note-body' : 'input, textarea';
+    if (state.focused && state.focused.id !== 'terminal') {
+      var selector = state.focused.id === 'notes' ? '.note-body' : 'input, textarea';
       var candidate = $(selector, state.focused.body);
       if (candidate) return candidate;
     }
@@ -838,6 +916,7 @@
 
   function insertText(text) {
     if (!text) return false;
+    if (focusedTerminal()) return sendTerminalData(text);
     var element = activeEditable();
     if (!element) {
       if (!state.typingHintShown) {
@@ -861,6 +940,7 @@
   }
 
   function deleteBackward() {
+    if (focusedTerminal()) { sendTerminalData('\x7f'); return; }
     var element = activeEditable();
     if (!element) return;
     element.focus();
@@ -882,11 +962,10 @@
   }
 
   function submitFocused() {
+    if (focusedTerminal()) { sendTerminalData('\r'); return; }
     var element = activeEditable();
     if (!element) return;
-    if (element.classList && element.classList.contains('term-input')) {
-      element.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }));
-    } else if (element.tagName === 'TEXTAREA') {
+    if (element.tagName === 'TEXTAREA') {
       insertText('\n');
     } else if (element.tagName === 'INPUT') {
       element.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }));
@@ -913,10 +992,9 @@
     var lower = key.length === 1 ? key.toLowerCase() : key;
     if (!isDown) return;
 
-    if (lower === 'Escape' || key === 'Escape') {
+    if (key === 'Escape') {
       if (spotlight && !spotlight.hidden) { closeSpotlight(); return; }
-      closeMenus();
-      return;
+      if (menuButton || (contextMenu && !contextMenu.hidden)) { closeMenus(); return; }
     }
 
     if (meta || control) {
@@ -940,6 +1018,11 @@
       }
     }
 
+    if (focusedTerminal() && !meta) {
+      var terminalData = terminalKeyData(event);
+      if (terminalData) { sendTerminalData(terminalData); return; }
+    }
+
     if (key === 'Backspace' || key === 'Delete') { deleteBackward(); return; }
     if (key === 'Return' || key === 'Enter') {
       if (spotlight && !spotlight.hidden) { activateFirstSpotlightResult(); return; }
@@ -950,10 +1033,7 @@
     if (key === 'ArrowLeft') { moveCaret('left'); return; }
     if (key === 'ArrowRight') { moveCaret('right'); return; }
     if (key === 'ArrowUp' || key === 'ArrowDown') {
-      var element = activeEditable();
-      if (element && element.classList && element.classList.contains('term-input')) {
-        element.dispatchEvent(new KeyboardEvent('keydown', { key: key, code: key, bubbles: true }));
-      } else if (state.focused && state.focused.id === 'notes') {
+      if (state.focused && state.focused.id === 'notes') {
         moveCaret(key === 'ArrowUp' ? 'left' : 'right');
       }
       return;
@@ -1229,15 +1309,30 @@
       if (state.focused) focusWindow(state.focused);
     }, 90);
 
-    setTimeout(function () {
-      if (!bootHidden) {
+    function revealDesktop() {
+      if (bootHidden) return;
+      bootHidden = true;
+      if (boot) boot.classList.add('hidden');
+      setWanixStatus('KERNEL', false);
+      AD.ready();
+      AD.viewport(window.innerWidth, window.innerHeight);
+      AD.state('shell.ready');
+    }
+
+    if (window.AirDeskKernel) {
+      window.AirDeskKernel.ready.then(function () {
+        notify('Wanix kernel ready');
+        revealDesktop();
+      }).catch(function (error) {
         bootHidden = true;
         if (boot) boot.classList.add('hidden');
-        AD.ready();
-        AD.viewport(window.innerWidth, window.innerHeight);
-        AD.state('shell.ready');
-      }
-    }, 480);
+        setWanixStatus('OFFLINE', true);
+        notify('Wanix kernel unavailable');
+        AD.error(String(error && error.message || error));
+      });
+    } else {
+      setTimeout(revealDesktop, 480);
+    }
   }
 
   if (document.readyState === 'loading') {

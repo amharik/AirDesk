@@ -40,7 +40,7 @@ final class WanixRuntimeAdapter: DesktopRuntime {
         do {
             state = .loading
             try surface.load(choice: choice, sessionId: host.sessionId, appearance: appearance)
-            try await PuterRuntimeAdapter.waitForReady(on: surface, timeout: choice == .wanixKernel ? 35 : 20)
+            try await PuterRuntimeAdapter.waitForReady(on: surface, timeout: 35)
             state = .ready
             logger.info("Wanix runtime ready: \(self.identifier, privacy: .public)")
         } catch {

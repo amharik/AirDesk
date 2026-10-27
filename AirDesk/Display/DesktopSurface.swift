@@ -116,7 +116,7 @@ final class DesktopSurface {
         switch choice {
         case .wanixDesktop:
             let url = try bundledURL(name: "index", extension: "html")
-            configurePolicy(for: url, origins: [])
+            configurePolicy(for: url, origins: ["https://cdn.jsdelivr.net", "cdn.jsdelivr.net"])
             webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
         case .wanixKernel:
             let url = try bundledURL(name: "wanix-live", extension: "html")
