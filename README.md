@@ -90,6 +90,8 @@ flowchart TD
 
 The namespace is mounted inside the desktop shell but hidden. Terminal windows create their own `wanix-term`, attach to the shared `#task/shell/term`, and then start the shell task. Finder reads the same root with `readDir`; Notes writes to `opfs/notes.json` and can open arbitrary files from the namespace. When OPFS is unavailable under `file://`, the shell falls back to `#ramfs/new` and snapshots `opfs/` to IndexedDB (with a localStorage fallback), restoring the workspace on the next load. A small file-URL worker shim converts Wanix's module worker into a self-contained classic worker, which Chrome and WKWebView require for `file://` pages.
 
+If the desktop process terminates, `SessionCoordinator` retries with exponential backoff (four attempts, 0.5–8 s). If recovery is exhausted, `SessionRecoveryView` offers retry, display change, and diagnostics actions.
+
 ## Repository layout
 
 ```text
@@ -147,4 +149,4 @@ xcodebuild -project AirDesk.xcodeproj -scheme AirDesk \
 - SharedArrayBuffer/COOP-COEP behavior under `file://` is unverified.
 - OPFS is unavailable in Chrome under `file://`; the fallback snapshots `opfs/` to IndexedDB, but terminal writes outside `opfs/` are not persisted.
 - Terminal commands that create missing files (`touch`, redirection, `write`, `cp`) fail with `No such file or directory`; Wanix's `fs.OpenFile` does not honor `O_CREAT` for missing files. Notes and the kernel API can still write to `opfs/`.
-- The full 10-screen controller flow is still being implemented. The six TV modules now include Desktop, Finder, Terminal, Workbench, Notes, and Spotlight.
+- The controller flow is implemented as named views and inline controller modes: Welcome, Connection Guide, Connection, Session Setup, Connecting, Controller, Session Settings, Diagnostics, Session Recovery, and Keyboard input. Device selection, desktop readiness, and runtime inspection are folded into these destinations rather than separate screens. The six TV modules are complete: Desktop, Finder, Terminal, Workbench, Notes, and Spotlight.
