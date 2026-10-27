@@ -458,7 +458,9 @@ struct ControllerView: View {
             ProgressView()
                 .controlSize(.mini)
                 .tint(ADTheme.amber)
-            Text("Restoring the desktop process…")
+            Text(session.recoveryAttempts > 0
+                ? "Restoring the desktop process… Attempt \(session.recoveryAttempts) of \(session.recoveryMaximumAttempts)"
+                : "Restoring the desktop process…")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(ADTheme.amber)
             Spacer()

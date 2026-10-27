@@ -109,7 +109,10 @@ final class SessionCoordinator: ObservableObject {
     @Published private(set) var isDragging = false
     @Published private(set) var isDemoConnection = false
     @Published private(set) var isExternalConnected = false
+    @Published private(set) var recoveryAttempts = 0
     @Published var isPreviewPresented = false
+
+    var recoveryMaximumAttempts: Int { recovery.maximumAttempts }
 
     let desktopSurface: DesktopSurface
     let dispatcher: InputDispatcher
@@ -125,6 +128,7 @@ final class SessionCoordinator: ObservableObject {
     private var runtime: (any DesktopRuntime)?
     private var connectTask: Task<Void, Never>?
     private var noticeTask: Task<Void, Never>?
+    private var recoveryTask: Task<Void, Never>?
     private var pointer = PointerState()
     private var recovery = SessionRecovery()
 
@@ -163,8 +167,7 @@ final class SessionCoordinator: ObservableObject {
         desktopSurface.onFailure = { [weak self] error in
             guard let self else { return }
             if let surfaceError = error as? DesktopSurfaceError, surfaceError == .processTerminated, self.phase == .ready {
-                self.runtimeState = .recovering
-                self.setNotice("Desktop process restarted. Restoring the workspace…")
+                self.beginRecovery()
             }
         }
     }
@@ -200,6 +203,8 @@ final class SessionCoordinator: ObservableObject {
 
     func beginConnection(to device: DisplayDevice) {
         guard phase != .connecting else { return }
+        recoveryTask?.cancel()
+        recoveryTask = nil
         connectTask?.cancel()
         connectTask = nil
         prepareForNewSession()
@@ -232,6 +237,9 @@ final class SessionCoordinator: ObservableObject {
     }
 
     func cancelConnection() {
+        recoveryTask?.cancel()
+        recoveryTask = nil
+        recoveryAttempts = 0
         connectTask?.cancel()
         connectTask = nil
         dispatcher.endSession()
@@ -255,6 +263,9 @@ final class SessionCoordinator: ObservableObject {
     }
 
     func disconnect() {
+        recoveryTask?.cancel()
+        recoveryTask = nil
+        recoveryAttempts = 0
         connectTask?.cancel()
         connectTask = nil
         dispatcher.endSession()
@@ -285,6 +296,8 @@ final class SessionCoordinator: ObservableObject {
 
     func retry() {
         guard let device = selectedDevice else { return }
+        recovery.reset()
+        recoveryAttempts = 0
         beginConnection(to: device)
     }
 
@@ -513,6 +526,7 @@ final class SessionCoordinator: ObservableObject {
             phase = .ready
             stage = .ready
             recovery.reset()
+            recoveryAttempts = 0
             diagnostics.mark("session.ready")
             logger.info("Session ready: \(self.sessionId, privacy: .public)")
             if settings.hapticsEnabled { Haptics.shared.tap() }
@@ -533,6 +547,44 @@ final class SessionCoordinator: ObservableObject {
             inputTransport.route = .surface
             desktopSurface.returnHome()
         }
+    }
+
+    private func beginRecovery() {
+        guard phase == .ready, recoveryTask == nil, selectedDevice != nil else { return }
+        runtimeState = .recovering
+        setNotice("Desktop process restarted. Restoring the workspace…")
+        diagnostics.mark("session.recovery.begin")
+        recoveryTask = Task { [weak self] in
+            await self?.performRecovery()
+        }
+    }
+
+    private func performRecovery() async {
+        while recovery.canRetry {
+            guard let delay = recovery.beginAttempt() else { break }
+            recoveryAttempts = recovery.attempts
+            diagnostics.mark("session.recovery.attempt.\(recovery.attempts)")
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            guard phase == .ready, runtimeState == .recovering, let device = selectedDevice else {
+                recoveryTask = nil
+                return
+            }
+            recoveryTask = nil
+            beginConnection(to: device)
+            return
+        }
+
+        recoveryTask = nil
+        guard !Task.isCancelled, phase == .ready else { return }
+        phase = .failed
+        stage = .idle
+        runtimeState = .failed
+        lastError = "The desktop process stopped repeatedly. Reconnect to restore the workspace."
+        inputTransport.route = .surface
+        desktopSurface.returnHome()
+        diagnostics.mark("session.recovery.failed")
+        if settings.hapticsEnabled { Haptics.shared.error() }
     }
 
     private func prepareForNewSession() {

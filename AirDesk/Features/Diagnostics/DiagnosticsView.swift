@@ -50,6 +50,7 @@ struct DiagnosticsView: View {
             infoRow("Device", session.selectedDevice?.name ?? "None")
             infoRow("Runtime", "\(session.runtimeName) · \(session.runtimeState.title)")
             infoRow("Session", session.sessionId.isEmpty ? "Inactive" : session.sessionId)
+            infoRow("Recovery", session.recoveryAttempts == 0 ? "None" : "\(session.recoveryAttempts) / \(session.recoveryMaximumAttempts)")
             infoRow("External display", environment.display.hasExternalDisplay ? "Connected" : "Not connected")
             infoRow("Input route", session.effectiveMode == .cast ? "Cast channel" : "Local surface bridge")
         } header: {
@@ -190,6 +191,7 @@ struct DiagnosticsView: View {
         runtime=\(session.runtimeName)
         runtimeState=\(session.runtimeState.rawValue)
         sessionId=\(session.sessionId)
+        recoveryAttempts=\(session.recoveryAttempts)
         eventsSent=\(diagnostics.eventsSent)
         eventsPerSecond=\(diagnostics.eventsPerSecond)
         p50AckMs=\(String(format: "%.1f", diagnostics.p50Latency))
