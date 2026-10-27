@@ -115,13 +115,13 @@ final class DesktopSurface {
 
         switch choice {
         case .wanixDesktop:
-            let url = try bundledURL(name: "index", extension: "html")
-            configurePolicy(for: url, origins: ["https://cdn.jsdelivr.net", "cdn.jsdelivr.net"])
-            webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+            let url = try localAssetURL(name: "index", extension: "html", request: request)
+            configurePolicy(for: url, origins: [Self.origin(of: url)].compactMap { $0 })
+            webView.load(URLRequest(url: url))
         case .wanixKernel:
-            let url = try bundledURL(name: "wanix-live", extension: "html")
-            configurePolicy(for: url, origins: ["https://cdn.jsdelivr.net", "cdn.jsdelivr.net"])
-            webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+            let url = try localAssetURL(name: "wanix-live", extension: "html", request: request)
+            configurePolicy(for: url, origins: [Self.origin(of: url)].compactMap { $0 })
+            webView.load(URLRequest(url: url))
         case .puter:
             let raw = Bundle.main.object(forInfoDictionaryKey: "AirDeskRuntimeBaseURL") as? String ?? ""
             guard let url = URL(string: raw), url.scheme == "https" else {
@@ -233,14 +233,39 @@ final class DesktopSurface {
         )
     }
 
-    private func bundledURL(name: String, extension ext: String) throws -> URL {
-        if let url = Bundle.main.url(forResource: name, withExtension: ext, subdirectory: "DesktopShell") {
+    private func localAssetURL(name: String, extension ext: String, request: LoadRequest) throws -> URL {
+        let directory = try bundledDirectory()
+        let baseURL = try LocalAssetServer.shared.start(rootDirectory: directory)
+        var components = URLComponents(
+            url: baseURL.appendingPathComponent("\(name).\(ext)"),
+            resolvingAgainstBaseURL: false
+        )
+        components?.queryItems = [
+            URLQueryItem(name: "session", value: request.sessionId),
+            URLQueryItem(name: "runtime", value: request.choice.rawValue),
+            URLQueryItem(name: "appearance", value: request.appearance)
+        ]
+        guard let url = components?.url else {
+            throw DesktopSurfaceError.missingResource("\(name).\(ext)")
+        }
+        return url
+    }
+
+    private func bundledDirectory() throws -> URL {
+        if let url = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "DesktopShell") {
+            return url.deletingLastPathComponent()
+        }
+        if let url = Bundle.main.url(forResource: "DesktopShell", withExtension: nil) {
             return url
         }
-        if let url = Bundle.main.url(forResource: name, withExtension: ext) {
-            return url
+        throw DesktopSurfaceError.missingResource("DesktopShell")
+    }
+
+    private static func origin(of url: URL) -> String? {
+        guard let scheme = url.scheme?.lowercased(), let host = url.host?.lowercased() else {
+            return nil
         }
-        throw DesktopSurfaceError.missingResource("\(name).\(ext)")
+        return url.port.map { "\(scheme)://\(host):\($0)" } ?? "\(scheme)://\(host)"
     }
 
     private func handle(_ message: BridgeMessage) {

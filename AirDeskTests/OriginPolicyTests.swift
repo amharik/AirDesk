@@ -30,6 +30,17 @@ final class OriginPolicyTests: XCTestCase {
         XCTAssertFalse(policy.isAllowedNavigation(URL(string: "http://desk.example.com/shell")!))
     }
 
+    func testLoopbackHTTPOriginIsAllowed() {
+        let policy = OriginPolicy(allowedOrigins: ["http://127.0.0.1:60081", "http://localhost:60081"])
+        XCTAssertTrue(policy.isAllowedNavigation(URL(string: "http://127.0.0.1:60081/index.html")!))
+        XCTAssertTrue(policy.isAllowedNavigation(URL(string: "http://localhost:60081/wanix-live.html")!))
+    }
+
+    func testLoopbackHTTPWithDifferentPortIsRejected() {
+        let policy = OriginPolicy(allowedOrigins: ["http://127.0.0.1:60081"])
+        XCTAssertFalse(policy.isAllowedNavigation(URL(string: "http://127.0.0.1:60082/index.html")!))
+    }
+
     func testRemoteRuntimeRequiresConfiguredHost() {
         let url = URL(string: "https://runtime.example.com/app")!
         XCTAssertTrue(OriginPolicy.isAllowedRemoteRuntime(url, configuredOrigin: "runtime.example.com"))

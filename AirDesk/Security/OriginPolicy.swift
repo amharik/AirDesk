@@ -19,8 +19,9 @@ struct OriginPolicy {
             return standardized.path == allowedFileDirectory.path || standardized.path.hasPrefix(base)
         }
 
-        guard let scheme = url.scheme?.lowercased(), scheme == "https" else { return false }
-        guard let host = url.host?.lowercased() else { return false }
+        guard let scheme = url.scheme?.lowercased(), let host = url.host?.lowercased() else { return false }
+        let isLoopbackHTTP = scheme == "http" && (host == "127.0.0.1" || host == "localhost" || host == "::1")
+        guard scheme == "https" || isLoopbackHTTP else { return false }
         let origin = url.port.map { "\(scheme)://\(host):\($0)" } ?? "\(scheme)://\(host)"
         return allowedOrigins.contains(origin) || allowedOrigins.contains(host)
     }

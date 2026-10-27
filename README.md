@@ -25,6 +25,7 @@ flowchart LR
   subgraph Display["TV / external display"]
     DC["DisplayCoordinator<br/>UIWindowScene"]
     DS["DesktopSurface<br/>WKWebView"]
+    LS["LocalAssetServer<br/>127.0.0.1"]
     SH["DesktopShell<br/>index.html + desktop.js"]
     WX["wanix-namespace<br/>wanix@0.4.0-rc2"]
     FS[("OPFS<br/>/opfs")]
@@ -40,7 +41,7 @@ flowchart LR
   SH --> WX
   WX --> FS
   SH --> TERM
-  DC --> DS --> SH
+  DC --> DS --> LS --> SH
   SH -->|"ready / state / viewport / ack"| RB
   CR -.->|"planned custom channel"| WX
 ```
@@ -88,7 +89,11 @@ flowchart TD
   TERM --> INPUT["Controller input"]
 ```
 
-The namespace is mounted inside the desktop shell but hidden. Terminal windows create their own `wanix-term`, attach to the shared `#task/shell/term`, and then start the shell task. Finder reads the same root with `readDir`; Notes writes to `opfs/notes.json` and can open arbitrary files from the namespace. When OPFS is unavailable under `file://`, the shell falls back to `#ramfs/new` and snapshots `opfs/` to IndexedDB (with a localStorage fallback), restoring the workspace on the next load. A small file-URL worker shim converts Wanix's module worker into a self-contained classic worker, which Chrome and WKWebView require for `file://` pages.
+The namespace is mounted inside the desktop shell but hidden. Terminal windows create their own `wanix-term`, attach to the shared `#task/shell/term`, and then start the shell task. Finder reads the same root with `readDir`; Notes writes to `opfs/notes.json` and can open arbitrary files from the namespace.
+
+The native app serves `DesktopShell` from a loopback-only `NWListener` at `http://127.0.0.1:<port>/` instead of loading `file://`. Every response carries `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`, so `WKWebView` reports `crossOriginIsolated === true`, exposes `SharedArrayBuffer`, and allows native OPFS writes from workers. `LocalAssetServerTests` verifies cross-origin isolation, `SharedArrayBuffer`, OPFS file creation, and a worker `createSyncAccessHandle` write on the simulator.
+
+When OPFS is unavailable in Chrome `file://` previews, the shell falls back to `#ramfs/new` and snapshots `opfs/` to IndexedDB (with a localStorage fallback), restoring the workspace on the next load. A small file-URL worker shim converts Wanix's module worker into a self-contained classic worker, which Chrome requires for `file://` pages.
 
 If the desktop process terminates, `SessionCoordinator` retries with exponential backoff (four attempts, 0.5–8 s). If recovery is exhausted, `SessionRecoveryView` offers retry, display change, and diagnostics actions.
 
@@ -102,13 +107,13 @@ AirDesk/
   Display/             WKWebView surface and external display scenes
   Runtime/             Wanix, Puter, and runtime adapters
   Input/               Input schema, dispatcher, pointer ballistics
-  Web/                 Swift-to-JavaScript bridge
+  Web/                 Swift-to-JavaScript bridge, loopback asset server
   Security/            Origin and navigation policy
   Store/               StoreKit 2 entitlement manager
   Resources/
     DesktopShell/      index.html, desktop.js, apps.js, shell.css
     wanix-live.html    Standalone live kernel surface
-  Tests/               Unit tests
+AirDeskTests/          Unit tests
 CastReceiver/          CAF receiver development app
 project.yml            XcodeGen project definition
 ```
@@ -136,6 +141,7 @@ xcodebuild -project AirDesk.xcodeproj -scheme AirDesk \
 ## Security model
 
 - File URLs are restricted to the bundled `DesktopShell` directory.
+- The native desktop is served from a loopback-only HTTP listener; navigation policy accepts plain HTTP only for loopback origins.
 - Wanix CDN origins are allowlisted for the desktop and kernel surfaces.
 - Remote runtime URLs must be HTTPS and match the configured origin.
 - The bridge validates message envelopes and ignores mismatched session IDs.
@@ -146,7 +152,7 @@ xcodebuild -project AirDesk.xcodeproj -scheme AirDesk \
 - Google Cast SDK integration and receiver registration are not complete.
 - Android controller and display clients are not started.
 - The Cast receiver must disable v86 and use a receiver budget below 512 MB.
-- SharedArrayBuffer/COOP-COEP behavior under `file://` is unverified.
+- Native WKWebView loopback hosting now provides COOP/COEP, `SharedArrayBuffer`, and OPFS; Chrome `file://` previews still use the IndexedDB snapshot fallback.
 - OPFS is unavailable in Chrome under `file://`; the fallback snapshots `opfs/` to IndexedDB, but terminal writes outside `opfs/` are not persisted.
 - Terminal commands that create missing files (`touch`, redirection, `write`, `cp`) fail with `No such file or directory`; Wanix's `fs.OpenFile` does not honor `O_CREAT` for missing files. Notes and the kernel API can still write to `opfs/`.
 - The controller flow is implemented as named views and inline controller modes: Welcome, Connection Guide, Connection, Session Setup, Connecting, Controller, Session Settings, Diagnostics, Session Recovery, and Keyboard input. Device selection, desktop readiness, and runtime inspection are folded into these destinations rather than separate screens. The six TV modules are complete: Desktop, Finder, Terminal, Workbench, Notes, and Spotlight.
