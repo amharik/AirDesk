@@ -18,8 +18,13 @@ struct RootView: View {
                 ControllerView()
                     .transition(.opacity)
             case .failed:
-                OnboardingView(startAtConnection: true)
-                    .transition(.opacity)
+                if session.selectedDevice != nil {
+                    SessionRecoveryView()
+                        .transition(.opacity)
+                } else {
+                    OnboardingView(startAtConnection: true)
+                        .transition(.opacity)
+                }
             case .idle:
                 OnboardingView()
                     .transition(.opacity)
