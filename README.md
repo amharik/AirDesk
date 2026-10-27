@@ -93,7 +93,7 @@ The namespace is mounted inside the desktop shell but hidden. Terminal windows c
 
 The native app serves `DesktopShell` from a loopback-only `NWListener` at `http://127.0.0.1:<port>/` instead of loading `file://`. Every response carries `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`, so `WKWebView` reports `crossOriginIsolated === true`, exposes `SharedArrayBuffer`, and allows native OPFS writes from workers. `LocalAssetServerTests` verifies cross-origin isolation, `SharedArrayBuffer`, OPFS file creation, and a worker `createSyncAccessHandle` write on the simulator.
 
-When OPFS is unavailable in Chrome `file://` previews, the shell falls back to `#ramfs/new` and snapshots `opfs/` to IndexedDB (with a localStorage fallback), restoring the workspace on the next load. A small file-URL worker shim converts Wanix's module worker into a self-contained classic worker, which Chrome requires for `file://` pages.
+`wanix-file-worker-fix.js` patches the embedded gojs worker on both loopback HTTP and `file://`: it creates missing files for `O_CREAT`, normalizes rc2 timestamp arguments, and wraps the Blob before Wanix starts. For `file://` it also inlines the `WanixHandle` module and converts the module worker into a self-contained classic worker, which Chrome requires. When OPFS is unavailable under `file://`, the shell falls back to `#ramfs/new` and snapshots `opfs/` to IndexedDB (with a localStorage fallback), restoring the workspace on the next load.
 
 If the desktop process terminates, `SessionCoordinator` retries with exponential backoff (four attempts, 0.5–8 s). If recovery is exhausted, `SessionRecoveryView` offers retry, display change, and diagnostics actions.
 
@@ -115,6 +115,7 @@ AirDesk/
     wanix-live.html    Standalone live kernel surface
 AirDeskTests/          Unit tests
 CastReceiver/          CAF receiver development app
+scripts/               Local preview and simulator helpers
 project.yml            XcodeGen project definition
 ```
 
@@ -138,6 +139,24 @@ xcodebuild -project AirDesk.xcodeproj -scheme AirDesk \
   test CODE_SIGNING_ALLOWED=NO
 ```
 
+## Local preview and simulator helpers
+
+Serve the desktop shell from loopback for Chrome or Safari so COOP/COEP apply:
+
+```bash
+python3 scripts/dev-desktop-server.py
+# open http://127.0.0.1:8123/index.html
+```
+
+Use the detached simulator helper when `simctl launch` or `bootstatus` stalls:
+
+```bash
+scripts/simctl-launch.sh "iPhone 16 Pro" com.airdesk.ios
+scripts/simctl-launch.sh "iPhone 16 Pro" com.airdesk.ios "" -AirDeskAutoDemo
+```
+
+The helper boots, waits with a timeout, installs the Debug app, and launches it in the background. Extra arguments after the app path are forwarded to `simctl launch`.
+
 ## Security model
 
 - File URLs are restricted to the bundled `DesktopShell` directory.
@@ -152,7 +171,7 @@ xcodebuild -project AirDesk.xcodeproj -scheme AirDesk \
 - Google Cast SDK integration and receiver registration are not complete.
 - Android controller and display clients are not started.
 - The Cast receiver must disable v86 and use a receiver budget below 512 MB.
-- Native WKWebView loopback hosting now provides COOP/COEP, `SharedArrayBuffer`, and OPFS; Chrome `file://` previews still use the IndexedDB snapshot fallback.
+- Native WKWebView loopback hosting now provides COOP/COEP, `SharedArrayBuffer`, and OPFS. Chrome `file://` previews still use the IndexedDB snapshot fallback; use `scripts/dev-desktop-server.py` for full worker and OPFS behavior.
 - OPFS is unavailable in Chrome under `file://`; the fallback snapshots `opfs/` to IndexedDB, but terminal writes outside `opfs/` are not persisted.
-- Terminal commands that create missing files (`touch`, redirection, `write`, `cp`) fail with `No such file or directory`; Wanix's `fs.OpenFile` does not honor `O_CREAT` for missing files. Notes and the kernel API can still write to `opfs/`.
+- Wanix rc2 ignores `O_CREAT` and rejects integer `chtimes` timestamps. `wanix-file-worker-fix.js` patches the embedded gojs worker; `touch`, output redirection (`>`), and `cat` work in both `ramfs` and `opfs`, and `cp` works in `ramfs` and the IndexedDB fallback. Append redirection (`>>`) is not supported and currently overwrites. FSA-backed OPFS `cp` can report a false same-file error; direct OPFS reads and writes work.
 - The controller flow is implemented as named views and inline controller modes: Welcome, Connection Guide, Connection, Session Setup, Connecting, Controller, Session Settings, Diagnostics, Session Recovery, and Keyboard input. Device selection, desktop readiness, and runtime inspection are folded into these destinations rather than separate screens. The six TV modules are complete: Desktop, Finder, Terminal, Workbench, Notes, and Spotlight.

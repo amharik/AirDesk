@@ -7,3 +7,6 @@ xcuserdata/
 AirDesk.xcodeproj/
 CastReceiver/desktop/
 CastReceiver/dist/
+
+__pycache__/
+*.pyc
