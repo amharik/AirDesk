@@ -157,6 +157,18 @@ scripts/simctl-launch.sh "iPhone 16 Pro" com.airdesk.ios "" -AirDeskAutoDemo
 
 The helper boots, waits with a timeout, installs the Debug app, and launches it in the background. Extra arguments after the app path are forwarded to `simctl launch`.
 
+Run the Chrome CDP smoke test after starting the loopback server and a headless Chrome instance with remote debugging:
+
+```bash
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+  --headless=new --disable-gpu --remote-debugging-port=9222 about:blank
+
+uv run --with websockets python3 scripts/desktop-smoke-test.py \
+  http://127.0.0.1:8123/index.html
+```
+
+The test verifies terminal startup, `touch`, `>`, `>>`, `cat`, `cp`, and OPFS reads and writes. It exits nonzero on a missing prompt or content mismatch.
+
 ## Security model
 
 - File URLs are restricted to the bundled `DesktopShell` directory.
@@ -173,5 +185,5 @@ The helper boots, waits with a timeout, installs the Debug app, and launches it 
 - The Cast receiver must disable v86 and use a receiver budget below 512 MB.
 - Native WKWebView loopback hosting now provides COOP/COEP, `SharedArrayBuffer`, and OPFS. Chrome `file://` previews still use the IndexedDB snapshot fallback; use `scripts/dev-desktop-server.py` for full worker and OPFS behavior.
 - OPFS is unavailable in Chrome under `file://`; the fallback snapshots `opfs/` to IndexedDB, but terminal writes outside `opfs/` are not persisted.
-- Wanix rc2 ignores `O_CREAT` and rejects integer `chtimes` timestamps. `wanix-file-worker-fix.js` patches the embedded gojs worker; `touch`, output redirection (`>`), and `cat` work in both `ramfs` and `opfs`, and `cp` works in `ramfs` and the IndexedDB fallback. Append redirection (`>>`) is not supported and currently overwrites. FSA-backed OPFS `cp` can report a false same-file error; direct OPFS reads and writes work.
+- Wanix rc2 ignores `O_CREAT`, rejects integer `chtimes` timestamps, hardcodes zero inodes, and does not honor `O_APPEND`. `wanix-file-worker-fix.js` patches the embedded gojs worker to create and truncate files, normalize timestamp arguments, assign unique inodes, and track append offsets. `touch`, `>`, `>>`, `cat`, and `cp` work in `ramfs` and OPFS. The patch targets the gojs worker used by `rc.wasm`; standalone WASI workers still use upstream behavior.
 - The controller flow is implemented as named views and inline controller modes: Welcome, Connection Guide, Connection, Session Setup, Connecting, Controller, Session Settings, Diagnostics, Session Recovery, and Keyboard input. Device selection, desktop readiness, and runtime inspection are folded into these destinations rather than separate screens. The six TV modules are complete: Desktop, Finder, Terminal, Workbench, Notes, and Spotlight.
