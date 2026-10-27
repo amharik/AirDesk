@@ -16,7 +16,9 @@
   var showDebug = params.get('debug') === '1';
   var frameReady = false;
   var pending = [];
+  var pendingControl = [];
   var inputCount = 0;
+  var bridgeRetries = 0;
   var receiverContext = null;
 
   if (showDebug) debug.hidden = false;
@@ -35,8 +37,6 @@
     return url.indexOf('?') >= 0 ? '&' : '?';
   }
 
-  frame.src = shellURL + separator(shellURL) + 'session=' + encodeURIComponent(sessionId);
-
   function shellBridge() {
     try {
       return frame.contentWindow && frame.contentWindow.AirDeskBridge;
@@ -49,18 +49,65 @@
     var bridge = shellBridge();
     if (!bridge || !frameReady) {
       pending.push(event);
+      if (frameReady) flushPending();
       return;
     }
-    bridge.receive(Object.assign({}, event, { sessionId: sessionId }));
-    inputCount += 1;
-    debugCount.textContent = String(inputCount);
-    debugLast.textContent = String(event.type || 'input');
+    try {
+      bridge.receive(Object.assign({}, event, { sessionId: sessionId }));
+      inputCount += 1;
+      debugCount.textContent = String(inputCount);
+      debugLast.textContent = String(event.type || 'input');
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   function deliverControl(message) {
     var bridge = shellBridge();
-    if (!bridge || !frameReady) return;
-    bridge.receiveControl(message);
+    if (!bridge || !frameReady) {
+      pendingControl.push(message);
+      if (frameReady) flushPending();
+      return;
+    }
+    try {
+      bridge.receiveControl(message);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  function flushPending() {
+    var bridge = shellBridge();
+    if (!frameReady || !bridge) {
+      if (frameReady && bridgeRetries < 50) {
+        bridgeRetries += 1;
+        window.setTimeout(flushPending, 120);
+      } else if (frameReady) {
+        setStatus('AIRDESK SHELL UNAVAILABLE', false);
+        setDebugState('shell bridge unavailable');
+      }
+      return;
+    }
+    bridgeRetries = 0;
+    while (pendingControl.length) {
+      try {
+        bridge.receiveControl(pendingControl.shift());
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    while (pending.length) {
+      var event = pending.shift();
+      try {
+        bridge.receive(Object.assign({}, event, { sessionId: sessionId }));
+        inputCount += 1;
+        debugLast.textContent = String(event.type || 'input');
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    debugCount.textContent = String(inputCount);
+    setDebugState('shell ready');
   }
 
   function parsePayload(data) {
@@ -99,15 +146,21 @@
 
   frame.addEventListener('load', function () {
     frameReady = true;
-    setDebugState('shell ready');
-    while (pending.length) deliverInput(pending.shift());
+    bridgeRetries = 0;
+    setDebugState('shell loading');
+    flushPending();
   });
+  frame.addEventListener('error', function () {
+    setStatus('AIRDESK SHELL ERROR', false);
+    setDebugState('shell error');
+  });
+  frame.src = shellURL + separator(shellURL) + 'session=' + encodeURIComponent(sessionId);
 
   function startReceiver() {
     var caf = window.cast && window.cast.framework;
     if (!caf || !caf.CastReceiverContext) {
       setStatus('AIRDESK PREVIEW', false);
-      setDebugState('cast sdk unavailable');
+      if (!shellBridge()) setDebugState('cast sdk unavailable');
       return;
     }
     receiverContext = caf.CastReceiverContext.getInstance();
@@ -129,6 +182,13 @@
     setStatus('AIRDESK READY', false);
     setDebugState('receiver ready');
   }
+
+  window.AirDeskReceiver = {
+    handleInput: handleInput,
+    handleControl: handleControl,
+    pendingCount: function () { return pending.length + pendingControl.length; },
+    bridgeReady: function () { return !!shellBridge(); }
+  };
 
   window.addEventListener('load', startReceiver);
 })();
