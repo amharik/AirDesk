@@ -28,26 +28,59 @@ The sender accepts only control messages for the active `sessionId` and `generat
 
 `ack` reports the highest contiguous shell-confirmed input sequence. The receiver does not replay pointer, button, key, or text events after reconnect.
 
-## Hosting
+## Packaging
 
-Serve the repository root so the receiver can load the shell at its relative path:
+Build a self-contained receiver bundle before deploying:
 
 ```sh
-cd /path/to/airdesk
-python3 -m http.server 8090
+scripts/package-cast-receiver.sh
+```
+
+The output is `CastReceiver/dist/`:
+
+```text
+CastReceiver/dist/
+  index.html
+  receiver.js
+  receiver.css
+  desktop/
+    index.html
+    apps.js
+    bridge.js
+    desktop.js
+    shell.css
+    wanix-*.js
+```
+
+The packaging step copies the current desktop shell and rewrites the receiver's default shell URL to `desktop/index.html`. `CastReceiver/dist/` is disposable and gitignored.
+
+## Hosting
+
+For a local browser preview, serve the packaged bundle with cross-origin isolation headers:
+
+```sh
+python3 scripts/dev-desktop-server.py --root CastReceiver/dist --port 8090
 ```
 
 Open:
 
 ```text
-http://localhost:8090/CastReceiver/?debug=1
+http://localhost:8090/?debug=1
 ```
 
-Google Cast requires HTTPS for a registered receiver. Use a trusted tunnel or static host for device testing.
+Serving the repository root also works during development:
+
+```sh
+cd /path/to/airdesk
+python3 -m http.server 8090
+# open http://localhost:8090/CastReceiver/?debug=1
+```
+
+Google Cast requires HTTPS for a registered receiver. The public host must send `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` so the Wanix shell remains cross-origin isolated. Use a trusted tunnel or static host for device testing; plain `python3 -m http.server` is only suitable for local previews that do not need `SharedArrayBuffer`.
 
 ## Shell URL and bridge origin
 
-The default shell path is `../AirDesk/Resources/DesktopShell/index.html`. Override it with the `shell` query parameter:
+The source receiver defaults to `../AirDesk/Resources/DesktopShell/index.html`; the packaged receiver defaults to `desktop/index.html`. Override either with the `shell` query parameter:
 
 ```text
 https://receiver.example.com/CastReceiver/?shell=/desktop/index.html&session=my-session&debug=1
