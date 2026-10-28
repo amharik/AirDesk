@@ -106,6 +106,8 @@ If the desktop process terminates, `SessionCoordinator` retries with exponential
 - **Extended desktop** creates a `UIWindowScene` window for a wired or supported external display and moves the Wanix surface there. The controller stays on the iPhone.
 - **Mirror iPhone screen** intentionally leaves the external display scene without a window, which lets the system mirror the entire iPhone screen. AirPlay mirroring is started from Control Center; iOS does not provide a public API to start Screen Mirroring from inside an app. Open Desktop Preview to put the live desktop on the mirrored TV.
 
+When AirPlay mirroring does not create an external display scene, `DisplayCoordinator` detects the mirrored `UIScreen` and reports mirroring state so Connect, Settings, and Preview stay in sync.
+
 `AVRoutePickerView` is not used for this path because it routes media playback, not screen mirroring. AirPlay mirroring shares the controller UI as well as the preview, so extended desktop remains the better choice when the hardware supports it.
 
 ## Repository layout
@@ -232,8 +234,8 @@ Ordered by release risk and dependency. Google Cast work is paused by request.
 7. **OPFS persistence**
    - WKWebView exposes OPFS handles without `createWritable`, so the shell falls back to `#ramfs/new` plus an IndexedDB snapshot.
    - The fallback snapshots `opfs/` only; terminal writes outside `opfs/` are not persisted. Chrome loopback HTTP still uses full OPFS via `scripts/dev-desktop-server.py`.
-8. **AirPlay detection fallback**
-   - Current mirroring state relies on an external-display scene. If hardware mirrors without creating one, add a `UIScreen`/mirrored-screen fallback.
+8. **AirPlay mirroring hardware validation**
+   - `DisplayCoordinator` now detects a mirrored `UIScreen` when AirPlay does not create an external display scene. Validate detection, Preview, and disconnect handling on an Apple TV.
 9. **Cast SDK upgrade path**
    - The SDK is pinned to 4.8.4. Version 4.8.6 references iOS 26 `UIGlassEffect` and does not link with the current Xcode 16.4/iOS 18.5 SDK; revisit after upgrading Xcode.
 

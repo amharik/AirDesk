@@ -18,6 +18,7 @@ final class DisplayCoordinator: ObservableObject {
     private var window: UIWindow?
     private weak var activeScene: UIWindowScene?
     private var controller: ExternalDisplayViewController?
+    private var fallbackMirroredScreen: UIScreen?
     private var observers: [NSObjectProtocol] = []
 
     init() {
@@ -38,6 +39,28 @@ final class DisplayCoordinator: ObservableObject {
             guard let scene = note.object as? UIWindowScene else { return }
             Task { @MainActor in self?.unregister(scene: scene) }
         })
+        observers.append(center.addObserver(
+            forName: UIScreen.didConnectNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.refreshScreenFallback() }
+        })
+        observers.append(center.addObserver(
+            forName: UIScreen.didDisconnectNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.refreshScreenFallback() }
+        })
+        observers.append(center.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.refreshScreenFallback() }
+        })
+        refreshScreenFallback()
     }
 
     deinit {
@@ -56,20 +79,24 @@ final class DisplayCoordinator: ObservableObject {
     func setPresentationMode(_ mode: DisplayPresentationMode) {
         guard presentationMode != mode else { return }
         presentationMode = mode
-        guard isExternalDisplayConnected, let scene = activeScene else { return }
+        guard isExternalDisplayConnected else { return }
 
         if mode == .mirrored {
             teardownWindow()
-            isMirroring = true
+            setMirroring(true)
             logger.info("External display switched to mirroring")
-            onMirroringChanged?(true)
-        } else {
-            isMirroring = false
+        } else if let scene = activeScene {
+            setMirroring(false)
             makeWindow(for: scene)
             logger.info("External display switched to extended desktop")
             if let contentView = controller?.contentView {
                 onExternalDisplayConnected?(contentView)
             }
+        } else if fallbackMirroredScreen != nil {
+            setMirroring(true)
+            logger.info("AirPlay mirroring cannot provide an extended desktop")
+        } else {
+            setMirroring(false)
         }
     }
 
@@ -83,17 +110,17 @@ final class DisplayCoordinator: ObservableObject {
             unregister(scene: existing)
         }
 
+        fallbackMirroredScreen = nil
         activeScene = scene
         externalDisplaySize = scene.screen.bounds.size
         externalDisplayName = "External display"
         isExternalDisplayConnected = true
 
         if presentationMode == .mirrored {
-            isMirroring = true
+            setMirroring(true)
             logger.info("External display connected in mirroring mode")
-            onMirroringChanged?(true)
         } else {
-            isMirroring = false
+            setMirroring(false)
             makeWindow(for: scene)
             logger.info("External display connected: \(String(describing: scene.screen.bounds.size), privacy: .public)")
             if let contentView = controller?.contentView {
@@ -107,16 +134,57 @@ final class DisplayCoordinator: ObservableObject {
         let wasMirroring = isMirroring
         teardownWindow()
         activeScene = nil
+        fallbackMirroredScreen = nil
         isExternalDisplayConnected = false
         isMirroring = false
         externalDisplayName = ""
         externalDisplaySize = .zero
         logger.info("External display disconnected")
-        if wasMirroring {
-            onMirroringChanged?(false)
-        } else {
-            onExternalDisplayDisconnected?()
+        refreshScreenFallback()
+        if !isMirroring {
+            if wasMirroring {
+                onMirroringChanged?(false)
+            } else {
+                onExternalDisplayDisconnected?()
+            }
         }
+    }
+
+    private func refreshScreenFallback() {
+        guard activeScene == nil else { return }
+        let mirroredScreen = UIScreen.screens.first { $0.mirrored != nil }
+
+        guard let mirroredScreen else {
+            guard fallbackMirroredScreen != nil else { return }
+            let wasMirroring = isMirroring
+            fallbackMirroredScreen = nil
+            isExternalDisplayConnected = false
+            isMirroring = false
+            externalDisplayName = ""
+            externalDisplaySize = .zero
+            logger.info("AirPlay mirroring disconnected")
+            if wasMirroring {
+                onMirroringChanged?(false)
+            } else {
+                onExternalDisplayDisconnected?()
+            }
+            return
+        }
+
+        fallbackMirroredScreen = mirroredScreen
+        isExternalDisplayConnected = true
+        externalDisplaySize = mirroredScreen.bounds.size
+        externalDisplayName = "AirPlay mirroring"
+        if !isMirroring {
+            setMirroring(true)
+            logger.info("AirPlay mirroring detected without an external display scene")
+        }
+    }
+
+    private func setMirroring(_ value: Bool) {
+        guard isMirroring != value else { return }
+        isMirroring = value
+        onMirroringChanged?(value)
     }
 
     func registerDirectlyIfExternal(_ scene: UIWindowScene) {
