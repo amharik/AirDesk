@@ -103,10 +103,10 @@ If the desktop process terminates, `SessionCoordinator` retries with exponential
 
 `DisplayCoordinator` supports two output modes, persisted in Settings:
 
-- **Extended desktop** creates a `UIWindowScene` window for a wired or supported external display and moves the Wanix surface there. The controller stays on the iPhone.
+- **Extended desktop** attaches and makes visible a `UIWindow` in the external `.windowExternalDisplayNonInteractive` scene, moves the Wanix surface there, and uses the display's native bounds. On AirPlay this asks iOS to leave system mirroring and render the desktop independently; the controller stays on the iPhone.
 - **Mirror iPhone screen** intentionally leaves the external display scene without a window, which lets the system mirror the entire iPhone screen. AirPlay mirroring is started from Control Center; iOS does not provide a public API to start Screen Mirroring from inside an app. Open Desktop Preview to put the live desktop on the mirrored TV.
 
-When AirPlay mirroring does not create an external display scene, `DisplayCoordinator` detects the mirrored `UIScreen` and reports mirroring state so Connect, Settings, and Preview stay in sync.
+When AirPlay mirroring does not create an external display scene, `DisplayCoordinator` detects the mirrored `UIScreen` and reports mirroring state so Connect, Settings, and Preview stay in sync. The idle timer is disabled while an external display or Cast session is active so the phone does not lock the desktop surface.
 
 `AVRoutePickerView` is not used for this path because it routes media playback, not screen mirroring. AirPlay mirroring shares the controller UI as well as the preview, so extended desktop remains the better choice when the hardware supports it.
 

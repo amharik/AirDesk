@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import UIKit
 
 @MainActor
 final class AppEnvironment: ObservableObject {
@@ -62,6 +63,25 @@ final class AppEnvironment: ObservableObject {
             }
             .store(in: &cancellables)
 
+        Publishers.CombineLatest4(
+            session.$phase,
+            session.$mode,
+            display.$isExternalDisplayConnected,
+            cast.$state
+        )
+        .receive(on: RunLoop.main)
+        .sink { [weak self] phase, mode, isExternalConnected, castState in
+            Task { @MainActor in
+                self?.updateIdleTimer(
+                    phase: phase,
+                    mode: mode,
+                    isExternalConnected: isExternalConnected,
+                    castState: castState
+                )
+            }
+        }
+        .store(in: &cancellables)
+
         cast.onInput = { [weak self] event in
             self?.session.castDidReceive(event)
         }
@@ -80,5 +100,16 @@ final class AppEnvironment: ObservableObject {
         }
         NativeSmokeTest.runIfRequested(session: session)
         #endif
+    }
+
+    private func updateIdleTimer(
+        phase: SessionPhase,
+        mode: SessionMode,
+        isExternalConnected: Bool,
+        castState: CastConnectionState
+    ) {
+        let keepAwake = phase == .ready &&
+            (isExternalConnected || mode == .cast || castState == .connected)
+        UIApplication.shared.isIdleTimerDisabled = keepAwake
     }
 }

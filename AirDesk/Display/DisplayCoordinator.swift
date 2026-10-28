@@ -193,10 +193,12 @@ final class DisplayCoordinator: ObservableObject {
 
     private func makeWindow(for scene: UIWindowScene) {
         let controller = ExternalDisplayViewController()
+        scene.screen.overscanCompensation = .none
         let window = UIWindow(windowScene: scene)
+        window.frame = scene.screen.bounds
         window.rootViewController = controller
         window.backgroundColor = .black
-        window.isHidden = false
+        window.makeKeyAndVisible()
         self.controller = controller
         self.window = window
     }
@@ -204,6 +206,7 @@ final class DisplayCoordinator: ObservableObject {
     private func teardownWindow() {
         controller?.setActive(false)
         window?.isHidden = true
+        window?.windowScene = nil
         window = nil
         controller = nil
     }
