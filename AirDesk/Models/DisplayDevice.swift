@@ -71,6 +71,41 @@ enum SessionMode: String, Codable, CaseIterable, Sendable {
     }
 }
 
+enum DisplayPresentationMode: String, Codable, CaseIterable, Identifiable, Sendable {
+    case extended
+    case mirrored
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .extended: return "Extended desktop"
+        case .mirrored: return "Mirror iPhone screen"
+        }
+    }
+
+    var shortTitle: String {
+        switch self {
+        case .extended: return "Extended"
+        case .mirrored: return "Mirrored"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .extended: return "The display renders the Wanix desktop while the controller stays on iPhone."
+        case .mirrored: return "AirPlay shares the entire iPhone screen, including the controller and preview."
+        }
+    }
+
+    var iconName: String {
+        switch self {
+        case .extended: return "rectangle.on.rectangle.angled"
+        case .mirrored: return "rectangle.on.rectangle"
+        }
+    }
+}
+
 struct DisplayDevice: Identifiable, Hashable, Sendable {
     let id: String
     let name: String

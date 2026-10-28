@@ -5,11 +5,14 @@ import UIKit
 @MainActor
 final class DisplayCoordinator: ObservableObject {
     @Published private(set) var isExternalDisplayConnected = false
+    @Published private(set) var isMirroring = false
+    @Published private(set) var presentationMode: DisplayPresentationMode = .extended
     @Published private(set) var externalDisplayName = ""
     @Published private(set) var externalDisplaySize: CGSize = .zero
 
     var onExternalDisplayConnected: ((UIView) -> Void)?
     var onExternalDisplayDisconnected: (() -> Void)?
+    var onMirroringChanged: ((Bool) -> Void)?
 
     private let logger = Logger(subsystem: "com.airdesk.ios", category: "Display")
     private var window: UIWindow?
@@ -50,6 +53,26 @@ final class DisplayCoordinator: ObservableObject {
         return controller?.contentView
     }
 
+    func setPresentationMode(_ mode: DisplayPresentationMode) {
+        guard presentationMode != mode else { return }
+        presentationMode = mode
+        guard isExternalDisplayConnected, let scene = activeScene else { return }
+
+        if mode == .mirrored {
+            teardownWindow()
+            isMirroring = true
+            logger.info("External display switched to mirroring")
+            onMirroringChanged?(true)
+        } else {
+            isMirroring = false
+            makeWindow(for: scene)
+            logger.info("External display switched to extended desktop")
+            if let contentView = controller?.contentView {
+                onExternalDisplayConnected?(contentView)
+            }
+        }
+    }
+
     func register(scene: UIWindowScene) {
         guard scene.session.role == .windowExternalDisplay || scene.session.role == .windowExternalDisplayNonInteractive else {
             return
@@ -60,6 +83,47 @@ final class DisplayCoordinator: ObservableObject {
             unregister(scene: existing)
         }
 
+        activeScene = scene
+        externalDisplaySize = scene.screen.bounds.size
+        externalDisplayName = "External display"
+        isExternalDisplayConnected = true
+
+        if presentationMode == .mirrored {
+            isMirroring = true
+            logger.info("External display connected in mirroring mode")
+            onMirroringChanged?(true)
+        } else {
+            isMirroring = false
+            makeWindow(for: scene)
+            logger.info("External display connected: \(String(describing: scene.screen.bounds.size), privacy: .public)")
+            if let contentView = controller?.contentView {
+                onExternalDisplayConnected?(contentView)
+            }
+        }
+    }
+
+    func unregister(scene: UIWindowScene) {
+        guard activeScene === scene else { return }
+        let wasMirroring = isMirroring
+        teardownWindow()
+        activeScene = nil
+        isExternalDisplayConnected = false
+        isMirroring = false
+        externalDisplayName = ""
+        externalDisplaySize = .zero
+        logger.info("External display disconnected")
+        if wasMirroring {
+            onMirroringChanged?(false)
+        } else {
+            onExternalDisplayDisconnected?()
+        }
+    }
+
+    func registerDirectlyIfExternal(_ scene: UIWindowScene) {
+        register(scene: scene)
+    }
+
+    private func makeWindow(for scene: UIWindowScene) {
         let controller = ExternalDisplayViewController()
         let window = UIWindow(windowScene: scene)
         window.rootViewController = controller
@@ -67,30 +131,13 @@ final class DisplayCoordinator: ObservableObject {
         window.isHidden = false
         self.controller = controller
         self.window = window
-        self.activeScene = scene
-        externalDisplaySize = scene.screen.bounds.size
-        isExternalDisplayConnected = true
-        externalDisplayName = "External display"
-        logger.info("External display connected: \(String(describing: scene.screen.bounds.size), privacy: .public)")
-        onExternalDisplayConnected?(controller.contentView)
     }
 
-    func unregister(scene: UIWindowScene) {
-        guard activeScene === scene else { return }
+    private func teardownWindow() {
         controller?.setActive(false)
         window?.isHidden = true
         window = nil
         controller = nil
-        activeScene = nil
-        isExternalDisplayConnected = false
-        externalDisplayName = ""
-        externalDisplaySize = .zero
-        logger.info("External display disconnected")
-        onExternalDisplayDisconnected?()
-    }
-
-    func registerDirectlyIfExternal(_ scene: UIWindowScene) {
-        register(scene: scene)
     }
 
     func present(surface: DesktopSurface) {

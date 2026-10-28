@@ -51,12 +51,19 @@ struct DiagnosticsView: View {
             infoRow("Runtime", "\(session.runtimeName) · \(session.runtimeState.title)")
             infoRow("Session", session.sessionId.isEmpty ? "Inactive" : session.sessionId)
             infoRow("Recovery", session.recoveryAttempts == 0 ? "None" : "\(session.recoveryAttempts) / \(session.recoveryMaximumAttempts)")
-            infoRow("External display", environment.display.hasExternalDisplay ? "Connected" : "Not connected")
+            infoRow("Display output", displayOutput)
+            infoRow("External display", environment.display.isExternalDisplayConnected ? "Connected" : "Not connected")
             infoRow("Input route", session.effectiveMode == .cast ? "Cast channel" : "Local surface bridge")
         } header: {
             sectionHeader("Session")
         }
         .listRowBackground(rowBackground)
+    }
+
+    private var displayOutput: String {
+        if environment.display.isMirroring { return "AirPlay mirroring" }
+        if environment.display.hasExternalDisplay { return "Extended desktop" }
+        return "On-device"
     }
 
     private var performanceSection: some View {

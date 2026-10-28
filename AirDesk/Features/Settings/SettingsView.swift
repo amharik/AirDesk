@@ -12,6 +12,7 @@ struct SettingsView: View {
             Form {
                 proSection
                 sessionSection
+                displaySection
                 cursorSection
                 runtimeSection
                 castSection
@@ -144,6 +145,40 @@ struct SettingsView: View {
             sectionHeader("Session")
         } footer: {
             Text("Display and runtime states are reported explicitly. AirDesk never claims readiness before the Wanix runtime confirms it.")
+        }
+        .listRowBackground(rowBackground)
+    }
+
+    private var displaySection: some View {
+        Section {
+            Picker("Display output", selection: $settings.displayMode) {
+                ForEach(DisplayPresentationMode.allCases) { mode in
+                    Text(mode.shortTitle).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: settings.displayMode.iconName)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(ADTheme.textTertiary)
+                    .padding(.top, 2)
+                Text(settings.displayMode.detail)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(ADTheme.textTertiary)
+                    .lineSpacing(1.5)
+            }
+            .padding(.vertical, 2)
+
+            if environment.display.isMirroring {
+                Label("AirPlay mirroring active", systemImage: "airplayvideo")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(ADTheme.accent)
+            }
+        } header: {
+            sectionHeader("Display output")
+        } footer: {
+            Text("Mirror iPhone uses AirPlay Screen Mirroring from Control Center. Extended desktop requires a supported external display and keeps the controller on iPhone.")
         }
         .listRowBackground(rowBackground)
     }
@@ -310,7 +345,7 @@ struct SettingsView: View {
         } header: {
             sectionHeader("Google Cast")
         } footer: {
-            Text("The demo receiver exercises the shared controller and input schema on-device. Shipping Cast support requires the official Google Cast iOS Sender SDK and a hosted AirDesk Custom Web Receiver.")
+            Text("The Google Cast SDK is linked. Real receivers require a registered application ID and a hosted AirDesk Custom Web Receiver; without them AirDesk uses the on-device demo receiver.")
         }
         .listRowBackground(rowBackground)
     }

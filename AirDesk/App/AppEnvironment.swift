@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 
 @MainActor
@@ -25,6 +26,7 @@ final class AppEnvironment: ObservableObject {
     @Published var isProPresented = false
 
     private var bootstrapped = false
+    private var cancellables = Set<AnyCancellable>()
 
     private init() {
         settings = AppSettings()
@@ -39,12 +41,26 @@ final class AppEnvironment: ObservableObject {
         guard !bootstrapped else { return }
         bootstrapped = true
 
+        display.setPresentationMode(settings.displayMode)
         display.onExternalDisplayConnected = { [weak self] container in
             self?.session.externalDisplayDidConnect(container)
         }
         display.onExternalDisplayDisconnected = { [weak self] in
             self?.session.externalDisplayDidDisconnect()
         }
+        display.onMirroringChanged = { [weak self] isMirroring in
+            self?.session.displayMirroringDidChange(isMirroring)
+        }
+
+        settings.$displayMode
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] mode in
+                Task { @MainActor in
+                    self?.display.setPresentationMode(mode)
+                }
+            }
+            .store(in: &cancellables)
 
         cast.onInput = { [weak self] event in
             self?.session.castDidReceive(event)

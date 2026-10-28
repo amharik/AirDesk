@@ -17,11 +17,11 @@ struct ConnectionGuideView: View {
                             title: "AirPlay",
                             subtitle: "Best for Apple TV and supported TVs.",
                             steps: [
+                                "In Settings, set Display output to Mirror iPhone screen.",
                                 "Open Control Center and choose Screen Mirroring.",
-                                "Select your Apple TV or AirPlay display.",
-                                "Return to AirDesk and choose the display in Connect."
+                                "Select your Apple TV, return to AirDesk, and open Preview."
                             ],
-                            footnote: "AirPlay mirroring shares the iPhone screen. Extended desktop requires a supported external display."
+                            footnote: "AirPlay shares the entire iPhone screen, including the controller. Extended desktop requires a supported external display."
                         )
                         guideCard(
                             icon: "airplayvideo",

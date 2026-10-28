@@ -99,6 +99,15 @@ The native app serves `DesktopShell` from a loopback-only `NWListener` at `http:
 
 If the desktop process terminates, `SessionCoordinator` retries with exponential backoff (four attempts, 0.5–8 s). If recovery is exhausted, `SessionRecoveryView` offers retry, display change, and diagnostics actions.
 
+## Display and AirPlay
+
+`DisplayCoordinator` supports two output modes, persisted in Settings:
+
+- **Extended desktop** creates a `UIWindowScene` window for a wired or supported external display and moves the Wanix surface there. The controller stays on the iPhone.
+- **Mirror iPhone screen** intentionally leaves the external display scene without a window, which lets the system mirror the entire iPhone screen. AirPlay mirroring is started from Control Center; iOS does not provide a public API to start Screen Mirroring from inside an app. Open Desktop Preview to put the live desktop on the mirrored TV.
+
+`AVRoutePickerView` is not used for this path because it routes media playback, not screen mirroring. AirPlay mirroring shares the controller UI as well as the preview, so extended desktop remains the better choice when the hardware supports it.
+
 ## Repository layout
 
 ```text
@@ -192,6 +201,7 @@ The helper boots the simulator, installs the app, launches it with `-AirDeskSmok
 
 - Google Cast SDK 4.8.4 (dynamic) is linked via Swift Package Manager, and the sender adapter is wired for session lifecycle, input, and control channels. Real casting still requires a registered receiver application ID (`AIRDESK_CAST_RECEIVER_APP_ID`) and a hosted HTTPS receiver.
 - Android controller and display clients are not started.
+- AirPlay Screen Mirroring must be started from Control Center; the app cannot launch it. AirPlay mirroring also mirrors the controller UI, so independent AirPlay output requires a supported external display.
 - The Cast receiver must disable v86 and use a receiver budget below 512 MB.
 - Native WKWebView loopback hosting provides COOP/COEP and `SharedArrayBuffer`, but its OPFS handles lack `createWritable`; the shell uses the IndexedDB snapshot fallback for `opfs/` on iOS 18.6. Chrome loopback HTTP still uses full OPFS; use `scripts/dev-desktop-server.py` for that path.
 - The IndexedDB fallback snapshots `opfs/` only; terminal writes outside `opfs/` are not persisted.

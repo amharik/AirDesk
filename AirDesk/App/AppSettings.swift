@@ -10,6 +10,7 @@ final class AppSettings: ObservableObject {
         static let runtime = "airdesk.runtime"
         static let desktopAppearance = "airdesk.desktop.appearance"
         static let showHints = "airdesk.ui.hints"
+        static let displayMode = "airdesk.display.mode"
     }
 
     @Published var pointerSensitivity: Double {
@@ -40,6 +41,10 @@ final class AppSettings: ObservableObject {
         didSet { defaults.set(showInteractionHints, forKey: Key.showHints) }
     }
 
+    @Published var displayMode: DisplayPresentationMode {
+        didSet { defaults.set(displayMode.rawValue, forKey: Key.displayMode) }
+    }
+
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
@@ -50,6 +55,11 @@ final class AppSettings: ObservableObject {
         hapticsEnabled = defaults.object(forKey: Key.haptics) as? Bool ?? true
         showInteractionHints = defaults.object(forKey: Key.showHints) as? Bool ?? true
         desktopAppearance = defaults.string(forKey: Key.desktopAppearance) ?? "dark"
+        if let raw = defaults.string(forKey: Key.displayMode), let mode = DisplayPresentationMode(rawValue: raw) {
+            displayMode = mode
+        } else {
+            displayMode = .extended
+        }
         if let raw = defaults.string(forKey: Key.runtime), let choice = RuntimeChoice(rawValue: raw) {
             runtimeChoice = choice
         } else {
@@ -68,6 +78,7 @@ final class AppSettings: ObservableObject {
         hapticsEnabled = true
         showInteractionHints = true
         desktopAppearance = "dark"
+        displayMode = .extended
         runtimeChoice = .wanixDesktop
     }
 }

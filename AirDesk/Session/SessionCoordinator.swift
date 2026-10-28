@@ -188,8 +188,11 @@ final class SessionCoordinator: ObservableObject {
     }
 
     var effectiveMode: SessionMode {
-        if display.hasExternalDisplay, mode != .cast { return .extended }
-        return mode
+        DisplayModeResolver.effectiveMode(
+            current: mode,
+            hasExternalDisplay: display.hasExternalDisplay,
+            isMirroring: display.isMirroring
+        )
     }
 
     var connectionStage: ConnectionStage {
@@ -359,6 +362,27 @@ final class SessionCoordinator: ObservableObject {
         }
         setNotice("Display disconnected. The session is preserved.")
         diagnostics.mark("display.disconnected")
+    }
+
+    func displayMirroringDidChange(_ isMirroring: Bool) {
+        isExternalConnected = display.isExternalDisplayConnected
+        guard phase == .ready else { return }
+        guard selectedDevice?.kind != .cast, selectedDevice?.kind != .preview else { return }
+
+        if isMirroring {
+            mode = .mirrored
+            isPreviewPresented = false
+            desktopSurface.returnHome()
+            setNotice("AirPlay mirroring connected. Open Preview to show the desktop on the TV.")
+            diagnostics.mark("display.mirroring.connected")
+        } else {
+            if mode == .mirrored {
+                mode = fallbackMode()
+            }
+            desktopSurface.returnHome()
+            setNotice("AirPlay mirroring ended. The session is preserved.")
+            diagnostics.mark("display.mirroring.disconnected")
+        }
     }
 
     func handleCursor(_ action: CursorAction, viewport: CGSize) {
@@ -612,25 +636,19 @@ final class SessionCoordinator: ObservableObject {
     }
 
     private func resolvedMode(for device: DisplayDevice) -> SessionMode {
-        if display.hasExternalDisplay, device.kind != .cast, device.kind != .preview {
-            return .extended
-        }
-        switch device.kind {
-        case .cast: return .cast
-        case .preview: return .preview
-        case .airPlay: return .mirrored
-        case .wired, .external: return .extended
-        }
+        DisplayModeResolver.resolvedMode(
+            for: device.kind,
+            hasExternalDisplay: display.hasExternalDisplay,
+            isMirroring: display.isMirroring
+        )
     }
 
     private func fallbackMode() -> SessionMode {
-        guard let selectedDevice else { return .preview }
-        switch selectedDevice.kind {
-        case .cast: return .cast
-        case .preview: return .preview
-        case .airPlay: return .mirrored
-        case .wired, .external: return .mirrored
-        }
+        DisplayModeResolver.fallbackMode(
+            for: selectedDevice?.kind,
+            hasExternalDisplay: display.hasExternalDisplay,
+            isMirroring: display.isMirroring
+        )
     }
 
     private func handleBridgeMessage(_ message: BridgeMessage) {

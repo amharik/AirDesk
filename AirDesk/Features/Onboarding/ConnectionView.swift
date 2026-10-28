@@ -21,6 +21,7 @@ struct ConnectionView: View {
                         errorBanner(error)
                     }
                     displaySection
+                    airPlaySection
                     castSection
                     previewSection
                     compatibilityNote
@@ -103,11 +104,87 @@ struct ConnectionView: View {
                         device: externalDevice,
                         action: { prepare(externalDevice) }
                     )
+                } else {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.white.opacity(0.05))
+                                .frame(width: 42, height: 42)
+                            Image(systemName: "display")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(ADTheme.textTertiary)
+                        }
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("No external display detected")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(Color.white.opacity(0.7))
+                            Text("Connect a display or use AirPlay mirroring below.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(ADTheme.textTertiary)
+                        }
+                        Spacer()
+                    }
+                    .padding(14)
+                    .background {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(Color.white.opacity(0.025))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .strokeBorder(Color.white.opacity(0.07), style: StrokeStyle(lineWidth: 0.8, dash: [4, 4]))
+                            }
+                    }
                 }
+            }
+        }
+    }
+
+    private var airPlaySection: some View {
+        VStack(spacing: 10) {
+            SectionLabel(text: "AirPlay")
+            if environment.display.isMirroring {
                 DeviceRow(
-                    device: demoAirPlayDevice,
-                    action: { prepare(demoAirPlayDevice) }
+                    device: airPlayMirroringDevice,
+                    action: { prepare(airPlayMirroringDevice) }
                 )
+            } else {
+                Button {
+                    if environment.settings.hapticsEnabled { Haptics.shared.tap() }
+                    showGuide = true
+                } label: {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(ADTheme.accent.opacity(0.10))
+                                .frame(width: 42, height: 42)
+                            Image(systemName: "appletv.fill")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(ADTheme.accent)
+                        }
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Set up AirPlay mirroring")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.85))
+                            Text("Use Control Center Screen Mirroring, then return here.")
+                                .font(.system(size: 12))
+                                .foregroundStyle(ADTheme.textTertiary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(Color.white.opacity(0.22))
+                    }
+                    .padding(14)
+                    .background {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(ADTheme.accent.opacity(0.045))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .strokeBorder(ADTheme.accent.opacity(0.16), lineWidth: 0.8)
+                            }
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Set up AirPlay mirroring")
             }
         }
     }
@@ -204,11 +281,11 @@ struct ConnectionView: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Color.white.opacity(0.8))
             }
-            Text("Extended desktop requires a supported external display. AirPlay screen mirroring does not create a separate desktop — AirDesk labels the active mode instead of promising independent output.")
+            Text("AirPlay mirrors the entire iPhone screen, including the controller. Choose Mirror iPhone screen in Settings, start Screen Mirroring in Control Center, then open Preview to put the desktop on the TV.")
                 .font(.system(size: 12))
                 .foregroundStyle(ADTheme.textSecondary)
                 .lineSpacing(2)
-            Text("This build includes demo receivers so the full controller can be explored without a TV. Real Google Cast requires the Google Cast SDK and a registered AirDesk receiver; real AirPlay output is provided by the system.")
+            Text("Extended desktop requires a supported external display. Google Cast requires a registered AirDesk receiver; without one, AirDesk uses the on-device demo receiver.")
                 .font(.system(size: 12))
                 .foregroundStyle(ADTheme.textTertiary)
                 .lineSpacing(2)
@@ -275,14 +352,14 @@ struct ConnectionView: View {
         )
     }
 
-    private var demoAirPlayDevice: DisplayDevice {
+    private var airPlayMirroringDevice: DisplayDevice {
         DisplayDevice(
-            id: DisplayDevice.demoAppleTV,
-            name: "Living Room TV",
-            detail: "Apple TV · AirPlay mirroring",
+            id: "display.airplay.mirroring",
+            name: "AirPlay mirroring",
+            detail: "iPhone screen mirrored · \(Int(environment.display.externalDisplaySize.width))×\(Int(environment.display.externalDisplaySize.height))",
             kind: .airPlay,
             mode: .mirrored,
-            isDemo: true
+            isDemo: false
         )
     }
 
