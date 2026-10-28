@@ -55,7 +55,7 @@ enum SessionMode: String, Codable, CaseIterable, Sendable {
     var detail: String {
         switch self {
         case .extended: return "Desktop on the display, controller stays on iPhone."
-        case .mirrored: return "The phone screen is mirrored. Controls remain available."
+        case .mirrored: return "The desktop fills the phone with a floating remote and is mirrored to the TV."
         case .cast: return "AirDesk receiver renders the desktop independently."
         case .preview: return "A live desktop preview runs on this device."
         }
@@ -94,7 +94,7 @@ enum DisplayPresentationMode: String, Codable, CaseIterable, Identifiable, Senda
     var detail: String {
         switch self {
         case .extended: return "The display renders the Wanix desktop while the controller stays on iPhone."
-        case .mirrored: return "AirPlay shares the entire iPhone screen, including the controller and preview."
+        case .mirrored: return "AirPlay shares the entire iPhone screen. AirDesk shows the desktop full-screen with a collapsible floating remote."
         }
     }
 

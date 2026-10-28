@@ -15,8 +15,13 @@ struct RootView: View {
                 ConnectingView()
                     .transition(.opacity.combined(with: .scale(scale: 1.03)))
             case .ready:
-                ControllerView()
-                    .transition(.opacity)
+                if session.effectiveMode == .mirrored {
+                    MirroredDesktopView()
+                        .transition(.opacity)
+                } else {
+                    ControllerView()
+                        .transition(.opacity)
+                }
             case .failed:
                 if session.selectedDevice != nil {
                     SessionRecoveryView()
@@ -30,11 +35,13 @@ struct RootView: View {
                     .transition(.opacity)
             }
 
-            DesktopSurfaceAnchor(surface: session.desktopSurface)
-                .frame(width: 2, height: 2)
-                .opacity(0.01)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
+            if session.phase != .ready || session.effectiveMode != .mirrored {
+                DesktopSurfaceAnchor(surface: session.desktopSurface)
+                    .frame(width: 2, height: 2)
+                    .opacity(0.01)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
         }
         .animation(.easeInOut(duration: 0.28), value: session.phase)
         .sheet(isPresented: $environment.isSettingsPresented) {

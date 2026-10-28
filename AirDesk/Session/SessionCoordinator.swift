@@ -183,6 +183,7 @@ final class SessionCoordinator: ObservableObject {
     var canShowPreview: Bool {
         guard phase == .ready else { return false }
         if display.hasExternalDisplay { return false }
+        if effectiveMode == .mirrored { return false }
         if mode == .cast && !isDemoConnection { return false }
         return true
     }
@@ -322,6 +323,10 @@ final class SessionCoordinator: ObservableObject {
         guard phase == .ready else { return }
         if display.hasExternalDisplay {
             setNotice("The desktop is already on the external display.")
+            return
+        }
+        if effectiveMode == .mirrored {
+            setNotice("The desktop is already visible in AirPlay mirroring mode.")
             return
         }
         if mode == .cast && !isDemoConnection {

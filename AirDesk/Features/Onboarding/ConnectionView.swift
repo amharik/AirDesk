@@ -20,7 +20,9 @@ struct ConnectionView: View {
                     if let error = session.lastError {
                         errorBanner(error)
                     }
-                    displaySection
+                    if environment.display.hasExternalDisplay || !environment.display.isMirroring {
+                        displaySection
+                    }
                     airPlaySection
                     castSection
                     previewSection
@@ -281,7 +283,7 @@ struct ConnectionView: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Color.white.opacity(0.8))
             }
-            Text("AirPlay mirrors the entire iPhone screen, including the controller. Choose Mirror iPhone screen in Settings, start Screen Mirroring in Control Center, then open Preview to put the desktop on the TV.")
+            Text("In Mirror mode, AirPlay shares the phone screen while AirDesk shows the desktop full-screen with a collapsible floating remote. In Extended mode, iOS uses an external-display scene for independent TV output. Start Screen Mirroring from Control Center; the app cannot start it.")
                 .font(.system(size: 12))
                 .foregroundStyle(ADTheme.textSecondary)
                 .lineSpacing(2)
