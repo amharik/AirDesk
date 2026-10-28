@@ -20,8 +20,8 @@ protocol DesktopRuntime: AnyObject {
 @MainActor
 protocol RuntimeHost: AnyObject {
     var surface: DesktopSurface { get }
-    var workspace: Workspace { get }
-    var sessionId: String { get }
+    var workspace: Workspace { get set }
+    var sessionId: String { get set }
 }
 
 @MainActor

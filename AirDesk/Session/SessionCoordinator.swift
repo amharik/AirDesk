@@ -52,36 +52,6 @@ enum ConnectionStage: String, Equatable, Sendable {
     }
 }
 
-@MainActor
-final class SessionInputTransport: InputTransport {
-    enum Route {
-        case surface
-        case cast
-    }
-
-    var route: Route = .surface
-    weak var surface: DesktopSurface?
-    weak var cast: CastSessionCoordinator?
-
-    var isAvailable: Bool {
-        switch route {
-        case .surface:
-            return surface != nil
-        case .cast:
-            return cast?.connectedDevice != nil
-        }
-    }
-
-    func send(_ event: InputEvent) {
-        switch route {
-        case .surface:
-            surface?.send(event)
-        case .cast:
-            cast?.send(event)
-        }
-    }
-}
-
 enum CursorAction: Equatable {
     case move(dx: CGFloat, dy: CGFloat)
     case click(count: Int)
@@ -98,6 +68,7 @@ final class SessionCoordinator: ObservableObject {
     @Published private(set) var stage: ConnectionStage = .idle
     @Published private(set) var selectedDevice: DisplayDevice?
     @Published private(set) var mode: SessionMode = .preview
+    @Published private(set) var profile: DisplayProfile = .preview
     @Published private(set) var runtimeState: RuntimeState = .idle
     @Published private(set) var runtimeName = "Wanix"
     @Published private(set) var capabilities: RuntimeCapabilities = .wanixDesktop
@@ -118,6 +89,7 @@ final class SessionCoordinator: ObservableObject {
     let dispatcher: InputDispatcher
     private let inputTransport: SessionInputTransport
     private let host: SurfaceRuntimeHost
+    private let endpointFactory: @MainActor (DisplayProfile) -> (any RuntimeEndpoint)?
     private let settings: AppSettings
     private let diagnostics: PerformanceMetrics
     private let display: DisplayCoordinator
@@ -125,6 +97,7 @@ final class SessionCoordinator: ObservableObject {
     private let entitlements: EntitlementManager
     private let logger = Logger(subsystem: "com.airdesk.ios", category: "Session")
 
+    private var endpoint: (any RuntimeEndpoint)?
     private var runtime: (any DesktopRuntime)?
     private var connectTask: Task<Void, Never>?
     private var noticeTask: Task<Void, Never>?
@@ -137,20 +110,33 @@ final class SessionCoordinator: ObservableObject {
         diagnostics: PerformanceMetrics,
         display: DisplayCoordinator,
         cast: CastSessionCoordinator,
-        entitlements: EntitlementManager
+        entitlements: EntitlementManager,
+        endpointFactory: (@MainActor (DisplayProfile) -> (any RuntimeEndpoint)?)? = nil
     ) {
+        let surface = DesktopSurface()
         self.settings = settings
         self.diagnostics = diagnostics
         self.display = display
         self.cast = cast
         self.entitlements = entitlements
-        self.desktopSurface = DesktopSurface()
+        self.desktopSurface = surface
         self.dispatcher = InputDispatcher()
         self.inputTransport = SessionInputTransport()
-        self.host = SurfaceRuntimeHost(surface: desktopSurface)
+        self.host = SurfaceRuntimeHost(surface: surface)
+        self.endpointFactory = endpointFactory ?? { profile in
+            guard profile.runtime == .phone else { return nil }
+            return LocalRuntimeEndpoint(
+                host: SurfaceRuntimeHost(surface: surface),
+                runtimeFactory: {
+                    RuntimeFactory.make(
+                        choice: settings.runtimeChoice,
+                        appearance: settings.desktopAppearance
+                    )
+                }
+            )
+        }
 
         isExternalConnected = display.isExternalDisplayConnected
-        inputTransport.surface = desktopSurface
         inputTransport.cast = cast
         dispatcher.transport = inputTransport
         dispatcher.onEventSent = { [weak self] event in
@@ -226,7 +212,22 @@ final class SessionCoordinator: ObservableObject {
         stage = .discovering
         sessionId = Self.makeSessionId()
         workspace = .default
-        mode = resolvedMode(for: device)
+
+        do {
+            let resolved = try DisplayProfileResolver.resolve(
+                mode: resolvedMode(for: device),
+                device: device
+            )
+            mode = resolved.mode
+            profile = resolved
+        } catch {
+            phase = .failed
+            stage = .idle
+            lastError = friendlyMessage(for: error)
+            return
+        }
+
+        inputTransport.route = profile.input == .castChannel ? .cast : .endpoint
         isDemoConnection = device.isDemo || device.kind == .preview
         isExternalConnected = display.isExternalDisplayConnected
         runtimeName = settings.runtimeChoice.title
@@ -247,9 +248,7 @@ final class SessionCoordinator: ObservableObject {
         connectTask?.cancel()
         connectTask = nil
         dispatcher.endSession()
-        let runtime = self.runtime
-        self.runtime = nil
-        Task { await runtime?.shutdown() }
+        stopRuntime()
         if selectedDevice?.kind == .cast {
             sendCastControl(.sessionEnd(sessionId: sessionId))
             cast.disconnect()
@@ -259,6 +258,9 @@ final class SessionCoordinator: ObservableObject {
         stage = .idle
         selectedDevice = nil
         runtimeState = .idle
+        mode = .preview
+        profile = .preview
+        inputTransport.route = .endpoint
         isDemoConnection = false
         isPreviewPresented = false
         sessionId = ""
@@ -274,9 +276,7 @@ final class SessionCoordinator: ObservableObject {
         connectTask?.cancel()
         connectTask = nil
         dispatcher.endSession()
-        let runtime = self.runtime
-        self.runtime = nil
-        Task { await runtime?.shutdown() }
+        stopRuntime()
         if selectedDevice?.kind == .cast {
             sendCastControl(.sessionEnd(sessionId: sessionId))
             cast.disconnect()
@@ -288,6 +288,8 @@ final class SessionCoordinator: ObservableObject {
         selectedDevice = nil
         runtimeState = .idle
         mode = .preview
+        profile = .preview
+        inputTransport.route = .endpoint
         isDemoConnection = false
         isPreviewPresented = false
         sessionId = ""
@@ -351,7 +353,7 @@ final class SessionCoordinator: ObservableObject {
         isExternalConnected = true
         guard phase == .ready else { return }
         guard selectedDevice?.kind != .cast, selectedDevice?.kind != .preview else { return }
-        mode = .extended
+        setMode(.extended)
         isPreviewPresented = false
         display.present(surface: desktopSurface)
         setNotice("Extended desktop connected.")
@@ -363,7 +365,7 @@ final class SessionCoordinator: ObservableObject {
         guard phase == .ready else { return }
         desktopSurface.returnHome()
         if mode == .extended {
-            mode = fallbackMode()
+            setMode(fallbackMode())
         }
         setNotice("Display disconnected. The session is preserved.")
         diagnostics.mark("display.disconnected")
@@ -375,14 +377,14 @@ final class SessionCoordinator: ObservableObject {
         guard selectedDevice?.kind != .cast, selectedDevice?.kind != .preview else { return }
 
         if isMirroring {
-            mode = .mirrored
+            setMode(.mirrored)
             isPreviewPresented = false
             desktopSurface.returnHome()
             setNotice("AirPlay mirroring connected. Open Preview to show the desktop on the TV.")
             diagnostics.mark("display.mirroring.connected")
         } else {
             if mode == .mirrored {
-                mode = fallbackMode()
+                setMode(fallbackMode())
             }
             desktopSurface.returnHome()
             setNotice("AirPlay mirroring ended. The session is preserved.")
@@ -476,15 +478,23 @@ final class SessionCoordinator: ObservableObject {
     }
 
     func settingsDidChange() {
-        desktopSurface.sendControl(
-            type: "appearance",
-            payload: ["appearance": settings.desktopAppearance]
-        )
+        if let endpoint {
+            endpoint.sendControl(.appearance(settings.desktopAppearance))
+        } else {
+            desktopSurface.sendControl(
+                type: "appearance",
+                payload: ["appearance": settings.desktopAppearance]
+            )
+        }
         sendCastControl(.appearance(sessionId: sessionId, appearance: settings.desktopAppearance))
     }
 
     func sceneBecameActive() {
         guard phase == .ready else { return }
+        if let endpoint {
+            endpoint.sendControl(.resume)
+            return
+        }
         Task { [weak self] in
             guard let self, let runtime = self.runtime else { return }
             try? await runtime.resume()
@@ -493,18 +503,25 @@ final class SessionCoordinator: ObservableObject {
 
     func sceneWillResignActive() {
         guard phase == .ready else { return }
+        if let endpoint {
+            endpoint.sendControl(.suspend)
+            return
+        }
         Task { [weak self] in
             await self?.runtime?.suspend()
         }
     }
 
     private func performConnection(_ device: DisplayDevice) async {
+        let activeSessionId = sessionId
+        let activeProfile = profile
+
         do {
             stage = .discovering
             try await pause(0.40)
 
             stage = .pairing
-            if device.kind == .cast {
+            if activeProfile.runtime == .castReceiver {
                 let castDevice = CastDevice(
                     id: device.id,
                     name: device.name,
@@ -512,50 +529,75 @@ final class SessionCoordinator: ObservableObject {
                     isDemo: device.isDemo
                 )
                 try await cast.connect(to: castDevice)
-                sendCastControl(.sessionStart(sessionId: sessionId, workspace: workspace.name))
+                sendCastControl(.sessionStart(sessionId: activeSessionId, workspace: workspace.name))
             } else {
                 try await pause(0.55)
             }
             try Task.checkCancellation()
 
-            inputTransport.route = mode == .cast ? .cast : .surface
+            inputTransport.route = activeProfile.input == .castChannel ? .cast : .endpoint
 
             runtimeState = .preparing
             stage = .launching
-            host.workspace = workspace
-            host.sessionId = sessionId
-            let runtime = RuntimeFactory.make(
-                choice: settings.runtimeChoice,
+            let context = RuntimeContext(
+                sessionId: activeSessionId,
+                workspace: workspace,
                 appearance: settings.desktopAppearance
             )
-            runtime.onStateChange = { [weak self] state in
-                self?.runtimeState = state
-            }
-            self.runtime = runtime
-            capabilities = runtime.capabilities
-            runtimeName = runtime.identifier
 
-            try await runtime.prepare(in: host)
-            try Task.checkCancellation()
-            try await runtime.loadWorkspace(workspace)
-            try Task.checkCancellation()
+            if let endpoint = endpointFactory(activeProfile) {
+                self.endpoint = endpoint
+                inputTransport.endpoint = endpoint
+                endpoint.onStateChange = { [weak self] state in
+                    guard let self, self.sessionId == activeSessionId else { return }
+                    self.runtimeState = state
+                }
+                runtimeName = endpoint.identifier
+                capabilities = endpoint.capabilities
+
+                try await endpoint.start(context: context)
+                try Task.checkCancellation()
+
+                runtimeName = endpoint.identifier
+                capabilities = endpoint.capabilities
+                runtimeState = endpoint.state
+            } else {
+                host.workspace = workspace
+                host.sessionId = activeSessionId
+                let runtime = RuntimeFactory.make(
+                    choice: settings.runtimeChoice,
+                    appearance: settings.desktopAppearance
+                )
+                runtime.onStateChange = { [weak self] state in
+                    guard let self, self.sessionId == activeSessionId else { return }
+                    self.runtimeState = state
+                }
+                self.runtime = runtime
+                capabilities = runtime.capabilities
+                runtimeName = runtime.identifier
+
+                try await runtime.prepare(in: host)
+                try Task.checkCancellation()
+                try await runtime.loadWorkspace(workspace)
+                try Task.checkCancellation()
+                runtimeState = runtime.state
+            }
 
             stage = .verifying
             try await pause(0.35)
 
-            if display.hasExternalDisplay, mode != .cast {
-                mode = .extended
+            if display.hasExternalDisplay, activeProfile.mode != .cast {
+                setMode(.extended)
                 display.present(surface: desktopSurface)
             } else {
                 desktopSurface.attachHomeIfNeeded()
             }
 
-            dispatcher.startSession(id: sessionId, viewport: desktopSurface.lastViewport)
+            dispatcher.startSession(id: activeSessionId, viewport: desktopSurface.lastViewport)
             pointer.center()
             dispatcher.move(to: pointer.position)
             dispatcher.flushPendingMove()
 
-            runtimeState = runtime.state
             phase = .ready
             stage = .ready
             recovery.reset()
@@ -573,14 +615,12 @@ final class SessionCoordinator: ObservableObject {
             lastError = friendlyMessage(for: error)
             diagnostics.mark("session.failed")
             if settings.hapticsEnabled { Haptics.shared.error() }
-            let runtime = self.runtime
-            self.runtime = nil
-            Task { await runtime?.shutdown() }
-            if mode == .cast {
-                sendCastControl(.sessionEnd(sessionId: sessionId))
+            stopRuntime()
+            if activeProfile.runtime == .castReceiver {
+                sendCastControl(.sessionEnd(sessionId: activeSessionId))
                 cast.disconnect()
             }
-            inputTransport.route = .surface
+            inputTransport.route = .endpoint
             desktopSurface.returnHome()
         }
     }
@@ -617,7 +657,7 @@ final class SessionCoordinator: ObservableObject {
         stage = .idle
         runtimeState = .failed
         lastError = "The desktop process stopped repeatedly. Reconnect to restore the workspace."
-        inputTransport.route = .surface
+        inputTransport.route = .endpoint
         desktopSurface.returnHome()
         diagnostics.mark("session.recovery.failed")
         if settings.hapticsEnabled { Haptics.shared.error() }
@@ -625,9 +665,7 @@ final class SessionCoordinator: ObservableObject {
 
     private func prepareForNewSession() {
         dispatcher.endSession()
-        let runtime = self.runtime
-        self.runtime = nil
-        Task { await runtime?.shutdown() }
+        stopRuntime()
         if selectedDevice?.kind == .cast {
             sendCastControl(.sessionEnd(sessionId: sessionId))
             cast.disconnect()
@@ -654,6 +692,38 @@ final class SessionCoordinator: ObservableObject {
             hasExternalDisplay: display.hasExternalDisplay,
             isMirroring: display.isMirroring
         )
+    }
+
+    private func setMode(_ newMode: SessionMode) {
+        guard mode != newMode else { return }
+        mode = newMode
+
+        guard let device = selectedDevice else {
+            profile = .preview
+            inputTransport.route = .endpoint
+            return
+        }
+
+        do {
+            profile = try DisplayProfileResolver.resolve(mode: newMode, device: device)
+        } catch {
+            profile = .preview
+            lastError = friendlyMessage(for: error)
+        }
+        inputTransport.route = profile.input == .castChannel ? .cast : .endpoint
+    }
+
+    private func stopRuntime() {
+        let endpoint = self.endpoint
+        let runtime = self.runtime
+        self.endpoint = nil
+        self.runtime = nil
+        inputTransport.endpoint = nil
+
+        Task {
+            await endpoint?.stop()
+            await runtime?.shutdown()
+        }
     }
 
     private func handleBridgeMessage(_ message: BridgeMessage) {
@@ -716,6 +786,9 @@ final class SessionCoordinator: ObservableObject {
             case .navigationFailed:
                 return "The desktop could not load. Check the display connection and try again."
             }
+        }
+        if let profileError = error as? DisplayProfileError {
+            return profileError.localizedDescription
         }
         if let castError = error as? CastAdapterError {
             return castError.localizedDescription
