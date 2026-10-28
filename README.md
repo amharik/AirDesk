@@ -197,13 +197,52 @@ The helper boots the simulator, installs the app, launches it with `-AirDeskSmok
 - The bridge validates message envelopes and ignores mismatched session IDs.
 - Readiness comes from the JavaScript runtime, never from page load.
 
-## Current gaps
+## Backlog
 
-- Google Cast SDK 4.8.4 (dynamic) is linked via Swift Package Manager, and the sender adapter is wired for session lifecycle, input, and control channels. Real casting still requires a registered receiver application ID (`AIRDESK_CAST_RECEIVER_APP_ID`) and a hosted HTTPS receiver.
-- Android controller and display clients are not started.
-- AirPlay Screen Mirroring must be started from Control Center; the app cannot launch it. AirPlay mirroring also mirrors the controller UI, so independent AirPlay output requires a supported external display.
-- The Cast receiver must disable v86 and use a receiver budget below 512 MB.
-- Native WKWebView loopback hosting provides COOP/COEP and `SharedArrayBuffer`, but its OPFS handles lack `createWritable`; the shell uses the IndexedDB snapshot fallback for `opfs/` on iOS 18.6. Chrome loopback HTTP still uses full OPFS; use `scripts/dev-desktop-server.py` for that path.
-- The IndexedDB fallback snapshots `opfs/` only; terminal writes outside `opfs/` are not persisted.
-- Wanix rc2 ignores `O_CREAT`, rejects integer `chtimes` timestamps, hardcodes zero inodes, and does not honor `O_APPEND`. `wanix-file-worker-fix.js` patches the embedded gojs worker to create and truncate files, normalize timestamp arguments, assign unique inodes, and track append offsets. `touch`, `>`, `>>`, `cat`, and `cp` work in `ramfs` and OPFS. The patch targets the gojs worker used by `rc.wasm`; standalone WASI workers still use upstream behavior.
-- The controller flow is implemented as named views and inline controller modes: Welcome, Connection Guide, Connection, Session Setup, Connecting, Controller, Session Settings, Diagnostics, Session Recovery, and Keyboard input. Device selection, desktop readiness, and runtime inspection are folded into these destinations rather than separate screens. The six TV modules are complete: Desktop, Finder, Terminal, Workbench, Notes, and Spotlight.
+Ordered by release risk and dependency. Google Cast work is paused by request.
+
+### P0 - Release blockers
+
+1. **Cast receiver registration and hosting**
+   - The SDK 4.8.4 dynamic sender is linked, and session, input, and control channels are wired.
+   - Still needed: registered receiver application ID (`AIRDESK_CAST_RECEIVER_APP_ID`), public HTTPS receiver, Cast Developer Console registration, v86 disabled, and receiver heap below 512 MB.
+   - Validate discovery, session start/end, input latency, reconnect, and receiver reload on hardware.
+2. **Display hardware validation**
+   - AirPlay mirroring and extended desktop on Apple TV, wired displays, and 1080p/4K TVs.
+   - Verify disconnect/reconnect, orientation, controller versus preview ownership, and recovery when the display changes mid-session.
+   - AirPlay Screen Mirroring must be started from Control Center; iOS does not allow the app to launch it.
+3. **StoreKit sandbox validation**
+   - Monthly, yearly, family yearly, and lifetime purchase, restore, expiration, grace period, and Manage Subscriptions.
+   - Confirm the Wanix Kernel Pro gate and entitlement refresh across launches.
+4. **Release readiness**
+   - Signing and provisioning, privacy manifest/local-network justification, app icons, versioning, archive, and TestFlight upload.
+
+### P1 - Platform parity
+
+5. **Android controller and display client**
+   - Not started. First decide whether Android runs the Wanix shell locally or acts as a remote display client.
+   - Reuse the normalized input schema, then build the Compose controller, WebView shell, and Cast parity.
+   - The build host has Android Studio but no installed Android SDK or emulator yet; add those before implementation.
+
+### P2 - Runtime hardening
+
+6. **Wanix/WASI filesystem parity**
+   - rc2 ignores `O_CREAT`, rejects integer `chtimes` timestamps, hardcodes zero inodes, and does not honor `O_APPEND`.
+   - `wanix-file-worker-fix.js` patches the embedded gojs worker used by `rc.wasm`; standalone WASI workers still use upstream behavior.
+7. **OPFS persistence**
+   - WKWebView exposes OPFS handles without `createWritable`, so the shell falls back to `#ramfs/new` plus an IndexedDB snapshot.
+   - The fallback snapshots `opfs/` only; terminal writes outside `opfs/` are not persisted. Chrome loopback HTTP still uses full OPFS via `scripts/dev-desktop-server.py`.
+8. **AirPlay detection fallback**
+   - Current mirroring state relies on an external-display scene. If hardware mirrors without creating one, add a `UIScreen`/mirrored-screen fallback.
+9. **Cast SDK upgrade path**
+   - The SDK is pinned to 4.8.4. Version 4.8.6 references iOS 26 `UIGlassEffect` and does not link with the current Xcode 16.4/iOS 18.5 SDK; revisit after upgrading Xcode.
+
+### P3 - Quality
+
+10. **UI, accessibility, and CI**
+    - Add UI smoke coverage for Connect, Settings, display-mode switching, and preview ownership.
+    - Audit VoiceOver labels, Dynamic Type, and reduced motion.
+    - Add CI for `xcodegen generate`, build, and tests.
+11. **Documentation and screenshots**
+    - Refresh screenshots for AirPlay modes and Cast setup.
+    - Document the receiver registration checklist and the Android architecture decision.
