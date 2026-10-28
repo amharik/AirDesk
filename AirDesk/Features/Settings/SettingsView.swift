@@ -299,7 +299,7 @@ struct SettingsView: View {
                     Text(environment.cast.isDemo ? "Simulated receiver" : "Registered receiver")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.9))
-                    Text(CastConfiguration.hasRegisteredReceiver ? "Receiver application ID configured." : "Google Cast SDK / receiver not configured in this build.")
+                    Text(CastConfiguration.hasRegisteredReceiver ? "Receiver application ID configured." : "Receiver application ID not configured; using simulated devices.")
                         .font(.system(size: 11.5))
                         .foregroundStyle(ADTheme.textTertiary)
                 }
