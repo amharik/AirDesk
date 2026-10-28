@@ -42,9 +42,10 @@ Use `debug=1` to show the receiver diagnostics panel.
 
 ## Enabling the native Cast SDK
 
-1. Add the Google Cast iOS SDK to the Xcode project.
-2. Set `AirDeskCastReceiverApplicationID` in `AirDesk/Resources/Info.plist` to the registered receiver application ID.
-3. Build with the `GoogleCast` module available so `SDKGoogleCastAdapter` is compiled.
-4. Host this receiver at the registered HTTPS URL.
+The Xcode project links the Google Cast iOS SDK 4.8.4 (dynamic) through Swift Package Manager. `SDKGoogleCastAdapter` is compiled and selected when a receiver application ID is configured.
 
-Without those steps, AirDesk remains on the simulated Cast adapter and the receiver works only as a browser preview.
+1. Set the `AIRDESK_CAST_RECEIVER_APP_ID` build setting to the registered receiver application ID. The value flows into `AirDeskCastReceiverApplicationID` and the `_<appID>._googlecast._tcp` Bonjour service.
+2. Host this receiver at the registered HTTPS URL.
+3. Rebuild and launch AirDesk on a device on the same Wi-Fi network; the simulated adapter is used only when the ID is empty.
+
+Without a registered receiver ID, AirDesk remains on the simulated Cast adapter and the receiver works only as a browser preview.

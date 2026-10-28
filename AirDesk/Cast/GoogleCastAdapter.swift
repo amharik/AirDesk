@@ -131,12 +131,12 @@ final class SDKGoogleCastAdapter: NSObject, GoogleCastAdapter {
         guard let inputChannel, let object = try? event.jsonObject(),
               let data = try? JSONSerialization.data(withJSONObject: object),
               let json = String(data: data, encoding: .utf8) else { return }
-        inputChannel.sendTextMessage(json)
+        _ = inputChannel.sendTextMessage(json, error: nil)
     }
 
     func sendControl(_ message: CastControlMessage) {
         guard let controlChannel, let json = message.jsonString() else { return }
-        controlChannel.sendTextMessage(json)
+        _ = controlChannel.sendTextMessage(json, error: nil)
     }
 
     private func finishConnect(_ result: Result<Void, Error>) {
@@ -159,7 +159,7 @@ final class SDKGoogleCastAdapter: NSObject, GoogleCastAdapter {
     }
 }
 
-extension SDKGoogleCastAdapter: GCKDiscoveryManagerListener {
+extension SDKGoogleCastAdapter: @preconcurrency GCKDiscoveryManagerListener {
     @objc func didUpdateDeviceList() {
         let discovery = GCKCastContext.sharedInstance().discoveryManager
         var result: [CastDevice] = []
@@ -167,7 +167,7 @@ extension SDKGoogleCastAdapter: GCKDiscoveryManagerListener {
             let device = discovery.device(at: index)
             result.append(CastDevice(
                 id: device.deviceID,
-                name: device.friendlyName,
+                name: device.friendlyName ?? device.deviceID,
                 model: "Cast device",
                 isDemo: false
             ))
@@ -177,13 +177,15 @@ extension SDKGoogleCastAdapter: GCKDiscoveryManagerListener {
     }
 }
 
-extension SDKGoogleCastAdapter: GCKSessionManagerListener {
+extension SDKGoogleCastAdapter: @preconcurrency GCKSessionManagerListener {
     @objc func sessionManager(_ sessionManager: GCKSessionManager, didStart session: GCKSession) {
         guard let castSession = session as? GCKCastSession else { return }
-        let input = castSession.addChannel(withNamespace: CastNamespace.input) as? GCKGenericChannel
-        input?.delegate = self
-        let control = castSession.addChannel(withNamespace: CastNamespace.control) as? GCKGenericChannel
-        control?.delegate = self
+        let input = GCKGenericChannel(namespace: CastNamespace.input)
+        input.delegate = self
+        _ = castSession.add(input)
+        let control = GCKGenericChannel(namespace: CastNamespace.control)
+        control.delegate = self
+        _ = castSession.add(control)
         inputChannel = input
         controlChannel = control
         delegate?.castAdapter(self, didChange: .connected)
@@ -208,8 +210,8 @@ extension SDKGoogleCastAdapter: GCKSessionManagerListener {
     }
 }
 
-extension SDKGoogleCastAdapter: GCKGenericChannelDelegate {
-    @objc func castChannel(_ channel: GCKGenericChannel, didReceiveTextMessage message: String, withNamespace protocolNamespace: String) {
+extension SDKGoogleCastAdapter: @preconcurrency GCKGenericChannelDelegate {
+    @objc func cast(_ channel: GCKGenericChannel, didReceiveTextMessage message: String, withNamespace protocolNamespace: String) {
         guard protocolNamespace == CastNamespace.input,
               let data = message.data(using: .utf8),
               let event = try? JSONDecoder().decode(InputEvent.self, from: data),

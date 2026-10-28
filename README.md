@@ -190,7 +190,7 @@ The helper boots the simulator, installs the app, launches it with `-AirDeskSmok
 
 ## Current gaps
 
-- The Google Cast sender adapter is wired for session lifecycle, input, and control channels, but the Google Cast SDK dependency and registered receiver application ID are still missing.
+- Google Cast SDK 4.8.4 (dynamic) is linked via Swift Package Manager, and the sender adapter is wired for session lifecycle, input, and control channels. Real casting still requires a registered receiver application ID (`AIRDESK_CAST_RECEIVER_APP_ID`) and a hosted HTTPS receiver.
 - Android controller and display clients are not started.
 - The Cast receiver must disable v86 and use a receiver budget below 512 MB.
 - Native WKWebView loopback hosting provides COOP/COEP and `SharedArrayBuffer`, but its OPFS handles lack `createWritable`; the shell uses the IndexedDB snapshot fallback for `opfs/` on iOS 18.6. Chrome loopback HTTP still uses full OPFS; use `scripts/dev-desktop-server.py` for that path.

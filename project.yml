@@ -19,6 +19,10 @@ settings:
     GCC_WARN_UNUSED_VARIABLE: YES
     CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED: YES
     ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
+packages:
+  GoogleCast:
+    url: https://github.com/googlecast/google-cast-ios-sdk
+    exactVersion: 4.8.4
 targets:
   AirDesk:
     type: application
@@ -36,13 +40,16 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.airdesk.ios
         PRODUCT_NAME: AirDesk
+        AIRDESK_CAST_RECEIVER_APP_ID: ""
         INFOPLIST_FILE: AirDesk/Resources/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         SWIFT_EMIT_LOC_STRINGS: YES
         SUPPORTS_MACCATALYST: NO
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
-    dependencies: []
+    dependencies:
+      - package: GoogleCast
+        product: GoogleCastDynamic
   AirDeskTests:
     type: bundle.unit-test
     platform: iOS

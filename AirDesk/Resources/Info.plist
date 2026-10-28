@@ -81,6 +81,7 @@
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_googlecast._tcp</string>
+		<string>$(AIRDESK_CAST_RECEIVER_APP_ID)._googlecast._tcp</string>
 		<string>_airdesk._tcp</string>
 	</array>
 	<key>NSAppTransportSecurity</key>
@@ -91,7 +92,7 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>AirDeskCastReceiverApplicationID</key>
-	<string></string>
+	<string>$(AIRDESK_CAST_RECEIVER_APP_ID)</string>
 	<key>AirDeskRuntimeBaseURL</key>
 	<string></string>
 </dict>
