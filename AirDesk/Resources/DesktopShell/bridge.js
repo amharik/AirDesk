@@ -15,6 +15,9 @@
     params.forEach(function (value, key) { query[key] = value; });
   } catch (error) { query = {}; }
   var sessionId = String(window.AIRDESK_SESSION_ID || query.session || 'preview');
+  var generation = Number(window.AIRDESK_GENERATION || query.generation || 0);
+  var host = String(window.AIRDESK_HOST || query.host || 'native');
+  var parentOrigin = String(window.AIRDESK_PARENT_ORIGIN || query.parentOrigin || '');
   var runtime = String(window.AIRDESK_RUNTIME || query.runtime || 'wanixDesktop');
   var appearance = String(window.AIRDESK_APPEARANCE || query.appearance || 'dark');
   var inputHandlers = [];
@@ -24,6 +27,15 @@
   var reportedError = false;
 
   function post(message) {
+    if (host === 'cast') {
+      if (!parentOrigin || window.parent === window) return false;
+      try {
+        window.parent.postMessage(message, parentOrigin);
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
     if (!handler || typeof handler.postMessage !== 'function') return false;
     try {
       handler.postMessage(message);
@@ -40,9 +52,13 @@
       version: 1,
       type: 'ready',
       sessionId: sessionId,
+      generation: generation,
       runtime: runtime,
       width: window.innerWidth,
       height: window.innerHeight,
+      persistence: window.AirDeskKernel && window.AirDeskKernel.persistence
+        ? String(window.AirDeskKernel.persistence())
+        : 'unknown',
       timestamp: Date.now()
     });
   }
@@ -56,6 +72,7 @@
       version: 1,
       type: 'viewport',
       sessionId: sessionId,
+      generation: generation,
       width: w,
       height: h,
       timestamp: Date.now()
@@ -68,6 +85,7 @@
       version: 1,
       type: 'notice',
       sessionId: sessionId,
+      generation: generation,
       message: String(text).slice(0, 180),
       timestamp: Date.now()
     });
@@ -79,6 +97,7 @@
       version: 1,
       type: 'state',
       sessionId: sessionId,
+      generation: generation,
       message: String(name).slice(0, 80),
       timestamp: Date.now()
     });
@@ -91,6 +110,7 @@
       version: 1,
       type: 'error',
       sessionId: sessionId,
+      generation: generation,
       message: String(message || 'Desktop shell error').slice(0, 4000),
       timestamp: Date.now()
     });
@@ -102,6 +122,7 @@
       version: 1,
       type: 'ack',
       sessionId: sessionId,
+      generation: generation,
       seq: event.seq,
       timestamp: Date.now()
     });
@@ -118,6 +139,7 @@
   function receiveInput(event) {
     if (!event || typeof event !== 'object') return;
     if (event.sessionId && event.sessionId !== sessionId) return;
+    if (event.generation != null && Number(event.generation) !== generation) return;
     try {
       inputHandlers.forEach(function (fn) {
         try { fn(event); } catch (handlerError) { console.error(handlerError); }
@@ -129,6 +151,8 @@
 
   function receiveControl(message) {
     if (!message || typeof message !== 'object') return;
+    if (message.sessionId && message.sessionId !== sessionId) return;
+    if (message.generation != null && Number(message.generation) !== generation) return;
     if (message.type === 'appearance' && message.appearance) {
       appearance = String(message.appearance);
     }
@@ -144,8 +168,10 @@
 
   window.AD = {
     sessionId: sessionId,
+    generation: generation,
+    host: host,
     runtime: runtime,
-    native: !!handler,
+    native: host === 'cast' ? !!parentOrigin : !!handler,
     appearance: appearance,
     post: post,
     ready: ready,

@@ -53,4 +53,25 @@ final class InputEventTests: XCTestCase {
         let event = InputEvent.make(.sessionStart, sessionId: "session", seq: 0)
         XCTAssertNoThrow(try event.validated())
     }
+
+    func testGenerationIsIncludedAndValidated() throws {
+        let event = InputEvent.make(.keyDown, sessionId: "session", generation: 3, seq: 1, key: "a")
+        XCTAssertEqual(try event.jsonObject()["generation"] as? Int, 3)
+        XCTAssertNoThrow(try event.validated())
+
+        let invalid = InputEvent.make(.keyDown, sessionId: "session", generation: -1, seq: 1, key: "a")
+        XCTAssertThrowsError(try invalid.validated()) { error in
+            XCTAssertEqual(error as? InputEventError, .invalidGeneration)
+        }
+    }
+
+    func testLegacyEventWithoutGenerationStillDecodes() throws {
+        let json = """
+        {"version":1,"type":"keyDown","sessionId":"session","seq":1,"timestamp":1,"key":"a"}
+        """
+        let event = try JSONDecoder().decode(InputEvent.self, from: Data(json.utf8))
+
+        XCTAssertNil(event.generation)
+        XCTAssertNoThrow(try event.validated())
+    }
 }

@@ -3,7 +3,7 @@
 - **Status:** Accepted — revised after architecture review
 - **Date:** 2026-10-28
 - **Scope:** iOS/iPadOS, Google Cast receiver, future Android, future remote runtime
-- **Implementation:** Phase 1 implemented and verified 2026-10-28; Phase 2 pending
+- **Implementation:** Phases 1–2 implemented and simulator-verified 2026-10-28; receiver hardware validation pending
 - **Supersedes:** None
 
 ## Review summary

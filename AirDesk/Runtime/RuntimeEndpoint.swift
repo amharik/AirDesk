@@ -2,8 +2,16 @@ import Foundation
 
 struct RuntimeContext: Equatable, Sendable {
     var sessionId: String
+    var generation: Int
     var workspace: Workspace
     var appearance: String
+
+    init(sessionId: String, generation: Int = 1, workspace: Workspace, appearance: String) {
+        self.sessionId = sessionId
+        self.generation = generation
+        self.workspace = workspace
+        self.appearance = appearance
+    }
 }
 
 enum RuntimeControl: Equatable, Sendable {

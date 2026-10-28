@@ -42,7 +42,12 @@ final class CastSessionCoordinatorTests: XCTestCase {
     func testControlIsIgnoredUntilConnected() async throws {
         let adapter = FakeCastAdapter()
         let coordinator = CastSessionCoordinator(adapter: adapter)
-        let message = CastControlMessage.sessionStart(sessionId: "ads-test", workspace: "Wanix")
+        let message = CastControlMessage.sessionStart(
+            sessionId: "ads-test",
+            generation: 1,
+            workspace: "Wanix",
+            appearance: "dark"
+        )
 
         coordinator.sendControl(message)
         XCTAssertTrue(adapter.sentControls.isEmpty)
@@ -91,17 +96,57 @@ final class CastSessionCoordinatorTests: XCTestCase {
     }
 
     func testControlMessageRoundTrips() throws {
-        let message = CastControlMessage(
-            type: "appearance",
+        let message = CastControlMessage.appearance(
             sessionId: "ads-test",
-            appearance: "dark",
-            workspace: "Wanix"
+            generation: 1,
+            appearance: "dark"
         )
 
-        let json = try XCTUnwrap(message.jsonString())
+        let json = try message.jsonString()
         let decoded = try JSONDecoder().decode(CastControlMessage.self, from: Data(json.utf8))
 
         XCTAssertEqual(decoded, message)
+        XCTAssertNoThrow(try decoded.validated())
+    }
+
+    func testReadyMessageIsPublishedAndMatchesSession() async throws {
+        let adapter = FakeCastAdapter()
+        let coordinator = CastSessionCoordinator(adapter: adapter)
+        var received: [CastControlMessage] = []
+        coordinator.addControlObserver { received.append($0) }
+
+        try await coordinator.connect(to: .demoStudio)
+        adapter.emitReady(sessionId: "ads-test", generation: 1)
+
+        let ready = try await coordinator.waitForReady(sessionId: "ads-test", generation: 1, timeout: 1)
+        XCTAssertEqual(ready.type, .ready)
+        XCTAssertTrue(coordinator.isReady)
+        XCTAssertEqual(received.map(\.type), [.ready])
+    }
+
+    func testReadyTimeoutForMismatchedGeneration() async throws {
+        let adapter = FakeCastAdapter()
+        let coordinator = CastSessionCoordinator(adapter: adapter)
+        try await coordinator.connect(to: .demoStudio)
+        adapter.emitReady(sessionId: "ads-test", generation: 1)
+
+        do {
+            _ = try await coordinator.waitForReady(sessionId: "ads-test", generation: 2, timeout: 0.15)
+            XCTFail("Expected timeout")
+        } catch {
+            XCTAssertEqual(error as? CastProtocolError, .readyTimeout)
+        }
+    }
+
+    func testReceiverAckTracksHighestAcceptedSequence() async throws {
+        let adapter = FakeCastAdapter()
+        let coordinator = CastSessionCoordinator(adapter: adapter)
+        try await coordinator.connect(to: .demoStudio)
+        adapter.emitControl(CastControlMessage.ack(sessionId: "ads-test", generation: 1, lastAcceptedInputSeq: 4))
+        adapter.emitControl(CastControlMessage.ack(sessionId: "ads-test", generation: 1, lastAcceptedInputSeq: 7))
+        adapter.emitControl(CastControlMessage.ack(sessionId: "ads-test", generation: 1, lastAcceptedInputSeq: 6))
+
+        XCTAssertEqual(coordinator.lastAcceptedInputSequence, 7)
     }
 }
 
@@ -145,5 +190,20 @@ private final class FakeCastAdapter: GoogleCastAdapter {
 
     func emitFailure(_ error: Error) {
         delegate?.castAdapter(self, didFail: error)
+    }
+
+    func emitControl(_ message: CastControlMessage) {
+        delegate?.castAdapter(self, didReceive: message)
+    }
+
+    func emitReady(sessionId: String, generation: Int) {
+        emitControl(CastControlMessage.ready(
+            sessionId: sessionId,
+            generation: generation,
+            width: 1920,
+            height: 1080,
+            persistence: "indexeddb",
+            lastAcceptedInputSeq: 0
+        ))
     }
 }

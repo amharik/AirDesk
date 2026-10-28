@@ -39,6 +39,7 @@ final class SessionRuntimeRoutingTests: XCTestCase {
 
         XCTAssertFalse(transport.isAvailable)
         try await coordinator.connect(to: .demoStudio)
+        adapter.emitReady(sessionId: "ads-test", generation: 0)
 
         XCTAssertTrue(transport.isAvailable)
         transport.send(event)
@@ -94,4 +95,16 @@ private final class StubCastAdapter: GoogleCastAdapter {
     }
 
     func sendControl(_ message: CastControlMessage) {}
+
+    func emitReady(sessionId: String, generation: Int) {
+        guard let ready = try? CastControlMessage.ready(
+            sessionId: sessionId,
+            generation: generation,
+            width: 1920,
+            height: 1080,
+            persistence: "indexeddb",
+            lastAcceptedInputSeq: 0
+        ).validated() else { return }
+        delegate?.castAdapter(self, didReceive: ready)
+    }
 }

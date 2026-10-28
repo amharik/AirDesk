@@ -16,7 +16,10 @@ final class SessionInputTransport: InputTransport {
         case .endpoint:
             return endpoint?.acceptsInput == true
         case .cast:
-            return cast?.connectedDevice != nil
+            if let endpoint {
+                return endpoint.acceptsInput
+            }
+            return cast?.isReady == true
         }
     }
 
@@ -26,7 +29,11 @@ final class SessionInputTransport: InputTransport {
         case .endpoint:
             endpoint?.send(event)
         case .cast:
-            cast?.send(event)
+            if let endpoint {
+                endpoint.send(event)
+            } else {
+                cast?.send(event)
+            }
         }
     }
 }

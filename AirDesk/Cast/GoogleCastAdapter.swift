@@ -7,6 +7,7 @@ protocol GoogleCastAdapterDelegate: AnyObject {
     func castAdapter(_ adapter: any GoogleCastAdapter, didChange state: CastConnectionState)
     func castAdapter(_ adapter: any GoogleCastAdapter, didFail error: Error)
     func castAdapter(_ adapter: any GoogleCastAdapter, didReceive event: InputEvent)
+    func castAdapter(_ adapter: any GoogleCastAdapter, didReceive message: CastControlMessage)
 }
 
 @MainActor
@@ -31,7 +32,9 @@ final class SimulatedGoogleCastAdapter: GoogleCastAdapter {
     weak var delegate: (any GoogleCastAdapterDelegate)?
     private(set) var discoveredDevices: [CastDevice] = []
     private var discoveryTask: Task<Void, Never>?
+    private var readyTask: Task<Void, Never>?
     private(set) var connectedDevice: CastDevice?
+    private var lastAcceptedInputSeq = 0
 
     func startDiscovery() {
         discoveryTask?.cancel()
@@ -59,16 +62,58 @@ final class SimulatedGoogleCastAdapter: GoogleCastAdapter {
     }
 
     func disconnect() {
+        readyTask?.cancel()
+        readyTask = nil
         connectedDevice = nil
         delegate?.castAdapter(self, didChange: .idle)
     }
 
     func send(_ event: InputEvent) {
-        delegate?.castAdapter(self, didReceive: event)
+        guard connectedDevice != nil else { return }
+        lastAcceptedInputSeq = max(lastAcceptedInputSeq, event.seq)
+        guard let ack = try? CastControlMessage.ack(
+            sessionId: event.sessionId,
+            generation: event.generation ?? 0,
+            lastAcceptedInputSeq: lastAcceptedInputSeq
+        ).validated() else { return }
+        delegate?.castAdapter(self, didReceive: ack)
     }
 
     func sendControl(_ message: CastControlMessage) {
-        _ = message
+        guard connectedDevice != nil, let message = try? message.validated() else { return }
+        switch message.type {
+        case .sessionStart, .sessionResume:
+            lastAcceptedInputSeq = message.lastAckedInputSeq ?? lastAcceptedInputSeq
+            readyTask?.cancel()
+            readyTask = Task { [weak self] in
+                try? await Task.sleep(nanoseconds: 350_000_000)
+                guard !Task.isCancelled, let self, self.connectedDevice != nil else { return }
+                guard let ready = try? CastControlMessage.ready(
+                    sessionId: message.sessionId,
+                    generation: message.generation,
+                    width: 1920,
+                    height: 1080,
+                    persistence: "indexeddb",
+                    lastAcceptedInputSeq: self.lastAcceptedInputSeq
+                ).validated() else { return }
+                self.delegate?.castAdapter(self, didReceive: ready)
+                guard let state = try? CastControlMessage.state(
+                    sessionId: message.sessionId,
+                    generation: message.generation,
+                    state: RuntimeState.ready.rawValue
+                ).validated() else { return }
+                self.delegate?.castAdapter(self, didReceive: state)
+            }
+        case .ping:
+            guard let pong = try? CastControlMessage(
+                type: .pong,
+                sessionId: message.sessionId,
+                generation: message.generation
+            ).validated() else { return }
+            delegate?.castAdapter(self, didReceive: pong)
+        default:
+            break
+        }
     }
 }
 
@@ -135,7 +180,7 @@ final class SDKGoogleCastAdapter: NSObject, GoogleCastAdapter {
     }
 
     func sendControl(_ message: CastControlMessage) {
-        guard let controlChannel, let json = message.jsonString() else { return }
+        guard let controlChannel, let json = try? message.jsonString() else { return }
         _ = controlChannel.sendTextMessage(json, error: nil)
     }
 
@@ -212,11 +257,18 @@ extension SDKGoogleCastAdapter: @preconcurrency GCKSessionManagerListener {
 
 extension SDKGoogleCastAdapter: @preconcurrency GCKGenericChannelDelegate {
     @objc func cast(_ channel: GCKGenericChannel, didReceiveTextMessage message: String, withNamespace protocolNamespace: String) {
-        guard protocolNamespace == CastNamespace.input,
-              let data = message.data(using: .utf8),
-              let event = try? JSONDecoder().decode(InputEvent.self, from: data),
-              let validated = try? event.validated() else { return }
-        delegate?.castAdapter(self, didReceive: validated)
+        switch protocolNamespace {
+        case CastNamespace.input:
+            guard let data = message.data(using: .utf8),
+                  let event = try? JSONDecoder().decode(InputEvent.self, from: data),
+                  let validated = try? event.validated() else { return }
+            delegate?.castAdapter(self, didReceive: validated)
+        case CastNamespace.control:
+            guard let control = try? CastControlMessage.decode(from: message) else { return }
+            delegate?.castAdapter(self, didReceive: control)
+        default:
+            return
+        }
     }
 }
 

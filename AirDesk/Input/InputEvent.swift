@@ -38,6 +38,7 @@ struct InputEvent: Codable, Equatable, Sendable {
     var version: Int = 1
     var type: Kind
     var sessionId: String
+    var generation: Int? = nil
     var seq: Int
     var timestamp: Double
     var x: Double?
@@ -57,6 +58,7 @@ struct InputEvent: Codable, Equatable, Sendable {
     static func make(
         _ type: Kind,
         sessionId: String,
+        generation: Int = 0,
         seq: Int,
         x: Double? = nil,
         y: Double? = nil,
@@ -75,6 +77,7 @@ struct InputEvent: Codable, Equatable, Sendable {
         InputEvent(
             type: type,
             sessionId: sessionId,
+            generation: generation,
             seq: seq,
             timestamp: Date().timeIntervalSince1970 * 1000,
             x: x,
@@ -98,6 +101,9 @@ struct InputEvent: Codable, Equatable, Sendable {
     func validated() throws -> InputEvent {
         guard version == 1 else { throw InputEventError.unsupportedVersion }
         guard !sessionId.isEmpty, sessionId.count <= 64 else { throw InputEventError.invalidSession }
+        guard (generation ?? 0) >= 0, (generation ?? 0) <= Int(Int32.max) else {
+            throw InputEventError.invalidGeneration
+        }
         guard seq >= 0 else { throw InputEventError.invalidSequence }
         guard timestamp.isFinite, timestamp > 0 else { throw InputEventError.invalidTimestamp }
 
@@ -145,6 +151,7 @@ struct InputEvent: Codable, Equatable, Sendable {
 enum InputEventError: LocalizedError, Equatable {
     case unsupportedVersion
     case invalidSession
+    case invalidGeneration
     case invalidSequence
     case invalidTimestamp
     case invalidCoordinates
@@ -163,6 +170,7 @@ enum InputEventError: LocalizedError, Equatable {
         switch self {
         case .unsupportedVersion: return "Unsupported input protocol version."
         case .invalidSession: return "Invalid session identifier."
+        case .invalidGeneration: return "Invalid session generation."
         case .invalidSequence: return "Invalid input sequence."
         case .invalidTimestamp: return "Invalid input timestamp."
         case .invalidCoordinates: return "Pointer coordinates are outside the desktop bounds."

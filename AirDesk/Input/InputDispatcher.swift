@@ -25,6 +25,7 @@ final class ClosureInputTransport: InputTransport {
 @MainActor
 final class InputDispatcher {
     private(set) var sessionId: String = ""
+    private(set) var generation: Int = 0
     private(set) var currentPoint = CGPoint(x: 0.5, y: 0.5)
     private(set) var sequence: Int = 0
     var transport: (any InputTransport)?
@@ -44,8 +45,9 @@ final class InputDispatcher {
         self.flushInterval = flushInterval
     }
 
-    func startSession(id: String, viewport: CGSize = .zero) {
+    func startSession(id: String, generation: Int = 0, viewport: CGSize = .zero) {
         sessionId = id
+        self.generation = generation
         sequence = 0
         currentPoint = CGPoint(x: 0.5, y: 0.5)
         pressedKeys.removeAll()
@@ -271,6 +273,8 @@ final class InputDispatcher {
 
     private func send(_ event: InputEvent) {
         guard let transport, transport.isAvailable else { return }
+        var event = event
+        event.generation = generation
         guard let validated = try? event.validated() else { return }
         transport.send(validated)
         onEventSent?(validated)
