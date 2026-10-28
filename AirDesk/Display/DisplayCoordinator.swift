@@ -74,7 +74,7 @@ final class DisplayCoordinator: ObservableObject {
     }
 
     func register(scene: UIWindowScene) {
-        guard scene.session.role == .windowExternalDisplay || scene.session.role == .windowExternalDisplayNonInteractive else {
+        guard scene.session.role == .windowExternalDisplayNonInteractive else {
             return
         }
         guard activeScene !== scene else { return }

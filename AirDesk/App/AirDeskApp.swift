@@ -16,8 +16,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         configurationForConnecting connectingSceneSession: UISceneSession,
         options: UIScene.ConnectionOptions
     ) -> UISceneConfiguration {
-        if connectingSceneSession.role == .windowExternalDisplay ||
-            connectingSceneSession.role == .windowExternalDisplayNonInteractive {
+        if connectingSceneSession.role == .windowExternalDisplayNonInteractive {
             let configuration = UISceneConfiguration(
                 name: "AirDesk External Display",
                 sessionRole: connectingSceneSession.role
