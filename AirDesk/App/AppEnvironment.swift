@@ -62,6 +62,7 @@ final class AppEnvironment: ObservableObject {
                 session.beginConnection(to: .previewDevice)
             }
         }
+        NativeSmokeTest.runIfRequested(session: session)
         #endif
     }
 }

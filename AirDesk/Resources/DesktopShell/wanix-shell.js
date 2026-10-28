@@ -236,7 +236,10 @@
       persistent = false;
       return Promise.resolve(false);
     }
-    if (location.search.indexOf('noopfs') >= 0 || !(navigator.storage && navigator.storage.getDirectory)) {
+    var supportsOPFSWrites = typeof FileSystemFileHandle !== 'undefined' &&
+      FileSystemFileHandle.prototype &&
+      typeof FileSystemFileHandle.prototype.createWritable === 'function';
+    if (location.search.indexOf('noopfs') >= 0 || !(navigator.storage && navigator.storage.getDirectory) || !supportsOPFSWrites) {
       useRamWorkspace();
       return Promise.resolve(false);
     }

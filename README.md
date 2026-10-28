@@ -91,9 +91,11 @@ flowchart TD
 
 The namespace is mounted inside the desktop shell but hidden. Terminal windows create their own `wanix-term`, attach to the shared `#task/shell/term`, and then start the shell task. Finder reads the same root with `readDir`; Notes writes to `opfs/notes.json` and can open arbitrary files from the namespace. Terminal attachment has a 1.8 s watchdog and retries up to three times if the PTY handshake stalls.
 
-The native app serves `DesktopShell` from a loopback-only `NWListener` at `http://127.0.0.1:<port>/` instead of loading `file://`. Every response carries `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`, so `WKWebView` reports `crossOriginIsolated === true`, exposes `SharedArrayBuffer`, and allows native OPFS writes from workers. `LocalAssetServerTests` verifies cross-origin isolation, `SharedArrayBuffer`, OPFS file creation, and a worker `createSyncAccessHandle` write on the simulator.
+The native app serves `DesktopShell` from a loopback-only `NWListener` at `http://127.0.0.1:<port>/` instead of loading `file://`. Every response carries `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`, so `WKWebView` reports `crossOriginIsolated === true` and exposes `SharedArrayBuffer`. `LocalAssetServerTests` verifies cross-origin isolation, `SharedArrayBuffer`, OPFS file creation, and a worker `createSyncAccessHandle` write on the simulator.
 
-`wanix-file-worker-fix.js` patches the embedded gojs worker on both loopback HTTP and `file://`: it creates missing files for `O_CREAT`, normalizes rc2 timestamp arguments, and wraps the Blob before Wanix starts. For `file://` it also inlines the `WanixHandle` module and converts the module worker into a self-contained classic worker, which Chrome requires. When OPFS is unavailable under `file://`, the shell falls back to `#ramfs/new` and snapshots `opfs/` to IndexedDB (with a localStorage fallback), restoring the workspace on the next load.
+`WKWebView` on iOS 18.6 exposes OPFS directory handles but not `FileSystemFileHandle.createWritable`, which Wanix's `#web/opfs` provider requires. The shell therefore checks for writable OPFS support and falls back to `#ramfs/new` with IndexedDB snapshot persistence when it is missing; the `opfs/` path still works for the terminal, Finder, and Notes. Native smoke testing confirms the fallback mount and terminal file operations.
+
+`wanix-file-worker-fix.js` patches the embedded gojs worker on both loopback HTTP and `file://`: it creates missing files for `O_CREAT`, normalizes rc2 timestamp arguments, and wraps the Blob before Wanix starts. For `file://` it also inlines the `WanixHandle` module and converts the module worker into a self-contained classic worker, which Chrome requires. When OPFS is unavailable, the shell falls back to `#ramfs/new` and snapshots `opfs/` to IndexedDB (with a localStorage fallback), restoring the workspace on the next load.
 
 If the desktop process terminates, `SessionCoordinator` retries with exponential backoff (four attempts, 0.5–8 s). If recovery is exhausted, `SessionRecoveryView` offers retry, display change, and diagnostics actions.
 
@@ -126,14 +128,14 @@ cd ~/airdesk
 xcodegen generate
 xcodebuild -project AirDesk.xcodeproj -scheme AirDesk \
   -sdk iphonesimulator \
-  -destination "platform=iOS Simulator,name=iPhone 16 Pro" \
+  -destination "platform=iOS Simulator,id=3B46FDF8-1482-4517-99F3-D6EF46A85133" \
   -configuration Debug \
   -derivedDataPath ~/airdesk/DerivedData \
   build CODE_SIGNING_ALLOWED=NO
 
 xcodebuild -project AirDesk.xcodeproj -scheme AirDesk \
   -sdk iphonesimulator \
-  -destination "platform=iOS Simulator,name=iPhone 16 Pro" \
+  -destination "platform=iOS Simulator,id=3B46FDF8-1482-4517-99F3-D6EF46A85133" \
   -configuration Debug \
   -derivedDataPath ~/airdesk/DerivedData \
   test CODE_SIGNING_ALLOWED=NO
@@ -169,6 +171,14 @@ uv run --with websockets python3 scripts/desktop-smoke-test.py \
 
 The test verifies terminal startup, `touch`, `>`, `>>`, `cat`, `cp`, and OPFS reads and writes. It exits nonzero on a missing prompt or content mismatch.
 
+Run the native smoke test after building the Debug app:
+
+```bash
+scripts/native-smoke-test.sh 3B46FDF8-1482-4517-99F3-D6EF46A85133
+```
+
+The helper boots the simulator, installs the app, launches it with `-AirDeskSmokeTest`, and polls `Documents/airdesk-native-smoke.json` without relying on `simctl get_app_container`. It exits zero only when the JSON reports `"ok": true`. The test checks the terminal prompt, root file writes, `cp`, and the `opfs/` fallback mount.
+
 ## Security model
 
 - File URLs are restricted to the bundled `DesktopShell` directory.
@@ -183,7 +193,7 @@ The test verifies terminal startup, `touch`, `>`, `>>`, `cat`, `cp`, and OPFS re
 - Google Cast SDK integration and receiver registration are not complete.
 - Android controller and display clients are not started.
 - The Cast receiver must disable v86 and use a receiver budget below 512 MB.
-- Native WKWebView loopback hosting now provides COOP/COEP, `SharedArrayBuffer`, and OPFS. Chrome `file://` previews still use the IndexedDB snapshot fallback; use `scripts/dev-desktop-server.py` for full worker and OPFS behavior.
-- OPFS is unavailable in Chrome under `file://`; the fallback snapshots `opfs/` to IndexedDB, but terminal writes outside `opfs/` are not persisted.
+- Native WKWebView loopback hosting provides COOP/COEP and `SharedArrayBuffer`, but its OPFS handles lack `createWritable`; the shell uses the IndexedDB snapshot fallback for `opfs/` on iOS 18.6. Chrome loopback HTTP still uses full OPFS; use `scripts/dev-desktop-server.py` for that path.
+- The IndexedDB fallback snapshots `opfs/` only; terminal writes outside `opfs/` are not persisted.
 - Wanix rc2 ignores `O_CREAT`, rejects integer `chtimes` timestamps, hardcodes zero inodes, and does not honor `O_APPEND`. `wanix-file-worker-fix.js` patches the embedded gojs worker to create and truncate files, normalize timestamp arguments, assign unique inodes, and track append offsets. `touch`, `>`, `>>`, `cat`, and `cp` work in `ramfs` and OPFS. The patch targets the gojs worker used by `rc.wasm`; standalone WASI workers still use upstream behavior.
 - The controller flow is implemented as named views and inline controller modes: Welcome, Connection Guide, Connection, Session Setup, Connecting, Controller, Session Settings, Diagnostics, Session Recovery, and Keyboard input. Device selection, desktop readiness, and runtime inspection are folded into these destinations rather than separate screens. The six TV modules are complete: Desktop, Finder, Terminal, Workbench, Notes, and Spotlight.
