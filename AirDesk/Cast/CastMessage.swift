@@ -34,11 +34,25 @@ enum CastNamespace {
     static let control = "urn:x-cast:com.airdesk.control"
 }
 
-struct CastControlMessage: Codable, Sendable {
+struct CastControlMessage: Codable, Equatable, Sendable {
     var version = 1
     var type: String
     var sessionId: String
-    var reason: String?
+    var reason: String? = nil
+    var appearance: String? = nil
+    var workspace: String? = nil
+
+    static func sessionStart(sessionId: String, workspace: String) -> CastControlMessage {
+        CastControlMessage(type: "sessionStart", sessionId: sessionId, workspace: workspace)
+    }
+
+    static func sessionEnd(sessionId: String) -> CastControlMessage {
+        CastControlMessage(type: "sessionEnd", sessionId: sessionId)
+    }
+
+    static func appearance(sessionId: String, appearance: String) -> CastControlMessage {
+        CastControlMessage(type: "appearance", sessionId: sessionId, appearance: appearance)
+    }
 
     func jsonString() -> String? {
         guard let data = try? JSONEncoder().encode(self) else { return nil }
@@ -51,6 +65,7 @@ enum CastAdapterError: LocalizedError, Equatable {
     case sdkUnavailable
     case notConnected
     case receiverNotConfigured
+    case connectionTimedOut
 
     var errorDescription: String? {
         switch self {
@@ -58,6 +73,7 @@ enum CastAdapterError: LocalizedError, Equatable {
         case .sdkUnavailable: return "The Google Cast SDK is not available in this build."
         case .notConnected: return "No Cast receiver is connected."
         case .receiverNotConfigured: return "Add a registered AirDesk receiver application ID to enable Google Cast."
+        case .connectionTimedOut: return "The Cast receiver did not finish connecting."
         }
     }
 }

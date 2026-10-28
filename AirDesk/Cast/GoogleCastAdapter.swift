@@ -21,6 +21,7 @@ protocol GoogleCastAdapter: AnyObject {
     func connect(to device: CastDevice) async throws
     func disconnect()
     func send(_ event: InputEvent)
+    func sendControl(_ message: CastControlMessage)
 }
 
 @MainActor
@@ -65,6 +66,10 @@ final class SimulatedGoogleCastAdapter: GoogleCastAdapter {
     func send(_ event: InputEvent) {
         delegate?.castAdapter(self, didReceive: event)
     }
+
+    func sendControl(_ message: CastControlMessage) {
+        _ = message
+    }
 }
 
 #if canImport(GoogleCast)
@@ -76,13 +81,21 @@ final class SDKGoogleCastAdapter: NSObject, GoogleCastAdapter {
     let isSimulated = false
     weak var delegate: (any GoogleCastAdapterDelegate)?
     private(set) var discoveredDevices: [CastDevice] = []
-    private var channel: GCKGenericChannel?
+    private var inputChannel: GCKGenericChannel?
+    private var controlChannel: GCKGenericChannel?
+    private var connectContinuation: CheckedContinuation<Void, Error>?
+    private var connectTimeoutTask: Task<Void, Never>?
+    private var isListening = false
     private let logger = Logger(subsystem: "com.airdesk.ios", category: "Cast")
 
     func startDiscovery() {
-        let discovery = GCKCastContext.sharedInstance().discoveryManager
-        discovery.add(self)
-        discovery.startDiscovery()
+        let context = GCKCastContext.sharedInstance()
+        if !isListening {
+            context.discoveryManager.add(self)
+            context.sessionManager.add(self)
+            isListening = true
+        }
+        context.discoveryManager.startDiscovery()
         delegate?.castAdapter(self, didChange: .discovering)
     }
 
@@ -95,20 +108,43 @@ final class SDKGoogleCastAdapter: NSObject, GoogleCastAdapter {
             throw CastAdapterError.deviceUnavailable
         }
         delegate?.castAdapter(self, didChange: .connecting)
-        GCKCastContext.sharedInstance().sessionManager.startSession(with: gckDevice)
+        try await withCheckedThrowingContinuation { continuation in
+            connectContinuation = continuation
+            GCKCastContext.sharedInstance().sessionManager.startSession(with: gckDevice)
+            connectTimeoutTask = Task { [weak self] in
+                try? await Task.sleep(nanoseconds: 20_000_000_000)
+                guard !Task.isCancelled else { return }
+                self?.finishConnect(.failure(CastAdapterError.connectionTimedOut))
+            }
+        }
     }
 
     func disconnect() {
+        finishConnect(.failure(CancellationError()))
         GCKCastContext.sharedInstance().sessionManager.endSessionAndStopCasting(true)
-        channel = nil
+        inputChannel = nil
+        controlChannel = nil
         delegate?.castAdapter(self, didChange: .idle)
     }
 
     func send(_ event: InputEvent) {
-        guard let channel, let object = try? event.jsonObject(),
+        guard let inputChannel, let object = try? event.jsonObject(),
               let data = try? JSONSerialization.data(withJSONObject: object),
               let json = String(data: data, encoding: .utf8) else { return }
-        channel.sendTextMessage(json)
+        inputChannel.sendTextMessage(json)
+    }
+
+    func sendControl(_ message: CastControlMessage) {
+        guard let controlChannel, let json = message.jsonString() else { return }
+        controlChannel.sendTextMessage(json)
+    }
+
+    private func finishConnect(_ result: Result<Void, Error>) {
+        connectTimeoutTask?.cancel()
+        connectTimeoutTask = nil
+        guard let continuation = connectContinuation else { return }
+        connectContinuation = nil
+        continuation.resume(with: result)
     }
 
     private func currentGCKDevice(matching device: CastDevice) -> GCKDevice? {
@@ -124,7 +160,7 @@ final class SDKGoogleCastAdapter: NSObject, GoogleCastAdapter {
 }
 
 extension SDKGoogleCastAdapter: GCKDiscoveryManagerListener {
-    func didUpdateDeviceList() {
+    @objc func didUpdateDeviceList() {
         let discovery = GCKCastContext.sharedInstance().discoveryManager
         var result: [CastDevice] = []
         for index in 0..<discovery.deviceCount {
@@ -142,30 +178,38 @@ extension SDKGoogleCastAdapter: GCKDiscoveryManagerListener {
 }
 
 extension SDKGoogleCastAdapter: GCKSessionManagerListener {
-    func sessionManager(_ sessionManager: GCKSessionManager, didStart session: GCKSession) {
+    @objc func sessionManager(_ sessionManager: GCKSessionManager, didStart session: GCKSession) {
         guard let castSession = session as? GCKCastSession else { return }
-        let channel = castSession.addChannel(withNamespace: CastNamespace.input) as? GCKGenericChannel
-        channel?.delegate = self
-        self.channel = channel
+        let input = castSession.addChannel(withNamespace: CastNamespace.input) as? GCKGenericChannel
+        input?.delegate = self
+        let control = castSession.addChannel(withNamespace: CastNamespace.control) as? GCKGenericChannel
+        control?.delegate = self
+        inputChannel = input
+        controlChannel = control
         delegate?.castAdapter(self, didChange: .connected)
+        finishConnect(.success(()))
     }
 
-    func sessionManager(_ sessionManager: GCKSessionManager, didEnd session: GCKSession, withError error: Error?) {
-        channel = nil
+    @objc func sessionManager(_ sessionManager: GCKSessionManager, didEnd session: GCKSession, withError error: Error?) {
+        inputChannel = nil
+        controlChannel = nil
         if let error {
             delegate?.castAdapter(self, didFail: error)
+            finishConnect(.failure(error))
         } else {
             delegate?.castAdapter(self, didChange: .idle)
+            finishConnect(.failure(CastAdapterError.notConnected))
         }
     }
 
-    func sessionManager(_ sessionManager: GCKSessionManager, didFailToStart session: GCKSession, withError error: Error) {
+    @objc func sessionManager(_ sessionManager: GCKSessionManager, didFailToStart session: GCKSession, withError error: Error) {
         delegate?.castAdapter(self, didFail: error)
+        finishConnect(.failure(error))
     }
 }
 
 extension SDKGoogleCastAdapter: GCKGenericChannelDelegate {
-    func castChannel(_ channel: GCKGenericChannel, didReceiveTextMessage message: String, withNamespace protocolNamespace: String) {
+    @objc func castChannel(_ channel: GCKGenericChannel, didReceiveTextMessage message: String, withNamespace protocolNamespace: String) {
         guard protocolNamespace == CastNamespace.input,
               let data = message.data(using: .utf8),
               let event = try? JSONDecoder().decode(InputEvent.self, from: data),

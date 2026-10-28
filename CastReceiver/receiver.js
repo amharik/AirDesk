@@ -33,6 +33,12 @@
     debugState.textContent = text;
   }
 
+  function adoptSession(id) {
+    if (typeof id !== 'string' || !id || id === sessionId) return;
+    sessionId = id;
+    debugSession.textContent = sessionId;
+  }
+
   function separator(url) {
     return url.indexOf('?') >= 0 ? '&' : '?';
   }
@@ -121,7 +127,7 @@
   function handleInput(data) {
     var event = parsePayload(data);
     if (!event || typeof event.type !== 'string') return;
-    if (event.sessionId && event.sessionId !== sessionId) return;
+    if (event.sessionId) adoptSession(event.sessionId);
     deliverInput(event);
   }
 
@@ -132,6 +138,7 @@
       deliverControl({ type: 'appearance', appearance: String(message.appearance) });
     }
     if (message.type === 'sessionStart') {
+      adoptSession(message.sessionId);
       setStatus('AIRDESK CONNECTED', true);
       setDebugState('session');
     }
@@ -139,8 +146,8 @@
       setStatus('AIRDESK RECEIVER', false);
       setDebugState('idle');
     }
-    if (message.type === 'workspace' && message.name) {
-      setDebugState('workspace ' + String(message.name));
+    if (message.type === 'workspace' && (message.workspace || message.name)) {
+      setDebugState('workspace ' + String(message.workspace || message.name));
     }
   }
 

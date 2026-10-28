@@ -247,6 +247,7 @@ final class SessionCoordinator: ObservableObject {
         self.runtime = nil
         Task { await runtime?.shutdown() }
         if selectedDevice?.kind == .cast {
+            sendCastControl(.sessionEnd(sessionId: sessionId))
             cast.disconnect()
         }
         desktopSurface.onStateChange = nil
@@ -273,6 +274,7 @@ final class SessionCoordinator: ObservableObject {
         self.runtime = nil
         Task { await runtime?.shutdown() }
         if selectedDevice?.kind == .cast {
+            sendCastControl(.sessionEnd(sessionId: sessionId))
             cast.disconnect()
         }
         desktopSurface.returnHome()
@@ -449,6 +451,7 @@ final class SessionCoordinator: ObservableObject {
             type: "appearance",
             payload: ["appearance": settings.desktopAppearance]
         )
+        sendCastControl(.appearance(sessionId: sessionId, appearance: settings.desktopAppearance))
     }
 
     func sceneBecameActive() {
@@ -480,6 +483,7 @@ final class SessionCoordinator: ObservableObject {
                     isDemo: device.isDemo
                 )
                 try await cast.connect(to: castDevice)
+                sendCastControl(.sessionStart(sessionId: sessionId, workspace: workspace.name))
             } else {
                 try await pause(0.55)
             }
@@ -543,7 +547,10 @@ final class SessionCoordinator: ObservableObject {
             let runtime = self.runtime
             self.runtime = nil
             Task { await runtime?.shutdown() }
-            if mode == .cast { cast.disconnect() }
+            if mode == .cast {
+                sendCastControl(.sessionEnd(sessionId: sessionId))
+                cast.disconnect()
+            }
             inputTransport.route = .surface
             desktopSurface.returnHome()
         }
@@ -593,6 +600,7 @@ final class SessionCoordinator: ObservableObject {
         self.runtime = nil
         Task { await runtime?.shutdown() }
         if selectedDevice?.kind == .cast {
+            sendCastControl(.sessionEnd(sessionId: sessionId))
             cast.disconnect()
         }
         desktopSurface.returnHome()
@@ -659,6 +667,11 @@ final class SessionCoordinator: ObservableObject {
             guard !Task.isCancelled else { return }
             self?.notice = nil
         }
+    }
+
+    private func sendCastControl(_ message: CastControlMessage) {
+        guard mode == .cast, cast.connectedDevice != nil else { return }
+        cast.sendControl(message)
     }
 
     private func pause(_ seconds: TimeInterval) async throws {

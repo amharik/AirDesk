@@ -78,6 +78,11 @@ final class CastSessionCoordinator: ObservableObject {
         adapter.send(event)
     }
 
+    func sendControl(_ message: CastControlMessage) {
+        guard connectedDevice != nil else { return }
+        adapter.sendControl(message)
+    }
+
     func clearError() {
         lastError = nil
     }

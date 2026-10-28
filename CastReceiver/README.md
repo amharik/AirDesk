@@ -4,14 +4,14 @@ A development Web Receiver that hosts the bundled AirDesk desktop shell and acce
 
 ## Status
 
-This receiver is scaffolding. The iOS app currently uses `SimulatedGoogleCastAdapter` unless the Google Cast SDK is added and a registered receiver application ID is configured. This receiver is not registered with Google and cannot be used as a production Cast application until it is hosted at a public HTTPS URL and registered in the Cast Developer Console.
+This receiver is scaffolding. The iOS sender adapter is wired for real Cast sessions: it waits for the session, attaches input and control channels, and sends `sessionStart`, `appearance`, and `sessionEnd` control messages. The app still uses `SimulatedGoogleCastAdapter` unless the Google Cast SDK is added and a registered receiver application ID is configured. This receiver is not registered with Google and cannot be used as a production Cast application until it is hosted at a public HTTPS URL and registered in the Cast Developer Console.
 
 ## Channels
 
 - `urn:x-cast:com.airdesk.input` receives `InputEvent` JSON from the sender.
-- `urn:x-cast:com.airdesk.control` receives control messages such as `appearance`, `sessionStart`, `sessionEnd`, and `workspace`.
+- `urn:x-cast:com.airdesk.control` receives `sessionStart` (with `workspace`), `appearance`, and `sessionEnd` control messages.
 
-The receiver forwards input to the embedded shell through `window.AirDeskBridge.receive` and control messages through `window.AirDeskBridge.receiveControl`.
+The receiver adopts the sender's session ID from `sessionStart` or the first input event, forwards input to the embedded shell through `window.AirDeskBridge.receive`, and forwards appearance/control messages through `window.AirDeskBridge.receiveControl`.
 
 ## Hosting
 
