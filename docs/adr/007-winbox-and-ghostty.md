@@ -61,6 +61,18 @@ Ghostty web assets are bundled locally; no runtime CDN dependency is permitted i
 
 Each cutover is independently reversible until its fallback is removed.
 
+## Qualification spike results — 2026-10-30
+
+- Pinned `winbox@0.2.82` under ADR-003 with npm integrity `sha512-fMHaLnnuhyw1mLvzmCTWMpRKDfXUK/Z08VdbyBqDaITFFAd3Fx2BGDCF6rzGSkWrQgo8fHTFpFICofyM36FTnA==`.
+- The upstream ESM source was exercised directly in JSDOM, not a mock. WinBox accepts an AirDesk `template` and preserves all resize handles and `.wb-drag` behavior.
+- The custom template keeps AirDesk traffic lights, title icon/title, dialog semantics, and app identity while WinBox owns focus, z-order, minimize, maximize/restore, close, and geometry.
+- Added the `WinBoxWindowManager` adapter with focus history, viewport insets, close vetoes, lifecycle callbacks, and client-to-window coordinate conversion.
+- Four adapter tests pass against the real upstream implementation, including chrome preservation, focus/z-order, traffic-light routing, close vetoes, and duplicate-id focus behavior.
+- Upstream distribution sizes are 11.0 kB for minified JS and 4.8 kB for CSS; the bundled build is 16.0 kB. No fork is required for the supported chrome path.
+- License text and attribution are recorded under `third_party/winbox/`.
+
+Still pending before Trial: WKWebView/Cast 60 FPS measurement at 1080p, safe-area/rotation/external-display checks, physical native pointer and long-press regressions, VoiceOver/accessibility review, visual screenshots, CSP/offline packaging, and the category-D parity harness. The status remains **Proposed**.
+
 ## Acceptance gates
 
 ### WinBox

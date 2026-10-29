@@ -14,7 +14,8 @@
     "sbom": "node scripts/generate-sbom.mjs"
   },
   "dependencies": {
-    "flatbuffers": "25.9.23"
+    "flatbuffers": "25.9.23",
+    "winbox": "0.2.82"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
