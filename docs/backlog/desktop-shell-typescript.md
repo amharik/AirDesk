@@ -69,21 +69,21 @@ Implemented in `8a139d0`.
 
 ## Phase 1 — Toolchain
 
-- [ ] Add `web/package.json` with `typescript`, `esbuild`, `vitest`, `eslint`.
-- [ ] Add strict `tsconfig.json` (`strict`, `noUncheckedIndexedAccess`, `noImplicitOverride`).
-- [ ] Add `build:desktop` script emitting IIFE bundles with source maps.
-- [ ] Add `check:desktop` script running `tsc --noEmit`, ESLint, and tests.
-- [ ] Add CI job verifying committed output matches `web/src`.
-- [ ] Document the build in `README.md`.
+- [x] Add `web/package.json` with `typescript`, `esbuild`, `vitest`, `eslint`.
+- [x] Add strict `tsconfig.json` (`strict`, `noUncheckedIndexedAccess`, `noImplicitOverride`).
+- [x] Add `build` script emitting IIFE bundles with source maps.
+- [x] Add `check` script running `tsc --noEmit`, ESLint, tests, and the bundle freshness check.
+- [x] Add CI job verifying committed output matches `web/src`.
+- [x] Document the build in `README.md`.
 
-**Exit:** `npm run build:desktop` reproduces current committed JS byte-for-byte or behaviorally; Xcode build requires no Node install.
+**Exit:** `npm run build` reproduces the committed bundle; Xcode build requires no Node install.
 
 ## Phase 2 — Protocol types first
 
-- [ ] Define `InputEvent`, `ControlMessage`, `DesktopState`, `WindowRecord`, `RuntimeInfo` in `shared/types.ts`.
-- [ ] Type `bridge.js` first; keep runtime behavior unchanged.
-- [ ] Type all `postMessage` payloads and validate incoming messages with a small runtime guard.
-- [ ] Add contract tests for generation/session gating and malformed messages.
+- [~] Define bridge `InputEvent`, `ControlMessage`, and API types in `web/src/bridge/types.ts`; move shared state/window/runtime types next.
+- [x] Type `bridge.js` first; keep runtime behavior unchanged.
+- [~] Type the bridge payloads and validate incoming messages with a small runtime guard; type remaining DesktopShell payloads next.
+- [x] Add contract tests for generation/session gating and malformed messages.
 - [ ] Generate Swift-side constants or a shared schema document so native and web cannot drift.
 
 **Exit:** bridge and native input messages are type-checked; no behavior change.

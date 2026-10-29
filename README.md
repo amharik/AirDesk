@@ -152,6 +152,17 @@ xcodebuild -project AirDesk.xcodeproj -scheme AirDesk \
   test CODE_SIGNING_ALLOWED=NO
 ```
 
+DesktopShell sources live in `web/src`. Build and verify the committed bundle with Node 22:
+
+```bash
+cd ~/airdesk/web
+npm ci
+npm run check
+npm run build
+```
+
+`npm run build` writes `AirDesk/Resources/DesktopShell/bridge.js` and its source map. Xcode still builds without Node; only edit the generated shell files through `web/src`.
+
 ## Local preview and simulator helpers
 
 Serve the desktop shell from loopback for Chrome or Safari so COOP/COEP apply:

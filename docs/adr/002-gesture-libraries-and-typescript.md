@@ -1,6 +1,6 @@
 # ADR-002: Replace custom gesture/input stack and migrate DesktopShell to TypeScript
 
-- **Status:** Accepted — implementation deferred until P0 stabilization
+- **Status:** Accepted — TypeScript bridge migration in progress
 - **Date:** 2026-10-29
 - **Scope:** iOS/iPadOS trackpad input, WKWebView desktop pointer/window interaction, DesktopShell build tooling
 - **Supersedes:** None
@@ -148,6 +148,7 @@ These are proposals for a separate fix PR, not part of the library migration.
 
 - 2026-10-29: Proposed; research snapshot recorded.
 - 2026-10-29: Accepted Option 2 (native trackpad gestures + `interact.js` web adapter). Implementation deferred until P0 stabilization and TypeScript toolchain land.
+- 2026-10-29: Phase 1 toolchain and typed `bridge.js` landed; native gestures and `interact.js` adapter remain.
 
 ## References
 

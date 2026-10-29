@@ -1,0 +1,29 @@
+name: DesktopShell
+
+on:
+  push:
+    paths:
+      - "web/**"
+      - "AirDesk/Resources/DesktopShell/**"
+      - ".github/workflows/desktop-shell.yml"
+  pull_request:
+    paths:
+      - "web/**"
+      - "AirDesk/Resources/DesktopShell/**"
+      - ".github/workflows/desktop-shell.yml"
+
+jobs:
+  check:
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run check
