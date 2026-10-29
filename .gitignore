@@ -10,3 +10,5 @@ CastReceiver/dist/
 
 __pycache__/
 *.pyc
+
+protocol/rust/target/

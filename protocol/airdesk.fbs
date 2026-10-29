@@ -1,0 +1,81 @@
+namespace AirDesk.Protocol;
+
+enum EventType : ubyte {
+  pointer_move = 0,
+  pointer_down = 1,
+  pointer_up = 2,
+  pointer_click = 3,
+  pointer_cancel = 4,
+  scroll = 5,
+  key_down = 6,
+  key_up = 7,
+  text_input = 8,
+  focus_changed = 9,
+  viewport_changed = 10
+}
+
+enum ControlType : ubyte {
+  ready = 0,
+  ack = 1,
+  viewport = 2,
+  notice = 3,
+  state = 4,
+  error = 5,
+  appearance = 6,
+  action = 7,
+  session_start = 8,
+  session_end = 9,
+  ping = 10,
+  pong = 11,
+  log = 12
+}
+
+table InputEvent {
+  version:uint = 1;
+  type:EventType;
+  session_id:string (required);
+  generation:uint = 0;
+  seq:uint;
+  timestamp:ulong;
+  x:float;
+  y:float;
+  dx:float;
+  dy:float;
+  button:ubyte;
+  click_count:ubyte = 1;
+  key:string;
+  code:string;
+  modifiers:[string];
+  text:string;
+  width:float;
+  height:float;
+  target:string;
+}
+
+table ControlMessage {
+  version:uint = 1;
+  type:ControlType;
+  session_id:string (required);
+  generation:uint = 0;
+  seq:uint;
+  timestamp:ulong;
+  appearance:string;
+  message:string;
+  action:string;
+  width:float;
+  height:float;
+  code:string;
+}
+
+union MessagePayload {
+  InputEvent,
+  ControlMessage
+}
+
+table Envelope {
+  version:uint = 1;
+  payload:MessagePayload;
+}
+
+root_type Envelope;
+file_identifier "ADEN";

@@ -23,6 +23,9 @@ packages:
   GoogleCast:
     url: https://github.com/googlecast/google-cast-ios-sdk
     exactVersion: 4.8.4
+  FlatBuffers:
+    url: https://github.com/google/flatbuffers
+    exactVersion: 25.12.19
 targets:
   AirDesk:
     type: application
@@ -50,6 +53,8 @@ targets:
     dependencies:
       - package: GoogleCast
         product: GoogleCastDynamic
+      - package: FlatBuffers
+        product: FlatBuffers
   AirDeskTests:
     type: bundle.unit-test
     platform: iOS

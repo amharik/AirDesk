@@ -1,0 +1,41 @@
+[
+  {
+    "name": "pointer-move",
+    "hex": "4144010000000000070000002a0000007b68e5cf8b0100004d1849cf5d5988160000803e0000403f00010000",
+    "expected": {
+      "kind": "pointer_move",
+      "generation": 7,
+      "seq": 42,
+      "timestamp": "1700000000123",
+      "sessionTag": "1623645925111568461",
+      "x": 0.25,
+      "y": 0.75,
+      "button": 0,
+      "clickCount": 1
+    }
+  },
+  {
+    "name": "scroll",
+    "hex": "4144010500000000070000002b0000007b68e5cf8b0100004d1849cf5d598816000048c100005040",
+    "expected": {
+      "kind": "scroll",
+      "generation": 7,
+      "seq": 43,
+      "timestamp": "1700000000123",
+      "sessionTag": "1623645925111568461",
+      "dx": -12.5,
+      "dy": 3.25
+    }
+  },
+  {
+    "name": "pointer-cancel",
+    "hex": "4144010400000000070000002c0000007b68e5cf8b0100004d1849cf5d598816",
+    "expected": {
+      "kind": "pointer_cancel",
+      "generation": 7,
+      "seq": 44,
+      "timestamp": "1700000000123",
+      "sessionTag": "1623645925111568461"
+    }
+  }
+]

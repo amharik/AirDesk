@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['node_modules/**', 'coverage/**']
+    ignores: ['node_modules/**', 'coverage/**', 'src/protocol/generated/**']
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

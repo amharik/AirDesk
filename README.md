@@ -167,6 +167,18 @@ npm run build
 
 `npm run build` writes `AirDesk/Resources/DesktopShell/bridge.js` and its source map. Xcode still builds without Node; only edit the generated shell files through `web/src`.
 
+## Protocol bindings
+
+`protocol/airdesk.fbs` is the source of truth for input, control, and packed pointer frames. Install `flatc` 25.12.19, then regenerate the checked-in Swift, TypeScript, and Rust bindings:
+
+```bash
+./protocol/generate.sh
+cd web && npm run check
+cargo test --manifest-path ../protocol/rust/Cargo.toml
+```
+
+The shared packed-frame fixtures live in `protocol/fixtures/packed-frames.json` and are exercised by all three language test suites.
+
 ## Local preview and simulator helpers
 
 Serve the desktop shell from loopback for Chrome or Safari so COOP/COEP apply:
