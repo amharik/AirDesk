@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "webClient": {
+    "allowed": [
+      "MIT",
+      "BSD-2-Clause",
+      "BSD-3-Clause",
+      "Apache-2.0",
+      "ISC",
+      "MPL-2.0"
+    ],
+    "reviewed": {
+      "MIT-0": {
+        "scope": "development",
+        "reason": "Permissive MIT variant used only by build/test tooling.",
+        "reviewed": "2026-10-29"
+      },
+      "BlueOak-1.0.0": {
+        "scope": "development",
+        "reason": "Permissive OSI-approved license used only by build/test tooling.",
+        "reviewed": "2026-10-29"
+      },
+      "CC0-1.0": {
+        "scope": "development",
+        "reason": "Public-domain dedication used only by build/test tooling.",
+        "reviewed": "2026-10-29"
+      }
+    },
+    "serverOnly": [
+      "GPL-2.0-only",
+      "GPL-2.0-or-later",
+      "GPL-3.0-only",
+      "GPL-3.0-or-later"
+    ],
+    "caseByCase": [
+      "AGPL-3.0-only",
+      "AGPL-3.0-or-later",
+      "SSPL-1.0",
+      "LGPL-2.1-only",
+      "LGPL-2.1-or-later",
+      "LGPL-3.0-only",
+      "LGPL-3.0-or-later"
+    ]
+  }
+}

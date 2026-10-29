@@ -158,8 +158,12 @@ DesktopShell sources live in `web/src`. Build and verify the committed bundle wi
 cd ~/airdesk/web
 npm ci
 npm run check
+npm run licenses
+npm run sbom
 npm run build
 ```
+
+`npm run check` includes TypeScript, lint, tests, a committed-bundle freshness check, and the license policy in `web/dependency-policy.json`. `npm run sbom` writes `web/build/sbom.cdx.json`; CI uploads it as an artifact.
 
 `npm run build` writes `AirDesk/Resources/DesktopShell/bridge.js` and its source map. Xcode still builds without Node; only edit the generated shell files through `web/src`.
 

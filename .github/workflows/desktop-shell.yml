@@ -27,3 +27,8 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci
       - run: npm run check
+      - run: npm run sbom
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-shell-sbom
+          path: web/build/sbom.cdx.json

@@ -5,6 +5,7 @@
 - **Scope:** All third-party source, binaries, WASM, SDKs, and services used by AirDesk or Wanix
 - **Supersedes:** None
 - **Related:** ADR-001, ADR-002, ADR-007
+- **Implementation:** Web dependency pins, license gate, and CycloneDX SBOM generation are active as of 2026-10-29.
 
 ## Decision
 
