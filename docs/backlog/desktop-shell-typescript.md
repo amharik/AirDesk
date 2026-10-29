@@ -55,12 +55,15 @@ Built output remains in `AirDesk/Resources/DesktopShell/` so the iOS app keeps l
 
 ## Phase 0 — Stabilize current input (blocking)
 
-- [ ] Capture device crash/sysdiagnose for touch-and-hold freeze.
-- [ ] Reproduce icon click -> cursor `0,0` and failed activation.
-- [ ] Remove global snap-on-move and the latching drag mode behind a flag.
-- [ ] Fix click coordinate contract across `PointerState`, `InputDispatcher`, `bridge.js`, `desktop.js`.
-- [ ] Add UI regressions for icon click and long-press trackpad.
-- [ ] Re-run simulator UI suite and device smoke test.
+- [x] Capture device watchdog logs: touch-and-hold ended in `0x8BADF00D` scene-update watchdogs while SwiftUI was updating the view graph.
+- [x] Fix the drag update loop: drag state is no longer published app-wide, `dragMode` only reacts to real changes, and `endDrag` resets to idle.
+- [x] Reproduce icon click failure: `#window-layer` covered the icons with pointer events; it now passes clicks through while windows remain interactive.
+- [x] Remove snap-on-move and harden click coordinates so missing coordinates keep the last pointer position instead of jumping to `0,0`.
+- [x] Add regressions for desktop-icon clicks and trackpad long-press.
+- [x] Re-run simulator unit, integration, and UI suites.
+- [ ] Device smoke test after the next signed Xcode build (`Cmd+R`).
+
+Implemented in `8a139d0`.
 
 **Exit:** no freeze/crash on press-and-hold, icon click activates at cursor location, existing typing tests pass.
 
