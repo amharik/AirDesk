@@ -34,6 +34,7 @@ final class LocalRuntimeEndpoint: RuntimeEndpoint {
 
         host.workspace = context.workspace
         host.sessionId = context.sessionId
+        host.generation = context.generation
 
         let runtime = runtimeFactory()
         self.runtime = runtime
@@ -55,6 +56,7 @@ final class LocalRuntimeEndpoint: RuntimeEndpoint {
     }
 
     func send(_ event: InputEvent) {
+        print("[AirDeskDebug] endpoint send \(event.type) accepts=\(acceptsInput) runtime=\(runtime != nil)")
         guard acceptsInput else { return }
         runtime?.dispatch(event)
     }

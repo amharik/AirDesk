@@ -78,11 +78,14 @@ final class SessionCoordinator: ObservableObject {
     @Published private(set) var sessionGeneration = 0
     @Published private(set) var workspace: Workspace = .default
     @Published private(set) var modifiers: Set<InputModifier> = []
-    @Published private(set) var isDragging = false
+    private(set) var isDragging = false
     @Published private(set) var isDemoConnection = false
     @Published private(set) var isExternalConnected = false
     @Published private(set) var recoveryAttempts = 0
     @Published var isPreviewPresented = false
+    @Published private(set) var previewKeyboardShowRequest = 0
+    @Published private(set) var previewKeyboardDismissRequest = 0
+    @Published private(set) var debugJSLog = ""
 
     var recoveryMaximumAttempts: Int { recovery.maximumAttempts }
 
@@ -106,6 +109,8 @@ final class SessionCoordinator: ObservableObject {
     private var recoveryTask: Task<Void, Never>?
     private var pointer = PointerState()
     private var recovery = SessionRecovery()
+    private var nativeInputCaptured = false
+    private var previewKeyboardRouting = false
 
     init(
         settings: AppSettings,
@@ -160,6 +165,7 @@ final class SessionCoordinator: ObservableObject {
         desktopSurface.onReady = { [weak self] in
             guard let self, self.phase == .ready else { return }
             self.runtimeState = .ready
+            self.pushInputRouting()
         }
         desktopSurface.onFailure = { [weak self] error in
             guard let self else { return }
@@ -432,21 +438,24 @@ final class SessionCoordinator: ObservableObject {
         }
     }
 
-    func sendKey(_ key: String, code: String? = nil) {
+    func sendKey(_ key: String, code: String? = nil, eventModifiers: Set<InputModifier>? = nil) {
+        print("[AirDeskDebug] sendKey \(key) canUse=\(canUseDesktopControls)")
         guard canUseDesktopControls else { return }
-        dispatcher.tapKey(key, code: code, modifiers: modifiers)
+        dispatcher.tapKey(key, code: code, modifiers: eventModifiers ?? modifiers)
         if settings.hapticsEnabled { Haptics.shared.tap() }
     }
 
-    func sendText(_ text: String) {
+    func sendText(_ text: String, eventModifiers: Set<InputModifier>? = nil) {
+        print("[AirDeskDebug] sendText \(text.debugDescription) canUse=\(canUseDesktopControls)")
         guard canUseDesktopControls, !text.isEmpty else { return }
-        if modifiers.isEmpty {
+        let activeModifiers = eventModifiers ?? modifiers
+        if activeModifiers.isEmpty {
             dispatcher.textInput(text)
         } else {
             for character in text {
                 let key = String(character)
-                dispatcher.keyDown(key, modifiers: modifiers)
-                dispatcher.keyUp(key, modifiers: modifiers)
+                dispatcher.keyDown(key, modifiers: activeModifiers)
+                dispatcher.keyUp(key, modifiers: activeModifiers)
             }
         }
     }
@@ -470,9 +479,29 @@ final class SessionCoordinator: ObservableObject {
         if settings.hapticsEnabled { Haptics.shared.tap() }
     }
 
+    func setNativeInputCaptured(_ captured: Bool) {
+        if nativeInputCaptured != captured, captured {
+            previewKeyboardDismissRequest += 1
+        }
+        nativeInputCaptured = captured
+        pushInputRouting()
+    }
+
+    func setPreviewKeyboardRouting(_ enabled: Bool) {
+        previewKeyboardRouting = enabled
+        pushInputRouting()
+    }
+
+    private func pushInputRouting() {
+        desktopSurface.sendControl(type: "inputMode", payload: ["captured": nativeInputCaptured])
+        desktopSurface.sendControl(type: "previewInput", payload: ["enabled": previewKeyboardRouting])
+    }
+
     func openDiagnosticsAction() {
         AppEnvironment.shared.isDiagnosticsPresented = true
     }
+
+
 
     func castDidReceive(_ event: InputEvent) {
         guard phase == .ready else { return }
@@ -575,6 +604,7 @@ final class SessionCoordinator: ObservableObject {
             } else {
                 host.workspace = workspace
                 host.sessionId = activeSessionId
+                host.generation = sessionGeneration
                 let runtime = RuntimeFactory.make(
                     choice: settings.runtimeChoice,
                     appearance: settings.desktopAppearance
@@ -748,7 +778,20 @@ final class SessionCoordinator: ObservableObject {
             case "preview": openPreview()
             case "disconnect": disconnect()
             case "diagnostics": openDiagnosticsAction()
+            case "keyboard":
+                print("[AirDeskDebug] bridge keyboard show")
+                previewKeyboardShowRequest += 1
+            case "keyboardDismiss":
+                print("[AirDeskDebug] bridge keyboard dismiss")
+                previewKeyboardDismissRequest += 1
             default: break
+            }
+        case "log":
+            let text = message.message ?? ""
+            print("[AirDeskDebug] js: \(text)")
+            if ProcessInfo.processInfo.arguments.contains("-AirDeskUITestProbe") {
+                let combined = debugJSLog.isEmpty ? text : debugJSLog + " | " + text
+                debugJSLog = String(combined.suffix(500))
             }
         case "notice":
             if let text = message.message, !text.isEmpty {

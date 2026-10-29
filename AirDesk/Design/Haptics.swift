@@ -25,6 +25,10 @@ final class Haptics {
         rigid.impactOccurred(intensity: 0.8)
     }
 
+    func keyPress() {
+        rigid.impactOccurred(intensity: 0.52)
+    }
+
     func dragStart() {
         medium.impactOccurred(intensity: 0.7)
     }

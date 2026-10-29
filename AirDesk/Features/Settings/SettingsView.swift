@@ -178,7 +178,7 @@ struct SettingsView: View {
         } header: {
             sectionHeader("Display output")
         } footer: {
-            Text("Mirror iPhone uses AirPlay Screen Mirroring from Control Center and shows the desktop with a floating remote. Extended desktop requires an external-display scene and keeps the controller on iPhone.")
+            Text("Mirror \(DeviceContext.name) uses AirPlay Screen Mirroring from Control Center and shows the desktop with a floating remote. Extended desktop requires an external-display scene and keeps the controller on \(DeviceContext.name).")
         }
         .listRowBackground(rowBackground)
     }

@@ -24,6 +24,7 @@ final class SessionInputTransport: InputTransport {
     }
 
     func send(_ event: InputEvent) {
+        print("[AirDeskDebug] transport send \(event.type) route=\(route) available=\(isAvailable) endpoint=\(endpoint != nil)")
         guard isAvailable else { return }
         switch route {
         case .endpoint:

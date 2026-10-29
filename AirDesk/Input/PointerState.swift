@@ -19,7 +19,7 @@ struct PointerState: Equatable, Sendable {
         self.lastMoveTime = 0
     }
 
-    static let baseGain: Double = 2.25
+    static let baseGain: Double = 2.0
     static let minimumSensitivity: Double = 0.25
     static let maximumSensitivity: Double = 2.0
 

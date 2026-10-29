@@ -61,18 +61,41 @@ struct RootView: View {
                 .environmentObject(session)
                 .environmentObject(environment.diagnostics)
         }
-        .sheet(isPresented: $session.isPreviewPresented, onDismiss: {
-            session.closePreview()
-        }) {
-            DesktopPreviewSheet()
-                .environmentObject(environment)
-                .environmentObject(session)
-                .environmentObject(settings)
-        }
+        .modifier(PreviewPresenter())
         .onChange(of: settings.desktopAppearance) { _, _ in
             session.settingsDidChange()
         }
         .preferredColorScheme(.dark)
+    }
+}
+
+private struct PreviewPresenter: ViewModifier {
+    @EnvironmentObject private var environment: AppEnvironment
+    @EnvironmentObject private var session: SessionCoordinator
+    @EnvironmentObject private var settings: AppSettings
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if DeviceContext.isPad {
+            content.fullScreenCover(isPresented: $session.isPreviewPresented, onDismiss: {
+                session.closePreview()
+            }) {
+                preview
+            }
+        } else {
+            content.sheet(isPresented: $session.isPreviewPresented, onDismiss: {
+                session.closePreview()
+            }) {
+                preview
+            }
+        }
+    }
+
+    private var preview: some View {
+        DesktopPreviewSheet()
+            .environmentObject(environment)
+            .environmentObject(session)
+            .environmentObject(settings)
     }
 }
 

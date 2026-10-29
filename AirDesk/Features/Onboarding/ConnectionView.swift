@@ -358,7 +358,7 @@ struct ConnectionView: View {
         DisplayDevice(
             id: "display.airplay.mirroring",
             name: "AirPlay mirroring",
-            detail: "iPhone screen mirrored · \(Int(environment.display.externalDisplaySize.width))×\(Int(environment.display.externalDisplaySize.height))",
+            detail: "\(DeviceContext.name) screen mirrored · \(Int(environment.display.externalDisplaySize.width))×\(Int(environment.display.externalDisplaySize.height))",
             kind: .airPlay,
             mode: .mirrored,
             isDemo: false

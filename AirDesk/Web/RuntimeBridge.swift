@@ -41,9 +41,11 @@ final class RuntimeBridge: NSObject, WKScriptMessageHandler {
 
     func send(_ event: InputEvent) {
         guard let object = try? event.jsonObject() else {
+            print("[AirDeskDebug] bridge encode failed \(event.type)")
             onTransportFailure?("encode")
             return
         }
+        print("[AirDeskDebug] bridge send \(event.type) webView=\(webView != nil)")
         let script = """
         if (window.AirDeskBridge && typeof window.AirDeskBridge.receive === 'function') {
             window.AirDeskBridge.receive(message);
@@ -57,7 +59,11 @@ final class RuntimeBridge: NSObject, WKScriptMessageHandler {
             in: nil,
             in: .page
         ) { [weak self] result in
-            if case .failure = result {
+            switch result {
+            case .success(let value):
+                print("[AirDeskDebug] bridge send ok \(event.type) handled=\(String(describing: value))")
+            case .failure(let error):
+                print("[AirDeskDebug] bridge send failed \(event.type) \(error)")
                 self?.onTransportFailure?("bridge")
             }
         }

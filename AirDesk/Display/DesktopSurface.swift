@@ -51,6 +51,7 @@ final class DesktopSurface {
     private struct LoadRequest {
         let choice: RuntimeChoice
         let sessionId: String
+        let generation: Int
         let appearance: String
     }
 
@@ -95,8 +96,8 @@ final class DesktopSurface {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: RuntimeBridge.handlerName)
     }
 
-    func load(choice: RuntimeChoice, sessionId: String, appearance: String = "dark") throws {
-        let request = LoadRequest(choice: choice, sessionId: sessionId, appearance: appearance)
+    func load(choice: RuntimeChoice, sessionId: String, generation: Int = 0, appearance: String = "dark") throws {
+        let request = LoadRequest(choice: choice, sessionId: sessionId, generation: generation, appearance: appearance)
         lastLoad = request
         isReady = false
         bridge.sessionId = sessionId
@@ -137,7 +138,7 @@ final class DesktopSurface {
         isReady = false
         onStateChange?("recovering")
         do {
-            try load(choice: lastLoad.choice, sessionId: lastLoad.sessionId, appearance: lastLoad.appearance)
+            try load(choice: lastLoad.choice, sessionId: lastLoad.sessionId, generation: lastLoad.generation, appearance: lastLoad.appearance)
         } catch {
             failReady(error)
         }
@@ -212,10 +213,13 @@ final class DesktopSurface {
         let session = Self.jsString(request.sessionId)
         let runtime = Self.jsString(request.choice.rawValue)
         let appearance = Self.jsString(request.appearance)
+        let device = Self.jsString(DeviceContext.name)
         let source = """
         window.AIRDESK_SESSION_ID = \(session);
         window.AIRDESK_RUNTIME = \(runtime);
+        window.AIRDESK_GENERATION = \(request.generation);
         window.AIRDESK_APPEARANCE = \(appearance);
+        window.AIRDESK_DEVICE_NAME = \(device);
         window.AIRDESK_NATIVE = true;
         """
         controller.addUserScript(WKUserScript(
@@ -243,7 +247,9 @@ final class DesktopSurface {
         components?.queryItems = [
             URLQueryItem(name: "session", value: request.sessionId),
             URLQueryItem(name: "runtime", value: request.choice.rawValue),
-            URLQueryItem(name: "appearance", value: request.appearance)
+            URLQueryItem(name: "generation", value: String(request.generation)),
+            URLQueryItem(name: "appearance", value: request.appearance),
+            URLQueryItem(name: "device", value: DeviceContext.name)
         ]
         guard let url = components?.url else {
             throw DesktopSurfaceError.missingResource("\(name).\(ext)")

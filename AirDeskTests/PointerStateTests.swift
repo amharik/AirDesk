@@ -10,8 +10,8 @@ final class PointerStateTests: XCTestCase {
             viewport: CGSize(width: 1000, height: 1000),
             timestamp: 10
         )
-        XCTAssertEqual(point.x, 0.7025, accuracy: 0.0001)
-        XCTAssertEqual(point.y, 0.39875, accuracy: 0.0001)
+        XCTAssertEqual(point.x, 0.68, accuracy: 0.0001)
+        XCTAssertEqual(point.y, 0.41, accuracy: 0.0001)
     }
 
     func testMoveClampsToDesktopBounds() {

@@ -22,6 +22,7 @@ protocol RuntimeHost: AnyObject {
     var surface: DesktopSurface { get }
     var workspace: Workspace { get set }
     var sessionId: String { get set }
+    var generation: Int { get set }
 }
 
 @MainActor
@@ -29,11 +30,13 @@ final class SurfaceRuntimeHost: RuntimeHost {
     let surface: DesktopSurface
     var workspace: Workspace
     var sessionId: String
+    var generation: Int
 
-    init(surface: DesktopSurface, workspace: Workspace = .default, sessionId: String = "") {
+    init(surface: DesktopSurface, workspace: Workspace = .default, sessionId: String = "", generation: Int = 0) {
         self.surface = surface
         self.workspace = workspace
         self.sessionId = sessionId
+        self.generation = generation
     }
 }
 
@@ -70,7 +73,7 @@ final class PuterRuntimeAdapter: DesktopRuntime {
         state = .preparing
         surface = host.surface
         do {
-            try host.surface.load(choice: .puter, sessionId: host.sessionId, appearance: appearance)
+            try host.surface.load(choice: .puter, sessionId: host.sessionId, generation: host.generation, appearance: appearance)
             try await Self.waitForReady(on: host.surface, timeout: 18)
             state = .ready
         } catch {

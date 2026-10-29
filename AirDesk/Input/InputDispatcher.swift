@@ -272,10 +272,21 @@ final class InputDispatcher {
     }
 
     private func send(_ event: InputEvent) {
-        guard let transport, transport.isAvailable else { return }
+        guard let transport else {
+            print("[AirDeskDebug] dispatch drop \(event.type) no transport")
+            return
+        }
+        guard transport.isAvailable else {
+            print("[AirDeskDebug] dispatch drop \(event.type) transport unavailable")
+            return
+        }
         var event = event
         event.generation = generation
-        guard let validated = try? event.validated() else { return }
+        guard let validated = try? event.validated() else {
+            print("[AirDeskDebug] dispatch drop \(event.type) invalid")
+            return
+        }
+        print("[AirDeskDebug] dispatch \(validated.type)")
         transport.send(validated)
         onEventSent?(validated)
     }

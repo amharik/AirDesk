@@ -284,10 +284,11 @@ body[data-appearance="light"] #menubar { text-shadow: 0 1px 0 rgba(255,255,255,.
 body[data-appearance="light"] .desktop-label { color: #101827; text-shadow: 0 1px 0 rgba(255,255,255,.7); }
 
 /* Windows */
-#window-layer { position: absolute; inset: 0; z-index: 20; }
+#window-layer { position: absolute; inset: 0; z-index: 20; pointer-events: none; }
 .window {
   position: absolute;
   display: flex;
+  pointer-events: auto;
   flex-direction: column;
   min-width: 380px;
   min-height: 260px;
@@ -320,6 +321,9 @@ body.no-motion .window { animation: none; }
   position: relative;
   border-bottom: 1px solid var(--line);
   background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.012));
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 body[data-appearance="light"] .titlebar { background: linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.22)); }
 .traffic { display: flex; align-items: center; gap: 8px; }
@@ -359,9 +363,12 @@ body[data-appearance="light"] .titlebar { background: linear-gradient(180deg, rg
 .resize-grip {
   position: absolute;
   right: 1px; bottom: 1px;
-  width: 16px; height: 16px;
+  width: 24px; height: 24px;
   z-index: 5;
   opacity: .45;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
   background:
     linear-gradient(135deg, transparent 0 48%, var(--faint) 49% 53%, transparent 54% 66%, var(--faint) 67% 71%, transparent 72%);
 }

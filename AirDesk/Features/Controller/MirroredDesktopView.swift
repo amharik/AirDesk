@@ -6,9 +6,9 @@ struct MirroredDesktopView: View {
     @EnvironmentObject private var settings: AppSettings
 
     @State private var isExpanded = true
-    @State private var keyboardRequested = false
+    @State private var showDeck = false
     @State private var showDisconnectConfirm = false
-    @State private var touchpadSize: CGSize = .zero
+    @StateObject private var physicalInput = PhysicalInputRouter()
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -16,6 +16,18 @@ struct MirroredDesktopView: View {
 
             DesktopSurfaceAnchor(surface: session.desktopSurface)
                 .ignoresSafeArea()
+
+            HardwareKeyboardCapture(
+                isActive: true,
+                onText: { session.sendText($0) },
+                onKey: { key, code, modifiers in
+                    session.sendKey(key, code: code, eventModifiers: modifiers)
+                }
+            )
+            .frame(width: 1, height: 1)
+            .opacity(0.01)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
 
             if isExpanded {
                 remotePanel
@@ -30,16 +42,73 @@ struct MirroredDesktopView: View {
         }
         .statusBarHidden(true)
         .animation(.easeInOut(duration: 0.2), value: isExpanded)
-        .animation(.easeInOut(duration: 0.2), value: keyboardRequested)
+        .animation(.easeInOut(duration: 0.2), value: shouldShowDeck)
         .confirmationDialog("End this desktop session?", isPresented: $showDisconnectConfirm, titleVisibility: .visible) {
             Button("Disconnect", role: .destructive) {
-                keyboardRequested = false
                 session.disconnect()
             }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("The mirrored desktop will return to its home screen. Your Wanix workspace stays available for the next session.")
         }
+        .onAppear {
+            configurePhysicalInput()
+            physicalInput.start()
+            syncInputRouting()
+            session.setPreviewKeyboardRouting(false)
+        }
+        .onDisappear {
+            physicalInput.stop()
+            session.setNativeInputCaptured(false)
+            session.setPreviewKeyboardRouting(true)
+        }
+        .onChange(of: environment.display.externalDisplaySize) { _, _ in
+            updatePhysicalViewport()
+        }
+        .onChange(of: physicalInput.hasPeripherals) { _, _ in
+            syncInputRouting()
+        }
+        .onChange(of: physicalInput.isCaptured) { _, _ in
+            syncInputRouting()
+        }
+    }
+
+    private var shouldShowDeck: Bool {
+        showDeck && !physicalInput.isRouting
+    }
+
+    private var monitorViewport: CGSize {
+        let external = environment.display.externalDisplaySize
+        if external.width > 0, external.height > 0 {
+            return external
+        }
+        return CGSize(width: 1024, height: 768)
+    }
+
+    private func configurePhysicalInput() {
+        updatePhysicalViewport()
+        physicalInput.keyboardRoutingEnabled = false
+        physicalInput.onCursor = { action, viewport in
+            session.handleCursor(action, viewport: viewport)
+        }
+        physicalInput.onText = { text, modifiers in
+            session.sendText(text, eventModifiers: modifiers)
+        }
+        physicalInput.onKey = { key, code, modifiers in
+            session.sendKey(key, code: code, eventModifiers: modifiers)
+        }
+        physicalInput.onRoutingChanged = { routing in
+            session.setNativeInputCaptured(routing)
+        }
+    }
+
+    private func updatePhysicalViewport() {
+        physicalInput.viewport = monitorViewport
+    }
+
+    private func syncInputRouting() {
+        updatePhysicalViewport()
+        session.setNativeInputCaptured(physicalInput.isRouting)
     }
 
     private var header: some View {
@@ -83,58 +152,120 @@ struct MirroredDesktopView: View {
         }
     }
 
-    private var touchpad: some View {
-        GeometryReader { proxy in
-            AirCursorView(
-                onAction: { action in
-                    session.handleCursor(action, viewport: proxy.size)
+    private var physicalInputStatus: some View {
+        Button {
+            if settings.hapticsEnabled { Haptics.shared.tap() }
+            physicalInput.setCaptured(!physicalInput.isCaptured)
+        } label: {
+            HStack(spacing: 8) {
+                HStack(spacing: 4) {
+                    if physicalInput.keyboardAvailable {
+                        Image(systemName: "keyboard.fill")
+                    }
+                    if physicalInput.mouseAvailable {
+                        Image(systemName: "computermouse.fill")
+                    }
+                }
+                .font(.system(size: 10, weight: .semibold))
+                Text(physicalStatusText)
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .tracking(0.4)
+                Spacer(minLength: 0)
+                Image(systemName: physicalInput.isCaptured ? "hand.tap.fill" : "hand.tap")
+                    .font(.system(size: 9, weight: .semibold))
+                    .opacity(0.7)
+            }
+            .foregroundStyle(physicalInput.isCaptured ? ADTheme.accent : ADTheme.textSecondary)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 7)
+            .background {
+                Capsule()
+                    .fill(physicalInput.isCaptured ? ADTheme.accent.opacity(0.12) : Color.white.opacity(0.045))
+                    .overlay {
+                        Capsule()
+                            .strokeBorder(
+                                physicalInput.isCaptured ? ADTheme.accent.opacity(0.30) : Color.white.opacity(0.08),
+                                lineWidth: 0.7
+                            )
+                    }
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(physicalInput.isCaptured ? "Physical input captured. Tap to release." : "Physical input released. Tap to capture.")
+    }
+
+    private var physicalStatusText: String {
+        let devices: String
+        if physicalInput.keyboardAvailable && physicalInput.mouseAvailable {
+            devices = "MOUSE + KEYBOARD"
+        } else if physicalInput.mouseAvailable {
+            devices = "MOUSE"
+        } else {
+            devices = "KEYBOARD"
+        }
+        return physicalInput.isCaptured
+            ? "\(devices) CAPTURED · TAP TO RELEASE"
+            : "\(devices) RELEASED · TAP TO CAPTURE"
+    }
+
+    private var touchpadRow: some View {
+        HStack(alignment: .top, spacing: 10) {
+            MacTrackpadView(
+                onAction: { action, viewport in
+                    session.handleCursor(action, viewport: viewport)
                 },
                 showsHints: settings.showInteractionHints
             )
-            .background {
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(Color.black.opacity(0.20))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .strokeBorder(Color.white.opacity(0.09), lineWidth: 0.8)
+            .frame(height: 142)
+
+            VStack(spacing: 8) {
+                remoteButton("cursorarrow.click", "Left") {
+                    session.handleCursor(.click(count: 1), viewport: monitorViewport)
+                }
+                remoteButton("cursorarrow.click.2", "Right") {
+                    session.handleCursor(.rightClick, viewport: monitorViewport)
+                }
+                remoteButton("keyboard", "Type", active: shouldShowDeck) {
+                    if physicalInput.isRouting {
+                        physicalInput.setCaptured(false)
+                        showDeck = true
+                    } else {
+                        showDeck.toggle()
                     }
+                    if settings.hapticsEnabled { Haptics.shared.tap() }
+                }
             }
-            .onAppear { touchpadSize = proxy.size }
-            .onChange(of: proxy.size) { _, size in touchpadSize = size }
+            .frame(width: 64)
         }
-        .frame(height: 142)
     }
 
     private var remotePanel: some View {
         VStack(spacing: 10) {
             header
 
-            HStack(alignment: .top, spacing: 10) {
-                touchpad
-
-                VStack(spacing: 8) {
-                    remoteButton("cursorarrow.click", "Left") {
-                        session.handleCursor(.click(count: 1), viewport: touchpadSize)
-                    }
-                    remoteButton("cursorarrow.click.2", "Right") {
-                        session.handleCursor(.rightClick, viewport: touchpadSize)
-                    }
-                    remoteButton("keyboard", "Type", active: keyboardRequested) {
-                        keyboardRequested.toggle()
-                        if keyboardRequested && settings.hapticsEnabled { Haptics.shared.tap() }
-                    }
-                }
-                .frame(width: 64)
+            if physicalInput.hasPeripherals {
+                physicalInputStatus
             }
 
-            if keyboardRequested {
-                KeyboardBar(
-                    onDone: { keyboardRequested = false },
-                    onInsert: { session.sendText($0) },
-                    onBackspace: { session.sendKey("Backspace", code: "Backspace") },
-                    onReturn: { session.sendKey("Enter", code: "Enter") }
+            if shouldShowDeck {
+                MacInputDeck(
+                    activeModifiers: session.modifiers,
+                    onCursor: { action, viewport in
+                        session.handleCursor(action, viewport: viewport)
+                    },
+                    onKey: { key, code, modifiers in
+                        session.sendKey(key, code: code, eventModifiers: modifiers)
+                    },
+                    onText: { text, modifiers in
+                        session.sendText(text, eventModifiers: modifiers)
+                    },
+                    onModifier: { session.toggleModifier($0) },
+                    onClearModifiers: { session.clearModifiers() }
                 )
+                .frame(height: 340)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
+            } else {
+                touchpadRow
             }
 
             footer

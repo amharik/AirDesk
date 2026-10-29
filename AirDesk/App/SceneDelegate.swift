@@ -54,4 +54,18 @@ final class ExternalDisplaySceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let windowScene = scene as? UIWindowScene else { return }
         AppEnvironment.shared.display.unregister(scene: windowScene)
     }
+
+    func sceneDidBecomeActive(_ scene: UIScene) {
+        guard let windowScene = scene as? UIWindowScene else { return }
+        AppEnvironment.shared.display.sceneDidUpdateCoordinateSpace(windowScene)
+    }
+
+    func windowScene(
+        _ windowScene: UIWindowScene,
+        didUpdate previousCoordinateSpace: UICoordinateSpace,
+        interfaceOrientation previousInterfaceOrientation: UIInterfaceOrientation,
+        traitCollection previousTraitCollection: UITraitCollection
+    ) {
+        AppEnvironment.shared.display.sceneDidUpdateCoordinateSpace(windowScene)
+    }
 }

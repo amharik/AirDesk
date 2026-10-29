@@ -24,6 +24,8 @@
     typingHintShown: false
   };
 
+  var nativeInputCaptured = false;
+  var previewKeyboardRouting = true;
   var appearance = 'dark';
   var wallpaper = 'aurora';
   var toastTimer = 0;
@@ -381,7 +383,7 @@
       case 'shortcuts': openApp('notes'); setTimeout(function () { notify('Open Notes → Remote shortcuts'); }, 350); break;
       case 'diagnostics':
         AD.post({ version: 1, type: 'action', sessionId: AD.sessionId, action: 'diagnostics', timestamp: Date.now() });
-        notify('Opened session diagnostics on iPhone');
+        notify('Opened session diagnostics on ' + (AD.device || 'this device'));
         break;
       case 'preview':
         AD.post({ version: 1, type: 'action', sessionId: AD.sessionId, action: 'preview', timestamp: Date.now() });
@@ -392,7 +394,7 @@
       case 'cut':
         try { document.execCommand('cut'); } catch (error) { notify('Nothing selected'); }
         break;
-      case 'paste': notify('Paste uses the iPhone keyboard field'); break;
+      case 'paste': notify('Paste uses the ' + (AD.device || 'device') + ' keyboard field'); break;
       case 'select-all':
         if (document.activeElement && document.activeElement.select) document.activeElement.select();
         else { var selection = window.getSelection(); if (selection) { selection.removeAllRanges(); var range = document.createRange(); range.selectNodeContents(state.focused ? state.focused.body : document.body); selection.addRange(range); } }
@@ -603,13 +605,20 @@
 
   /* Pointer */
   function point(event) {
+    var width = Math.max(window.innerWidth, 1);
+    var height = Math.max(window.innerHeight, 1);
+    var x = event && event.x != null ? Number(event.x) : NaN;
+    var y = event && event.y != null ? Number(event.y) : NaN;
     return {
-      x: clamp(Number(event.x) || 0, 0, 1) * window.innerWidth,
-      y: clamp(Number(event.y) || 0, 0, 1) * window.innerHeight
+      x: Number.isFinite(x) ? clamp(x, 0, 1) * width : state.pointer.x,
+      y: Number.isFinite(y) ? clamp(y, 0, 1) * height : state.pointer.y
     };
   }
 
   function moveCursor(x, y) {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    x = clamp(x, 0, window.innerWidth);
+    y = clamp(y, 0, window.innerHeight);
     state.pointer.x = x;
     state.pointer.y = y;
     if (cursor) {
@@ -633,6 +642,22 @@
     state.hoverElement = hovered;
   }
 
+  function focusTerminal(term) {
+    if (!term) return;
+    try {
+      if (term._term && typeof term._term.focus === 'function') {
+        term._term.focus();
+        return;
+      }
+      if (typeof term.focus === 'function') {
+        term.focus();
+        return;
+      }
+    } catch (error) { /* terminal may still be connecting */ }
+    var textarea = term.querySelector && term.querySelector('textarea');
+    if (textarea && typeof textarea.focus === 'function') textarea.focus();
+  }
+
   function dispatchMouse(type, target, x, y, button, count) {
     if (!target) return;
     var event = new MouseEvent(type, {
@@ -653,6 +678,7 @@
   function clickAt(x, y, count, button) {
     moveCursor(x, y);
     var target = document.elementFromPoint(x, y);
+    debugLog('click x=' + Math.round(x) + ' y=' + Math.round(y) + ' target=' + (target && (target.getAttribute('aria-label') || target.className || target.tagName)));
     if (!target) return;
 
     if (cursor) {
@@ -712,7 +738,7 @@
 
     var liveTerminal = target.closest('wanix-term');
     if (liveTerminal) {
-      try { liveTerminal.focus(); } catch (error) { /* terminal may still be connecting */ }
+      focusTerminal(liveTerminal);
       return;
     }
 
@@ -776,16 +802,142 @@
         offY: p.y - winEl.offsetTop
       };
       winEl.classList.add('dragging');
+      debugLog('drag start ' + win.app.id + ' x=' + Math.round(p.x) + ' y=' + Math.round(p.y));
       return;
     }
 
     dispatchMouse('mousedown', target, p.x, p.y, 0, 1);
     var liveTerminal = target.closest('wanix-term');
     if (liveTerminal) {
-      try { liveTerminal.focus(); } catch (error) { /* terminal may still be connecting */ }
+      focusTerminal(liveTerminal);
     } else if (target.closest('input, textarea, [contenteditable="true"]')) {
       target.focus();
     }
+  }
+
+  var directPointerId = null;
+  var directPointerMoved = false;
+  var suppressClickUntil = 0;
+
+  function directCoordinates(event) {
+    var width = Math.max(window.innerWidth, 1);
+    var height = Math.max(window.innerHeight, 1);
+    var clientX = Number(event.clientX);
+    var clientY = Number(event.clientY);
+    if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) {
+      return { x: state.pointer.x / width, y: state.pointer.y / height };
+    }
+    return {
+      x: clamp(clientX / width, 0, 1),
+      y: clamp(clientY / height, 0, 1)
+    };
+  }
+
+  function focusDirectTarget(target) {
+    if (!target || !target.closest) return;
+    var term = target.closest('wanix-term');
+    if (term) {
+      focusTerminal(term);
+      return;
+    }
+    var editable = target.closest('input, textarea, [contenteditable="true"]');
+    if (editable && typeof editable.focus === 'function') {
+      try { editable.focus(); } catch (error) { /* no-op */ }
+    }
+  }
+
+  function debugLog(message) {
+    try {
+      if (window.AD && typeof window.AD.post === 'function') {
+        window.AD.post({
+          version: 1,
+          type: 'log',
+          sessionId: window.AD.sessionId,
+          message: String(message),
+          timestamp: Date.now()
+        });
+      }
+    } catch (error) { /* no-op */ }
+  }
+
+  function requestPreviewKeyboard(target) {
+    if (!previewKeyboardRouting || nativeInputCaptured) return;
+    var api = window.AD;
+    var terminal = target && target.closest ? target.closest('wanix-term') : null;
+    debugLog('pointerdown term=' + !!terminal + ' target=' + (target && target.tagName) + ' host=' + (api && api.host));
+    if (!api || typeof api.post !== 'function' || api.host === 'cast') return;
+    var actionName = terminal ? 'keyboard' : 'keyboardDismiss';
+    debugLog('posting ' + actionName);
+    api.post({
+      version: 1,
+      type: 'action',
+      sessionId: api.sessionId,
+      action: actionName,
+      timestamp: Date.now()
+    });
+  }
+
+  function directPointerDown(event) {
+    if (!event.isTrusted || nativeInputCaptured) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    var target = event.target;
+    var p = directCoordinates(event);
+    moveCursor(p.x * window.innerWidth, p.y * window.innerHeight);
+    focusDirectTarget(target);
+    if (target && target.closest && target.closest('wanix-term')) {
+      var terminalEl = target.closest('.window');
+      var terminalWindow = terminalEl ? state.windows.find(function (entry) { return entry.el === terminalEl; }) : null;
+      if (terminalWindow) focusWindow(terminalWindow);
+    }
+    requestPreviewKeyboard(target);
+    if (!target || !target.closest) return;
+    var winEl = target.closest('.window');
+    if (!winEl) return;
+    var win = state.windows.find(function (entry) { return entry.el === winEl; });
+    if (!win) return;
+    var isResize = !!target.closest('.resize-grip');
+    var isTitlebar = !!target.closest('.titlebar') && !target.closest('.traffic, .titlebar-actions');
+    if (!isResize && !isTitlebar) return;
+    pointerDown({ x: p.x, y: p.y });
+    if (!state.drag) return;
+    directPointerId = event.pointerId;
+    directPointerMoved = false;
+    try { target.setPointerCapture(event.pointerId); } catch (error) { /* no-op */ }
+  }
+
+  function directPointerMove(event) {
+    if (directPointerId === null || event.pointerId !== directPointerId) return;
+    if (!state.drag) {
+      directPointerId = null;
+      return;
+    }
+    var p = directCoordinates(event);
+    pointerMove({ x: p.x, y: p.y });
+    directPointerMoved = true;
+    suppressClickUntil = Date.now() + 300;
+    if (event.cancelable) event.preventDefault();
+  }
+
+  function directPointerUp(event) {
+    if (directPointerId === null || event.pointerId !== directPointerId) return;
+    var p = directCoordinates(event);
+    pointerUp({ x: p.x, y: p.y });
+    directPointerId = null;
+    if (directPointerMoved) {
+      suppressClickUntil = Date.now() + 250;
+      if (event.cancelable) event.preventDefault();
+    }
+    directPointerMoved = false;
+  }
+
+  function directPointerCancel(event) {
+    if (directPointerId === null || event.pointerId !== directPointerId) return;
+    if (state.drag) {
+      state.drag.win.el.classList.remove('dragging');
+      state.drag = null;
+    }
+    state.downTarget = null;
+    directPointerId = null;
   }
 
   function pointerMove(event) {
@@ -814,8 +966,10 @@
     var p = point(event);
     moveCursor(p.x, p.y);
     if (state.drag) {
-      state.drag.win.el.classList.remove('dragging');
+      var dragged = state.drag;
+      dragged.win.el.classList.remove('dragging');
       state.drag = null;
+      debugLog('drag end ' + dragged.win.app.id + ' left=' + Math.round(dragged.win.el.offsetLeft) + ' top=' + Math.round(dragged.win.el.offsetTop));
       return;
     }
     if (state.downTarget) {
@@ -856,9 +1010,20 @@
 
   /* Text and keyboard */
   function focusedTerminal() {
-    if (!state.focused) return null;
-    var term = $('wanix-term', state.focused.body);
-    return term && term._term ? term : null;
+    if (state.focused) {
+      var focused = $('wanix-term', state.focused.body);
+      if (focused && focused._term) return focused;
+    }
+
+    var active = document.activeElement;
+    if (active && active.closest) {
+      var activeTerm = active.closest('wanix-term');
+      if (activeTerm && activeTerm._term) return activeTerm;
+      if (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable) return null;
+    }
+
+    var terminals = $$('wanix-term');
+    return terminals.length === 1 && terminals[0]._term ? terminals[0] : null;
   }
 
   function terminalKeyData(event) {
@@ -890,13 +1055,22 @@
 
   function sendTerminalData(data) {
     var term = focusedTerminal();
+    debugLog('sendTerminalData ' + JSON.stringify(data) + ' term=' + !!term + ' input=' + !!(term && term._term && term._term.input));
     if (!term || !data) return false;
+    if (!term._debugHooked && term._term && typeof term._term.onData === 'function') {
+      term._debugHooked = true;
+      try {
+        term._term.onData(function (emitted) { debugLog('term.onData ' + JSON.stringify(emitted)); });
+      } catch (error) { /* no-op */ }
+    }
     try {
       if (typeof term._term.input === 'function') term._term.input(data, true);
       else if (typeof term._term.paste === 'function') term._term.paste(data);
       else if (typeof term.write === 'function') term.write(data);
+      debugLog('sendTerminalData ok');
       return true;
     } catch (error) {
+      debugLog('sendTerminalData error ' + error);
       return false;
     }
   }
@@ -917,7 +1091,9 @@
 
   function insertText(text) {
     if (!text) return false;
-    if (focusedTerminal()) return sendTerminalData(text);
+    var targetTerm = focusedTerminal();
+    debugLog('insertText ' + JSON.stringify(text) + ' term=' + !!targetTerm + ' focused=' + (state.focused && state.focused.id) + ' active=' + (document.activeElement && document.activeElement.tagName));
+    if (targetTerm) return sendTerminalData(text);
     var element = activeEditable();
     if (!element) {
       if (!state.typingHintShown) {
@@ -998,7 +1174,7 @@
       if (menuButton || (contextMenu && !contextMenu.hidden)) { closeMenus(); return; }
     }
 
-    if (meta || control) {
+    if (meta) {
       if (key === ' ' || lower === ' ') { openSpotlight(); return; }
       switch (lower) {
         case 'w': closeWindow(state.focused); return;
@@ -1122,11 +1298,7 @@
 
   function handleInput(event) {
     switch (event.type) {
-      case 'pointerMove': {
-        var p = point(event);
-        moveCursor(p.x, p.y);
-        break;
-      }
+      case 'pointerMove': pointerMove(event); break;
       case 'pointerClick': {
         var pc = point(event);
         clickAt(pc.x, pc.y, Number(event.clickCount) || 1, Number(event.button) || 0);
@@ -1152,9 +1324,23 @@
 
   function handleControl(message) {
     if (!message) return;
+    if (message.type === 'inputMode') {
+      nativeInputCaptured = !!message.captured;
+      if (nativeInputCaptured) {
+        state.drag = null;
+        state.downTarget = null;
+      }
+      debugLog('inputMode captured=' + nativeInputCaptured);
+      return;
+    }
+    if (message.type === 'previewInput') {
+      previewKeyboardRouting = message.enabled !== false;
+      debugLog('previewInput enabled=' + previewKeyboardRouting);
+      return;
+    }
     if (message.type === 'appearance' && message.appearance) {
       setAppearance(message.appearance, false);
-      notify('Appearance synced from iPhone');
+      notify('Appearance synced from ' + (AD.device || 'device'));
       return;
     }
     if (message.type === 'action') {
@@ -1167,6 +1353,21 @@
 
   /* Global events */
   function bindEvents() {
+    document.addEventListener('pointerdown', directPointerDown, { passive: true, capture: true });
+    document.addEventListener('pointermove', directPointerMove, { passive: false });
+    document.addEventListener('pointerup', directPointerUp, { passive: false });
+    document.addEventListener('pointercancel', directPointerCancel, { passive: true });
+
+    document.addEventListener('click', function (event) {
+      if (!event.isTrusted) return;
+      if (Date.now() < suppressClickUntil) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      focusDirectTarget(event.target);
+    }, true);
+
     $$('#menubar [data-menu]').forEach(function (button) {
       button.addEventListener('click', function (event) {
         event.stopPropagation();
@@ -1271,6 +1472,7 @@
   var showContextMenuTarget = null;
 
   function init() {
+    debugLog('desktop.init host=' + (window.AD && window.AD.host) + ' runtime=' + (window.AD && window.AD.runtime));
     document.body.classList.add('native');
     setAppearance(window.AIRDESK_APPEARANCE || loadPreference('appearance', 'dark'), false);
     setWallpaper(loadPreference('wallpaper', 'aurora'));

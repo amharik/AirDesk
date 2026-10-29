@@ -17,7 +17,7 @@ struct ConnectionGuideView: View {
                             title: "AirPlay",
                             subtitle: "Best for Apple TV and supported TVs.",
                             steps: [
-                                "In Settings, choose Mirror iPhone screen for a floating remote, or Extended desktop for independent TV output.",
+                                "In Settings, choose Mirror \(DeviceContext.name) screen for a floating remote, or Extended desktop for independent TV output.",
                                 "Open Control Center and choose Screen Mirroring.",
                                 "Select your Apple TV and return to AirDesk. The desktop appears on the TV."
                             ],
@@ -30,7 +30,7 @@ struct ConnectionGuideView: View {
                             subtitle: "Best for a TV running the AirDesk receiver.",
                             steps: [
                                 "Launch the AirDesk Custom Web Receiver on the TV.",
-                                "Keep the iPhone and TV on the same Wi-Fi network.",
+                                "Keep \(DeviceContext.name) and the TV on the same Wi-Fi network.",
                                 "Open Connect, scan for Cast receivers, and select one."
                             ],
                             footnote: "The bundled demo receivers let you explore the flow without a registered Cast app ID."
@@ -45,7 +45,7 @@ struct ConnectionGuideView: View {
                                 "AirDesk detects the external display automatically.",
                                 "Start a session and the desktop moves to the TV."
                             ],
-                            footnote: "The iPhone becomes the controller while the external display renders the Wanix desktop."
+                            footnote: "\(DeviceContext.name) becomes the controller while the external display renders the Wanix desktop."
                         )
                         previewCard
                     }
@@ -175,7 +175,7 @@ struct ConnectionGuideView: View {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(ADTheme.violet.opacity(0.14))
                     .frame(width: 42, height: 42)
-                Image(systemName: "iphone.gen3")
+                Image(systemName: DeviceContext.symbolName)
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(ADTheme.violet)
             }
@@ -183,7 +183,7 @@ struct ConnectionGuideView: View {
                 Text("No TV nearby?")
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundStyle(.white)
-                Text("Use Preview on this iPhone to explore the full controller and desktop shell.")
+                Text("Use Preview on this \(DeviceContext.name) to explore the full controller and desktop shell.")
                     .font(.system(size: 12))
                     .foregroundStyle(ADTheme.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)

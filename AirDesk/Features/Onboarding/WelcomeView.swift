@@ -29,7 +29,7 @@ struct WelcomeView: View {
                             .minimumScaleFactor(0.7)
                             .lineSpacing(-2)
 
-                        Text("Turn iPhone into a precision Air Cursor for a Wanix desktop on your TV. Move, click, scroll, and type from the couch.")
+                        Text("Turn \(DeviceContext.name) into a precision Air Cursor for a Wanix desktop on your TV. Move, click, scroll, and type from the couch.")
                             .font(.system(size: 16, weight: .regular))
                             .foregroundStyle(ADTheme.textSecondary)
                             .multilineTextAlignment(.center)
@@ -56,8 +56,8 @@ struct WelcomeView: View {
                             environment.session.beginConnection(to: DisplayDevice.previewDevice)
                         } label: {
                             HStack(spacing: 9) {
-                                Image(systemName: "iphone.gen3")
-                                Text("Preview on this iPhone")
+                                Image(systemName: DeviceContext.symbolName)
+                                Text("Preview on this \(DeviceContext.name)")
                             }
                         }
                         .buttonStyle(SecondaryButtonStyle())
@@ -424,7 +424,7 @@ struct PhoneMockup: View {
 extension DisplayDevice {
     static let previewDevice = DisplayDevice(
         id: DisplayDevice.previewID,
-        name: "This iPhone",
+        name: "This \(DeviceContext.name)",
         detail: "Live Wanix desktop preview",
         kind: .preview,
         mode: .preview,

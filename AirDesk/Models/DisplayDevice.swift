@@ -12,7 +12,7 @@ enum DisplayKind: String, Codable, CaseIterable, Sendable {
         case .airPlay: return "appletv.fill"
         case .wired: return "display"
         case .cast: return "airplayvideo"
-        case .preview: return "iphone.gen3"
+        case .preview: return DeviceContext.symbolName
         case .external: return "rectangle.on.rectangle"
         }
     }
@@ -54,8 +54,8 @@ enum SessionMode: String, Codable, CaseIterable, Sendable {
 
     var detail: String {
         switch self {
-        case .extended: return "Desktop on the display, controller stays on iPhone."
-        case .mirrored: return "The desktop fills the phone with a floating remote and is mirrored to the TV."
+        case .extended: return "Desktop on the display, controller stays on \(DeviceContext.name)."
+        case .mirrored: return "The desktop fills \(DeviceContext.name) with a floating remote and is mirrored to the TV."
         case .cast: return "AirDesk receiver renders the desktop independently."
         case .preview: return "A live desktop preview runs on this device."
         }
@@ -66,7 +66,7 @@ enum SessionMode: String, Codable, CaseIterable, Sendable {
         case .extended: return "rectangle.on.rectangle.angled"
         case .mirrored: return "rectangle.on.rectangle"
         case .cast: return "airplayvideo"
-        case .preview: return "iphone.gen3"
+        case .preview: return DeviceContext.symbolName
         }
     }
 }
@@ -80,7 +80,7 @@ enum DisplayPresentationMode: String, Codable, CaseIterable, Identifiable, Senda
     var title: String {
         switch self {
         case .extended: return "Extended desktop"
-        case .mirrored: return "Mirror iPhone screen"
+        case .mirrored: return "Mirror \(DeviceContext.name) screen"
         }
     }
 
@@ -93,8 +93,8 @@ enum DisplayPresentationMode: String, Codable, CaseIterable, Identifiable, Senda
 
     var detail: String {
         switch self {
-        case .extended: return "The display renders the Wanix desktop while the controller stays on iPhone."
-        case .mirrored: return "AirPlay shares the entire iPhone screen. AirDesk shows the desktop full-screen with a collapsible floating remote."
+        case .extended: return "The display renders the Wanix desktop while the controller stays on \(DeviceContext.name)."
+        case .mirrored: return "AirPlay shares the entire \(DeviceContext.name) screen. AirDesk shows the desktop full-screen with a collapsible floating remote."
         }
     }
 

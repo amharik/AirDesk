@@ -58,7 +58,12 @@ final class DisplayCoordinator: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in self?.refreshScreenFallback() }
+            Task { @MainActor in
+                self?.refreshScreenFallback()
+                if let scene = self?.activeScene {
+                    self?.updateWindowFrame(for: scene)
+                }
+            }
         })
         refreshScreenFallback()
     }
@@ -123,6 +128,7 @@ final class DisplayCoordinator: ObservableObject {
             setMirroring(false)
             makeWindow(for: scene)
             logger.info("External display connected: \(String(describing: scene.screen.bounds.size), privacy: .public)")
+            DispatchQueue.main.async { [weak self] in self?.updateWindowFrame(for: scene) }
             if let contentView = controller?.contentView {
                 onExternalDisplayConnected?(contentView)
             }
@@ -191,6 +197,10 @@ final class DisplayCoordinator: ObservableObject {
         register(scene: scene)
     }
 
+    func sceneDidUpdateCoordinateSpace(_ scene: UIWindowScene) {
+        updateWindowFrame(for: scene)
+    }
+
     private func makeWindow(for scene: UIWindowScene) {
         let controller = ExternalDisplayViewController()
         scene.screen.overscanCompensation = .none
@@ -201,6 +211,23 @@ final class DisplayCoordinator: ObservableObject {
         window.makeKeyAndVisible()
         self.controller = controller
         self.window = window
+        updateWindowFrame(for: scene)
+    }
+
+    private func updateWindowFrame(for scene: UIWindowScene) {
+        guard scene === activeScene, let window else { return }
+        let bounds = scene.screen.bounds
+        guard bounds.width > 0, bounds.height > 0 else { return }
+        if externalDisplaySize != bounds.size {
+            externalDisplaySize = bounds.size
+            logger.info("External display resized: \(String(describing: bounds.size), privacy: .public)")
+        }
+        if window.frame != bounds {
+            window.frame = bounds
+        }
+        window.rootViewController?.view.frame = bounds
+        controller?.view.setNeedsLayout()
+        controller?.view.layoutIfNeeded()
     }
 
     private func teardownWindow() {
@@ -212,8 +239,13 @@ final class DisplayCoordinator: ObservableObject {
     }
 
     func present(surface: DesktopSurface) {
+        if let scene = activeScene {
+            updateWindowFrame(for: scene)
+        }
         guard let container = contentContainer else { return }
+        controller?.view.layoutIfNeeded()
         surface.attachExternal(to: container)
+        controller?.view.layoutIfNeeded()
         controller?.setActive(true)
     }
 
@@ -254,7 +286,7 @@ final class ExternalDisplayViewController: UIViewController {
         titleLabel.textColor = UIColor.white.withAlphaComponent(0.9)
         titleLabel.textAlignment = .center
 
-        detailLabel.text = "Start a session on your iPhone to bring the Wanix desktop here."
+        detailLabel.text = "Start a session on your \(DeviceContext.name) to bring the Wanix desktop here."
         detailLabel.font = .systemFont(ofSize: 17, weight: .regular)
         detailLabel.textColor = UIColor.white.withAlphaComponent(0.5)
         detailLabel.textAlignment = .center

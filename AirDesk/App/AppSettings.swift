@@ -49,7 +49,7 @@ final class AppSettings: ObservableObject {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        pointerSensitivity = defaults.object(forKey: Key.sensitivity) as? Double ?? 0.9
+        pointerSensitivity = defaults.object(forKey: Key.sensitivity) as? Double ?? 0.8
         pointerAcceleration = defaults.object(forKey: Key.acceleration) as? Bool ?? true
         naturalScrolling = defaults.object(forKey: Key.naturalScrolling) as? Bool ?? true
         hapticsEnabled = defaults.object(forKey: Key.haptics) as? Bool ?? true
@@ -72,7 +72,7 @@ final class AppSettings: ObservableObject {
     }
 
     func reset() {
-        pointerSensitivity = 0.9
+        pointerSensitivity = 0.8
         pointerAcceleration = true
         naturalScrolling = true
         hapticsEnabled = true

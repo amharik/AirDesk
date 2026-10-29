@@ -6,13 +6,25 @@ struct ControllerView: View {
     @EnvironmentObject private var session: SessionCoordinator
     @EnvironmentObject private var settings: AppSettings
 
-    @State private var keyboardRequested = false
+    @State private var showDeck = true
     @State private var showDisconnectConfirm = false
-    @State private var touchpadSize: CGSize = .zero
+    @StateObject private var physicalInput = PhysicalInputRouter()
 
     var body: some View {
         ZStack {
             AirDeskBackground(intensity: 0.55)
+
+            HardwareKeyboardCapture(
+                isActive: !session.isPreviewPresented,
+                onText: { session.sendText($0) },
+                onKey: { key, code, modifiers in
+                    session.sendKey(key, code: code, eventModifiers: modifiers)
+                }
+            )
+            .frame(width: 1, height: 1)
+            .opacity(0.01)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
 
             VStack(spacing: 0) {
                 statusBar
@@ -33,57 +45,135 @@ struct ControllerView: View {
                         .padding(.bottom, 8)
                 }
 
-                if keyboardRequested {
-                    keyboardModeCard
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 10)
-                } else {
-                    touchpad
-                        .padding(.horizontal, 16)
-                        .frame(maxHeight: .infinity)
-                        .padding(.bottom, 10)
-                }
-
-                if keyboardRequested {
-                    KeyboardBar(
-                        onDone: { keyboardRequested = false },
-                        onInsert: { session.sendText($0) },
-                        onBackspace: { session.sendKey("Backspace", code: "Backspace") },
-                        onReturn: { session.sendKey("Enter", code: "Enter") }
-                    )
-                    .padding(.horizontal, 14)
-                    .padding(.bottom, 8)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                } else {
-                    modifierRow
+                if physicalInput.hasPeripherals {
+                    physicalInputStatus
                         .padding(.horizontal, 20)
                         .padding(.bottom, 8)
-                    bottomToolbar
-                        .padding(.horizontal, 18)
-                        .padding(.bottom, 12)
                 }
+
+                if shouldShowDeck {
+                    MacInputDeck(
+                        activeModifiers: session.modifiers,
+                        onCursor: { action, viewport in
+                            session.handleCursor(action, viewport: viewport)
+                        },
+                        onKey: { key, code, modifiers in
+                            session.sendKey(key, code: code, eventModifiers: modifiers)
+                        },
+                        onText: { text, modifiers in
+                            session.sendText(text, eventModifiers: modifiers)
+                        },
+                        onModifier: { session.toggleModifier($0) },
+                        onClearModifiers: { session.clearModifiers() }
+                    )
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 10)
+                    .frame(maxHeight: .infinity)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                } else {
+                    inputPlaceholder
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 10)
+                        .frame(maxHeight: .infinity)
+                        .transition(.opacity)
+                }
+
+                bottomToolbar
+                    .padding(.horizontal, 18)
+                    .padding(.bottom, 12)
+            }
+
+            if isUITestProbe {
+                Text(session.debugJSLog)
+                    .font(.system(size: 6, design: .monospaced))
+                    .frame(width: 1, height: 1)
+                    .opacity(0.02)
+                    .accessibilityIdentifier("JSLogProbe")
             }
         }
-        .animation(.easeInOut(duration: 0.22), value: keyboardRequested)
+        .animation(.easeInOut(duration: 0.22), value: shouldShowDeck)
         .animation(.easeInOut(duration: 0.2), value: session.notice)
         .animation(.easeInOut(duration: 0.2), value: session.runtimeState)
         .confirmationDialog("End this desktop session?", isPresented: $showDisconnectConfirm, titleVisibility: .visible) {
             Button("Disconnect", role: .destructive) {
-                keyboardRequested = false
                 session.disconnect()
             }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("The display will return to its home screen. Your Wanix workspace stays available for the next session.")
         }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-            if keyboardRequested {
-                keyboardRequested = false
-            }
-        }
         .onAppear {
             Haptics.shared.prepare()
+            configurePhysicalInput()
+            physicalInput.start()
+            syncInputRouting()
+            session.setPreviewKeyboardRouting(false)
         }
+        .onDisappear {
+            physicalInput.stop()
+            session.setNativeInputCaptured(false)
+            session.setPreviewKeyboardRouting(false)
+        }
+        .onChange(of: environment.display.externalDisplaySize) { _, _ in
+            updatePhysicalViewport()
+        }
+        .onChange(of: physicalInput.hasPeripherals) { _, _ in
+            syncInputRouting()
+        }
+        .onChange(of: physicalInput.isCaptured) { _, _ in
+            syncInputRouting()
+        }
+        .onChange(of: session.isPreviewPresented) { _, presented in
+            if presented {
+                session.setPreviewKeyboardRouting(true)
+            } else {
+                session.setPreviewKeyboardRouting(false)
+                syncInputRouting()
+            }
+        }
+    }
+
+    private var isUITestProbe: Bool {
+        ProcessInfo.processInfo.arguments.contains("-AirDeskUITestProbe")
+    }
+
+    private var shouldShowDeck: Bool {
+        showDeck && !physicalInput.isRouting
+    }
+
+    private var monitorViewport: CGSize {
+        let external = environment.display.externalDisplaySize
+        if external.width > 0, external.height > 0 {
+            return external
+        }
+        let screen = UIScreen.main.bounds.size
+        return screen.width > 0 && screen.height > 0 ? screen : CGSize(width: 1024, height: 768)
+    }
+
+    private func configurePhysicalInput() {
+        updatePhysicalViewport()
+        physicalInput.keyboardRoutingEnabled = false
+        physicalInput.onCursor = { action, viewport in
+            session.handleCursor(action, viewport: viewport)
+        }
+        physicalInput.onText = { text, modifiers in
+            session.sendText(text, eventModifiers: modifiers)
+        }
+        physicalInput.onKey = { key, code, modifiers in
+            session.sendKey(key, code: code, eventModifiers: modifiers)
+        }
+        physicalInput.onRoutingChanged = { routing in
+            session.setNativeInputCaptured(routing)
+        }
+    }
+
+    private func updatePhysicalViewport() {
+        physicalInput.viewport = monitorViewport
+    }
+
+    private func syncInputRouting() {
+        updatePhysicalViewport()
+        session.setNativeInputCaptured(physicalInput.isRouting)
     }
 
     private var statusBar: some View {
@@ -172,131 +262,123 @@ struct ControllerView: View {
         }
     }
 
-    private var touchpad: some View {
-        GeometryReader { proxy in
-            ZStack {
-                RoundedRectangle(cornerRadius: 32, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(0.072),
-                                Color.white.opacity(0.028),
-                                Color.white.opacity(0.055)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-
-                RoundedRectangle(cornerRadius: 32, style: .continuous)
-                    .fill(
-                        RadialGradient(
-                            colors: [ADTheme.accent.opacity(0.055), .clear],
-                            center: .topLeading,
-                            startRadius: 20,
-                            endRadius: max(proxy.size.width, proxy.size.height) * 0.8
-                        )
-                    )
-
-                Circle()
-                    .fill(ADTheme.accent.opacity(0.05))
-                    .frame(width: proxy.size.width * 0.7)
-                    .blur(radius: 60)
-                    .offset(x: -proxy.size.width * 0.2, y: -proxy.size.height * 0.3)
-
-                AirCursorView(
-                    onAction: { action in
-                        session.handleCursor(action, viewport: proxy.size)
-                    },
-                    showsHints: settings.showInteractionHints
-                )
-
-                VStack {
-                    HStack {
-                        HStack(spacing: 6) {
-                            Image(systemName: session.isDragging ? "cursorarrow.motionlines" : "cursorarrow")
-                                .font(.system(size: 10, weight: .bold))
-                            Text(session.isDragging ? "DRAGGING" : "AIR CURSOR")
-                                .font(.system(size: 9, weight: .bold, design: .monospaced))
-                                .tracking(0.9)
-                        }
-                        .foregroundStyle(session.isDragging ? ADTheme.accent : ADTheme.textTertiary)
-                        Spacer()
-                        if !session.isExternalConnected && session.effectiveMode == .extended {
-                            Text("DISPLAY LOST")
-                                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                                .tracking(0.8)
-                                .foregroundStyle(ADTheme.amber)
-                        }
+    private var physicalInputStatus: some View {
+        Button {
+            if settings.hapticsEnabled { Haptics.shared.tap() }
+            physicalInput.setCaptured(!physicalInput.isCaptured)
+        } label: {
+            HStack(spacing: 9) {
+                HStack(spacing: 5) {
+                    if physicalInput.keyboardAvailable {
+                        Image(systemName: "keyboard.fill")
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 18)
-                    Spacer()
+                    if physicalInput.mouseAvailable {
+                        Image(systemName: "computermouse.fill")
+                    }
                 }
-                .allowsHitTesting(false)
+                .font(.system(size: 11, weight: .semibold))
 
-                RoundedRectangle(cornerRadius: 32, style: .continuous)
-                    .strokeBorder(
-                        LinearGradient(
-                            colors: [
-                                session.isDragging ? ADTheme.accent.opacity(0.55) : Color.white.opacity(0.13),
-                                Color.white.opacity(0.045)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: session.isDragging ? 1.5 : 0.9
-                    )
-                    .allowsHitTesting(false)
-                    .shadow(color: session.isDragging ? ADTheme.accent.opacity(0.20) : .clear, radius: 18)
+                Text(physicalStatusText)
+                    .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                    .tracking(0.5)
+
+                Image(systemName: physicalInput.isCaptured ? "hand.tap.fill" : "hand.tap")
+                    .font(.system(size: 9, weight: .semibold))
+                    .opacity(0.7)
             }
-            .onAppear { touchpadSize = proxy.size }
-            .onChange(of: proxy.size) { _, newSize in touchpadSize = newSize }
+            .foregroundStyle(physicalInput.isCaptured ? ADTheme.accent : ADTheme.textSecondary)
+            .padding(.horizontal, 13)
+            .padding(.vertical, 8)
+            .background {
+                Capsule()
+                    .fill(physicalInput.isCaptured ? ADTheme.accent.opacity(0.12) : Color.white.opacity(0.045))
+                    .overlay {
+                        Capsule()
+                            .strokeBorder(
+                                physicalInput.isCaptured ? ADTheme.accent.opacity(0.30) : Color.white.opacity(0.08),
+                                lineWidth: 0.7
+                            )
+                    }
+            }
         }
-        .accessibilityElement(children: .contain)
+        .buttonStyle(.plain)
+        .accessibilityLabel(physicalInput.isCaptured ? "Physical input captured. Tap to release." : "Physical input released. Tap to capture.")
     }
 
-    private var modifierRow: some View {
-        HStack(spacing: 8) {
-            Text("MODIFIERS")
-                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                .tracking(0.9)
-                .foregroundStyle(ADTheme.textTertiary)
-            ForEach(InputModifier.allCases) { modifier in
-                ModifierChip(
-                    symbol: modifier.symbol,
-                    isOn: session.modifiers.contains(modifier),
-                    action: { session.toggleModifier(modifier) }
-                )
-            }
-            if !session.modifiers.isEmpty {
-                Button {
-                    session.clearModifiers()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(ADTheme.textTertiary)
-                        .frame(width: 26, height: 26)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Clear modifiers")
-            }
-            Spacer()
+    private var physicalStatusText: String {
+        let devices: String
+        if physicalInput.keyboardAvailable && physicalInput.mouseAvailable {
+            devices = "MOUSE + KEYBOARD"
+        } else if physicalInput.mouseAvailable {
+            devices = "MOUSE"
+        } else {
+            devices = "KEYBOARD"
         }
-        .frame(height: 36)
+        return physicalInput.isCaptured
+            ? "\(devices) CAPTURED · TAP TO RELEASE"
+            : "\(devices) RELEASED · TAP TO CAPTURE"
+    }
+
+    private var inputPlaceholder: some View {
+        VStack(spacing: 14) {
+            Spacer(minLength: 0)
+
+            Image(systemName: physicalInput.isRouting ? "computermouse.fill" : "keyboard")
+                .font(.system(size: 34, weight: .light))
+                .foregroundStyle(physicalInput.isRouting ? ADTheme.accent : ADTheme.textTertiary)
+
+            Text(physicalInput.isRouting ? "Physical input is controlling the desktop" : "Input deck hidden")
+                .font(.system(size: 20, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color.white.opacity(0.9))
+
+            Text(physicalInput.isRouting
+                 ? "Move the pointer with the mouse and type on the keyboard. Tap the status capsule above to release input and return to the on-screen deck."
+                 : "Bring back the MacBook-style keyboard and trackpad deck.")
+                .font(.system(size: 12.5))
+                .foregroundStyle(ADTheme.textTertiary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 420)
+                .lineSpacing(2)
+
+            if !physicalInput.isRouting {
+                Button {
+                    showDeck = true
+                    if settings.hapticsEnabled { Haptics.shared.tap() }
+                } label: {
+                    Label("Show input deck", systemImage: "keyboard")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Color(hex: 0x04131A))
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 11)
+                        .background { Capsule().fill(ADTheme.accentGradient()) }
+                }
+                .buttonStyle(ToolbarPressStyle())
+            }
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(Color.white.opacity(0.035))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.8)
+                }
+        }
     }
 
     private var bottomToolbar: some View {
         HStack(spacing: 9) {
             HStack(spacing: 0) {
                 clickHalf(title: "Left", icon: "cursorarrow.click", tint: ADTheme.accent) {
-                    session.handleCursor(.click(count: 1), viewport: touchpadSize)
+                    session.handleCursor(.click(count: 1), viewport: monitorViewport)
                 }
                 Rectangle()
                     .fill(Color.white.opacity(0.10))
                     .frame(width: 0.8, height: 30)
                 clickHalf(title: "Right", icon: "cursorarrow.click.2", tint: ADTheme.accent) {
-                    session.handleCursor(.rightClick, viewport: touchpadSize)
+                    session.handleCursor(.rightClick, viewport: monitorViewport)
                 }
             }
             .frame(height: 60)
@@ -309,9 +391,14 @@ struct ControllerView: View {
                     }
             }
 
-            toolButton(icon: "keyboard", title: "Type", active: keyboardRequested) {
-                keyboardRequested.toggle()
-                if keyboardRequested { Haptics.shared.tap() }
+            toolButton(icon: "keyboard", title: "Input", active: shouldShowDeck) {
+                if physicalInput.isRouting {
+                    physicalInput.setCaptured(false)
+                    showDeck = true
+                } else {
+                    showDeck.toggle()
+                }
+                if settings.hapticsEnabled { Haptics.shared.tap() }
             }
             toolButton(icon: "escape", title: "Esc") {
                 session.sendKey("Escape", code: "Escape")
@@ -362,66 +449,6 @@ struct ControllerView: View {
         .buttonStyle(ToolbarPressStyle())
         .accessibilityLabel(title)
         .accessibilityAddTraits(active ? .isSelected : [])
-    }
-
-    private var keyboardModeCard: some View {
-        VStack(spacing: 14) {
-            HStack {
-                HStack(spacing: 8) {
-                    Image(systemName: "keyboard.fill")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(ADTheme.accent)
-                    Text("KEYBOARD INPUT")
-                        .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-                        .tracking(0.9)
-                        .foregroundStyle(ADTheme.textSecondary)
-                }
-                Spacer()
-                CapsuleBadge(text: session.runtimeName, tint: ADTheme.accent)
-            }
-
-            Spacer(minLength: 0)
-
-            VStack(spacing: 8) {
-                Image(systemName: "text.cursor")
-                    .font(.system(size: 32, weight: .light))
-                    .foregroundStyle(Color.white.opacity(0.35))
-                Text("Typing to the desktop")
-                    .font(.system(size: 20, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Color.white.opacity(0.9))
-                Text("Use the system keyboard below. The shortcut row sends special keys and modifiers to Wanix.")
-                    .font(.system(size: 12.5))
-                    .foregroundStyle(ADTheme.textTertiary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 320)
-                    .lineSpacing(2)
-            }
-
-            Spacer(minLength: 0)
-
-            if !session.modifiers.isEmpty {
-                HStack(spacing: 6) {
-                    ForEach(Array(session.modifiers).sorted { $0.rawValue < $1.rawValue }) { modifier in
-                        Text("\(modifier.symbol) \(modifier.rawValue)")
-                            .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(ADTheme.accent)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 4)
-                            .background { Capsule().fill(ADTheme.accent.opacity(0.10)) }
-                    }
-                }
-            }
-        }
-        .padding(20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(Color.white.opacity(0.045))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.8)
-                }
-        }
     }
 
     private func noticeBanner(_ message: String) -> some View {

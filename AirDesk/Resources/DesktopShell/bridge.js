@@ -20,6 +20,7 @@
   var parentOrigin = String(window.AIRDESK_PARENT_ORIGIN || query.parentOrigin || '');
   var runtime = String(window.AIRDESK_RUNTIME || query.runtime || 'wanixDesktop');
   var appearance = String(window.AIRDESK_APPEARANCE || query.appearance || 'dark');
+  var deviceName = String(window.AIRDESK_DEVICE_NAME || query.device || 'device');
   var inputHandlers = [];
   var controlHandlers = [];
   var readySent = false;
@@ -171,6 +172,7 @@
     generation: generation,
     host: host,
     runtime: runtime,
+    device: deviceName,
     native: host === 'cast' ? !!parentOrigin : !!handler,
     appearance: appearance,
     post: post,

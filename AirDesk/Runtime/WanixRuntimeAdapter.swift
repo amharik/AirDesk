@@ -39,8 +39,13 @@ final class WanixRuntimeAdapter: DesktopRuntime {
 
         do {
             state = .loading
-            try surface.load(choice: choice, sessionId: host.sessionId, appearance: appearance)
-            try await PuterRuntimeAdapter.waitForReady(on: surface, timeout: 35)
+            try surface.load(choice: choice, sessionId: host.sessionId, generation: host.generation, appearance: appearance)
+            #if targetEnvironment(simulator)
+            let readyTimeout: TimeInterval = 90
+            #else
+            let readyTimeout: TimeInterval = 35
+            #endif
+            try await PuterRuntimeAdapter.waitForReady(on: surface, timeout: readyTimeout)
             state = .ready
             logger.info("Wanix runtime ready: \(self.identifier, privacy: .public)")
         } catch {
@@ -56,6 +61,7 @@ final class WanixRuntimeAdapter: DesktopRuntime {
     }
 
     func dispatch(_ event: RuntimeInputEvent) {
+        print("[AirDeskDebug] adapter dispatch \(event.type) state=\(state) surface=\(surface != nil)")
         guard state.allowsInput || state == .recovering else { return }
         surface?.send(event)
     }

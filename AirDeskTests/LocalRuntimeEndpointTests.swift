@@ -12,13 +12,16 @@ final class LocalRuntimeEndpointTests: XCTestCase {
 
         try await endpoint.start(context: RuntimeContext(
             sessionId: "ads-test",
+            generation: 7,
             workspace: workspace,
             appearance: "dark"
         ))
 
         XCTAssertEqual(host.sessionId, "ads-test")
+        XCTAssertEqual(host.generation, 7)
         XCTAssertEqual(host.workspace, workspace)
         XCTAssertEqual(runtime.preparedHost?.sessionId, "ads-test")
+        XCTAssertEqual(runtime.preparedHost?.generation, 7)
         XCTAssertEqual(runtime.preparedHost?.workspace, workspace)
         XCTAssertEqual(endpoint.identifier, "Fake Wanix")
         XCTAssertEqual(endpoint.state, .ready)

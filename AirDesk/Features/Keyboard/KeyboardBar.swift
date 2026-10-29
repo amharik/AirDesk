@@ -144,7 +144,8 @@ struct KeyCaptureField: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> UITextField {
-        let field = UITextField(frame: CGRect(x: 0, y: 0, width: 1, height: 1))
+        let field = FocusingTextField(frame: CGRect(x: 0, y: 0, width: 1, height: 1))
+        field.wantsFocus = active
         field.delegate = context.coordinator
         field.text = ""
         field.tintColor = .clear
@@ -167,19 +168,30 @@ struct KeyCaptureField: UIViewRepresentable {
         context.coordinator.onText = onText
         context.coordinator.onBackspace = onBackspace
         context.coordinator.onReturn = onReturn
+        (uiView as? FocusingTextField)?.wantsFocus = active
 
-        DispatchQueue.main.async {
-            if active {
-                if uiView.window != nil, !uiView.isFirstResponder {
-                    uiView.becomeFirstResponder()
-                }
-            } else if uiView.isFirstResponder {
-                uiView.resignFirstResponder()
+        if active {
+            focus(uiView)
+        } else if uiView.isFirstResponder {
+            uiView.resignFirstResponder()
+        }
+    }
+
+    private func focus(_ uiView: UITextField) {
+        if uiView.window != nil {
+            if !uiView.isFirstResponder {
+                uiView.becomeFirstResponder()
             }
+            return
+        }
+        DispatchQueue.main.async { [weak uiView] in
+            guard let uiView, uiView.window != nil, !uiView.isFirstResponder else { return }
+            uiView.becomeFirstResponder()
         }
     }
 
     static func dismantleUIView(_ uiView: UITextField, coordinator: Coordinator) {
+        (uiView as? FocusingTextField)?.wantsFocus = false
         uiView.resignFirstResponder()
     }
 
@@ -218,6 +230,19 @@ struct KeyCaptureField: UIViewRepresentable {
         func textFieldShouldReturn(_ textField: UITextField) -> Bool {
             onReturn()
             return false
+        }
+    }
+}
+
+private final class FocusingTextField: UITextField {
+    var wantsFocus = false
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        guard wantsFocus, window != nil, !isFirstResponder else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.wantsFocus, self.window != nil, !self.isFirstResponder else { return }
+            self.becomeFirstResponder()
         }
     }
 }

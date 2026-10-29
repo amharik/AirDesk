@@ -4,197 +4,141 @@ struct DesktopPreviewSheet: View {
     @EnvironmentObject private var environment: AppEnvironment
     @EnvironmentObject private var session: SessionCoordinator
     @Environment(\.dismiss) private var dismiss
-    @State private var touchpadSize: CGSize = .zero
+    @State private var isKeyboardActive = false
+    @State private var keyboardFocusToken = 0
 
     var body: some View {
-        ZStack {
-            AirDeskBackground(intensity: 0.7)
+        ZStack(alignment: .top) {
+            Color.black.ignoresSafeArea()
 
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 16) {
-                    topBar
+            if session.canShowPreview {
+                DesktopPreviewSurface(surface: session.desktopSurface)
+                    .ignoresSafeArea()
+            } else {
+                AirDeskBackground(intensity: 0.7)
+                    .ignoresSafeArea()
 
-                    if session.canShowPreview {
-                        previewSurface
-                        liveHint
-                        miniTouchpad
-                        miniControls
-                    } else {
-                        unavailable
-                    }
-                }
-                .padding(.horizontal, 18)
-                .padding(.top, 8)
-                .padding(.bottom, 30)
-                .frame(maxWidth: 760)
-                .frame(maxWidth: .infinity)
+                unavailable
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+
+            topBar
+                .padding(.horizontal, 16)
+                .padding(.top, 10)
+
+            PreviewKeyboardCapture(
+                isActive: isKeyboardActive,
+                focusRequest: keyboardFocusToken,
+                onText: { session.sendText($0) },
+                onBackspace: { session.sendKey("Backspace", code: "Backspace") },
+                onReturn: { session.sendKey("Enter", code: "Enter") }
+            )
+            .frame(width: 1, height: 1)
+            .opacity(0.01)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
         }
-        .presentationDragIndicator(.visible)
+        .statusBarHidden(true)
+        .presentationDragIndicator(.hidden)
         .presentationDetents([.large])
+        .onChange(of: session.previewKeyboardShowRequest) { _, _ in
+            keyboardFocusToken += 1
+            isKeyboardActive = true
+        }
+        .onChange(of: session.previewKeyboardDismissRequest) { _, _ in
+            isKeyboardActive = false
+        }
         .onAppear {
             environment.diagnostics.mark("preview.present")
+            session.setNativeInputCaptured(false)
+            session.setPreviewKeyboardRouting(true)
+        }
+        .onDisappear {
+            isKeyboardActive = false
+            session.setPreviewKeyboardRouting(false)
         }
     }
 
     private var topBar: some View {
-        HStack(spacing: 12) {
-            AirDeskMark(size: 34)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Desktop Preview")
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                Text("\(session.selectedDevice?.name ?? "Wanix") · \(session.effectiveMode.title)")
-                    .font(.system(size: 10, weight: .medium, design: .monospaced))
-                    .foregroundStyle(ADTheme.textTertiary)
+        HStack(spacing: 10) {
+            HStack(spacing: 10) {
+                AirDeskMark(size: 30)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Desktop Preview")
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+
+                    HStack(spacing: 5) {
+                        StatusDot(color: ADTheme.accent)
+                        Text("LIVE")
+                            .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                            .tracking(0.8)
+                            .foregroundStyle(ADTheme.accent)
+                        Text("· \(session.selectedDevice?.name ?? "Wanix") · \(session.effectiveMode.title)")
+                            .font(.system(size: 9, weight: .medium, design: .monospaced))
+                            .foregroundStyle(ADTheme.textTertiary)
+                            .lineLimit(1)
+                    }
+                }
             }
-            Spacer()
-            HStack(spacing: 5) {
-                StatusDot(color: ADTheme.accent)
-                Text("LIVE")
-                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                    .tracking(0.8)
-                    .foregroundStyle(ADTheme.accent)
+            .padding(.leading, 8)
+            .padding(.trailing, 14)
+            .padding(.vertical, 7)
+            .background {
+                Capsule()
+                    .fill(.ultraThinMaterial)
+                    .overlay {
+                        Capsule()
+                            .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.7)
+                    }
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background { Capsule().fill(ADTheme.accent.opacity(0.10)) }
+            .allowsHitTesting(false)
+
+            Spacer(minLength: 0)
+
+            Button {
+                print("[AirDeskDebug] keyboard button tapped")
+                keyboardFocusToken += 1
+                isKeyboardActive = true
+            } label: {
+                Image(systemName: "keyboard")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(isKeyboardActive ? ADTheme.accent : Color.white.opacity(0.82))
+                    .frame(width: 38, height: 38)
+                    .background {
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                            .overlay {
+                                Circle()
+                                    .strokeBorder(
+                                        isKeyboardActive ? ADTheme.accent.opacity(0.6) : Color.white.opacity(0.12),
+                                        lineWidth: 0.7
+                                    )
+                            }
+                    }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Show keyboard")
 
             Button {
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(Color.white.opacity(0.7))
-                    .frame(width: 34, height: 34)
-                    .background { Circle().fill(Color.white.opacity(0.07)) }
+                    .foregroundStyle(Color.white.opacity(0.82))
+                    .frame(width: 38, height: 38)
+                    .background {
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                            .overlay {
+                                Circle()
+                                    .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.7)
+                            }
+                    }
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Close preview")
-        }
-        .padding(.top, 6)
-    }
-
-    private var previewSurface: some View {
-        ZStack {
-            Color.black
-            DesktopPreviewSurface(surface: session.desktopSurface)
-                .aspectRatio(16 / 9, contentMode: .fit)
-        }
-        .aspectRatio(16 / 9, contentMode: .fit)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.16), lineWidth: 1)
-        }
-        .shadow(color: .black.opacity(0.55), radius: 26, y: 16)
-    }
-
-    private var liveHint: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "hand.point.up.left")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(ADTheme.accent)
-            Text("Drag the mini touchpad to control the live desktop. In extended mode, this surface moves to the TV.")
-                .font(.system(size: 11.5))
-                .foregroundStyle(ADTheme.textSecondary)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 4)
-    }
-
-    private var miniTouchpad: some View {
-        GeometryReader { proxy in
-            ZStack {
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(Color.white.opacity(0.045))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .strokeBorder(Color.white.opacity(0.11), lineWidth: 0.8)
-                    }
-                AirCursorView(
-                    onAction: { action in
-                        session.handleCursor(action, viewport: proxy.size)
-                    },
-                    showsHints: false
-                )
-                VStack {
-                    HStack {
-                        Text("AIR CURSOR")
-                            .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                            .tracking(0.9)
-                            .foregroundStyle(ADTheme.textTertiary)
-                        Spacer()
-                        Text("TAP · DRAG · SCROLL")
-                            .font(.system(size: 8.5, weight: .medium, design: .monospaced))
-                            .foregroundStyle(ADTheme.textTertiary)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 13)
-                    Spacer()
-                }
-                .allowsHitTesting(false)
-            }
-            .onAppear { touchpadSize = proxy.size }
-        }
-        .frame(height: 168)
-    }
-
-    private var miniControls: some View {
-        HStack(spacing: 10) {
-            Button {
-                session.handleCursor(.click(count: 1), viewport: touchpadSize)
-            } label: {
-                Label("Left Click", systemImage: "cursorarrow.click")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.85))
-                    .frame(maxWidth: .infinity, minHeight: 46)
-                    .background {
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(Color.white.opacity(0.06))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.7)
-                            }
-                    }
-            }
-            .buttonStyle(ToolbarPressStyle())
-
-            Button {
-                session.handleCursor(.rightClick, viewport: touchpadSize)
-            } label: {
-                Label("Right Click", systemImage: "cursorarrow.click.2")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.85))
-                    .frame(maxWidth: .infinity, minHeight: 46)
-                    .background {
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(Color.white.opacity(0.06))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.7)
-                            }
-                    }
-            }
-            .buttonStyle(ToolbarPressStyle())
-
-            Button {
-                session.sendKey("Escape", code: "Escape")
-            } label: {
-                Text("ESC")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Color.white.opacity(0.7))
-                    .frame(width: 58, height: 46)
-                    .background {
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(Color.white.opacity(0.045))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .strokeBorder(Color.white.opacity(0.09), lineWidth: 0.7)
-                            }
-                    }
-            }
-            .buttonStyle(ToolbarPressStyle())
         }
     }
 
@@ -206,7 +150,7 @@ struct DesktopPreviewSheet: View {
             Text("Preview unavailable")
                 .font(.system(size: 20, weight: .semibold, design: .rounded))
                 .foregroundStyle(.white)
-            Text("The desktop is rendering on the active display. Close this sheet and use the Air Cursor.")
+            Text("The desktop is rendering on the active display. Close this preview and use the Air Cursor.")
                 .font(.system(size: 13))
                 .foregroundStyle(ADTheme.textSecondary)
                 .multilineTextAlignment(.center)

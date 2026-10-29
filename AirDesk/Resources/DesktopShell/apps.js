@@ -316,7 +316,7 @@
         return '<div class="notes">' +
           '<aside class="notes-list">' +
             '<div class="notes-head"><span>Notes</span><button class="icon-button" aria-label="New note">' + icons.plus + '</button></div>' +
-            '<button class="note-row selected" data-note="welcome"><strong>Welcome to AirDesk</strong><span>Your phone is the remote. Your screen is the desk.</span><small>Today</small></button>' +
+            '<button class="note-row selected" data-note="welcome"><strong>Welcome to AirDesk</strong><span>Your device is the remote. Your screen is the desk.</span><small>Today</small></button>' +
             '<button class="note-row" data-note="shortcuts"><strong>Remote shortcuts</strong><span>Touchpad, keyboard, and Dock gestures.</span><small>Yesterday</small></button>' +
             '<button class="note-row" data-note="wanix"><strong>About Wanix</strong><span>A WebAssembly workspace in the browser.</span><small>Yesterday</small></button>' +
           '</aside>' +
@@ -329,9 +329,9 @@
       },
       mount: function (root, api, options) {
         var content = {
-          welcome: 'AirDesk turns your iPhone into a precise remote for a Wanix desktop.\n\nThis desktop is the same shell used on the external display and the Cast receiver. Pointer, scroll, keyboard, and text input all arrive through one normalized protocol.\n\nTry it:\n  · Swipe the touchpad to move the Air Cursor.\n  · Tap to click, double-tap to open a window.\n  · Long press and move to drag a title bar.\n  · Two-finger drag to scroll.\n  · Two-finger tap to right-click.\n  · Open the keyboard bar to type here.\n\nNothing on this desktop is a screenshot. Every window is live.',
+          welcome: 'AirDesk turns your ' + ((window.AD && window.AD.device) || 'device') + ' into a precise remote for a Wanix desktop.\n\nThis desktop is the same shell used on the external display and the Cast receiver. Pointer, scroll, keyboard, and text input all arrive through one normalized protocol.\n\nTry it:\n  · Swipe the touchpad to move the Air Cursor.\n  · Tap to click, double-tap to open a window.\n  · Long press and move to drag a title bar.\n  · Two-finger drag to scroll.\n  · Two-finger tap to right-click.\n  · Open the keyboard bar to type here.\n\nNothing on this desktop is a screenshot. Every window is live.',
           shortcuts: 'Air Cursor gestures\n\nOne finger move     Move pointer\nTap                 Click\nDouble tap          Double click\nLong press + move   Drag\nTwo-finger move     Scroll\nTwo-finger tap      Right click\n\nKeyboard bar\n\nEsc, Tab, Return, Backspace, arrows, and modifier keys map to native events. The keyboard field inserts text into the focused field.\n\nHardware keyboard\n\nWhen a hardware keyboard is connected, its text is forwarded over the same input channel.',
-          wanix: 'Wanix is a WebAssembly-native workspace. The kernel and userland run inside the browser sandbox, so the desktop state lives with the page.\n\nAirDesk ships a live Wanix kernel inside this desktop shell. Finder and Notes read and write the same namespace. The runtime announces readiness only after its bridge is live; AirDesk never treats a page load as success.\n\nInput is normalized to 0…1 coordinates, so the same events work on a phone preview, a TV, or a Cast receiver at any resolution.'
+          wanix: 'Wanix is a WebAssembly-native workspace. The kernel and userland run inside the browser sandbox, so the desktop state lives with the page.\n\nAirDesk ships a live Wanix kernel inside this desktop shell. Finder and Notes read and write the same namespace. The runtime announces readiness only after its bridge is live; AirDesk never treats a page load as success.\n\nInput is normalized to 0…1 coordinates, so the same events work on a device preview, a TV, or a Cast receiver at any resolution.'
         };
         var title = root.querySelector('[data-note-title]');
         var body = root.querySelector('[data-note-body]');
@@ -724,7 +724,7 @@
           '<div class="welcome-pills"><span class="pill live"><span class="pulse"></span>Desktop ready</span><span class="pill">Input bridge v1</span><span class="pill">Wanix 0.4</span></div>' +
           '<div class="welcome-cards">' +
             '<button class="welcome-card" data-open-app="terminal"><span class="card-icon">' + appIcon('terminal', 'tiny') + '</span><strong>Terminal</strong><span>Run a command in the live shell.</span><span class="card-link">Open Terminal ' + icons.chevron + '</span></button>' +
-            '<button class="welcome-card" data-open-app="notes"><span class="card-icon">' + appIcon('notes', 'tiny') + '</span><strong>Notes</strong><span>Type from your iPhone keyboard.</span><span class="card-link">Open Notes ' + icons.chevron + '</span></button>' +
+            '<button class="welcome-card" data-open-app="notes"><span class="card-icon">' + appIcon('notes', 'tiny') + '</span><strong>Notes</strong><span>Type from your ' + ((window.AD && window.AD.device) || 'device') + ' keyboard.</span><span class="card-link">Open Notes ' + icons.chevron + '</span></button>' +
             '<button class="welcome-card" data-open-app="finder"><span class="card-icon">' + appIcon('finder', 'tiny') + '</span><strong>Finder</strong><span>Browse the bundled workspace.</span><span class="card-link">Open Finder ' + icons.chevron + '</span></button>' +
           '</div>' +
           '<div class="welcome-foot"><span>Swipe to move · Tap to click · Long press to drag</span><button data-open-app="settings">Settings</button></div>' +
