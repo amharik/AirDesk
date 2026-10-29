@@ -1,14 +1,16 @@
 # ADR-002: Replace custom gesture/input stack and migrate DesktopShell to TypeScript
 
-- **Status:** Accepted — TypeScript bridge migration in progress
+- **Status:** Accepted — TypeScript bridge migration in progress; web window-manager choice under review by ADR-007
 - **Date:** 2026-10-29
 - **Scope:** iOS/iPadOS trackpad input, WKWebView desktop pointer/window interaction, DesktopShell build tooling
 - **Supersedes:** None
-- **Related:** ADR-001, `docs/backlog/desktop-shell-typescript.md`
+- **Related:** ADR-001, ADR-003, ADR-007, `docs/backlog/desktop-shell-typescript.md`
 
 ## Decision
 
 Adopt **Option 2 — Hybrid**: Apple `UIGestureRecognizer`/`UIScrollView` for the iPad trackpad, and `interact.js` behind a narrow adapter for web window drag/resize/snapping. Migrate DesktopShell to TypeScript with `esbuild` and `tsc --noEmit`.
+
+ADR-007 (Proposed) would supersede the web window-manager choice below: WinBox for window mechanics with an AirDesk-owned chrome. The native trackpad and TypeScript decisions remain.
 
 No code changes are approved by this ADR yet. The P0 stabilization items below must ship first, and the existing custom input path stays in place until the library adapter is validated on device.
 
