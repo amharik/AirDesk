@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en" data-appearance="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="color-scheme" content="dark light">
+  <title>AirDesk — WinBox Preview</title>
+  <link rel="stylesheet" href="winbox-preview.css">
+</head>
+<body data-wallpaper="aurora" data-appearance="dark">
+  <div class="wallpaper" aria-hidden="true">
+    <div class="wallpaper-layer layer-a"></div>
+    <div class="wallpaper-layer layer-b"></div>
+    <div class="wallpaper-layer layer-c"></div>
+    <div class="wallpaper-grain"></div>
+  </div>
+
+  <main id="desktop" aria-label="WinBox preview desktop">
+    <header id="menubar">
+      <div class="menu-left">
+        <button class="menubar-item apple" data-menu="apple" aria-label="Apple menu"></button>
+        <button class="menubar-item app-name" id="active-app" data-menu="app">Welcome</button>
+        <button class="menubar-item" data-menu="file">File</button>
+        <button class="menubar-item" data-menu="edit">Edit</button>
+        <button class="menubar-item" data-menu="view">View</button>
+        <button class="menubar-item" data-menu="window">Window</button>
+        <button class="menubar-item" data-menu="help">Help</button>
+      </div>
+      <div class="menu-right">
+        <span class="menubar-status wanix-status"><span class="wanix-dot"></span><span>WINBOX</span></span>
+        <span class="menubar-clock" id="clock">WinBox preview</span>
+      </div>
+    </header>
+
+    <section id="desktop-icons" aria-label="Desktop items">
+      <div class="desktop-icon">
+        <div class="desk-art folder"></div>
+        <div class="desktop-label">Workspace</div>
+      </div>
+      <div class="desktop-icon">
+        <div class="desk-art trash"></div>
+        <div class="desktop-label">Trash</div>
+      </div>
+    </section>
+
+    <section id="window-layer" aria-label="Windows"></section>
+
+    <div id="dock-shell">
+      <nav id="dock" aria-label="Dock">
+        <span class="dock-item"><span class="app-icon app-icon-terminal"><span class="app-icon-inner">›_</span></span></span>
+        <span class="dock-item"><span class="app-icon app-icon-notes"><span class="app-icon-inner">✎</span></span></span>
+        <span class="dock-item"><span class="app-icon app-icon-welcome"><span class="app-icon-inner">✦</span></span></span>
+        <span class="dock-divider"></span>
+        <span class="dock-item"><span class="app-icon app-icon-trash"><span class="app-icon-inner">⌫</span></span></span>
+      </nav>
+    </div>
+  </main>
+
+  <script src="bridge.js"></script>
+  <script src="winbox-preview.js"></script>
+</body>
+</html>

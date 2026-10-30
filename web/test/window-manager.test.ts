@@ -130,6 +130,8 @@ describe('WinBox window manager', () => {
     handle.restore();
     click('maximize');
     expect(handle.element.classList.contains('max')).toBe(true);
+    click('maximize');
+    expect(handle.element.classList.contains('max')).toBe(false);
 
     click('close');
     expect(handle.closed).toBe(true);

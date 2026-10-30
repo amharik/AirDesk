@@ -328,7 +328,11 @@ export class WinBoxWindowManager {
             handle.minimize();
             break;
           case 'maximize':
-            handle.maximize();
+            if (instance.max) {
+              handle.restore();
+            } else {
+              handle.maximize();
+            }
             break;
         }
       });

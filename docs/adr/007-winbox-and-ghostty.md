@@ -68,10 +68,13 @@ Each cutover is independently reversible until its fallback is removed.
 - The custom template keeps AirDesk traffic lights, title icon/title, dialog semantics, and app identity while WinBox owns focus, z-order, minimize, maximize/restore, close, and geometry.
 - Added the `WinBoxWindowManager` adapter with focus history, viewport insets, close vetoes, lifecycle callbacks, and client-to-window coordinate conversion.
 - Four adapter tests pass against the real upstream implementation, including chrome preservation, focus/z-order, traffic-light routing, close vetoes, and duplicate-id focus behavior.
+- A debug-only `-AirDeskWinBoxPreview` route loads a bundled three-window harness through the real `DesktopSurface` and WKWebView preview sheet. The harness uses the shipped `shell.css` and upstream WinBox assets.
+- The simulator XCUITest covers focus/z-order, titlebar drag, minimize, maximize/restore, and close. It exposed a traffic-light bug where a second maximize tap did not restore; the adapter now toggles correctly and the regression is covered by both unit and UI tests.
+- Full local verification passes: 18 web tests, 99 iOS unit tests, 6 iOS UI tests, 6 Rust tests, and `npm run check`.
 - Upstream distribution sizes are 11.0 kB for minified JS and 4.8 kB for CSS; the bundled build is 16.0 kB. No fork is required for the supported chrome path.
 - License text and attribution are recorded under `third_party/winbox/`.
 
-Still pending before Trial: WKWebView/Cast 60 FPS measurement at 1080p, safe-area/rotation/external-display checks, physical native pointer and long-press regressions, VoiceOver/accessibility review, visual screenshots, CSP/offline packaging, and the category-D parity harness. The status remains **Proposed**.
+Still pending before Trial: WKWebView/Cast 60 FPS measurement at 1080p, safe-area/rotation/external-display checks, physical native pointer and long-press regressions, VoiceOver/accessibility review, visual screenshots, CSP/offline packaging, and the category-D parity harness (the simulator harness now covers the adapter lifecycle path). The status remains **Proposed**.
 
 ## Acceptance gates
 
