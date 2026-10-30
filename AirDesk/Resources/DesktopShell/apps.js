@@ -310,8 +310,24 @@
           var readerTask = null;
           var disconnected = false;
           var queued = [];
+          var queuedInput = [];
           var encoder = new TextEncoder();
           var removalObserver = null;
+
+          function dispatchInput(method, data) {
+            if (engine) {
+              engine[method](data);
+            } else {
+              queuedInput.push({ method: method, data: data });
+            }
+          }
+
+          target._term = {
+            focus: function () { if (engine) engine.focus(); },
+            input: function (data) { dispatchInput('input', data); },
+            paste: function (data) { dispatchInput('paste', data); },
+            onData: function () { /* WTerm owns input callbacks */ }
+          };
 
           function sendBytes(bytes) {
             if (disconnected) return;
@@ -377,7 +393,7 @@
 
           loadTerminalAssets().then(function () {
             if (!window.AirDeskWTerm) throw new Error('The wterm runtime is unavailable.');
-            engine = window.AirDeskWTerm.create(target, {
+            return window.AirDeskWTerm.create(target, {
               cols: 80,
               rows: 24,
               autoResize: true,
@@ -385,20 +401,33 @@
               announceOutput: true,
               transport: {
                 send: sendText,
-                sendBinary: sendBytes
+                sendBinary: sendBytes,
+                resize: function (cols, rows) {
+                  var kernel = window.AirDeskKernel;
+                  if (kernel && typeof kernel.resizeTerminal === 'function') {
+                    kernel.resizeTerminal(cols, rows);
+                  }
+                }
               }
             });
-            target._term = {
-              focus: function () { if (engine) engine.focus(); },
-              input: function (data) { if (engine) engine.input(data); },
-              paste: function (data) { if (engine) engine.paste(data); },
-              onData: function () { /* WTerm owns input callbacks */ }
-            };
+          }).then(function (created) {
+            if (disconnected) {
+              try { created.destroy(); } catch (error) { /* already destroyed */ }
+              return false;
+            }
+            engine = created;
+            target.setAttribute('data-wterm-core', 'ghostty');
+            debugLog('wterm.core=ghostty');
+            queuedInput.splice(0).forEach(function (entry) {
+              engine[entry.method](entry.data);
+            });
             return engine.connect();
-          }).then(function () {
+          }).then(function (connected) {
+            if (connected === false || disconnected) return false;
             debugLog('wterm.ready');
             return waitForTaskTerm();
           }).then(function () {
+            if (disconnected) return false;
             var kernel = window.AirDeskKernel.root();
             var task = document.querySelector('#wanix wanix-task');
             var path = task && task.term;

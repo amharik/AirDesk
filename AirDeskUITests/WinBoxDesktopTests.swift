@@ -34,6 +34,19 @@ final class WinBoxDesktopTests: XCTestCase {
         return probeLabel(app).contains(text)
     }
 
+    private func waitForWidth(
+        _ element: XCUIElement,
+        timeout: TimeInterval = 6,
+        satisfying predicate: (CGFloat) -> Bool
+    ) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if predicate(element.frame.width) { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        return predicate(element.frame.width)
+    }
+
     private func visibleWebView(in app: XCUIApplication) -> XCUIElement {
         let deadline = Date().addingTimeInterval(20)
         while Date() < deadline {
@@ -66,13 +79,15 @@ final class WinBoxDesktopTests: XCTestCase {
         welcome.buttons["Close"].tap()
         XCTAssertTrue(welcome.waitForNonExistence(timeout: 10), "AirDesk was not closed")
 
+        let expandedThreshold = webView.frame.width * 0.8
         terminal.buttons["Maximize"].tap()
+        let didExpand = waitForWidth(terminal) { $0 > expandedThreshold }
         let expanded = terminal.frame.width
-        XCTAssertGreaterThan(expanded, webView.frame.width * 0.8, "terminal did not maximize probe=\(probeLabel(app))")
+        XCTAssertTrue(didExpand, "terminal did not maximize probe=\(probeLabel(app))")
 
         terminal.buttons["Maximize"].tap()
-        let restored = terminal.frame.width
-        XCTAssertLessThan(restored, expanded, "terminal did not restore probe=\(probeLabel(app))")
+        let didRestore = waitForWidth(terminal) { $0 < expanded - 1 }
+        XCTAssertTrue(didRestore, "terminal did not restore probe=\(probeLabel(app))")
 
         let originBeforeDrag = terminal.frame.origin
         let dragStart = terminal.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.04))

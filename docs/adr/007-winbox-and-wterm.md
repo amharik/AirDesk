@@ -13,7 +13,7 @@ The current DesktopShell is a custom IIFE window manager in `desktop.js`. It now
 
 The terminal is currently a `wanix-term` custom element backed by an xterm-compatible implementation. The shell depends on both the element contract and xterm-specific DOM/CSS hooks.
 
-The original terminal choice was Ghostty. After reviewing the integration surface, the product direction changed to **wterm** as the primary terminal stack. wterm provides a small built-in VT core, native DOM text selection and accessibility, pluggable cores, and adapters for an offline just-bash shell and WebSocket transports. Ghostty is no longer the default web terminal; `@wterm/ghostty` remains an optional compatibility core only if the built-in core fails conformance.
+The original terminal choice was Ghostty. After reviewing the integration surface, the product direction changed to **wterm** as the primary terminal stack. wterm provides native DOM text selection and accessibility, pluggable cores, and adapters for an offline just-bash shell and WebSocket transports. The built-in core retained only 1,000 scrollback lines, so the production shell now uses `@wterm/ghostty` as the wterm core while keeping the wterm renderer, input model, and adapter. A standalone GhosttyKit terminal is still not the default path.
 
 ADR-002 selected `interact.js` for web drag/resize and rejected WinBox as too large a migration during an input regression fix. That was the correct decision for P0. The product direction has since changed: AirDesk will adopt tested third-party libraries where they reduce owned surface area, even when that requires a controlled compositor migration.
 
@@ -24,11 +24,11 @@ Adopt a library-backed compositor and terminal stack, behind AirDesk-owned adapt
 1. **WinBox.js** owns window mechanics: creation, drag, resize, focus, z-order, minimize, maximize, close, and viewport constraints.
 2. **AirDesk owns the chrome and shell**: title bars, traffic lights, menubar, Dock, Spotlight, desktop icons, context menus, wallpaper, and input routing remain AirDesk components.
 3. **Full replacement, not a hybrid**: the custom window manager is replaced behind a `DesktopWindowManager` adapter after parity tests pass.
-4. **wterm owns terminal emulation and rendering** by default in WKWebView and Cast. The DOM renderer (`@wterm/dom`) and built-in core (`@wterm/core`) are the baseline.
+4. **wterm owns terminal emulation and rendering** by default in WKWebView and Cast. The DOM renderer (`@wterm/dom`) is the baseline and the production core is `@wterm/ghostty` with a 16 MiB scrollback budget; the built-in `@wterm/core` remains the lightweight preview/fallback core.
 5. **wterm sits behind a `TerminalEngine` adapter** implementing the current `wanix-term` contract. Wanix is not forked.
 6. **Wanix remains the authoritative live shell.** The `#task/shell/term` PTY is the product terminal. `@wterm/just-bash` is an offline/local shell adapter and demo fallback, not a replacement for Wanix and not an automatic silent fallback.
 7. **SSH uses a transport, not the renderer.** `WebSocketTransport` or an equivalent backend is permitted only after the ADR-005 authenticated `wss` and certificate gates pass. No SSH keys or credentials are bundled into the web shell.
-8. **`@wterm/ghostty` is optional and not shipped by default.** Adopt it only if the built-in core fails the conformance matrix and the larger Ghostty WASM bundle is justified by measured results.
+8. **`@wterm/ghostty` is the production core.** The built-in core failed the 5,000-line scrollback gate, so Ghostty is shipped locally with an explicit byte budget. The added 598 kB WASM asset is accepted pending the remaining conformance, memory, and Cast gates.
 9. **`interact.js` is retained only for non-WinBox drag surfaces**, if any remain. It is no longer the window drag/resize layer.
 10. **Thin upstream-first forks are allowed only for WinBox**, and only if AirDesk chrome cannot be preserved through supported extension points. wterm is not forked.
 
@@ -69,7 +69,7 @@ wterm and just-bash assets are bundled locally; no runtime CDN dependency is per
 | `@wterm/dom` | `0.5.7` | Apache-2.0 | `sha512-yqnn43PnPdexno0ZHEC94iYIOBhximQBTVDr3qhRuhO3IQ69TjbFHNf7d5+ooRaXcEmPYz38bDNV7OXG+qzV/A==` |
 | `@wterm/just-bash` | `0.5.7` | Apache-2.0 | `sha512-pis8+Lgv9egxgNyLc2y33msRJOb1yyJak2zRaSZCm0mpq15qPT0ftJlUywZOiT7R5MVwA+9AOowscVMu5L4XWw==` |
 | `just-bash` | `3.6.0` | Apache-2.0 | `sha512-2COjEgcHdqKXeQSiNfPAHmpwQx4S8wATaIwog83g2t645U5tom6FED4CBBdr3M+0ioX4xZ26eODw3/nD6RQ6xw==` |
-| `@wterm/ghostty` (optional) | `0.5.7` | Apache-2.0 | `sha512-shvpcqzIaz5QuLoTqZ0miotG9GU6/cWPm/7ntjwylhozDRX+wt7DYwvXQenJJ2WtaSSn+wmoMJYplHXDFLjHIQ==` |
+| `@wterm/ghostty` | `0.5.7` | Apache-2.0 | `sha512-shvpcqzIaz5QuLoTqZ0miotG9GU6/cWPm/7ntjwylhozDRX+wt7DYwvXQenJJ2WtaSSn+wmoMJYplHXDFLjHIQ==` |
 
 ## Migration plan
 
@@ -99,10 +99,10 @@ Each cutover is independently reversible until its fallback is removed.
 - Native protocol pointer events are converted to synthetic pointer plus mouse-compatibility DOM events for WinBox, whose upstream drag path listens for mouse/touch input. The default production XCUITest now covers native drag; physical device drag and long-press still require verification.
 - The debug `-AirDeskWinBoxDesktop` route loads the production `index.html` with an explicit WinBox override. The production XCUITest exercises the default path without an override and covers maximize, restore, close, and native drag.
 - Hidden desktop WebViews can report `window.innerWidth` as `2` or `10` before the preview surface is attached. Initial windows use `window.screen` dimensions as a fallback viewport instead of opening at that zero-width layout, and the production resize path refreshes WinBox bounds once the real viewport is visible.
-- WinBox can retain a stale internal root width after a hidden or late layout. Maximize now dispatches a viewport refresh before delegating to WinBox; this fixed maximize-after-drag failures without relying on test ordering.
+- WinBox can retain a stale internal root width after a hidden or late layout. Maximize now dispatches a viewport refresh, then explicitly reprojects the maximized bounds from the live viewport when WinBox's calculated size is smaller. The UI test polls through WinBox's 300 ms size transition instead of reading the frame immediately after the tap.
 - Rotation and inset changes reproject non-maximized window origins back inside the visible area through `clampToViewport()`, covered by the window-manager unit test.
 - The production adapter bundle is 32.8 kB JS with 8.1 kB CSS. No fork is required.
-- Full local verification passes: 28 web tests across 5 files, 99 iOS unit tests, 9 iOS UI tests, 6 Rust tests, and `npm run check`.
+- Full local verification passes: 30 web tests across 6 files, 99 iOS unit tests, 9 iOS UI tests, 6 Rust tests, and `npm run check`.
 - Upstream distribution sizes are 11.0 kB for minified JS and 4.8 kB for CSS; the bundled preview build is 16.0 kB.
 - License text and attribution are recorded under `third_party/winbox/`.
 
@@ -113,21 +113,22 @@ Still pending before Trial: WKWebView/Cast 60 FPS measurement at 1080p, safe-are
 - Package metadata, licenses, and integrities were verified for wterm `0.5.7` and just-bash `3.6.0`.
 - The documented architecture provides a DOM renderer with native selection, copy/paste, search, accessibility, OSC 8 links, pluggable cores, and an inlined approximately 26 kB Zig/WASM VT core.
 - `@wterm/just-bash` depends on `just-bash ^3.4.2`; the selected peer pin is `3.6.0`.
-- `@wterm/core` and `@wterm/dom` are production dependencies. `@wterm/just-bash` and `just-bash` are development dependencies for the offline debug spike, not the production Wanix shell.
+- `@wterm/core`, `@wterm/dom`, and `@wterm/ghostty` are production dependencies. `@wterm/just-bash` and `just-bash` are development dependencies for the offline debug spike, not the production Wanix shell.
 - Added a `TerminalEngine` contract and a `WTermEngine` adapter. The adapter queues output until initialization, maps user input to the transport, forwards applied resize dimensions, and keeps remote input out of synthesized DOM events.
 - Three headless tests exercise the real `BashShell`: virtual-file `cat`, `cd`/`pwd`, and the `wterm-ok` self-test marker.
 - Six headless conformance tests exercise the real `WasmBridge`: wide/CJK/emoji/combining/Devanagari/Arabic clusters, alternate-screen restore, scrollback retention/discard accounting, bracketed paste, mouse/SGR, focus events, application cursor keys, synchronized output, title OSC, palette and true-color SGR, and resize retention.
-- The bundled core retains 1,000 scrollback lines and reports discarded history. The 5,000-line gate is not met yet; it requires an upstream capacity change or a deliberate wrapper decision.
-- `@wterm/ghostty@0.5.7` was measured as the fallback core: 584 kB WASM, configurable `scrollbackLimit` in bytes, and 5,977 retained rows with zero discarded at 80 columns and an 8 MiB budget. It is not adopted yet; switching cores requires the full conformance matrix and bundle/memory budget review.
+- The built-in core retains 1,000 scrollback lines and reports discarded history. The production path no longer uses it for the Wanix terminal.
+- `@wterm/ghostty@0.5.7` is now the production core with a 16 MiB `scrollbackLimit`. A 6,000-line headless test at 80 columns retains at least 5,000 lines with zero discarded, so the 5,000-line gate is met for the production core. The packaged WASM is 597,635 bytes and bundled locally as `terminal-core.wasm`.
+- A new Ghostty conformance test covers complex clusters, bracketed paste, mouse/SGR, focus, application cursor keys, title OSC, alternate-screen restore, and resize retention.
 - A debug-only `-AirDeskWTermPreview` route loads a real `WTerm` with `BashShell` and just-bash in WKWebView. The preview auto-runs `echo wterm-ok` and verifies the rendered output through `readText()`.
 - The simulator XCUITest passes the `-AirDeskWTermPreview` route and waits for the rendered self-test marker.
 - The debug bundle is 2.1 MB unminified with a 57.4 kB CSS bundle. This is not a production size measurement; the preview includes the full just-bash environment.
 - just-bash's browser bundle imports an unused `node:zlib` path. The build aliases it to a local shim; gzip is intentionally unavailable in the offline shell.
 - Initializing the preview while its sheet is hidden produced a one-column auto-sized grid. The harness uses an explicit 80x24 grid until the surface is visible. The production adapter must initialize after the surface has a real size or re-fit on visibility.
-- Added a production terminal path behind `?terminal=wterm` or `airdesk.terminal=wterm`. It lazily loads a 283.7 kB JS / 10.4 kB CSS wterm bundle, waits for the Wanix task PTY, opens `${task.term}/data` read/write streams, and keeps `wanix-term` as the default until conformance passes.
+- Added a production terminal path behind `?terminal=wterm` or `airdesk.terminal=wterm`. It lazily loads a 328.1 kB JS / 10.4 kB CSS bundle plus the 598 kB Ghostty WASM asset, waits for the Wanix task PTY, opens `${task.term}/data` read/write streams, and keeps `wanix-term` as the default until conformance passes.
 - The WTerm adapter preserves the desktop's `_term` focus/input/paste compatibility hooks, and `desktop.js` now recognizes both `wanix-term` and `.wterm-term`.
-- A `-AirDeskWTermDesktop` route drives the production shell with wterm. Its XCUITest verifies engine selection, live Wanix PTY attachment, and keyboard typing through the native bridge.
-- Wanix has no working PTY resize propagation to consume. The `#term/<id>/winch` device broadcasts bytes, but upstream's rc design notes explicitly leave signal/resize handling unimplemented, and the shell does not read it. WTerm fits locally; real PTY resize requires an upstream Wanix/rc change or a deliberate scope reduction. Reconnect/replay semantics remain unverified.
+- A `-AirDeskWTermDesktop` route drives the production shell with wterm. Its XCUITest verifies engine selection, Ghostty core selection, live Wanix PTY attachment, and keyboard typing through the native bridge.
+- The shell now forwards WTerm resize dimensions to `#task/shell/term/winch` as `"<cols> <rows>\n"`. Wanix currently broadcasts that signal but upstream's rc design notes leave signal/resize handling unimplemented, so no running program consumes it yet. Real PTY resize remains blocked on an upstream Wanix/rc change; reconnect/replay semantics also remain unverified.
 - SSH transport and the default cutover remain incomplete. The status remains **Proposed**.
 
 ## Acceptance gates
@@ -156,12 +157,12 @@ Still pending before Trial: WKWebView/Cast 60 FPS measurement at 1080p, safe-are
 - WASM load time, memory, and offline bundle size meet the agreed budget.
 - Text selection, copy/paste, find, focus order, and VoiceOver behavior pass in WKWebView.
 - No runtime CDN is required for wterm, just-bash, fonts, or cores.
-- `@wterm/ghostty`, if evaluated, passes the same conformance matrix and has a measured size or compatibility justification.
+- The adopted `@wterm/ghostty` core passes the same conformance matrix and keeps its measured size within the agreed bundle/memory budget.
 
 ## Consequences
 
 - AirDesk stops owning fragile window geometry and terminal parsing code.
-- wterm becomes the primary terminal dependency; Ghostty is no longer the default path.
+- wterm remains the primary terminal stack; its production core is now Ghostty, while a standalone Ghostty terminal is still not the default path.
 - just-bash provides an offline demo and test shell, but it is not a general POSIX environment, a Wanix replacement, or a network client.
 - SSH remains a transport product, not a renderer feature; it cannot ship before authenticated remote transport exists.
 - Two mature libraries enter the production surface, with new pins, upgrades, and qualification work.

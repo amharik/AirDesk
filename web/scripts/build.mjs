@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { copyFile, readFile } from 'node:fs/promises';
 import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
@@ -7,6 +7,8 @@ const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const repositoryRoot = resolve(webRoot, '..');
 const outputDirectory = resolve(repositoryRoot, 'AirDesk/Resources/DesktopShell');
 const check = process.argv.includes('--check');
+const ghosttyWasmSource = resolve(webRoot, 'node_modules/@wterm/ghostty/wasm/ghostty-vt.wasm');
+const ghosttyWasmOutput = resolve(outputDirectory, 'terminal-core.wasm');
 
 const entries = [
   { name: 'bridge', entryPoint: resolve(webRoot, 'src/bridge/entry.ts') },
@@ -47,4 +49,23 @@ for (const { name, entryPoint } of entries) {
     }
   }
   console.log(`Committed DesktopShell bundle matches web/src: ${name}`);
+}
+
+if (check) {
+  const source = await readFile(ghosttyWasmSource);
+  let committed;
+  try {
+    committed = await readFile(ghosttyWasmOutput);
+  } catch {
+    console.error('Committed DesktopShell asset is missing: AirDesk/Resources/DesktopShell/terminal-core.wasm');
+    process.exit(1);
+  }
+  if (!committed.equals(source)) {
+    console.error('Committed DesktopShell asset is stale: AirDesk/Resources/DesktopShell/terminal-core.wasm');
+    process.exit(1);
+  }
+  console.log('Committed DesktopShell asset matches @wterm/ghostty: terminal-core.wasm');
+} else {
+  await copyFile(ghosttyWasmSource, ghosttyWasmOutput);
+  console.log('Copied @wterm/ghostty WASM: terminal-core.wasm');
 }

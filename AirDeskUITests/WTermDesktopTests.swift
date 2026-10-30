@@ -44,6 +44,10 @@ final class WTermDesktopTests: XCTestCase {
             "probe=\(probeLabel(app))"
         )
         XCTAssertTrue(
+            waitForProbe(app, containing: "wterm.core=ghostty", timeout: 45),
+            "probe=\(probeLabel(app))"
+        )
+        XCTAssertTrue(
             waitForProbe(app, containing: "wterm.connected", timeout: 60),
             "probe=\(probeLabel(app))"
         )

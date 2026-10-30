@@ -27,10 +27,994 @@
     }
   });
 
-  // node_modules/@wterm/core/dist/wasm-loading.js
-  var embedded;
+  // node_modules/@wterm/ghostty/dist/wasm-bindings.js
+  var import_meta = {};
+  var CELL_BYTES = 16;
+  var CELL_BYTES_V2 = 20;
+  var UNDERLINE_STYLES = [
+    "none",
+    "single",
+    "double",
+    "curly",
+    "dotted",
+    "dashed"
+  ];
+  var REMEDY = 'Serve the binary from your app and pass its URL: GhosttyCore.load({ wasmPath: "/ghostty-vt.wasm" }). The file ships with the package as @wterm/ghostty/ghostty-vt.wasm. See the Bundlers section of the @wterm/ghostty README.';
+  function defaultWasmUrl() {
+    return new URL("../wasm/ghostty-vt.wasm", import_meta.url).href;
+  }
+  function hasWasmMagic(bytes) {
+    if (bytes.byteLength < 4)
+      return false;
+    const head = new Uint8Array(bytes, 0, 4);
+    return head[0] === 0 && head[1] === 97 && head[2] === 115 && head[3] === 109;
+  }
   var modules = /* @__PURE__ */ new Map();
   var MAX_CACHED_MODULES = 4;
+  async function compileWasm(url) {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`@wterm/ghostty: fetching ${url} returned ${response.status} ${response.statusText}. ${REMEDY}`);
+    }
+    if (typeof WebAssembly.compileStreaming === "function" && response.headers.get("Content-Type")?.trim().toLowerCase() === "application/wasm") {
+      try {
+        return await WebAssembly.compileStreaming(response.clone());
+      } catch {
+      }
+    }
+    const bytes = await response.arrayBuffer();
+    if (!hasWasmMagic(bytes)) {
+      throw new Error(`@wterm/ghostty: ${url} did not return a WASM module. ${REMEDY}`);
+    }
+    return WebAssembly.compile(bytes);
+  }
+  function loadModule(url) {
+    const cached = modules.get(url);
+    if (cached) {
+      modules.delete(url);
+      modules.set(url, cached);
+      return cached;
+    }
+    const pending = compileWasm(url).catch((error) => {
+      if (modules.get(url) === pending)
+        modules.delete(url);
+      throw error;
+    });
+    modules.set(url, pending);
+    if (modules.size > MAX_CACHED_MODULES)
+      modules.delete(modules.keys().next().value);
+    return pending;
+  }
+  async function loadGhosttyWasm(wasmUrl) {
+    let url = wasmUrl ?? defaultWasmUrl();
+    if (wasmUrl === void 0 && url.startsWith("file:") && typeof document !== "undefined") {
+      throw new Error(`@wterm/ghostty: your bundler resolved the WASM URL to ${url}, a path on the machine that built the bundle, so the browser cannot fetch it. ${REMEDY}`);
+    }
+    if (typeof document !== "undefined")
+      url = new URL(url, document.baseURI).href;
+    else if (typeof location !== "undefined")
+      url = new URL(url, location.href).href;
+    const module = await loadModule(url);
+    let wasmMemory;
+    const instance = await WebAssembly.instantiate(module, {
+      env: {
+        log(ptr, len) {
+          const text = new TextDecoder().decode(new Uint8Array(wasmMemory.buffer, ptr, len));
+          console.log("[ghostty-vt]", text);
+        }
+      }
+    });
+    wasmMemory = instance.exports.memory;
+    const exports = instance.exports;
+    return { exports, instance };
+  }
+  function parseCell(view, byteOffset, cellBytes = CELL_BYTES) {
+    const colorFlags = view.getUint8(byteOffset + 12);
+    const contentFlags = view.getUint8(byteOffset + 13);
+    const cell = {
+      codepoint: view.getUint32(byteOffset, true),
+      fgR: view.getUint8(byteOffset + 4),
+      fgG: view.getUint8(byteOffset + 5),
+      fgB: view.getUint8(byteOffset + 6),
+      bgR: view.getUint8(byteOffset + 7),
+      bgG: view.getUint8(byteOffset + 8),
+      bgB: view.getUint8(byteOffset + 9),
+      flags: view.getUint8(byteOffset + 10),
+      width: view.getUint8(byteOffset + 11),
+      colorFlags,
+      hasGrapheme: (contentFlags & 1) !== 0,
+      hasHyperlink: (contentFlags & 2) !== 0,
+      spacerHead: (contentFlags & 4) !== 0
+    };
+    if (cellBytes === CELL_BYTES_V2) {
+      cell.underlineStyle = UNDERLINE_STYLES[view.getUint8(byteOffset + 16)];
+      cell.underlineRgb = colorFlags & 4 ? view.getUint8(byteOffset + 17) << 16 | view.getUint8(byteOffset + 18) << 8 | view.getUint8(byteOffset + 19) : void 0;
+    }
+    return cell;
+  }
+  function allocBuffer(wasm, size) {
+    if (!Number.isSafeInteger(size) || size <= 0 || size > 4294967295)
+      return 0;
+    try {
+      return wasm.exports.alloc_buffer(size);
+    } catch {
+      return 0;
+    }
+  }
+  function freeBuffer(wasm, ptr, size) {
+    if (ptr === 0 || !Number.isSafeInteger(size) || size <= 0)
+      return;
+    try {
+      wasm.exports.free_buffer(ptr, size);
+    } catch {
+    }
+  }
+  var GRAPHICS_IMAGE_BYTES = 16;
+  var GRAPHICS_PLACEMENT_BYTES = 60;
+  function readGraphicsImages(wasm, termPtr, bufPtr, capacity) {
+    const read = wasm.exports.graphics_images;
+    if (!read || !Number.isSafeInteger(capacity) || capacity < 0)
+      return [];
+    let count;
+    try {
+      count = read(termPtr, bufPtr, capacity);
+    } catch {
+      return [];
+    }
+    if (!Number.isSafeInteger(count) || count < 0 || count > capacity)
+      return [];
+    const byteLength = count * GRAPHICS_IMAGE_BYTES;
+    if (!Number.isSafeInteger(byteLength))
+      return [];
+    let view;
+    try {
+      view = new DataView(wasm.exports.memory.buffer, bufPtr, byteLength);
+    } catch {
+      return [];
+    }
+    const result = [];
+    for (let i = 0; i < count; i++) {
+      const offset = i * GRAPHICS_IMAGE_BYTES;
+      result.push({
+        imageId: view.getUint32(offset, true),
+        version: view.getUint32(offset + 4, true),
+        width: view.getUint32(offset + 8, true),
+        height: view.getUint32(offset + 12, true)
+      });
+    }
+    return result;
+  }
+  function readGraphicsPlacements(wasm, termPtr, bufPtr, capacity) {
+    const read = wasm.exports.graphics_placements;
+    if (!read || !Number.isSafeInteger(capacity) || capacity < 0)
+      return [];
+    let count;
+    try {
+      count = read(termPtr, bufPtr, capacity);
+    } catch {
+      return [];
+    }
+    if (!Number.isSafeInteger(count) || count < 0 || count > capacity)
+      return [];
+    const byteLength = count * GRAPHICS_PLACEMENT_BYTES;
+    if (!Number.isSafeInteger(byteLength))
+      return [];
+    let view;
+    try {
+      view = new DataView(wasm.exports.memory.buffer, bufPtr, byteLength);
+    } catch {
+      return [];
+    }
+    const result = [];
+    for (let i = 0; i < count; i++) {
+      const offset = i * GRAPHICS_PLACEMENT_BYTES;
+      const imageId = view.getUint32(offset, true);
+      const placementId = view.getUint32(offset + 4, true);
+      const placementTag = view.getUint32(offset + 56, true);
+      result.push({
+        placementKey: `${imageId}:${placementId}:${placementTag}`,
+        imageId,
+        imageVersion: view.getUint32(offset + 8, true),
+        row: view.getUint32(offset + 12, true),
+        col: view.getUint32(offset + 16, true),
+        offsetX: view.getUint32(offset + 20, true),
+        offsetY: view.getUint32(offset + 24, true),
+        sourceX: view.getUint32(offset + 28, true),
+        sourceY: view.getUint32(offset + 32, true),
+        sourceWidth: view.getUint32(offset + 36, true),
+        sourceHeight: view.getUint32(offset + 40, true),
+        columns: view.getUint32(offset + 44, true),
+        rows: view.getUint32(offset + 48, true),
+        z: view.getInt32(offset + 52, true)
+      });
+    }
+    return result;
+  }
+  function writeString(wasm, termPtr, str, afterChunk) {
+    const encoded = new TextEncoder().encode(str);
+    writeBytes(wasm, termPtr, encoded, afterChunk);
+  }
+  function writeBytes(wasm, termPtr, data, afterChunk) {
+    let offset = 0;
+    while (offset < data.length) {
+      const length = Math.min(data.length - offset, 8192);
+      const bufPtr = allocBuffer(wasm, length);
+      if (bufPtr === 0)
+        return;
+      try {
+        new Uint8Array(wasm.exports.memory.buffer, bufPtr, length).set(data.subarray(offset, offset + length));
+        wasm.exports.write(termPtr, bufPtr, length);
+      } finally {
+        freeBuffer(wasm, bufPtr, length);
+      }
+      offset += length;
+      afterChunk?.();
+    }
+  }
+
+  // node_modules/@wterm/ghostty/dist/ghostty-core.js
+  var DEFAULT_COLOR = 256;
+  var GRAPHEME_BUFFER_BYTES = 256;
+  var HYPERLINK_BUFFER_BYTES = 1024;
+  var DEFAULT_FOREGROUND = "#d4d4d4";
+  var DEFAULT_BACKGROUND = "#1e1e1e";
+  var SHELL_PHASES = [
+    "unknown",
+    "prompt",
+    "input",
+    "running",
+    "complete"
+  ];
+  var MAX_IMAGE_BYTES = 32 * 1024 * 1024;
+  var DEFAULT_IMAGE_STORAGE_LIMIT = MAX_IMAGE_BYTES;
+  var MAX_WASM_U32 = 4294967295;
+  function packRgb(r, g, b) {
+    return r << 16 | g << 8 | b;
+  }
+  var BLANK_CELL = {
+    char: 32,
+    fg: DEFAULT_COLOR,
+    bg: DEFAULT_COLOR,
+    flags: 0,
+    width: 1
+  };
+  function parseColor(value, option) {
+    if (!/^#[0-9a-f]{6}$/i.test(value)) {
+      throw new Error(`@wterm/ghostty: ${option} must be a #RRGGBB color`);
+    }
+    return Number.parseInt(value.slice(1), 16);
+  }
+  function imageStorageLimit(options) {
+    const value = options.imageStorageLimit ?? DEFAULT_IMAGE_STORAGE_LIMIT;
+    if (!Number.isSafeInteger(value) || value < 0 || value > MAX_WASM_U32) {
+      throw new Error("@wterm/ghostty: imageStorageLimit must be an integer between 0 and 4294967295");
+    }
+    return value;
+  }
+  function cloneGraphicsState(state) {
+    return {
+      generation: state.generation,
+      images: state.images.map((image) => ({ ...image })),
+      placements: state.placements.map((placement) => ({ ...placement }))
+    };
+  }
+  var GhosttyCore = class _GhosttyCore {
+    constructor(wasm, options) {
+      this.termPtr = 0;
+      this._themeColors = null;
+      this._viewportBufPtr = 0;
+      this._viewportBufSize = 0;
+      this._viewportView = null;
+      this._viewportStale = true;
+      this._cols = 0;
+      this._rows = 0;
+      this._scrollbackBufPtr = 0;
+      this._scrollbackBufSize = 0;
+      this._scrollbackView = null;
+      this._scrollbackOffset = -1;
+      this._scrollbackLen = 0;
+      this._graphemeBufPtr = 0;
+      this._graphemeBufSize = GRAPHEME_BUFFER_BYTES;
+      this._hyperlinkBufPtr = 0;
+      this._hyperlinkBufSize = HYPERLINK_BUFFER_BYTES;
+      this._graphicsBufPtr = 0;
+      this._graphicsBufSize = 0;
+      this._graphicsState = null;
+      this._disposed = false;
+      this._positionOwner = {};
+      this.wasm = wasm;
+      this._cellBytes = wasm.exports.get_viewport_v2 && wasm.exports.get_scrollback_line_v2 ? CELL_BYTES_V2 : CELL_BYTES;
+      this._options = options;
+      this._foregroundRgb = parseColor(options.foregroundColor ?? DEFAULT_FOREGROUND, "foregroundColor");
+      this._backgroundRgb = parseColor(options.backgroundColor ?? DEFAULT_BACKGROUND, "backgroundColor");
+    }
+    /**
+     * Load the ghostty-vt WASM binary and create a new `GhosttyCore`.
+     * The returned core is ready to be passed as the `core` option to `WTerm`.
+     */
+    static async load(options = {}) {
+      const wasm = await loadGhosttyWasm(options.wasmPath);
+      return new _GhosttyCore(wasm, options);
+    }
+    // -- Lifecycle --
+    init(cols, rows) {
+      if (this._disposed)
+        return;
+      if (this.termPtr !== 0)
+        this._deinitTerminal();
+      this._cols = cols;
+      this._rows = rows;
+      const scrollback = this._options.scrollbackLimit ?? 1e4;
+      this.termPtr = this.wasm.exports.init(cols, rows, scrollback, this._foregroundRgb, this._backgroundRgb, imageStorageLimit(this._options));
+      if (this.termPtr === 0)
+        return;
+      if (this._themeColors)
+        this.setThemeColors(this._themeColors);
+      if (this._graphemeBufPtr !== 0)
+        freeBuffer(this.wasm, this._graphemeBufPtr, this._graphemeBufSize);
+      this._graphemeBufPtr = allocBuffer(this.wasm, GRAPHEME_BUFFER_BYTES);
+      if (this._hyperlinkBufPtr !== 0) {
+        freeBuffer(this.wasm, this._hyperlinkBufPtr, this._hyperlinkBufSize);
+      }
+      this._hyperlinkBufSize = HYPERLINK_BUFFER_BYTES;
+      this._hyperlinkBufPtr = allocBuffer(this.wasm, HYPERLINK_BUFFER_BYTES);
+      this._allocViewportBuffer();
+      this._invalidate();
+    }
+    resize(cols, rows) {
+      if (this._disposed || this.termPtr === 0)
+        return;
+      this._cols = cols;
+      this._rows = rows;
+      this.wasm.exports.resize(this.termPtr, cols, rows);
+      this._allocViewportBuffer();
+      this._invalidate();
+    }
+    // -- I/O --
+    getColorOverrides() {
+      const read = this.wasm.exports.get_color_override;
+      const colors = {};
+      if (this._disposed || this.termPtr === 0 || !read)
+        return colors;
+      for (const [index, key] of ["foreground", "background", "cursor"].entries()) {
+        const value = read(this.termPtr, index);
+        if (value >= 0)
+          colors[key] = value;
+      }
+      return colors;
+    }
+    writeString(str, afterChunk) {
+      if (this._disposed || this.termPtr === 0)
+        return;
+      writeString(this.wasm, this.termPtr, str, afterChunk);
+      this._invalidate();
+    }
+    writeRaw(data, afterChunk) {
+      if (this._disposed || this.termPtr === 0)
+        return;
+      writeBytes(this.wasm, this.termPtr, data, afterChunk);
+      this._invalidate();
+    }
+    // -- Grid --
+    trackPosition(position) {
+      const { track_position, resolve_position, release_position } = this.wasm.exports;
+      if (this._disposed || !this.termPtr || !track_position || !resolve_position || !release_position || !Number.isInteger(position.row) || position.row < 0 || position.row > MAX_WASM_U32 || !Number.isInteger(position.col) || position.col < 0 || position.col >= 65536)
+        return null;
+      const ptr = this.termPtr;
+      const owner = this._positionOwner;
+      const handle = track_position(ptr, position.row, position.col);
+      if (!handle)
+        return null;
+      let disposed = false;
+      const tracked = {
+        resolve: () => {
+          if (disposed || owner !== this._positionOwner)
+            return null;
+          const value = resolve_position(ptr, handle);
+          if (value < 0)
+            return null;
+          return { row: Math.floor(value / 65536), col: value % 65536 };
+        },
+        dispose: () => {
+          if (disposed)
+            return;
+          disposed = true;
+          if (owner === this._positionOwner)
+            release_position(ptr, handle);
+        }
+      };
+      return tracked;
+    }
+    getRowMetadata(row) {
+      return this._readRowMetadata(this.wasm.exports.get_row_wraps, row);
+    }
+    getCell(row, col) {
+      if (this._disposed || this.termPtr === 0)
+        return BLANK_CELL;
+      this._ensureViewport();
+      const view = this._viewportView;
+      if (!view)
+        return BLANK_CELL;
+      const idx = row * this._cols + col;
+      const byteOffset = idx * this._cellBytes;
+      if (byteOffset + this._cellBytes > this._viewportBufSize)
+        return BLANK_CELL;
+      const cell = parseCell(view, byteOffset, this._cellBytes);
+      if (cell.codepoint === 0 && cell.flags === 0 && cell.colorFlags === 0 && !cell.hasHyperlink && !cell.spacerHead && cell.width !== 0)
+        return BLANK_CELL;
+      const result = {
+        char: cell.codepoint || 32,
+        fg: DEFAULT_COLOR,
+        bg: DEFAULT_COLOR,
+        flags: cell.flags,
+        width: cell.width
+      };
+      if (cell.underlineStyle !== void 0)
+        result.underlineStyle = cell.underlineStyle;
+      if (cell.underlineRgb !== void 0)
+        result.underlineRgb = cell.underlineRgb;
+      if (cell.hasGrapheme)
+        result.chars = this._readGrapheme(row, col);
+      if (cell.spacerHead)
+        result.spacerHead = true;
+      if (cell.hasHyperlink)
+        Object.assign(result, this._readHyperlink(row, col, false));
+      if (cell.colorFlags & 1)
+        result.fgRgb = packRgb(cell.fgR, cell.fgG, cell.fgB);
+      if (cell.colorFlags & 2)
+        result.bgRgb = packRgb(cell.bgR, cell.bgG, cell.bgB);
+      return result;
+    }
+    isDirtyRow(row) {
+      if (this._disposed || this.termPtr === 0)
+        return false;
+      this._ensureViewport();
+      return this.wasm.exports.is_dirty_row(this.termPtr, row) !== 0;
+    }
+    clearDirty() {
+      if (this._disposed || this.termPtr === 0)
+        return;
+      this.wasm.exports.clear_dirty(this.termPtr);
+      this._viewportStale = true;
+    }
+    getCols() {
+      return this._cols;
+    }
+    getRows() {
+      return this._rows;
+    }
+    // -- Cursor --
+    getCursor() {
+      if (this._disposed || this.termPtr === 0) {
+        return { row: 0, col: 0, visible: false };
+      }
+      this._ensureViewport();
+      const shape = this.wasm.exports.get_cursor_shape?.(this.termPtr) ?? 0;
+      return {
+        row: this.wasm.exports.get_cursor_row(this.termPtr),
+        col: this.wasm.exports.get_cursor_col(this.termPtr),
+        visible: this.wasm.exports.get_cursor_visible(this.termPtr) !== 0,
+        shape: shape === 1 ? "underline" : shape === 2 ? "bar" : "block",
+        blinking: (this.wasm.exports.get_cursor_blinking?.(this.termPtr) ?? 0) !== 0
+      };
+    }
+    // -- Modes --
+    cursorKeysApp() {
+      if (this._disposed || this.termPtr === 0)
+        return false;
+      return this.wasm.exports.cursor_keys_app(this.termPtr) !== 0;
+    }
+    bracketedPaste() {
+      if (this._disposed || this.termPtr === 0)
+        return false;
+      return this.wasm.exports.bracketed_paste(this.termPtr) !== 0;
+    }
+    usingAltScreen() {
+      if (this._disposed || this.termPtr === 0)
+        return false;
+      return this.wasm.exports.using_alt_screen(this.termPtr) !== 0;
+    }
+    mouseTracking() {
+      if (this._disposed || this.termPtr === 0)
+        return 0;
+      const mode = this.wasm.exports.mouse_tracking(this.termPtr);
+      return mode === 1e3 || mode === 1002 || mode === 1003 ? mode : 0;
+    }
+    mouseSgr() {
+      if (this._disposed || this.termPtr === 0)
+        return false;
+      return this.wasm.exports.mouse_sgr(this.termPtr) !== 0;
+    }
+    mouseEncoding() {
+      if (this._disposed || this.termPtr === 0)
+        return null;
+      const mode = this.wasm.exports.mouse_encoding?.(this.termPtr);
+      if (mode === void 0)
+        return this.mouseSgr() ? "sgr" : null;
+      switch (mode) {
+        case 0:
+          return "x10";
+        case 1:
+          return "utf8";
+        case 2:
+          return "sgr";
+        case 3:
+          return "urxvt";
+        case 4:
+          return "sgr-pixels";
+        default:
+          return null;
+      }
+    }
+    focusEvents() {
+      if (this._disposed || this.termPtr === 0)
+        return false;
+      return this.wasm.exports.focus_events(this.termPtr) !== 0;
+    }
+    synchronizedOutput() {
+      if (this._disposed || this.termPtr === 0)
+        return false;
+      return this.wasm.exports.synchronized_output(this.termPtr) !== 0;
+    }
+    synchronizedOutputGeneration() {
+      if (this._disposed || this.termPtr === 0)
+        return 0;
+      return this.wasm.exports.synchronized_output_generation(this.termPtr);
+    }
+    kittyKeyboardFlags() {
+      if (this._disposed || this.termPtr === 0)
+        return 0;
+      return this.wasm.exports.kitty_keyboard_flags?.(this.termPtr) ?? 0;
+    }
+    getGraphicsState() {
+      if (this._disposed || this.termPtr === 0)
+        return null;
+      const generation = this.wasm.exports.graphics_generation?.(this.termPtr);
+      const imageCount = this.wasm.exports.graphics_image_count?.(this.termPtr) ?? 0;
+      const placementCount = this.wasm.exports.graphics_placement_count?.(this.termPtr) ?? 0;
+      if (generation === void 0 || !Number.isSafeInteger(generation))
+        return null;
+      if (!Number.isSafeInteger(imageCount) || !Number.isSafeInteger(placementCount) || imageCount < 0 || placementCount < 0)
+        return null;
+      if (imageCount > 16384 || placementCount > 16384)
+        return null;
+      const imageCapacity = imageCount;
+      const placementCapacity = placementCount;
+      if (!Number.isSafeInteger(imageCapacity) || !Number.isSafeInteger(placementCapacity))
+        return null;
+      const size = imageCapacity * GRAPHICS_IMAGE_BYTES + placementCapacity * GRAPHICS_PLACEMENT_BYTES;
+      if (!Number.isSafeInteger(size))
+        return null;
+      if (size === 0) {
+        if (this._graphicsBufPtr !== 0)
+          freeBuffer(this.wasm, this._graphicsBufPtr, this._graphicsBufSize);
+        this._graphicsBufPtr = 0;
+        this._graphicsBufSize = 0;
+        const result = {
+          generation,
+          images: [],
+          placements: []
+        };
+        this._graphicsState = result;
+        return cloneGraphicsState(result);
+      }
+      if (size !== this._graphicsBufSize || this._graphicsBufPtr === 0) {
+        if (this._graphicsBufPtr !== 0)
+          freeBuffer(this.wasm, this._graphicsBufPtr, this._graphicsBufSize);
+        this._graphicsBufSize = size;
+        this._graphicsBufPtr = allocBuffer(this.wasm, size);
+      }
+      if (this._graphicsBufPtr === 0)
+        return null;
+      try {
+        const images = readGraphicsImages(this.wasm, this.termPtr, this._graphicsBufPtr, imageCapacity);
+        const placements = readGraphicsPlacements(this.wasm, this.termPtr, this._graphicsBufPtr + imageCapacity * GRAPHICS_IMAGE_BYTES, placementCapacity);
+        const result = {
+          generation,
+          images: images.map((image) => ({ ...image })),
+          placements: placements.map((placement) => ({ ...placement }))
+        };
+        this._graphicsState = result;
+        return cloneGraphicsState(result);
+      } catch {
+        return null;
+      }
+    }
+    getGraphicsImage(imageId, version) {
+      if (this._disposed || this.termPtr === 0)
+        return null;
+      const state = this._graphicsState ?? this.getGraphicsState();
+      const image = state?.images.find((value) => value.imageId === imageId && value.version === version);
+      if (!image || !this.wasm.exports.graphics_image_size || !this.wasm.exports.graphics_image_copy)
+        return null;
+      let size;
+      try {
+        size = this.wasm.exports.graphics_image_size(this.termPtr, imageId, version);
+      } catch {
+        return null;
+      }
+      const expectedSize = image.width * image.height * 4;
+      if (!Number.isSafeInteger(size) || size <= 0 || !Number.isSafeInteger(expectedSize) || size !== expectedSize)
+        return null;
+      const ptr = allocBuffer(this.wasm, size);
+      if (ptr === 0)
+        return null;
+      try {
+        const copied = this.wasm.exports.graphics_image_copy(this.termPtr, imageId, version, ptr, size);
+        if (copied !== size)
+          return null;
+        const rgba = new Uint8Array(this.wasm.exports.memory.buffer, ptr, copied).slice();
+        return {
+          imageId,
+          version,
+          width: image.width,
+          height: image.height,
+          rgba
+        };
+      } catch {
+        return null;
+      } finally {
+        freeBuffer(this.wasm, ptr, size);
+      }
+    }
+    getResourceState() {
+      const limit = imageStorageLimit(this._options);
+      if (this._disposed || !this.termPtr || !this.wasm.exports.graphics_image_count)
+        return {};
+      const state = this.getGraphicsState();
+      const used = this.wasm.exports.graphics_bytes_used?.(this.termPtr) ?? 0;
+      const capacity = this.wasm.exports.graphics_capacity?.(this.termPtr) ?? limit;
+      const rejected = this.wasm.exports.graphics_rejected?.(this.termPtr) ?? 0;
+      const evicted = this.wasm.exports.graphics_evicted?.(this.termPtr) ?? 0;
+      return {
+        graphics: {
+          capacity: Number.isSafeInteger(capacity) ? capacity : limit,
+          used: Number.isSafeInteger(used) ? used : 0,
+          imageCount: state?.images.length ?? 0,
+          placementCount: state?.placements.length ?? 0,
+          rejected: Number.isSafeInteger(rejected) ? rejected : 0,
+          evicted: Number.isSafeInteger(evicted) ? evicted : 0,
+          saturated: limit > 0 && used >= limit
+        }
+      };
+    }
+    dispose() {
+      if (this._disposed)
+        return;
+      this._disposed = true;
+      this._deinitTerminal();
+      this._cols = 0;
+      this._rows = 0;
+    }
+    _deinitTerminal() {
+      this._positionOwner = {};
+      if (this.termPtr !== 0) {
+        try {
+          this.wasm.exports.deinit(this.termPtr);
+        } catch {
+        }
+      }
+      this.termPtr = 0;
+      for (const [ptr, size] of [
+        [this._viewportBufPtr, this._viewportBufSize],
+        [this._scrollbackBufPtr, this._scrollbackBufSize],
+        [this._graphemeBufPtr, this._graphemeBufSize],
+        [this._hyperlinkBufPtr, this._hyperlinkBufSize],
+        [this._graphicsBufPtr, this._graphicsBufSize]
+      ])
+        if (ptr !== 0)
+          freeBuffer(this.wasm, ptr, size);
+      this._viewportBufPtr = this._scrollbackBufPtr = this._graphemeBufPtr = this._hyperlinkBufPtr = this._graphicsBufPtr = 0;
+      this._viewportBufSize = this._scrollbackBufSize = this._graphicsBufSize = 0;
+      this._viewportView = this._scrollbackView = null;
+      this._scrollbackOffset = -1;
+      this._scrollbackLen = 0;
+      this._viewportStale = true;
+      this._graphicsState = null;
+    }
+    // -- Side outputs --
+    getTitle() {
+      if (this._disposed || this.termPtr === 0)
+        return null;
+      const { get_title_len, get_title_ptr, memory } = this.wasm.exports;
+      if (!get_title_len || !get_title_ptr)
+        return null;
+      const len = get_title_len(this.termPtr);
+      if (len < 0)
+        return null;
+      return new TextDecoder().decode(new Uint8Array(memory.buffer, get_title_ptr(this.termPtr), len));
+    }
+    getBellCount() {
+      if (this._disposed || this.termPtr === 0)
+        return 0;
+      return this.wasm.exports.get_bell_count?.(this.termPtr) ?? 0;
+    }
+    getWorkingDirectory() {
+      if (this._disposed || this.termPtr === 0)
+        return null;
+      const { get_working_directory_len, get_working_directory_ptr, memory } = this.wasm.exports;
+      if (!get_working_directory_len || !get_working_directory_ptr)
+        return null;
+      const len = get_working_directory_len(this.termPtr);
+      if (!Number.isInteger(len) || len < 0 || len > 2047)
+        return null;
+      return new TextDecoder("utf-8", { ignoreBOM: true }).decode(new Uint8Array(memory.buffer, get_working_directory_ptr(this.termPtr), len));
+    }
+    getClipboardWrite() {
+      if (this._disposed || this.termPtr === 0)
+        return null;
+      const { get_clipboard_write_len, get_clipboard_write_ptr, memory } = this.wasm.exports;
+      if (!get_clipboard_write_len || !get_clipboard_write_ptr)
+        return null;
+      const len = get_clipboard_write_len(this.termPtr);
+      if (len < 0)
+        return null;
+      return new TextDecoder("utf-8", { ignoreBOM: true }).decode(new Uint8Array(memory.buffer, get_clipboard_write_ptr(this.termPtr), len));
+    }
+    findPrompt(row, direction) {
+      const find = this.wasm.exports.find_prompt;
+      if (this._disposed || this.termPtr === 0 || !find || !Number.isInteger(row) || row < 0 || row > MAX_WASM_U32 || direction !== -1 && direction !== 1)
+        return null;
+      const result = find(this.termPtr, row, direction);
+      return Number.isInteger(result) && result >= 0 ? result : null;
+    }
+    getShellIntegrationState() {
+      if (this._disposed || this.termPtr === 0)
+        return null;
+      const { get_shell_phase, get_shell_exit_code } = this.wasm.exports;
+      if (!get_shell_phase || !get_shell_exit_code)
+        return null;
+      const phase = get_shell_phase(this.termPtr);
+      if (!Number.isInteger(phase) || phase < 0 || phase >= SHELL_PHASES.length)
+        return null;
+      const exitCode = get_shell_exit_code(this.termPtr);
+      return {
+        phase: SHELL_PHASES[phase],
+        exitCode: Number.isInteger(exitCode) ? exitCode : null
+      };
+    }
+    getResponse() {
+      if (this._disposed || this.termPtr === 0)
+        return null;
+      const bufSize = 4096;
+      const bufPtr = allocBuffer(this.wasm, bufSize);
+      if (bufPtr === 0)
+        return null;
+      const len = this.wasm.exports.read_response(this.termPtr, bufPtr, bufSize);
+      if (len === 0) {
+        freeBuffer(this.wasm, bufPtr, bufSize);
+        return null;
+      }
+      const bytes = new Uint8Array(this.wasm.exports.memory.buffer, bufPtr, len);
+      const text = new TextDecoder().decode(bytes);
+      freeBuffer(this.wasm, bufPtr, bufSize);
+      return text;
+    }
+    // -- Scrollback --
+    getScrollbackCount() {
+      if (this._disposed || this.termPtr === 0)
+        return 0;
+      return this.wasm.exports.get_scrollback_count(this.termPtr);
+    }
+    getScrollbackDiscardedCount() {
+      if (this._disposed || this.termPtr === 0)
+        return 0;
+      return this.wasm.exports.get_scrollback_discarded_count(this.termPtr);
+    }
+    getScrollbackCell(offset, col) {
+      if (this._disposed || this.termPtr === 0)
+        return BLANK_CELL;
+      const len = this._ensureScrollbackLine(offset);
+      const view = this._scrollbackView;
+      if (!view || col >= len)
+        return BLANK_CELL;
+      const cell = parseCell(view, col * this._cellBytes, this._cellBytes);
+      const result = {
+        char: cell.codepoint || 32,
+        fg: DEFAULT_COLOR,
+        bg: DEFAULT_COLOR,
+        flags: cell.flags,
+        width: cell.width
+      };
+      if (cell.underlineStyle !== void 0)
+        result.underlineStyle = cell.underlineStyle;
+      if (cell.underlineRgb !== void 0)
+        result.underlineRgb = cell.underlineRgb;
+      if (cell.hasGrapheme)
+        result.chars = this._readScrollbackGrapheme(offset, col);
+      if (cell.spacerHead)
+        result.spacerHead = true;
+      if (cell.hasHyperlink)
+        Object.assign(result, this._readHyperlink(offset, col, true));
+      if (cell.colorFlags & 1)
+        result.fgRgb = packRgb(cell.fgR, cell.fgG, cell.fgB);
+      if (cell.colorFlags & 2)
+        result.bgRgb = packRgb(cell.bgR, cell.bgG, cell.bgB);
+      return result;
+    }
+    getScrollbackLineLen(offset) {
+      if (this._disposed || this.termPtr === 0)
+        return 0;
+      return this._ensureScrollbackLine(offset);
+    }
+    getScrollbackRowMetadata(offset) {
+      return this._readRowMetadata(this.wasm.exports.get_scrollback_row_wraps, offset);
+    }
+    // -- Debug --
+    getUnhandledSequences() {
+      return [];
+    }
+    // -- Internal helpers --
+    _readRowMetadata(read, index) {
+      if (this._disposed || this.termPtr === 0 || !read || !Number.isInteger(index) || index < 0 || index > MAX_WASM_U32)
+        return null;
+      const flags = read(this.termPtr, index);
+      if (flags < 0)
+        return null;
+      return {
+        wrapsToNext: (flags & 1) !== 0,
+        continuesPrevious: (flags & 2) !== 0
+      };
+    }
+    /** Update host defaults while preserving application overrides and parser state. */
+    setThemeColors(colors) {
+      const values = [
+        colors.foreground,
+        colors.background,
+        colors.cursor,
+        ...colors.palette
+      ];
+      if (colors.palette.length !== 16 || values.some((value) => !Number.isInteger(value) || value < 0 || value > 16777215))
+        throw new RangeError("Theme colors must be 24-bit RGB values with exactly 16 palette entries");
+      if (this._disposed)
+        return;
+      this._themeColors = { ...colors, palette: [...colors.palette] };
+      this._foregroundRgb = colors.foreground;
+      this._backgroundRgb = colors.background;
+      const apply = this.wasm.exports.set_theme_colors;
+      if (!this.termPtr || !apply)
+        return;
+      const bytes = values.length * 4;
+      const ptr = allocBuffer(this.wasm, bytes);
+      try {
+        const view = new DataView(this.wasm.exports.memory.buffer, ptr, bytes);
+        values.forEach((value, index) => view.setUint32(index * 4, value, true));
+        apply(this.termPtr, ptr);
+        this._invalidate();
+      } finally {
+        freeBuffer(this.wasm, ptr, bytes);
+      }
+    }
+    _invalidate() {
+      this._viewportStale = true;
+      this._scrollbackOffset = -1;
+      this._graphicsState = null;
+    }
+    _decodeGrapheme(len) {
+      if (len === 0 || this._graphemeBufPtr === 0)
+        return void 0;
+      return new TextDecoder().decode(new Uint8Array(this.wasm.exports.memory.buffer, this._graphemeBufPtr, len));
+    }
+    _ensureGraphemeBuffer(required) {
+      if (required <= this._graphemeBufSize)
+        return;
+      if (this._graphemeBufPtr !== 0) {
+        freeBuffer(this.wasm, this._graphemeBufPtr, this._graphemeBufSize);
+      }
+      this._graphemeBufSize = required;
+      this._graphemeBufPtr = allocBuffer(this.wasm, required);
+    }
+    _ensureHyperlinkBuffer(required) {
+      if (required <= this._hyperlinkBufSize)
+        return;
+      if (this._hyperlinkBufPtr !== 0) {
+        freeBuffer(this.wasm, this._hyperlinkBufPtr, this._hyperlinkBufSize);
+      }
+      this._hyperlinkBufSize = required;
+      this._hyperlinkBufPtr = allocBuffer(this.wasm, required);
+    }
+    _readHyperlink(rowOrOffset, col, scrollback) {
+      if (this._hyperlinkBufPtr === 0)
+        return void 0;
+      const read = scrollback ? this.wasm.exports.get_scrollback_hyperlink : this.wasm.exports.get_viewport_hyperlink;
+      let len = read(this.termPtr, rowOrOffset, col, this._hyperlinkBufPtr, this._hyperlinkBufSize);
+      if (len > this._hyperlinkBufSize) {
+        this._ensureHyperlinkBuffer(len);
+        if (this._hyperlinkBufPtr === 0)
+          return void 0;
+        len = read(this.termPtr, rowOrOffset, col, this._hyperlinkBufPtr, this._hyperlinkBufSize);
+      }
+      if (len === 0 || len > this._hyperlinkBufSize)
+        return void 0;
+      const text = new TextDecoder().decode(new Uint8Array(this.wasm.exports.memory.buffer, this._hyperlinkBufPtr, len));
+      const [linkUri, linkId = "", implicitId = ""] = text.split("\0");
+      if (!linkUri)
+        return void 0;
+      const linkKey = linkId ? `e\0${linkId}\0${linkUri}` : `g\0${implicitId}\0${linkUri}`;
+      return {
+        linkUri,
+        linkId: linkId || void 0,
+        linkKey
+      };
+    }
+    _readGrapheme(row, col) {
+      if (this._graphemeBufPtr === 0 || !this.wasm.exports.get_viewport_grapheme)
+        return void 0;
+      let len = this.wasm.exports.get_viewport_grapheme(this.termPtr, row, col, this._graphemeBufPtr, this._graphemeBufSize);
+      if (len > this._graphemeBufSize) {
+        this._ensureGraphemeBuffer(len);
+        len = this.wasm.exports.get_viewport_grapheme(this.termPtr, row, col, this._graphemeBufPtr, this._graphemeBufSize);
+      }
+      return this._decodeGrapheme(len);
+    }
+    _readScrollbackGrapheme(offset, col) {
+      if (this._graphemeBufPtr === 0 || !this.wasm.exports.get_scrollback_grapheme)
+        return void 0;
+      let len = this.wasm.exports.get_scrollback_grapheme(this.termPtr, offset, col, this._graphemeBufPtr, this._graphemeBufSize);
+      if (len > this._graphemeBufSize) {
+        this._ensureGraphemeBuffer(len);
+        len = this.wasm.exports.get_scrollback_grapheme(this.termPtr, offset, col, this._graphemeBufPtr, this._graphemeBufSize);
+      }
+      return this._decodeGrapheme(len);
+    }
+    _allocViewportBuffer() {
+      if (this._viewportBufPtr !== 0) {
+        freeBuffer(this.wasm, this._viewportBufPtr, this._viewportBufSize);
+      }
+      this._viewportBufSize = this._cols * this._rows * this._cellBytes;
+      this._viewportBufPtr = allocBuffer(this.wasm, this._viewportBufSize);
+      this._viewportView = null;
+      this._viewportStale = true;
+      if (this._scrollbackBufPtr !== 0) {
+        freeBuffer(this.wasm, this._scrollbackBufPtr, this._scrollbackBufSize);
+      }
+      this._scrollbackBufSize = this._cols * this._cellBytes;
+      this._scrollbackBufPtr = allocBuffer(this.wasm, this._scrollbackBufSize);
+      this._scrollbackView = null;
+      this._scrollbackOffset = -1;
+    }
+    /**
+     * Decode one scrollback row into the shared buffer, at most once per row
+     * per invalidation, and return its length. The renderer reads a row column
+     * by column, so without this each cell would cost a page-list walk.
+     */
+    _ensureScrollbackLine(offset) {
+      if (this._scrollbackBufPtr === 0)
+        return 0;
+      if (this._scrollbackOffset !== offset) {
+        const read = this._cellBytes === CELL_BYTES_V2 ? this.wasm.exports.get_scrollback_line_v2 : this.wasm.exports.get_scrollback_line;
+        this._scrollbackLen = read(this.termPtr, offset, this._scrollbackBufPtr, this._cols);
+        this._scrollbackOffset = offset;
+      }
+      if (this._scrollbackView?.buffer !== this.wasm.exports.memory.buffer) {
+        this._scrollbackView = new DataView(this.wasm.exports.memory.buffer, this._scrollbackBufPtr, this._scrollbackBufSize);
+      }
+      return this._scrollbackLen;
+    }
+    _ensureViewport() {
+      if (this._viewportStale) {
+        this.wasm.exports.update(this.termPtr);
+        const read = this._cellBytes === CELL_BYTES_V2 ? this.wasm.exports.get_viewport_v2 : this.wasm.exports.get_viewport;
+        read(this.termPtr, this._viewportBufPtr);
+        this._viewportStale = false;
+        this._viewportView = null;
+      }
+      if (this._viewportView) {
+        try {
+          this._viewportView.byteLength;
+          return;
+        } catch {
+          this._viewportView = null;
+        }
+      }
+      this._viewportView = new DataView(this.wasm.exports.memory.buffer, this._viewportBufPtr, this._viewportBufSize);
+    }
+  };
+
+  // node_modules/@wterm/core/dist/wasm-loading.js
+  var embedded;
+  var modules2 = /* @__PURE__ */ new Map();
+  var MAX_CACHED_MODULES2 = 4;
   function decodeBase64(base64) {
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
@@ -64,26 +1048,26 @@
     else if (typeof location !== "undefined")
       url = new URL(url, location.href).href;
     const key = url;
-    const cached = modules.get(key);
+    const cached = modules2.get(key);
     if (cached) {
-      modules.delete(key);
-      modules.set(key, cached);
+      modules2.delete(key);
+      modules2.set(key, cached);
       return cached;
     }
     const pending = compileUrl(key).catch((error) => {
-      if (modules.get(key) === pending)
-        modules.delete(key);
+      if (modules2.get(key) === pending)
+        modules2.delete(key);
       throw error;
     });
-    modules.set(key, pending);
-    if (modules.size > MAX_CACHED_MODULES)
-      modules.delete(modules.keys().next().value);
+    modules2.set(key, pending);
+    if (modules2.size > MAX_CACHED_MODULES2)
+      modules2.delete(modules2.keys().next().value);
     return pending;
   }
 
   // node_modules/@wterm/core/dist/wasm-bridge.js
   var CLUSTER_BIT = 2147483648;
-  var DEFAULT_COLOR = 256;
+  var DEFAULT_COLOR2 = 256;
   var WasmBridge = class _WasmBridge {
     get dv() {
       if (this._dvBuffer !== this.memory.buffer) {
@@ -378,12 +1362,12 @@
         cell.chars = chars;
     }
     _resolveRgb(cell) {
-      if (cell.fg > DEFAULT_COLOR) {
+      if (cell.fg > DEFAULT_COLOR2) {
         const rgb = this._readRgb(cell.fg);
         if (rgb !== void 0)
           cell.fgRgb = rgb;
       }
-      if (cell.bg > DEFAULT_COLOR) {
+      if (cell.bg > DEFAULT_COLOR2) {
         const rgb = this._readRgb(cell.bg);
         if (rgb !== void 0)
           cell.bgRgb = rgb;
@@ -1213,7 +2197,7 @@
   };
 
   // node_modules/@wterm/dom/dist/renderer.js
-  var DEFAULT_COLOR2 = 256;
+  var DEFAULT_COLOR3 = 256;
   var DEFAULT_FG_CSS = "var(--term-app-fg, var(--term-fg))";
   var DEFAULT_BG_CSS = "var(--term-app-bg, var(--term-bg))";
   var FLAG_BOLD = 1;
@@ -1231,7 +2215,7 @@
     return `rgb(${r},${g},${b})`;
   }
   function colorToCSS(index) {
-    if (index === DEFAULT_COLOR2)
+    if (index === DEFAULT_COLOR3)
       return null;
     if (index < 16)
       return `var(--term-color-${index})`;
@@ -5875,9 +6859,17 @@
   };
 
   // src/terminal/production-entry.ts
+  var GHOSTTY_SCROLLBACK_LIMIT = 16 * 1024 * 1024;
+  function coreURL() {
+    return new URL("terminal-core.wasm", document.baseURI).href;
+  }
   window.AirDeskWTerm = {
-    create(element, options) {
-      return new WTermEngine(element, options);
+    async create(element, options) {
+      const core = await GhosttyCore.load({
+        wasmPath: coreURL(),
+        scrollbackLimit: GHOSTTY_SCROLLBACK_LIMIT
+      });
+      return new WTermEngine(element, { ...options, core });
     }
   };
 })();

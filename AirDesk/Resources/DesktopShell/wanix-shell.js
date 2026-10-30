@@ -16,6 +16,7 @@
   var readyTimer = 0;
   var persistent = true;
   var shellStarted = false;
+  var lastWindowSize = '';
   var terminalPath = '#task/shell/term';
   var database = null;
   var persistTimer = 0;
@@ -315,6 +316,18 @@
     snapshot: function () { return snapshotWorkspace(); },
     lastPersistError: function () { return lastPersistError; },
     root: function () { return root; },
+    resizeTerminal: function (cols, rows) {
+      if (!root || !Number.isFinite(cols) || !Number.isFinite(rows)) return Promise.resolve(false);
+      var payload = Math.max(1, Math.floor(cols)) + ' ' + Math.max(1, Math.floor(rows)) + '\n';
+      if (payload === lastWindowSize) return Promise.resolve(true);
+      return root.writeFile(terminalPath + '/winch', payload).then(function () {
+        lastWindowSize = payload;
+        return true;
+      }).catch(function () {
+        lastWindowSize = '';
+        return false;
+      });
+    },
     startShell: function () {
       if (shellStarted) return Promise.resolve(true);
       return handle().then(function (kernelRoot) {

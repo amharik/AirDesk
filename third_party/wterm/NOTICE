@@ -3,6 +3,6 @@ Vercel Labs
 https://github.com/vercel-labs/wterm
 https://wterm.dev
 
-Includes @wterm/core, @wterm/dom, and @wterm/just-bash.
+Includes @wterm/core, @wterm/dom, @wterm/ghostty, and @wterm/just-bash.
 
 Licensed under the Apache License, Version 2.0. See LICENSE in this directory.

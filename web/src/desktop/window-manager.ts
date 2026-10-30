@@ -97,8 +97,8 @@ export interface WinBoxInstance {
   maximize(state?: boolean): WinBoxInstance;
   restore(): WinBoxInstance;
   close(force?: boolean): boolean | undefined;
-  resize(width?: number, height?: number): WinBoxInstance;
-  move(x?: number, y?: number): WinBoxInstance;
+  resize(width?: number, height?: number, skipUpdate?: boolean): WinBoxInstance;
+  move(x?: number, y?: number, skipUpdate?: boolean): WinBoxInstance;
   setTitle(title: string): WinBoxInstance;
 }
 
@@ -163,6 +163,13 @@ class WindowHandle implements DesktopWindowHandle {
     const view = this.element.ownerDocument.defaultView;
     view?.dispatchEvent(new Event('resize'));
     this.instance.maximize();
+    if (view && view.innerWidth >= 100 && view.innerHeight >= 100) {
+      const width = view.innerWidth - this.insets.left - this.insets.right;
+      const height = view.innerHeight - this.insets.top - this.insets.bottom;
+      if (this.instance.width < width || this.instance.height < height) {
+        this.instance.resize(width, height, true).move(this.insets.left, this.insets.top, true);
+      }
+    }
   }
 
   restore(): void {

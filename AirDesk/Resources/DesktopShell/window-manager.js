@@ -812,6 +812,13 @@
       const view = this.element.ownerDocument.defaultView;
       view?.dispatchEvent(new Event("resize"));
       this.instance.maximize();
+      if (view && view.innerWidth >= 100 && view.innerHeight >= 100) {
+        const width = view.innerWidth - this.insets.left - this.insets.right;
+        const height = view.innerHeight - this.insets.top - this.insets.bottom;
+        if (this.instance.width < width || this.instance.height < height) {
+          this.instance.resize(width, height, true).move(this.insets.left, this.insets.top, true);
+        }
+      }
     }
     restore() {
       if (!this.closedState) this.instance.restore();
