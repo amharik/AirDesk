@@ -94,8 +94,13 @@ Each cutover is independently reversible until its fallback is removed.
 - Four adapter tests pass against the real upstream implementation, including chrome preservation, focus/z-order, traffic-light routing, close vetoes, and duplicate-id focus behavior.
 - A debug-only `-AirDeskWinBoxPreview` route loads a bundled three-window harness through the real `DesktopSurface` and WKWebView preview sheet. The harness uses the shipped `shell.css` and upstream WinBox assets.
 - The simulator XCUITest covers focus/z-order, titlebar drag, minimize, maximize/restore, and close. It exposed a traffic-light bug where a second maximize tap did not restore; the adapter now toggles correctly and the regression is covered by both unit and UI tests.
-- Full local verification passes: 21 web tests, 99 iOS unit tests, 7 iOS UI tests, 6 Rust tests, and `npm run check`.
-- Upstream distribution sizes are 11.0 kB for minified JS and 4.8 kB for CSS; the bundled build is 16.0 kB. No fork is required for the supported chrome path.
+- Added flag-gated production integration. `index.html` loads `window-manager.js` and `window-manager.css`; `?windowManager=winbox` or `airdesk.window-manager=winbox` enables it, and the legacy manager remains the default.
+- The production path keeps `desktop.js` app, Dock, and menu state while delegating window creation, focus, z-order, drag, resize, minimize/maximize, and close to WinBox. Compatibility classes preserve the existing `.window` and `.window-body` app/CSS contracts.
+- Native protocol pointer events are converted to synthetic DOM pointer events for WinBox. The simulator direct-pointer path is covered; physical native drag and long-press still require device verification.
+- The debug `-AirDeskWinBoxDesktop` route loads the production `index.html` with WinBox. Its XCUITest covers maximize, restore, and close. Initial windows wait for a stable viewport of at least 600 points before opening.
+- The production adapter bundle is 31.9 kB JS with 8.1 kB CSS. No fork is required.
+- Full local verification passes: 21 web tests, 99 iOS unit tests, 8 iOS UI tests, 6 Rust tests, and `npm run check`.
+- Upstream distribution sizes are 11.0 kB for minified JS and 4.8 kB for CSS; the bundled preview build is 16.0 kB.
 - License text and attribution are recorded under `third_party/winbox/`.
 
 Still pending before Trial: WKWebView/Cast 60 FPS measurement at 1080p, safe-area/rotation/external-display checks, physical native pointer and long-press regressions, VoiceOver/accessibility review, visual screenshots, CSP/offline packaging, and the category-D parity harness (the simulator harness now covers the adapter lifecycle path).

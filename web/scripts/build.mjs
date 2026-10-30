@@ -10,6 +10,7 @@ const check = process.argv.includes('--check');
 
 const entries = [
   { name: 'bridge', entryPoint: resolve(webRoot, 'src/bridge/entry.ts') },
+  { name: 'window-manager', entryPoint: resolve(webRoot, 'src/desktop/shell-entry.ts') },
   { name: 'winbox-preview', entryPoint: resolve(webRoot, 'src/winbox-preview/entry.ts') },
   { name: 'wterm-preview', entryPoint: resolve(webRoot, 'src/wterm-preview/entry.ts') }
 ];

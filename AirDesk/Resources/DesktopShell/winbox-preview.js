@@ -4,7 +4,7 @@
   var DEFAULT_INSETS = { top: 39, right: 0, bottom: 96, left: 0 };
   function createAirDeskWindowTemplate(document2) {
     const template2 = document2.createElement("div");
-    template2.innerHTML = '<div class="wb-header airdesk-titlebar"><div class="traffic airdesk-traffic"><button class="close" type="button" data-window-action="close" aria-label="Close"><span>\xD7</span></button><button class="min" type="button" data-window-action="minimize" aria-label="Minimize"><span>\u2212</span></button><button class="max" type="button" data-window-action="maximize" aria-label="Maximize"><span>+</span></button></div><div class="wb-drag airdesk-drag"><div class="wb-icon airdesk-title-icon"></div><div class="wb-title airdesk-title"></div></div><div class="airdesk-titlebar-actions"></div></div><div class="wb-body airdesk-window-body"></div><div class="wb-n"></div><div class="wb-s"></div><div class="wb-w"></div><div class="wb-e"></div><div class="wb-nw"></div><div class="wb-ne"></div><div class="wb-se"></div><div class="wb-sw"></div>';
+    template2.innerHTML = '<div class="wb-header airdesk-titlebar titlebar"><div class="traffic airdesk-traffic"><button class="close" type="button" data-window-action="close" aria-label="Close"><span>\xD7</span></button><button class="min" type="button" data-window-action="minimize" aria-label="Minimize"><span>\u2212</span></button><button class="max" type="button" data-window-action="maximize" aria-label="Maximize"><span>+</span></button></div><div class="wb-drag airdesk-drag"><div class="wb-icon airdesk-title-icon"></div><div class="wb-title airdesk-title"></div></div><div class="airdesk-titlebar-actions"></div></div><div class="wb-body airdesk-window-body window-body"></div><div class="wb-n"></div><div class="wb-s"></div><div class="wb-w"></div><div class="wb-e"></div><div class="wb-nw"></div><div class="wb-ne"></div><div class="wb-se"></div><div class="wb-sw"></div>';
     return template2;
   }
   var WindowHandle = class {
@@ -99,7 +99,7 @@
         right: this.insets.right,
         bottom: this.insets.bottom,
         left: this.insets.left,
-        class: "airdesk-window",
+        class: "airdesk-window window",
         onfocus: () => {
           this.bringToFront(descriptor.id);
           descriptor.onFocus?.();

@@ -1,0 +1,115 @@
+@import "winbox/src/css/winbox.css";
+
+.winbox.airdesk-window {
+  pointer-events: auto;
+  min-width: 380px;
+  min-height: 260px;
+  overflow: hidden;
+  border: 1px solid var(--window-border);
+  border-radius: var(--window-radius);
+  background: var(--window);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(34px) saturate(1.45);
+  -webkit-backdrop-filter: blur(34px) saturate(1.45);
+  font-family: var(--font);
+  color: var(--text);
+}
+
+.winbox.airdesk-window.focus,
+.winbox.airdesk-window.focused {
+  box-shadow: var(--shadow), var(--glow);
+}
+
+.winbox.airdesk-window:not(.focus):not(.focused) {
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .42), 0 4px 12px rgba(0, 0, 0, .2);
+}
+
+.winbox.airdesk-window.max {
+  border-radius: 10px;
+}
+
+.winbox.airdesk-window .wb-body {
+  top: 38px;
+  background: var(--window-body);
+  color: var(--text);
+}
+
+.airdesk-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 38px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .055), rgba(255, 255, 255, .012));
+  color: var(--text);
+}
+
+body[data-appearance="light"] .airdesk-titlebar {
+  background: linear-gradient(180deg, rgba(255, 255, 255, .55), rgba(255, 255, 255, .22));
+}
+
+.airdesk-traffic {
+  position: relative;
+  z-index: 3;
+  flex: 0 0 auto;
+}
+
+.airdesk-drag {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 96px;
+  cursor: move;
+  touch-action: none;
+}
+
+.airdesk-title-icon {
+  display: none;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  border-radius: 4px;
+  background-size: cover;
+  background-position: center;
+}
+
+.airdesk-title-icon:not([style*="background-image"]) {
+  background: var(--accent-soft);
+}
+
+.airdesk-title {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 650;
+  letter-spacing: -.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.winbox.airdesk-window:not(.focus):not(.focused) .airdesk-title {
+  opacity: .58;
+}
+
+.airdesk-titlebar-actions {
+  position: relative;
+  z-index: 3;
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.airdesk-window-body {
+  background: var(--window-body);
+  color: var(--text);
+}

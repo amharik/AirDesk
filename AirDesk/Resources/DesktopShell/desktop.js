@@ -46,6 +46,29 @@
   var toast = $('#toast');
   var boot = $('#boot');
 
+  var winboxManager = null;
+  var useWinBox = false;
+  try {
+    var requestedManager = new URLSearchParams(window.location.search).get('windowManager');
+    useWinBox = requestedManager === 'winbox' || loadPreference('window-manager', 'legacy') === 'winbox';
+  } catch (error) { /* URLSearchParams can be unavailable in older webviews */ }
+  if (useWinBox && window.AirDeskWinBox && windowLayer) {
+    winboxManager = window.AirDeskWinBox.createManager({
+      root: windowLayer,
+      insets: { top: 39, right: 0, bottom: 96, left: 0 }
+    });
+  }
+  useWinBox = !!winboxManager;
+  document.body.setAttribute('data-window-manager', useWinBox ? 'winbox' : 'legacy');
+
+  function winboxInsets() {
+    var menubar = $('#menubar');
+    var dockShell = $('#dock-shell');
+    var top = menubar ? menubar.getBoundingClientRect().bottom + 4 : 39;
+    var bottom = dockShell ? Math.max(8, window.innerHeight - dockShell.getBoundingClientRect().top + 6) : 96;
+    return { top: Math.round(top), right: 0, bottom: Math.round(bottom), left: 0 };
+  }
+
   function loadPreference(key, fallback) {
     try {
       var value = localStorage.getItem('airdesk.' + key);
@@ -94,18 +117,17 @@
     clock.textContent = days[now.getDay()] + ' ' + now.getDate() + ' ' + months[now.getMonth()] + '  ' + hours + ':' + minutes + ' ' + suffix;
   }
 
-  function focusWindow(win) {
+  function applyFocusState(win) {
     if (!win) return;
     state.windows.forEach(function (entry) {
       entry.el.classList.remove('focused', 'inactive');
-      entry.el.style.zIndex = entry.el.style.zIndex || '';
+      if (!entry.managerHandle) entry.el.style.zIndex = entry.el.style.zIndex || '';
     });
     state.windows.forEach(function (entry) {
       if (entry !== win) entry.el.classList.add('inactive');
     });
     win.el.classList.add('focused');
     win.el.classList.remove('inactive');
-    win.el.style.zIndex = String(++state.z);
     state.focused = win;
     setActiveApp(win.app.menu || win.app.name || 'Finder');
 
@@ -124,6 +146,17 @@
         field.focus();
       }
     }
+  }
+
+  function focusWindow(win) {
+    if (!win) return;
+    if (win.managerHandle) {
+      win.managerHandle.focus();
+      applyFocusState(win);
+      return;
+    }
+    applyFocusState(win);
+    win.el.style.zIndex = String(++state.z);
   }
 
   function setActiveApp(name) {
@@ -160,11 +193,11 @@
     var order = ['finder', 'terminal', 'workbench', 'notes', 'settings', 'welcome'];
     var html = order.map(function (id) {
       var app = apps[id];
-      return '<button class="dock-item" data-app="' + id + '" aria-label="' + app.name + '">' +
+      return '<button class="dock-item" id="dock-' + id + '" data-app="' + id + '" aria-label="' + app.name + '">' +
         appIcon(id) + '<span class="dock-tooltip">' + app.name + '</span></button>';
     }).join('');
     html += '<span class="dock-divider"></span>';
-    html += '<button class="dock-item" data-app="trash" aria-label="Trash">' + appIcon('trash') + '<span class="dock-tooltip">Trash</span></button>';
+    html += '<button class="dock-item" id="dock-trash" data-app="trash" aria-label="Trash">' + appIcon('trash') + '<span class="dock-tooltip">Trash</span></button>';
     return html;
   }
 
@@ -230,6 +263,7 @@
       if (existing.minimized) {
         existing.minimized = false;
         existing.el.classList.remove('minimized');
+        if (existing.managerHandle) existing.managerHandle.restore();
       }
       focusWindow(existing);
       updateDock();
@@ -241,35 +275,61 @@
       id: id,
       app: app,
       options: options || {},
-      el: document.createElement('section'),
+      el: null,
+      body: null,
+      managerHandle: null,
       minimized: false,
       maximized: false,
       previous: null
     };
-    win.el.className = 'window';
-    win.el.setAttribute('data-app', id);
-    win.el.setAttribute('role', 'dialog');
-    win.el.setAttribute('aria-label', app.name);
-    win.el.style.left = rect.x + 'px';
-    win.el.style.top = rect.y + 'px';
-    win.el.style.width = rect.width + 'px';
-    win.el.style.height = rect.height + 'px';
-    win.el.innerHTML =
-      '<header class="titlebar">' +
-        '<div class="traffic">' +
-          '<button class="close" data-window-action="close" aria-label="Close"><span>×</span></button>' +
-          '<button class="min" data-window-action="minimize" aria-label="Minimize"><span>−</span></button>' +
-          '<button class="max" data-window-action="zoom" aria-label="Zoom"><span>+</span></button>' +
-        '</div>' +
-        '<div class="titlebar-title">' + appIcon(id, 'tiny') + '<span>' + app.name + '</span></div>' +
-        '<div class="titlebar-actions"></div>' +
-      '</header>' +
-      '<div class="window-body"></div>' +
-      '<div class="resize-grip" data-resize="true" aria-hidden="true"></div>';
-    windowLayer.appendChild(win.el);
+    if (winboxManager) {
+      var handle = winboxManager.open({
+        id: id,
+        title: app.name,
+        appName: app.name,
+        bounds: rect,
+        minWidth: app.minWidth || 340,
+        minHeight: app.minHeight || 240,
+        onFocus: function () {
+          debugLog('window.focus.' + id);
+          if (win.el) applyFocusState(win);
+        },
+        onMinimize: function () { if (win.el) markMinimized(win); },
+        onMaximize: function () { if (win.el) markMaximized(win, true); },
+        onRestore: function () { if (win.el) markMaximized(win, false); },
+        onClosed: function () { finalizeCloseWindow(win); }
+      });
+      win.managerHandle = handle;
+      win.el = handle.element;
+      win.body = handle.body;
+    } else {
+      win.el = document.createElement('section');
+      win.el.className = 'window';
+      win.el.setAttribute('data-app', id);
+      win.el.setAttribute('role', 'dialog');
+      win.el.setAttribute('aria-label', app.name);
+      win.el.style.left = rect.x + 'px';
+      win.el.style.top = rect.y + 'px';
+      win.el.style.width = rect.width + 'px';
+      win.el.style.height = rect.height + 'px';
+      win.el.innerHTML =
+        '<header class="titlebar">' +
+          '<div class="traffic">' +
+            '<button class="close" data-window-action="close" aria-label="Close"><span>×</span></button>' +
+            '<button class="min" data-window-action="minimize" aria-label="Minimize"><span>−</span></button>' +
+            '<button class="max" data-window-action="zoom" aria-label="Zoom"><span>+</span></button>' +
+          '</div>' +
+          '<div class="titlebar-title">' + appIcon(id, 'tiny') + '<span>' + app.name + '</span></div>' +
+          '<div class="titlebar-actions"></div>' +
+        '</header>' +
+        '<div class="window-body"></div>' +
+        '<div class="resize-grip" data-resize="true" aria-hidden="true"></div>';
+      windowLayer.appendChild(win.el);
+      win.body = $('.window-body', win.el);
+    }
     state.windows.push(win);
 
-    var body = $('.window-body', win.el);
+    var body = win.body || $('.window-body', win.el);
     body.innerHTML = app.render ? app.render() : '';
     win.body = body;
 
@@ -293,29 +353,36 @@
     return win;
   }
 
+  function finalizeCloseWindow(win) {
+    state.windows = state.windows.filter(function (entry) { return entry !== win; });
+    if (state.focused === win) {
+      var next = topWindow();
+      state.focused = null;
+      if (next) focusWindow(next);
+      else { setActiveApp('Finder'); }
+    }
+    updateDock();
+  }
+
   function closeWindow(win) {
     if (!win) return;
-    var wasFocused = state.focused === win;
+    AD.state('window.close.' + win.id);
+    if (win.managerHandle) {
+      win.managerHandle.close();
+      return;
+    }
     win.el.classList.add('closing');
     win.el.style.transition = 'opacity .14s ease, transform .14s ease';
     win.el.style.opacity = '0';
     win.el.style.transform = 'scale(.97)';
     setTimeout(function () {
       win.el.remove();
-      state.windows = state.windows.filter(function (entry) { return entry !== win; });
-      if (wasFocused) {
-        var next = topWindow();
-        state.focused = null;
-        if (next) focusWindow(next);
-        else { setActiveApp('Finder'); }
-      }
-      updateDock();
+      finalizeCloseWindow(win);
     }, 140);
-    AD.state('window.close.' + win.id);
   }
 
-  function minimizeWindow(win) {
-    if (!win) return;
+  function markMinimized(win) {
+    if (!win || win.minimized) return;
     win.minimized = true;
     win.el.classList.add('minimized');
     if (state.focused === win) {
@@ -328,8 +395,34 @@
     AD.state('window.minimize.' + win.id);
   }
 
+  function minimizeWindow(win) {
+    if (!win) return;
+    if (win.managerHandle) {
+      win.managerHandle.minimize();
+      return;
+    }
+    markMinimized(win);
+  }
+
+  function markMaximized(win, maximized) {
+    if (!win) return;
+    if (win.maximized === maximized) {
+      win.el.classList.toggle('maximized', maximized);
+      return;
+    }
+    win.maximized = maximized;
+    win.el.classList.toggle('maximized', maximized);
+    applyFocusState(win);
+    AD.state('window.zoom.' + win.id);
+  }
+
   function toggleMaximize(win) {
     if (!win) return;
+    if (win.managerHandle) {
+      if (win.maximized) win.managerHandle.restore();
+      else win.managerHandle.maximize();
+      return;
+    }
     if (win.maximized) {
       win.maximized = false;
       win.el.classList.remove('maximized');
@@ -766,9 +859,40 @@
     if (count >= 2) dispatchMouse('dblclick', target, x, y, 0, 2);
   }
 
+  var winboxPointerActive = false;
+
+  function forwardWinBoxPointer(phase, event) {
+    if (!useWinBox) return false;
+    var p = point(event);
+    if (phase === 'down') {
+      var downTarget = document.elementFromPoint(p.x, p.y);
+      if (!downTarget || !downTarget.closest || !downTarget.closest('.winbox')) return false;
+      winboxPointerActive = true;
+    } else if (!winboxPointerActive) {
+      return false;
+    }
+    var target = document.elementFromPoint(p.x, p.y) || document.body;
+    var type = phase === 'down' ? 'pointerdown' : phase === 'move' ? 'pointermove' : phase === 'up' ? 'pointerup' : 'pointercancel';
+    target.dispatchEvent(new PointerEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      pointerId: 41,
+      pointerType: 'touch',
+      isPrimary: true,
+      clientX: p.x,
+      clientY: p.y,
+      button: 0,
+      buttons: phase === 'up' || phase === 'cancel' ? 0 : 1
+    }));
+    if (phase === 'up' || phase === 'cancel') winboxPointerActive = false;
+    return true;
+  }
+
   function pointerDown(event) {
     var p = point(event);
     moveCursor(p.x, p.y);
+    if (forwardWinBoxPointer('down', event)) return;
     var target = document.elementFromPoint(p.x, p.y);
     state.downTarget = target;
     if (!target) return;
@@ -891,6 +1015,7 @@
     }
     requestPreviewKeyboard(target);
     if (!target || !target.closest) return;
+    if (useWinBox && target.closest('.winbox')) return;
     var winEl = target.closest('.window');
     if (!winEl) return;
     var win = state.windows.find(function (entry) { return entry.el === winEl; });
@@ -943,6 +1068,7 @@
   function pointerMove(event) {
     var p = point(event);
     moveCursor(p.x, p.y);
+    if (forwardWinBoxPointer('move', event)) return;
     if (!state.drag) return;
     var drag = state.drag;
     var winEl = drag.win.el;
@@ -965,6 +1091,7 @@
   function pointerUp(event) {
     var p = point(event);
     moveCursor(p.x, p.y);
+    if (forwardWinBoxPointer('up', event)) return;
     if (state.drag) {
       var dragged = state.drag;
       dragged.win.el.classList.remove('dragging');
@@ -1310,7 +1437,10 @@
         break;
       }
       case 'pointerUp': pointerUp(event); break;
-      case 'pointerCancel': cancelPointer(); break;
+      case 'pointerCancel':
+        forwardWinBoxPointer('cancel', event);
+        cancelPointer();
+        break;
       case 'scroll': scrollAt(event); break;
       case 'keyDown': handleKey(event, true); break;
       case 'keyUp': handleKey(event, false); break;
@@ -1453,17 +1583,21 @@
     window.addEventListener('resize', function () {
       clearTimeout(window.__airdeskResize);
       window.__airdeskResize = setTimeout(function () {
-        state.windows.forEach(function (entry) {
-          if (entry.maximized) {
-            entry.el.style.width = (window.innerWidth - 24) + 'px';
-            entry.el.style.height = (window.innerHeight - 39 - 94) + 'px';
-          } else {
-            var maxLeft = Math.max(6, window.innerWidth - 140);
-            var maxTop = Math.max(32, window.innerHeight - 90);
-            entry.el.style.left = Math.min(parseInt(entry.el.style.left, 10) || 20, maxLeft) + 'px';
-            entry.el.style.top = Math.min(parseInt(entry.el.style.top, 10) || 40, maxTop) + 'px';
-          }
-        });
+        if (winboxManager) {
+          winboxManager.setViewportInsets(winboxInsets());
+        } else {
+          state.windows.forEach(function (entry) {
+            if (entry.maximized) {
+              entry.el.style.width = (window.innerWidth - 24) + 'px';
+              entry.el.style.height = (window.innerHeight - 39 - 94) + 'px';
+            } else {
+              var maxLeft = Math.max(6, window.innerWidth - 140);
+              var maxTop = Math.max(32, window.innerHeight - 90);
+              entry.el.style.left = Math.min(parseInt(entry.el.style.left, 10) || 20, maxLeft) + 'px';
+              entry.el.style.top = Math.min(parseInt(entry.el.style.top, 10) || 40, maxTop) + 'px';
+            }
+          });
+        }
         AD.viewport();
       }, 140);
     });
@@ -1489,6 +1623,10 @@
 
     dock.innerHTML = dockMarkup();
     $('#desktop-icons').innerHTML = desktopIconMarkup();
+    if (winboxManager) {
+      winboxManager.setViewportInsets(winboxInsets());
+      debugLog('desktop.windowManager=winbox');
+    }
 
     bindEvents();
     AD.onInput(handleInput);
@@ -1505,12 +1643,21 @@
       });
     });
 
-    setTimeout(function () {
-      openApp('finder');
-      openApp('terminal');
-      openApp('welcome');
-      if (state.focused) focusWindow(state.focused);
-    }, 90);
+    function openInitialWindows() {
+      var started = Date.now();
+      function attempt() {
+        if (window.innerWidth < 600 && Date.now() - started < 1500) {
+          setTimeout(attempt, 100);
+          return;
+        }
+        openApp('finder');
+        openApp('terminal');
+        openApp('welcome');
+        if (state.focused) focusWindow(state.focused);
+      }
+      requestAnimationFrame(attempt);
+    }
+    setTimeout(openInitialWindows, 90);
 
     function revealDesktop() {
       if (bootHidden) return;

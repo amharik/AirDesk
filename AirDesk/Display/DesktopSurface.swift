@@ -245,13 +245,17 @@ final class DesktopSurface {
             url: baseURL.appendingPathComponent("\(name).\(ext)"),
             resolvingAgainstBaseURL: false
         )
-        components?.queryItems = [
+        var queryItems = [
             URLQueryItem(name: "session", value: request.sessionId),
             URLQueryItem(name: "runtime", value: request.choice.rawValue),
             URLQueryItem(name: "generation", value: String(request.generation)),
             URLQueryItem(name: "appearance", value: request.appearance),
             URLQueryItem(name: "device", value: DeviceContext.name)
         ]
+        if usesWinBoxDesktop {
+            queryItems.append(URLQueryItem(name: "windowManager", value: "winbox"))
+        }
+        components?.queryItems = queryItems
         guard let url = components?.url else {
             throw DesktopSurfaceError.missingResource("\(name).\(ext)")
         }
@@ -330,6 +334,14 @@ final class DesktopSurface {
     private var usesWinBoxPreview: Bool {
 #if DEBUG
         ProcessInfo.processInfo.arguments.contains("-AirDeskWinBoxPreview")
+#else
+        false
+#endif
+    }
+
+    private var usesWinBoxDesktop: Bool {
+#if DEBUG
+        ProcessInfo.processInfo.arguments.contains("-AirDeskWinBoxDesktop")
 #else
         false
 #endif
