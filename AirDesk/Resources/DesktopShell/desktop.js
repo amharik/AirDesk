@@ -137,7 +137,7 @@
       if (typeof active.blur === 'function') active.blur();
     }
     if (win.id === 'terminal') {
-      var term = $('wanix-term', win.body);
+      var term = $('wanix-term, .wterm-term', win.body);
       if (term && document.activeElement !== term && (!active || !active.closest || active.closest('.window') !== win.el)) {
         try { term.focus(); } catch (error) { /* terminal may still be connecting */ }
       }
@@ -830,7 +830,7 @@
       if (win) focusWindow(win);
     }
 
-    var liveTerminal = target.closest('wanix-term');
+    var liveTerminal = target.closest('wanix-term, .wterm-term');
     if (liveTerminal) {
       focusTerminal(liveTerminal);
       return;
@@ -944,7 +944,7 @@
     }
 
     dispatchMouse('mousedown', target, p.x, p.y, 0, 1);
-    var liveTerminal = target.closest('wanix-term');
+    var liveTerminal = target.closest('wanix-term, .wterm-term');
     if (liveTerminal) {
       focusTerminal(liveTerminal);
     } else if (target.closest('input, textarea, [contenteditable="true"]')) {
@@ -972,7 +972,7 @@
 
   function focusDirectTarget(target) {
     if (!target || !target.closest) return;
-    var term = target.closest('wanix-term');
+    var term = target.closest('wanix-term, .wterm-term');
     if (term) {
       focusTerminal(term);
       return;
@@ -1000,7 +1000,7 @@
   function requestPreviewKeyboard(target) {
     if (!previewKeyboardRouting || nativeInputCaptured) return;
     var api = window.AD;
-    var terminal = target && target.closest ? target.closest('wanix-term') : null;
+    var terminal = target && target.closest ? target.closest('wanix-term, .wterm-term') : null;
     debugLog('pointerdown term=' + !!terminal + ' target=' + (target && target.tagName) + ' host=' + (api && api.host));
     if (!api || typeof api.post !== 'function' || api.host === 'cast') return;
     var actionName = terminal ? 'keyboard' : 'keyboardDismiss';
@@ -1021,7 +1021,7 @@
     var p = directCoordinates(event);
     moveCursor(p.x * window.innerWidth, p.y * window.innerHeight);
     focusDirectTarget(target);
-    if (target && target.closest && target.closest('wanix-term')) {
+    if (target && target.closest && target.closest('wanix-term, .wterm-term')) {
       var terminalEl = target.closest('.window');
       var terminalWindow = terminalEl ? state.windows.find(function (entry) { return entry.el === terminalEl; }) : null;
       if (terminalWindow) focusWindow(terminalWindow);
@@ -1123,7 +1123,7 @@
     var x = state.pointer.x;
     var y = state.pointer.y;
     var target = document.elementFromPoint(x, y);
-    var liveTerminal = target && target.closest ? target.closest('wanix-term') : null;
+    var liveTerminal = target && target.closest ? target.closest('wanix-term, .wterm-term') : null;
     if (liveTerminal && liveTerminal._term && typeof liveTerminal._term.scrollLines === 'function') {
       var lines = Math.round(Number(event.dy || 0) / 24);
       if (lines) liveTerminal._term.scrollLines(-clamp(lines, -8, 8));
@@ -1151,18 +1151,18 @@
   /* Text and keyboard */
   function focusedTerminal() {
     if (state.focused) {
-      var focused = $('wanix-term', state.focused.body);
+      var focused = $('wanix-term, .wterm-term', state.focused.body);
       if (focused && focused._term) return focused;
     }
 
     var active = document.activeElement;
     if (active && active.closest) {
-      var activeTerm = active.closest('wanix-term');
+      var activeTerm = active.closest('wanix-term, .wterm-term');
       if (activeTerm && activeTerm._term) return activeTerm;
       if (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable) return null;
     }
 
-    var terminals = $$('wanix-term');
+    var terminals = $$('wanix-term, .wterm-term');
     return terminals.length === 1 && terminals[0]._term ? terminals[0] : null;
   }
 

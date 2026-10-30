@@ -2,6 +2,57 @@
 (function () {
   'use strict';
 
+  var terminalAssets = null;
+
+  function debugLog(message) {
+    try {
+      var api = window.AD;
+      if (!api || typeof api.post !== 'function') return;
+      api.post({
+        version: 1,
+        type: 'log',
+        sessionId: api.sessionId,
+        message: String(message),
+        timestamp: Date.now()
+      });
+    } catch (error) { /* logging must never break the shell */ }
+  }
+
+  function useWTermTerminal() {
+    try {
+      var requested = new URLSearchParams(window.location.search).get('terminal');
+      if (requested) return requested === 'wterm';
+      return localStorage.getItem('airdesk.terminal') === 'wterm';
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function loadTerminalAssets() {
+    if (window.AirDeskWTerm) return Promise.resolve();
+    if (terminalAssets) return terminalAssets;
+    terminalAssets = new Promise(function (resolve, reject) {
+      var stylesheet = document.createElement('link');
+      stylesheet.rel = 'stylesheet';
+      stylesheet.href = 'terminal.css';
+      document.head.appendChild(stylesheet);
+
+      var script = document.createElement('script');
+      script.src = 'terminal.js';
+      script.onload = function () {
+        if (window.AirDeskWTerm) resolve();
+        else reject(new Error('The wterm runtime did not initialize.'));
+      };
+      script.onerror = function () {
+        terminalAssets = null;
+        stylesheet.remove();
+        reject(new Error('The wterm runtime could not be loaded.'));
+      };
+      document.body.appendChild(script);
+    });
+    return terminalAssets;
+  }
+
   var icons = {
     finder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8.2 8.6v3.1M15.8 8.6v3.1"/><path d="M7.7 15.4c1.2 1.3 2.7 1.9 4.3 1.9s3.1-.6 4.3-1.9"/><path d="M12 3.2c4.9 0 8.8 3.6 8.8 8.8S16.9 20.8 12 20.8 3.2 17.2 3.2 12 7.1 3.2 12 3.2Z"/><path d="M12 3.2v1.4"/></svg>',
     terminal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m6.5 8 3.7 3.6-3.7 3.7"/><path d="M12.5 16.2h5"/></svg>',
@@ -223,6 +274,7 @@
       mount: function (root, api) {
         var host = root.querySelector('[data-term-host]');
         var status = root.querySelector('[data-term-status]');
+        var wantsWTerm = useWTermTerminal();
 
         function showStatus(text) {
           status.hidden = false;
@@ -245,7 +297,145 @@
           });
         }
 
+        function mountWTerm(attempt) {
+          host.innerHTML = '';
+          var target = document.createElement('div');
+          target.className = 'wterm-term';
+          target.setAttribute('data-wterm', '');
+          host.appendChild(target);
+
+          var engine = null;
+          var reader = null;
+          var writer = null;
+          var readerTask = null;
+          var disconnected = false;
+          var queued = [];
+          var encoder = new TextEncoder();
+          var removalObserver = null;
+
+          function sendBytes(bytes) {
+            if (disconnected) return;
+            if (!writer) {
+              queued.push(bytes);
+              return;
+            }
+            writer.write(bytes).catch(function (error) {
+              debugLog('wterm.write.error ' + String(error && error.message || error));
+            });
+          }
+
+          function sendText(text) {
+            sendBytes(encoder.encode(text));
+          }
+
+          function disconnect() {
+            if (disconnected) return;
+            disconnected = true;
+            if (removalObserver) {
+              removalObserver.disconnect();
+              removalObserver = null;
+            }
+            if (reader) {
+              try { reader.cancel(); } catch (error) { /* already closed */ }
+              reader = null;
+            }
+            readerTask = null;
+            if (writer) {
+              try { writer.close(); } catch (error) { /* already closed */ }
+              writer = null;
+            }
+            if (engine) {
+              try { engine.destroy(); } catch (error) { /* already destroyed */ }
+              engine = null;
+            }
+          }
+
+          function pump() {
+            if (!reader || disconnected) return;
+            readerTask = reader.read().then(function (result) {
+              if (disconnected || result.done) return;
+              if (result.value) engine.write(result.value);
+              pump();
+            }).catch(function (error) {
+              if (!disconnected) debugLog('wterm.read.error ' + String(error && error.message || error));
+            });
+          }
+
+          function fail(error) {
+            disconnect();
+            var message = String(error && error.message || error);
+            if (attempt < 3) {
+              showStatus('Reconnecting to the live Wanix shell…');
+              setTimeout(function () { mountWTerm(attempt + 1); }, 250);
+            } else {
+              showStatus('Could not start the Wanix shell: ' + message);
+            }
+          }
+
+          showStatus('Starting the wterm terminal…');
+          debugLog('terminal.engine=wterm');
+
+          loadTerminalAssets().then(function () {
+            if (!window.AirDeskWTerm) throw new Error('The wterm runtime is unavailable.');
+            engine = window.AirDeskWTerm.create(target, {
+              cols: 80,
+              rows: 24,
+              autoResize: true,
+              cursorBlink: true,
+              announceOutput: true,
+              transport: {
+                send: sendText,
+                sendBinary: sendBytes
+              }
+            });
+            target._term = {
+              focus: function () { if (engine) engine.focus(); },
+              input: function (data) { if (engine) engine.input(data); },
+              paste: function (data) { if (engine) engine.paste(data); },
+              onData: function () { /* WTerm owns input callbacks */ }
+            };
+            return engine.connect();
+          }).then(function () {
+            debugLog('wterm.ready');
+            return waitForTaskTerm();
+          }).then(function () {
+            var kernel = window.AirDeskKernel.root();
+            var task = document.querySelector('#wanix wanix-task');
+            var path = task && task.term;
+            if (!kernel || !path) throw new Error('The shell task did not allocate a terminal.');
+            var dataPath = String(path) + '/data';
+            return kernel.waitFor(dataPath, 30000).then(function () {
+              return Promise.all([
+                kernel.openReadable(dataPath),
+                kernel.openWritable(dataPath)
+              ]);
+            });
+          }).then(function (streams) {
+            if (disconnected) return false;
+            reader = streams[0].getReader();
+            writer = streams[1].getWriter();
+            queued.splice(0).forEach(function (bytes) { sendBytes(bytes); });
+            pump();
+            return window.AirDeskKernel.startShell();
+          }).then(function (started) {
+            if (!started || disconnected) return;
+            status.hidden = true;
+            engine.fit();
+            engine.focus();
+            debugLog('wterm.connected');
+            api.notify('Terminal attached to live Wanix shell');
+            removalObserver = new MutationObserver(function () {
+              if (!target.isConnected) disconnect();
+            });
+            removalObserver.observe(document.body, { childList: true, subtree: true });
+          }).catch(fail);
+        }
+
         function mountTerminal(attempt) {
+          if (wantsWTerm) {
+            mountWTerm(attempt);
+            return;
+          }
           host.innerHTML = '';
           var term = document.createElement('wanix-term');
           term.setAttribute('for', 'wanix');

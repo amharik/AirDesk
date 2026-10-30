@@ -99,7 +99,7 @@ Each cutover is independently reversible until its fallback is removed.
 - Native protocol pointer events are converted to synthetic pointer plus mouse-compatibility DOM events for WinBox, whose upstream drag path listens for mouse/touch input. The default production XCUITest now covers native drag; physical device drag and long-press still require verification.
 - The debug `-AirDeskWinBoxDesktop` route loads the production `index.html` with an explicit WinBox override. The production XCUITest exercises the default path without an override and covers maximize, restore, and close. Initial windows wait for a stable viewport of at least 600 points before opening.
 - The production adapter bundle is 31.9 kB JS with 8.1 kB CSS. No fork is required.
-- Full local verification passes: 21 web tests, 99 iOS unit tests, 8 iOS UI tests, 6 Rust tests, and `npm run check`.
+- Full local verification passes: 21 web tests, 99 iOS unit tests, 9 iOS UI tests, 6 Rust tests, and `npm run check`.
 - Upstream distribution sizes are 11.0 kB for minified JS and 4.8 kB for CSS; the bundled preview build is 16.0 kB.
 - License text and attribution are recorded under `third_party/winbox/`.
 
@@ -118,7 +118,10 @@ Still pending before Trial: WKWebView/Cast 60 FPS measurement at 1080p, safe-are
 - The debug bundle is 2.1 MB unminified with a 57.4 kB CSS bundle. This is not a production size measurement; the preview includes the full just-bash environment.
 - just-bash's browser bundle imports an unused `node:zlib` path. The build aliases it to a local shim; gzip is intentionally unavailable in the offline shell.
 - Initializing the preview while its sheet is hidden produced a one-column auto-sized grid. The harness uses an explicit 80x24 grid until the surface is visible. The production adapter must initialize after the surface has a real size or re-fit on visibility.
-- No Wanix PTY integration, SSH transport, production cutover, or production bundle-size measurement has been completed yet. The status remains **Proposed**.
+- Added a production terminal path behind `?terminal=wterm` or `airdesk.terminal=wterm`. It lazily loads a 283.7 kB JS / 10.4 kB CSS wterm bundle, waits for the Wanix task PTY, opens `${task.term}/data` read/write streams, and keeps `wanix-term` as the default until conformance passes.
+- The WTerm adapter preserves the desktop's `_term` focus/input/paste compatibility hooks, and `desktop.js` now recognizes both `wanix-term` and `.wterm-term`.
+- A `-AirDeskWTermDesktop` route drives the production shell with wterm. Its XCUITest verifies engine selection, live Wanix PTY attachment, and keyboard typing through the native bridge.
+- Wanix PTY resize is not yet propagated; WTerm fits locally and output/input replay semantics still need conformance coverage. SSH transport and the default cutover remain incomplete. The status remains **Proposed**.
 
 ## Acceptance gates
 

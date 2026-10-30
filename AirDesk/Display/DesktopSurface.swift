@@ -255,6 +255,9 @@ final class DesktopSurface {
         if usesWinBoxDesktop {
             queryItems.append(URLQueryItem(name: "windowManager", value: "winbox"))
         }
+        if usesWTermDesktop {
+            queryItems.append(URLQueryItem(name: "terminal", value: "wterm"))
+        }
         components?.queryItems = queryItems
         guard let url = components?.url else {
             throw DesktopSurfaceError.missingResource("\(name).\(ext)")
@@ -342,6 +345,14 @@ final class DesktopSurface {
     private var usesWinBoxDesktop: Bool {
 #if DEBUG
         ProcessInfo.processInfo.arguments.contains("-AirDeskWinBoxDesktop")
+#else
+        false
+#endif
+    }
+
+    private var usesWTermDesktop: Bool {
+#if DEBUG
+        ProcessInfo.processInfo.arguments.contains("-AirDeskWTermDesktop")
 #else
         false
 #endif

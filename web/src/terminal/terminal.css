@@ -1,0 +1,25 @@
+@import "@wterm/dom/css";
+
+.term-host .wterm-term {
+  --term-bg: #080b12;
+  --term-fg: #dce8fb;
+  --term-cursor: #6fe3ff;
+  --term-font-family: var(--mono);
+  --term-font-size: 13px;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: #080b12;
+}
+
+body[data-appearance="light"] .term-host .wterm-term {
+  --term-bg: #f5f7fb;
+  --term-fg: #24324a;
+  --term-cursor: #046fc4;
+  background: #f5f7fb;
+}
+
+.term-host .wterm-term .term-grid {
+  text-rendering: optimizeLegibility;
+}
