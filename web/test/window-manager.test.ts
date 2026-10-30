@@ -164,4 +164,29 @@ describe('WinBox window manager', () => {
     handle.close();
     expect(handle.closed).toBe(true);
   });
+
+  it('clamps windows back into view after rotation or inset changes', () => {
+    const { manager } = createManager();
+    const handle = manager.open({
+      id: 'terminal',
+      title: 'Terminal',
+      bounds: { x: 820, y: 620, width: 460, height: 320 }
+    });
+
+    Object.defineProperty(dom.window, 'innerWidth', { value: 600, configurable: true, writable: true });
+    Object.defineProperty(dom.window, 'innerHeight', { value: 700, configurable: true, writable: true });
+    try {
+      handle.setViewportInsets({ top: 39, right: 0, bottom: 96, left: 0 });
+
+      const left = parseFloat(handle.element.style.left);
+      const top = parseFloat(handle.element.style.top);
+      expect(left).toBeGreaterThanOrEqual(0);
+      expect(left).toBeLessThanOrEqual(480);
+      expect(top).toBeGreaterThanOrEqual(39);
+      expect(top).toBeLessThanOrEqual(524);
+    } finally {
+      Object.defineProperty(dom.window, 'innerWidth', { value: 1024, configurable: true, writable: true });
+      Object.defineProperty(dom.window, 'innerHeight', { value: 768, configurable: true, writable: true });
+    }
+  });
 });

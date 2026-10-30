@@ -66,19 +66,19 @@ final class WinBoxDesktopTests: XCTestCase {
         welcome.buttons["Close"].tap()
         XCTAssertTrue(welcome.waitForNonExistence(timeout: 10), "AirDesk was not closed")
 
-        let originBeforeDrag = terminal.frame.origin
-        let dragStart = terminal.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.04))
-        dragStart.press(forDuration: 0.3, thenDragTo: dragStart.withOffset(CGVector(dx: 60, dy: 40)))
-        RunLoop.current.run(until: Date().addingTimeInterval(0.4))
-        XCTAssertNotEqual(terminal.frame.origin, originBeforeDrag, "terminal did not move")
-
         terminal.buttons["Maximize"].tap()
         let expanded = terminal.frame.width
-        XCTAssertGreaterThan(expanded, webView.frame.width * 0.8, "terminal did not maximize")
+        XCTAssertGreaterThan(expanded, webView.frame.width * 0.8, "terminal did not maximize probe=\(probeLabel(app))")
 
         terminal.buttons["Maximize"].tap()
         let restored = terminal.frame.width
-        XCTAssertLessThan(restored, expanded, "terminal did not restore")
+        XCTAssertLessThan(restored, expanded, "terminal did not restore probe=\(probeLabel(app))")
+
+        let originBeforeDrag = terminal.frame.origin
+        let dragStart = terminal.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.04))
+        dragStart.press(forDuration: 0.3, thenDragTo: dragStart.withOffset(CGVector(dx: 60, dy: 40)))
+        RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+        XCTAssertNotEqual(terminal.frame.origin, originBeforeDrag, "terminal did not move")
 
         terminal.buttons["Close"].tap()
         XCTAssertTrue(terminal.waitForNonExistence(timeout: 10), "terminal was not closed")

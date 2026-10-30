@@ -97,9 +97,12 @@ Each cutover is independently reversible until its fallback is removed.
 - Added production integration and made WinBox the default. `index.html` loads `window-manager.js` and `window-manager.css`; `?windowManager=legacy` or `airdesk.window-manager=legacy` opts back into the legacy manager.
 - The production path keeps `desktop.js` app, Dock, and menu state while delegating window creation, focus, z-order, drag, resize, minimize/maximize, and close to WinBox. Compatibility classes preserve the existing `.window` and `.window-body` app/CSS contracts.
 - Native protocol pointer events are converted to synthetic pointer plus mouse-compatibility DOM events for WinBox, whose upstream drag path listens for mouse/touch input. The default production XCUITest now covers native drag; physical device drag and long-press still require verification.
-- The debug `-AirDeskWinBoxDesktop` route loads the production `index.html` with an explicit WinBox override. The production XCUITest exercises the default path without an override and covers maximize, restore, and close. Initial windows wait for a stable viewport of at least 600 points before opening.
-- The production adapter bundle is 31.9 kB JS with 8.1 kB CSS. No fork is required.
-- Full local verification passes: 27 web tests, 99 iOS unit tests, 9 iOS UI tests, 6 Rust tests, and `npm run check`.
+- The debug `-AirDeskWinBoxDesktop` route loads the production `index.html` with an explicit WinBox override. The production XCUITest exercises the default path without an override and covers maximize, restore, close, and native drag.
+- Hidden desktop WebViews can report `window.innerWidth` as `2` or `10` before the preview surface is attached. Initial windows use `window.screen` dimensions as a fallback viewport instead of opening at that zero-width layout, and the production resize path refreshes WinBox bounds once the real viewport is visible.
+- WinBox can retain a stale internal root width after a hidden or late layout. Maximize now dispatches a viewport refresh before delegating to WinBox; this fixed maximize-after-drag failures without relying on test ordering.
+- Rotation and inset changes reproject non-maximized window origins back inside the visible area through `clampToViewport()`, covered by the window-manager unit test.
+- The production adapter bundle is 32.8 kB JS with 8.1 kB CSS. No fork is required.
+- Full local verification passes: 28 web tests across 5 files, 99 iOS unit tests, 9 iOS UI tests, 6 Rust tests, and `npm run check`.
 - Upstream distribution sizes are 11.0 kB for minified JS and 4.8 kB for CSS; the bundled preview build is 16.0 kB.
 - License text and attribution are recorded under `third_party/winbox/`.
 

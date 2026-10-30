@@ -791,7 +791,7 @@ final class SessionCoordinator: ObservableObject {
             print("[AirDeskDebug] js: \(text)")
             if ProcessInfo.processInfo.arguments.contains("-AirDeskUITestProbe") {
                 let combined = debugJSLog.isEmpty ? text : debugJSLog + " | " + text
-                debugJSLog = String(combined.suffix(500))
+                debugJSLog = String(combined.suffix(4_000))
             }
         case "notice":
             if let text = message.message, !text.isEmpty {

@@ -27,7 +27,10 @@
       if (!this.closedState) this.instance.minimize();
     }
     maximize() {
-      if (!this.closedState) this.instance.maximize();
+      if (this.closedState) return;
+      const view = this.element.ownerDocument.defaultView;
+      view?.dispatchEvent(new Event("resize"));
+      this.instance.maximize();
     }
     restore() {
       if (!this.closedState) this.instance.restore();
@@ -66,6 +69,23 @@
       this.instance.right = this.insets.right;
       this.instance.bottom = this.insets.bottom;
       this.instance.left = this.insets.left;
+      this.clampToViewport();
+    }
+    clampToViewport() {
+      if (this.instance.max || this.instance.min) return;
+      const view = this.element.ownerDocument.defaultView;
+      if (!view) return;
+      const maxX = Math.max(
+        this.insets.left,
+        view.innerWidth - this.insets.right - Math.min(120, this.instance.width)
+      );
+      const maxY = Math.max(
+        this.insets.top,
+        view.innerHeight - this.insets.bottom - Math.min(80, this.instance.height)
+      );
+      const x = Math.min(Math.max(this.instance.x, this.insets.left), maxX);
+      const y = Math.min(Math.max(this.instance.y, this.insets.top), maxY);
+      if (x !== this.instance.x || y !== this.instance.y) this.instance.move(x, y);
     }
   };
   var WinBoxWindowManager = class {

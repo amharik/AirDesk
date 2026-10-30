@@ -47,6 +47,7 @@
   var boot = $('#boot');
 
   var winboxManager = null;
+  var lastRootRefreshWidth = 0;
   var useWinBox = false;
   try {
     var requestedManager = new URLSearchParams(window.location.search).get('windowManager');
@@ -211,10 +212,19 @@
         '<span class="desk-art trash">' + icons.trash + '</span><span class="desktop-label">Trash</span></button>';
   }
 
+  function viewportSize() {
+    var width = window.innerWidth;
+    var height = window.innerHeight;
+    if (width < 100) width = Math.max(100, window.screen && window.screen.width || 390);
+    if (height < 100) height = Math.max(100, window.screen && window.screen.height || 844);
+    return { width: width, height: height };
+  }
+
   function rectFor(id) {
     var app = apps[id] || apps.welcome;
-    var vw = window.innerWidth;
-    var vh = window.innerHeight;
+    var viewport = viewportSize();
+    var vw = viewport.width;
+    var vh = viewport.height;
     var top = 39;
     var bottom = 96;
     var availableH = vh - top - bottom;
@@ -1597,7 +1607,11 @@
       clearTimeout(window.__airdeskResize);
       window.__airdeskResize = setTimeout(function () {
         if (winboxManager) {
-          winboxManager.setViewportInsets(winboxInsets());
+          if (window.innerWidth >= 100) winboxManager.setViewportInsets(winboxInsets());
+          if (window.innerWidth !== lastRootRefreshWidth) {
+            lastRootRefreshWidth = window.innerWidth;
+            requestAnimationFrame(function () { window.dispatchEvent(new Event('resize')); });
+          }
         } else {
           state.windows.forEach(function (entry) {
             if (entry.maximized) {
@@ -1637,7 +1651,7 @@
     dock.innerHTML = dockMarkup();
     $('#desktop-icons').innerHTML = desktopIconMarkup();
     if (winboxManager) {
-      winboxManager.setViewportInsets(winboxInsets());
+      if (window.innerWidth >= 100) winboxManager.setViewportInsets(winboxInsets());
       debugLog('desktop.windowManager=winbox');
     }
 
@@ -1667,9 +1681,11 @@
         openApp('terminal');
         openApp('welcome');
         if (state.focused) focusWindow(state.focused);
+        requestAnimationFrame(function () { window.dispatchEvent(new Event('resize')); });
       }
       requestAnimationFrame(attempt);
     }
+
     setTimeout(openInitialWindows, 90);
 
     function revealDesktop() {
