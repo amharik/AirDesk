@@ -5,8 +5,7 @@ final class WinBoxDesktopTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = [
             "-AirDeskAutoDemo",
-            "-AirDeskUITestProbe",
-            "-AirDeskWinBoxDesktop"
+            "-AirDeskUITestProbe"
         ]
         app.launch()
 
@@ -48,7 +47,7 @@ final class WinBoxDesktopTests: XCTestCase {
         return app.webViews.firstMatch
     }
 
-    func testProductionDesktopUsesWinBox() throws {
+    func testProductionDesktopDefaultsToWinBox() throws {
         let app = launchDesktop()
         XCTAssertTrue(waitForProbe(app, containing: "desktop.windowManager=winbox", timeout: 30), "probe=\(probeLabel(app))")
 
@@ -66,6 +65,12 @@ final class WinBoxDesktopTests: XCTestCase {
         XCTAssertTrue(welcome.exists, webView.debugDescription)
         welcome.buttons["Close"].tap()
         XCTAssertTrue(welcome.waitForNonExistence(timeout: 10), "AirDesk was not closed")
+
+        let originBeforeDrag = terminal.frame.origin
+        let dragStart = terminal.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.04))
+        dragStart.press(forDuration: 0.3, thenDragTo: dragStart.withOffset(CGVector(dx: 60, dy: 40)))
+        RunLoop.current.run(until: Date().addingTimeInterval(0.4))
+        XCTAssertNotEqual(terminal.frame.origin, originBeforeDrag, "terminal did not move")
 
         terminal.buttons["Maximize"].tap()
         let expanded = terminal.frame.width

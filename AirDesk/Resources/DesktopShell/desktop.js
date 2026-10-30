@@ -50,7 +50,8 @@
   var useWinBox = false;
   try {
     var requestedManager = new URLSearchParams(window.location.search).get('windowManager');
-    useWinBox = requestedManager === 'winbox' || loadPreference('window-manager', 'legacy') === 'winbox';
+    var savedManager = loadPreference('window-manager', 'winbox');
+    useWinBox = requestedManager ? requestedManager !== 'legacy' : savedManager !== 'legacy';
   } catch (error) { /* URLSearchParams can be unavailable in older webviews */ }
   if (useWinBox && window.AirDeskWinBox && windowLayer) {
     winboxManager = window.AirDeskWinBox.createManager({
@@ -873,6 +874,7 @@
     }
     var target = document.elementFromPoint(p.x, p.y) || document.body;
     var type = phase === 'down' ? 'pointerdown' : phase === 'move' ? 'pointermove' : phase === 'up' ? 'pointerup' : 'pointercancel';
+    var buttons = phase === 'up' || phase === 'cancel' ? 0 : 1;
     target.dispatchEvent(new PointerEvent(type, {
       bubbles: true,
       cancelable: true,
@@ -883,7 +885,18 @@
       clientX: p.x,
       clientY: p.y,
       button: 0,
-      buttons: phase === 'up' || phase === 'cancel' ? 0 : 1
+      buttons: buttons
+    }));
+    var mouseType = phase === 'down' ? 'mousedown' : phase === 'move' ? 'mousemove' : 'mouseup';
+    target.dispatchEvent(new MouseEvent(mouseType, {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      view: window,
+      clientX: p.x,
+      clientY: p.y,
+      button: 0,
+      buttons: buttons
     }));
     if (phase === 'up' || phase === 'cancel') winboxPointerActive = false;
     return true;

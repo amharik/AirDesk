@@ -17,7 +17,7 @@ final class DesktopShellIntegrationTests: XCTestCase {
     func testBridgeDragMovesDesktopWindow() async throws {
         try await loadShell()
 
-        let result = try await evaluate("""
+        let setup = try await evaluate("""
         (function () {
           var candidates = Array.prototype.slice.call(document.querySelectorAll('.window'));
           var win = null;
@@ -40,39 +40,63 @@ final class DesktopShellIntegrationTests: XCTestCase {
           if (!win) return 'missing-window';
           var startX = cx / window.innerWidth;
           var startY = cy / window.innerHeight;
-          var endX = Math.min(1, startX + 0.08);
-          var endY = Math.min(1, startY + 0.05);
-          var hit = document.elementFromPoint(cx, cy);
-          var before = { left: win.offsetLeft, top: win.offsetTop };
-          window.AirDeskBridge.receive({ type: 'pointerDown', x: startX, y: startY });
-          var down = { dragging: win.classList.contains('dragging'), left: win.offsetLeft, top: win.offsetTop };
-          window.AirDeskBridge.receive({ type: 'pointerMove', x: endX, y: endY });
-          var moved = { dragging: win.classList.contains('dragging'), left: win.offsetLeft, top: win.offsetTop };
-          window.AirDeskBridge.receive({ type: 'pointerUp', x: endX, y: endY });
+          window.__airDeskDragTest = {
+            win: win,
+            startX: startX,
+            startY: startY,
+            endX: Math.min(1, startX + 0.08),
+            endY: Math.min(1, startY + 0.05),
+            before: { left: win.offsetLeft, top: win.offsetTop }
+          };
           return JSON.stringify({
-            before: before,
-            down: down,
-            moved: moved,
-            hit: hit ? (hit.className || hit.tagName) : 'none',
-            hitTitlebar: !!(hit && hit.closest('.titlebar')),
-            after: { left: win.offsetLeft, top: win.offsetTop },
+            before: window.__airDeskDragTest.before,
+            manager: document.body.getAttribute('data-window-manager'),
             viewport: { width: window.innerWidth, height: window.innerHeight }
           });
         })();
         """)
 
-        let data = try XCTUnwrap(result as? String).data(using: .utf8)
-        let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(data)) as? [String: Any])
-        let before = try XCTUnwrap(payload["before"] as? [String: Any])
-        let after = try XCTUnwrap(payload["after"] as? [String: Any])
-        let viewport = try XCTUnwrap(payload["viewport"] as? [String: Any])
+        let setupData = try XCTUnwrap(setup as? String).data(using: .utf8)
+        let setupPayload = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(setupData)) as? [String: Any])
+        let before = try XCTUnwrap(setupPayload["before"] as? [String: Any])
+        let viewport = try XCTUnwrap(setupPayload["viewport"] as? [String: Any])
+        XCTAssertEqual(setupPayload["manager"] as? String, "winbox")
         XCTAssertEqual(viewport["width"] as? Int, 1024)
         XCTAssertEqual(viewport["height"] as? Int, 768)
+
+        _ = try await evaluate("""
+        (function () {
+          var drag = window.__airDeskDragTest;
+          window.AirDeskBridge.receive({ type: 'pointerDown', x: drag.startX, y: drag.startY });
+          window.AirDeskBridge.receive({ type: 'pointerMove', x: drag.endX, y: drag.endY });
+          return true;
+        })();
+        """)
+
+        try await Task.sleep(nanoseconds: 250_000_000)
+
+        let moved = try await evaluate("""
+        (function () {
+          var win = window.__airDeskDragTest.win;
+          return JSON.stringify({ left: win.offsetLeft, top: win.offsetTop });
+        })();
+        """)
+        let movedData = try XCTUnwrap(moved as? String).data(using: .utf8)
+        let after = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(movedData)) as? [String: Any])
         let beforeLeft = try XCTUnwrap(before["left"] as? Int)
         let beforeTop = try XCTUnwrap(before["top"] as? Int)
         let afterLeft = try XCTUnwrap(after["left"] as? Int)
         let afterTop = try XCTUnwrap(after["top"] as? Int)
-        XCTAssertTrue(afterLeft != beforeLeft || afterTop != beforeTop, "window did not move: \(payload)")
+        XCTAssertTrue(afterLeft != beforeLeft || afterTop != beforeTop, "window did not move: before=\(before) after=\(after)")
+
+        _ = try await evaluate("""
+        (function () {
+          var drag = window.__airDeskDragTest;
+          window.AirDeskBridge.receive({ type: 'pointerUp', x: drag.endX, y: drag.endY });
+          delete window.__airDeskDragTest;
+          return true;
+        })();
+        """)
     }
 
     func testBridgeClickSelectsDesktopIconAtPointer() async throws {
