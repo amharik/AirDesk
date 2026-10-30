@@ -8,7 +8,7 @@
 
 ## Decision
 
-Remote windowing is a **post-MVP phase**. It must not block the local Wanix runtime, native external display, transport, WinBox, Ghostty, or input-protocol work.
+Remote windowing is a **post-MVP phase**. It must not block the local Wanix runtime, native external display, transport, WinBox, wterm, or input-protocol work.
 
 When it enters scope:
 

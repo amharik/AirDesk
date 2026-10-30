@@ -58,7 +58,7 @@ The app and Cast receiver bundle:
 
 - the pinned Wanix WASM/JS runtime;
 - the shell and generated TypeScript bundles;
-- Ghostty web assets once adopted;
+- wterm, its selected core, and optional just-bash assets once adopted;
 - required fonts, workers, and WASI modules;
 - checksums or integrity metadata used by the loader.
 
