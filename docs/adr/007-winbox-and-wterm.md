@@ -99,7 +99,7 @@ Each cutover is independently reversible until its fallback is removed.
 - Native protocol pointer events are converted to synthetic pointer plus mouse-compatibility DOM events for WinBox, whose upstream drag path listens for mouse/touch input. The default production XCUITest now covers native drag; physical device drag and long-press still require verification.
 - The debug `-AirDeskWinBoxDesktop` route loads the production `index.html` with an explicit WinBox override. The production XCUITest exercises the default path without an override and covers maximize, restore, and close. Initial windows wait for a stable viewport of at least 600 points before opening.
 - The production adapter bundle is 31.9 kB JS with 8.1 kB CSS. No fork is required.
-- Full local verification passes: 21 web tests, 99 iOS unit tests, 9 iOS UI tests, 6 Rust tests, and `npm run check`.
+- Full local verification passes: 27 web tests, 99 iOS unit tests, 9 iOS UI tests, 6 Rust tests, and `npm run check`.
 - Upstream distribution sizes are 11.0 kB for minified JS and 4.8 kB for CSS; the bundled preview build is 16.0 kB.
 - License text and attribution are recorded under `third_party/winbox/`.
 
@@ -113,6 +113,8 @@ Still pending before Trial: WKWebView/Cast 60 FPS measurement at 1080p, safe-are
 - `@wterm/core` and `@wterm/dom` are production dependencies. `@wterm/just-bash` and `just-bash` are development dependencies for the offline debug spike, not the production Wanix shell.
 - Added a `TerminalEngine` contract and a `WTermEngine` adapter. The adapter queues output until initialization, maps user input to the transport, forwards applied resize dimensions, and keeps remote input out of synthesized DOM events.
 - Three headless tests exercise the real `BashShell`: virtual-file `cat`, `cd`/`pwd`, and the `wterm-ok` self-test marker.
+- Six headless conformance tests exercise the real `WasmBridge`: wide/CJK/emoji/combining/Devanagari/Arabic clusters, alternate-screen restore, scrollback retention/discard accounting, bracketed paste, mouse/SGR, focus events, application cursor keys, synchronized output, title OSC, palette and true-color SGR, and resize retention.
+- The bundled core retains 1,000 scrollback lines and reports discarded history. The 5,000-line gate is not met yet; it requires an upstream capacity change or a deliberate wrapper decision.
 - A debug-only `-AirDeskWTermPreview` route loads a real `WTerm` with `BashShell` and just-bash in WKWebView. The preview auto-runs `echo wterm-ok` and verifies the rendered output through `readText()`.
 - The simulator XCUITest passes the `-AirDeskWTermPreview` route and waits for the rendered self-test marker.
 - The debug bundle is 2.1 MB unminified with a 57.4 kB CSS bundle. This is not a production size measurement; the preview includes the full just-bash environment.
