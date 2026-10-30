@@ -102,7 +102,7 @@ Each cutover is independently reversible until its fallback is removed.
 - WinBox can retain a stale internal root width after a hidden or late layout. Maximize now dispatches a viewport refresh, then explicitly reprojects the maximized bounds from the live viewport when WinBox's calculated size is smaller. The UI test polls through WinBox's 300 ms size transition instead of reading the frame immediately after the tap.
 - Rotation and inset changes reproject non-maximized window origins back inside the visible area through `clampToViewport()`, covered by the window-manager unit test.
 - The production adapter bundle is 32.8 kB JS with 8.1 kB CSS. No fork is required.
-- Full local verification passes: 30 web tests across 6 files, 99 iOS unit tests, 9 iOS UI tests, 6 Rust tests, and `npm run check`.
+- Full local verification passes: 35 web tests across 6 files, 99 iOS unit tests, 9 iOS UI tests, 6 Rust tests, and `npm run check`.
 - Upstream distribution sizes are 11.0 kB for minified JS and 4.8 kB for CSS; the bundled preview build is 16.0 kB.
 - License text and attribution are recorded under `third_party/winbox/`.
 
@@ -116,10 +116,10 @@ Still pending before Trial: WKWebView/Cast 60 FPS measurement at 1080p, safe-are
 - `@wterm/core`, `@wterm/dom`, and `@wterm/ghostty` are production dependencies. `@wterm/just-bash` and `just-bash` are development dependencies for the offline debug spike, not the production Wanix shell.
 - Added a `TerminalEngine` contract and a `WTermEngine` adapter. The adapter queues output until initialization, maps user input to the transport, forwards applied resize dimensions, and keeps remote input out of synthesized DOM events.
 - Three headless tests exercise the real `BashShell`: virtual-file `cat`, `cd`/`pwd`, and the `wterm-ok` self-test marker.
-- Six headless conformance tests exercise the real `WasmBridge`: wide/CJK/emoji/combining/Devanagari/Arabic clusters, alternate-screen restore, scrollback retention/discard accounting, bracketed paste, mouse/SGR, focus events, application cursor keys, synchronized output, title OSC, palette and true-color SGR, and resize retention.
+- Twelve headless conformance tests exercise both the real `WasmBridge` and real `GhosttyCore`: wide/CJK/emoji/combining/Devanagari/Arabic clusters, alternate-screen restore, scrollback retention/accounting, bracketed paste, mouse/SGR, focus events, application cursor keys, synchronized output, title OSC, palette and true-color SGR, and resize retention. Core-specific expectations cover palette representation and scrollback discard behavior.
 - The built-in core retains 1,000 scrollback lines and reports discarded history. The production path no longer uses it for the Wanix terminal.
 - `@wterm/ghostty@0.5.7` is now the production core with a 16 MiB `scrollbackLimit`. A 6,000-line headless test at 80 columns retains at least 5,000 lines with zero discarded, so the 5,000-line gate is met for the production core. The packaged WASM is 597,635 bytes and bundled locally as `terminal-core.wasm`.
-- A new Ghostty conformance test covers complex clusters, bracketed paste, mouse/SGR, focus, application cursor keys, title OSC, alternate-screen restore, and resize retention.
+- Ghostty runs the same parameterized VT matrix as the built-in core, plus a dedicated 5,000-line scrollback gate at 80 columns.
 - A debug-only `-AirDeskWTermPreview` route loads a real `WTerm` with `BashShell` and just-bash in WKWebView. The preview auto-runs `echo wterm-ok` and verifies the rendered output through `readText()`.
 - The simulator XCUITest passes the `-AirDeskWTermPreview` route and waits for the rendered self-test marker.
 - The debug bundle is 2.1 MB unminified with a 57.4 kB CSS bundle. This is not a production size measurement; the preview includes the full just-bash environment.
