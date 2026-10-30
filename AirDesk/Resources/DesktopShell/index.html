@@ -75,14 +75,14 @@
   <div id="wanix-host" hidden>
     <wanix-namespace
       id="wanix"
-      wasm="https://cdn.jsdelivr.net/npm/wanix@0.4.0-rc2/dist/wanix.wasm">
+      wasm="wanix/wanix.wasm">
       <wanix-bind dst="." src="#ramfs/new"></wanix-bind>
       <wanix-bind id="opfs-bind" dst="opfs" src="#web/opfs"></wanix-bind>
       <wanix-bind dst="tmp" src="#ramfs/new"></wanix-bind>
       <wanix-bind
         type="file"
         dst="rc.wasm"
-        src="https://cdn.jsdelivr.net/npm/wanix-extras@0.4.0-rc2/dist/rc.wasm"></wanix-bind>
+        src="wanix/rc.wasm"></wanix-bind>
       <wanix-bind type="file" dst="README.md" perm="0644"># AirDesk Wanix Workspace
 
 This desktop is backed by a live Wanix namespace.

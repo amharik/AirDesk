@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="wanix-live.css">
   <script src="wanix-file-worker-fix.js"></script>
   <script type="module"
-    src="https://cdn.jsdelivr.net/npm/wanix@0.4.0-rc2/dist/wanix.min.js"></script>
+    src="wanix/wanix.min.js"></script>
 </head>
 <body>
   <main id="wanix-live" aria-label="Live Wanix kernel">
@@ -29,14 +29,14 @@
     <div id="wanix-surface">
       <wanix-namespace
         id="wanix"
-        wasm="https://cdn.jsdelivr.net/npm/wanix@0.4.0-rc2/dist/wanix.wasm">
+        wasm="wanix/wanix.wasm">
         <wanix-bind dst="." src="#ramfs/new"></wanix-bind>
         <wanix-bind id="opfs-bind" dst="opfs" src="#web/opfs"></wanix-bind>
         <wanix-bind dst="tmp" src="#ramfs/new"></wanix-bind>
         <wanix-bind
           type="file"
           dst="rc.wasm"
-          src="https://cdn.jsdelivr.net/npm/wanix-extras@0.4.0-rc2/dist/rc.wasm"></wanix-bind>
+          src="wanix/rc.wasm"></wanix-bind>
         <wanix-bind type="file" dst="README.md" perm="0644"># AirDesk Wanix Kernel
 
 This is a live Wanix namespace running inside AirDesk.

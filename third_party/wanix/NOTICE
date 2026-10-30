@@ -1,0 +1,9 @@
+Wanix 0.4.0-rc2
+Jeff Lindsay / Tractor Device
+https://github.com/tractordev/wanix
+https://wanix.dev
+
+Includes the Wanix runtime bundle and kernel WASM from the `wanix` package,
+and the `rc.wasm` shell/userland from the `wanix-extras` package.
+
+Licensed under the MIT License. See LICENSE in this directory.

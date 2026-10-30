@@ -255,9 +255,9 @@
   function loadRuntime() {
     var script = document.createElement('script');
     script.type = 'module';
-    script.src = 'https://cdn.jsdelivr.net/npm/wanix@0.4.0-rc2/dist/wanix.min.js';
+    script.src = 'wanix/wanix.min.js';
     script.addEventListener('error', function () {
-      fail('The Wanix runtime could not be loaded from the network.');
+      fail('The bundled Wanix runtime could not be loaded.');
     });
     document.head.appendChild(script);
   }
@@ -292,7 +292,7 @@
     });
 
     readyTimer = setTimeout(function () {
-      if (!root) fail('The Wanix kernel did not become ready. Check the network connection and retry.');
+      if (!root) fail('The Wanix kernel did not become ready. Retry the desktop.');
     }, 45000);
 
     prepareWorkspace().then(loadRuntime);
