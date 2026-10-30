@@ -94,7 +94,7 @@ Each cutover is independently reversible until its fallback is removed.
 - Four adapter tests pass against the real upstream implementation, including chrome preservation, focus/z-order, traffic-light routing, close vetoes, and duplicate-id focus behavior.
 - A debug-only `-AirDeskWinBoxPreview` route loads a bundled three-window harness through the real `DesktopSurface` and WKWebView preview sheet. The harness uses the shipped `shell.css` and upstream WinBox assets.
 - The simulator XCUITest covers focus/z-order, titlebar drag, minimize, maximize/restore, and close. It exposed a traffic-light bug where a second maximize tap did not restore; the adapter now toggles correctly and the regression is covered by both unit and UI tests.
-- Full local verification passes: 18 web tests, 99 iOS unit tests, 6 iOS UI tests, 6 Rust tests, and `npm run check`.
+- Full local verification passes: 21 web tests, 99 iOS unit tests, 7 iOS UI tests, 6 Rust tests, and `npm run check`.
 - Upstream distribution sizes are 11.0 kB for minified JS and 4.8 kB for CSS; the bundled build is 16.0 kB. No fork is required for the supported chrome path.
 - License text and attribution are recorded under `third_party/winbox/`.
 
@@ -105,7 +105,15 @@ Still pending before Trial: WKWebView/Cast 60 FPS measurement at 1080p, safe-are
 - Package metadata, licenses, and integrities were verified for wterm `0.5.7` and just-bash `3.6.0`.
 - The documented architecture provides a DOM renderer with native selection, copy/paste, search, accessibility, OSC 8 links, pluggable cores, and an inlined approximately 26 kB Zig/WASM VT core.
 - `@wterm/just-bash` depends on `just-bash ^3.4.2`; the selected peer pin is `3.6.0`.
-- No wterm runtime spike, WKWebView test, Wanix PTY integration, or conformance measurement has been completed yet. The status remains **Proposed**.
+- `@wterm/core` and `@wterm/dom` are production dependencies. `@wterm/just-bash` and `just-bash` are development dependencies for the offline debug spike, not the production Wanix shell.
+- Added a `TerminalEngine` contract and a `WTermEngine` adapter. The adapter queues output until initialization, maps user input to the transport, forwards applied resize dimensions, and keeps remote input out of synthesized DOM events.
+- Three headless tests exercise the real `BashShell`: virtual-file `cat`, `cd`/`pwd`, and the `wterm-ok` self-test marker.
+- A debug-only `-AirDeskWTermPreview` route loads a real `WTerm` with `BashShell` and just-bash in WKWebView. The preview auto-runs `echo wterm-ok` and verifies the rendered output through `readText()`.
+- The simulator XCUITest passes the `-AirDeskWTermPreview` route and waits for the rendered self-test marker.
+- The debug bundle is 2.1 MB unminified with a 57.4 kB CSS bundle. This is not a production size measurement; the preview includes the full just-bash environment.
+- just-bash's browser bundle imports an unused `node:zlib` path. The build aliases it to a local shim; gzip is intentionally unavailable in the offline shell.
+- Initializing the preview while its sheet is hidden produced a one-column auto-sized grid. The harness uses an explicit 80x24 grid until the surface is visible. The production adapter must initialize after the surface has a real size or re-fit on visibility.
+- No Wanix PTY integration, SSH transport, production cutover, or production bundle-size measurement has been completed yet. The status remains **Proposed**.
 
 ## Acceptance gates
 

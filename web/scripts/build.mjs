@@ -10,7 +10,8 @@ const check = process.argv.includes('--check');
 
 const entries = [
   { name: 'bridge', entryPoint: resolve(webRoot, 'src/bridge/entry.ts') },
-  { name: 'winbox-preview', entryPoint: resolve(webRoot, 'src/winbox-preview/entry.ts') }
+  { name: 'winbox-preview', entryPoint: resolve(webRoot, 'src/winbox-preview/entry.ts') },
+  { name: 'wterm-preview', entryPoint: resolve(webRoot, 'src/wterm-preview/entry.ts') }
 ];
 
 for (const { name, entryPoint } of entries) {
@@ -22,6 +23,7 @@ for (const { name, entryPoint } of entries) {
     platform: 'browser',
     target: ['safari17'],
     loader: { '.svg': 'dataurl' },
+    alias: { 'node:zlib': resolve(webRoot, 'src/shims/node-zlib.ts') },
     sourcemap: 'linked',
     sourcesContent: true,
     legalComments: 'none',

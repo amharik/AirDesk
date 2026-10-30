@@ -1,0 +1,90 @@
+@import "@wterm/dom/css";
+@import "../../../AirDesk/Resources/DesktopShell/shell.css";
+
+body {
+  background:
+    radial-gradient(70% 65% at 50% -10%, rgba(111, 227, 255, .16), transparent 65%),
+    radial-gradient(60% 60% at 100% 100%, rgba(155, 124, 255, .14), transparent 70%),
+    #070a12;
+}
+
+.wterm-preview {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
+}
+
+.wterm-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 34px;
+}
+
+.wterm-preview-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-weight: 650;
+  letter-spacing: -.01em;
+}
+
+.wterm-preview-title small {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.wterm-preview-status {
+  margin-left: auto;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.wterm-preview-action {
+  padding: 8px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--input);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.wterm-preview-action:active {
+  background: var(--hover);
+}
+
+#terminal {
+  --term-bg: #080b12;
+  --term-fg: #dce8fb;
+  --term-cursor: #6fe3ff;
+  --term-font-family: var(--mono);
+  --term-font-size: 13px;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--window-border);
+  border-radius: var(--window-radius);
+  background: #080b12;
+  box-shadow: var(--shadow);
+}
+
+#terminal .term-grid {
+  text-rendering: optimizeLegibility;
+}
+
+.wterm-preview-foot {
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .04em;
+}

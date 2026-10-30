@@ -24,6 +24,11 @@
         "scope": "development",
         "reason": "Public-domain dedication used only by build/test tooling.",
         "reviewed": "2026-10-29"
+      },
+      "LGPL-3.0": {
+        "scope": "development",
+        "reason": "Optional node-liblzma binding installed by the debug-only just-bash dependency; the browser bundle does not import or ship it.",
+        "reviewed": "2026-10-30"
       }
     },
     "serverOnly": [

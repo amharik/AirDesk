@@ -116,7 +116,7 @@ final class DesktopSurface {
 
         switch choice {
         case .wanixDesktop:
-            let page = usesWinBoxPreview ? "winbox-preview" : "index"
+            let page = usesWTermPreview ? "wterm-preview" : usesWinBoxPreview ? "winbox-preview" : "index"
             let url = try localAssetURL(name: page, extension: "html", request: request)
             configurePolicy(for: url, origins: [Self.origin(of: url)].compactMap { $0 })
             webView.load(URLRequest(url: url))
@@ -330,6 +330,14 @@ final class DesktopSurface {
     private var usesWinBoxPreview: Bool {
 #if DEBUG
         ProcessInfo.processInfo.arguments.contains("-AirDeskWinBoxPreview")
+#else
+        false
+#endif
+    }
+
+    private var usesWTermPreview: Bool {
+#if DEBUG
+        ProcessInfo.processInfo.arguments.contains("-AirDeskWTermPreview")
 #else
         false
 #endif
