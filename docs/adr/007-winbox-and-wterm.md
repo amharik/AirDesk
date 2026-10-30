@@ -118,6 +118,7 @@ Still pending before Trial: WKWebView/Cast 60 FPS measurement at 1080p, safe-are
 - Three headless tests exercise the real `BashShell`: virtual-file `cat`, `cd`/`pwd`, and the `wterm-ok` self-test marker.
 - Six headless conformance tests exercise the real `WasmBridge`: wide/CJK/emoji/combining/Devanagari/Arabic clusters, alternate-screen restore, scrollback retention/discard accounting, bracketed paste, mouse/SGR, focus events, application cursor keys, synchronized output, title OSC, palette and true-color SGR, and resize retention.
 - The bundled core retains 1,000 scrollback lines and reports discarded history. The 5,000-line gate is not met yet; it requires an upstream capacity change or a deliberate wrapper decision.
+- `@wterm/ghostty@0.5.7` was measured as the fallback core: 584 kB WASM, configurable `scrollbackLimit` in bytes, and 5,977 retained rows with zero discarded at 80 columns and an 8 MiB budget. It is not adopted yet; switching cores requires the full conformance matrix and bundle/memory budget review.
 - A debug-only `-AirDeskWTermPreview` route loads a real `WTerm` with `BashShell` and just-bash in WKWebView. The preview auto-runs `echo wterm-ok` and verifies the rendered output through `readText()`.
 - The simulator XCUITest passes the `-AirDeskWTermPreview` route and waits for the rendered self-test marker.
 - The debug bundle is 2.1 MB unminified with a 57.4 kB CSS bundle. This is not a production size measurement; the preview includes the full just-bash environment.
@@ -126,7 +127,8 @@ Still pending before Trial: WKWebView/Cast 60 FPS measurement at 1080p, safe-are
 - Added a production terminal path behind `?terminal=wterm` or `airdesk.terminal=wterm`. It lazily loads a 283.7 kB JS / 10.4 kB CSS wterm bundle, waits for the Wanix task PTY, opens `${task.term}/data` read/write streams, and keeps `wanix-term` as the default until conformance passes.
 - The WTerm adapter preserves the desktop's `_term` focus/input/paste compatibility hooks, and `desktop.js` now recognizes both `wanix-term` and `.wterm-term`.
 - A `-AirDeskWTermDesktop` route drives the production shell with wterm. Its XCUITest verifies engine selection, live Wanix PTY attachment, and keyboard typing through the native bridge.
-- Wanix PTY resize is not yet propagated; WTerm fits locally and output/input replay semantics still need conformance coverage. SSH transport and the default cutover remain incomplete. The status remains **Proposed**.
+- Wanix has no working PTY resize propagation to consume. The `#term/<id>/winch` device broadcasts bytes, but upstream's rc design notes explicitly leave signal/resize handling unimplemented, and the shell does not read it. WTerm fits locally; real PTY resize requires an upstream Wanix/rc change or a deliberate scope reduction. Reconnect/replay semantics remain unverified.
+- SSH transport and the default cutover remain incomplete. The status remains **Proposed**.
 
 ## Acceptance gates
 
