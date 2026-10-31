@@ -2,6 +2,11 @@
 (function () {
   'use strict';
 
+  var opfsBind = document.getElementById('opfs-bind');
+  if (opfsBind && (location.search.indexOf('noopfs') >= 0 || !(navigator.storage && navigator.storage.getDirectory))) {
+    opfsBind.remove();
+  }
+
   var system = document.getElementById('wanix');
   var term = document.querySelector('wanix-term');
   var boot = document.getElementById('boot');

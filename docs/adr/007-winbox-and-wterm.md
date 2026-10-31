@@ -102,16 +102,17 @@ Each cutover is independently reversible until its fallback is removed.
 - WinBox can retain a stale internal root width after a hidden or late layout. Maximize now dispatches a viewport refresh, then explicitly reprojects the maximized bounds from the live viewport when WinBox's calculated size is smaller. The UI test polls through WinBox's 300 ms size transition instead of reading the frame immediately after the tap.
 - Rotation and inset changes reproject non-maximized window origins back inside the visible area through `clampToViewport()`, covered by the window-manager unit test.
 - The production adapter bundle is 32.8 kB JS with 8.1 kB CSS. No fork is required.
-- Full local verification passes: 36 web tests across 7 files, 99 iOS unit tests, 9 iOS UI tests, 6 Rust tests, and `npm run check`.
+- Full local verification passes: 37 web tests across 7 files, 99 iOS unit tests, 9 iOS UI tests, 6 Rust tests, and `npm run check`.
 - Upstream distribution sizes are 11.0 kB for minified JS and 4.8 kB for CSS; the bundled preview build is 16.0 kB.
 - License text and attribution are recorded under `third_party/winbox/`.
 
-Still pending before Trial: WKWebView/Cast 60 FPS measurement at 1080p, safe-area/rotation/external-display checks, physical native pointer and long-press regressions, VoiceOver/accessibility review, visual screenshots, CSP and signed-app offline packaging, and the category-D parity harness (the simulator harness now covers the adapter lifecycle path).
+Still pending before Trial: WKWebView/Cast 60 FPS measurement at 1080p, safe-area/rotation/external-display checks, physical native pointer and long-press regressions, VoiceOver/accessibility review, visual screenshots, signed-app network-disabled packaging, and the category-D parity harness (the simulator harness now covers the adapter lifecycle path).
 
 ### wterm
 
 - Package metadata, licenses, and integrities were verified for wterm `0.5.7` and just-bash `3.6.0`.
 - Wanix `0.4.0-rc2` is now vendored instead of loaded from jsDelivr. Runtime JS (`sha256 9c0c9f19806b578faf4f9fb15f63d1d1e4ee275a3f056b1a63df42093d1cd47b`), kernel WASM (`sha256 d84e0502d23fb97a45dedf1fd9501c5b58063d464e385679d49c3bd8611f7b86`), and rc shell WASM (`sha256 d37d17954d57267efa9e812b1b7b659c017a508828dddfcdf7ac5b9b60ad8cca`) live under `DesktopShell/wanix/`, with MIT attribution under `third_party/wanix/`. The production desktop and live-kernel route no longer require network access to start Wanix.
+- All four desktop pages now carry a restrictive CSP: local scripts and WASM only, local styles, data/blob images, local/blob workers, and no object/form/base targets. `script-src` includes `'unsafe-eval'` because Wanix's Go runtime constructs functions dynamically. Wanix also injects its Go/TinyGo `wasm_exec` glue as an inline script, so the policy allows the two exact runtime hashes (`sha256-a5qOmWtV4zivHG9TzYCcBDIYXWtamE0rSi+b/aPFeYw=` and `sha256-vWvTHbd5URFC6ZXdJfBcriueY7hIyWP2o0+8ycL5u40=`) instead of `'unsafe-inline'`. The live-kernel bootstrap moved out of an inline script, and no remote origins are allowed.
 - The documented architecture provides a DOM renderer with native selection, copy/paste, search, accessibility, OSC 8 links, pluggable cores, and an inlined approximately 26 kB Zig/WASM VT core.
 - `@wterm/just-bash` depends on `just-bash ^3.4.2`; the selected peer pin is `3.6.0`.
 - `@wterm/core`, `@wterm/dom`, and `@wterm/ghostty` are production dependencies. `@wterm/just-bash` and `just-bash` are development dependencies for the offline debug spike, not the production Wanix shell.

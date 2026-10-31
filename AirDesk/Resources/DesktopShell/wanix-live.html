@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="color-scheme" content="dark light">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' 'sha256-a5qOmWtV4zivHG9TzYCcBDIYXWtamE0rSi+b/aPFeYw=' 'sha256-vWvTHbd5URFC6ZXdJfBcriueY7hIyWP2o0+8ycL5u40='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' file:; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>AirDesk — Wanix Kernel</title>
   <link rel="stylesheet" href="wanix-live.css">
   <script src="wanix-file-worker-fix.js"></script>
@@ -58,12 +59,6 @@ Try `ls`, `cd opfs`, `echo hello &gt; note.txt`, or `cat note.txt`.
     </div>
   </main>
 
-  <script>
-    var opfsBind = document.getElementById("opfs-bind");
-    if (opfsBind && (location.search.indexOf("noopfs") >= 0 || !(navigator.storage && navigator.storage.getDirectory))) {
-      opfsBind.remove();
-    }
-  </script>
   <script src="bridge.js"></script>
   <script src="wanix-live.js"></script>
 </body>
