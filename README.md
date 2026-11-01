@@ -14,7 +14,7 @@ The primary runtime is Wanix, a Plan 9-inspired WebAssembly workspace. The deskt
 
 ## Remote SSH terminal
 
-Settings → Remote Terminal can replace the local Wanix terminal with a native SSH PTY. AirDesk pins the server's OpenSSH host key, stores the password in the device Keychain, and sends PTY input, resize, and stop events through the separate `airdeskTerminal` web bridge. The default startup command is `tmux new -A -s airdesk`, so reconnects attach to the same remote session. Disable the feature or clear the profile to return to the local shell; the legacy local terminal remains available with `?terminal=legacy`.
+Settings → Remote Terminal can replace the local Wanix terminal with a native SSH PTY. AirDesk pins the server's OpenSSH host key, stores the password in the device Keychain, and sends PTY input, resize, and stop events through the separate `airdeskTerminal` web bridge. The default startup command is `tmux new -A -s airdesk`, so reconnects attach to the same remote session. Applying settings restarts an open Terminal window, and disabling the feature returns it to the local shell. The legacy local terminal remains available with `?terminal=legacy`.
 
 ## System architecture
 

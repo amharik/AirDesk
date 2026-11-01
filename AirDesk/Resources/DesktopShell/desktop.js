@@ -392,6 +392,23 @@
     }, 140);
   }
 
+  function reopenApp(id) {
+    var existing = state.windows.find(function (entry) { return entry.id === id; });
+    if (!existing) return false;
+    closeWindow(existing);
+    var attempts = 0;
+    (function tryOpen() {
+      var stillClosing = state.windows.some(function (entry) { return entry.id === id; });
+      if (stillClosing && attempts < 20) {
+        attempts += 1;
+        setTimeout(tryOpen, 50);
+        return;
+      }
+      if (!stillClosing) openApp(id);
+    })();
+    return true;
+  }
+
   function markMinimized(win) {
     if (!win || win.minimized) return;
     win.minimized = true;
@@ -1727,6 +1744,11 @@
       setTimeout(revealDesktop, 480);
     }
   }
+
+  window.AirDeskDesktop = {
+    openApp: openApp,
+    reopenApp: reopenApp
+  };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

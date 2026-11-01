@@ -8,6 +8,8 @@ enum RemoteTerminalEvent: Sendable {
 
 @MainActor
 final class RemoteTerminalController {
+    static let maximumFlushSize = 64 * 1_024
+
     private(set) var isRunning = false
     var onEvent: ((RemoteTerminalEvent) -> Void)?
 
@@ -127,7 +129,13 @@ final class RemoteTerminalController {
         guard token == generation, !pending.isEmpty else { return }
         let data = pending
         pending.removeAll(keepingCapacity: true)
-        onEvent?(.data(data))
+
+        var offset = data.startIndex
+        while offset < data.endIndex {
+            let end = min(offset + Self.maximumFlushSize, data.endIndex)
+            onEvent?(.data(data.subdata(in: offset..<end)))
+            offset = end
+        }
     }
 
     private func finish(token: Int, error: Error?) {

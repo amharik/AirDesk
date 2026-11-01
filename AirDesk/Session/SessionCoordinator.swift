@@ -821,6 +821,7 @@ final class SessionCoordinator: ObservableObject {
 
         var payload = remoteTerminalControlPayload()
         payload["revision"] = remoteTerminalRevision
+        payload["restart"] = force
         desktopSurface.sendControl(type: "terminalConfig", payload: payload)
     }
 

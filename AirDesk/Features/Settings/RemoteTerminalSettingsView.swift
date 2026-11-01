@@ -103,7 +103,7 @@ struct RemoteTerminalSettingsView: View {
             } header: {
                 header("Apply")
             } footer: {
-                Text("An open SSH terminal reconnects automatically. Reopen the Terminal app to switch between local and remote mode.")
+                Text("An open Terminal window restarts automatically, switching between the local shell and SSH.")
             }
         }
         .scrollContentBackground(.hidden)
@@ -124,8 +124,8 @@ struct RemoteTerminalSettingsView: View {
             session.remoteTerminalSettingsDidChange()
             errorMessage = nil
             savedMessage = settings.remoteTerminalEnabled
-                ? "Saved. An open SSH terminal reconnects with the new profile."
-                : "Saved. Reopen Terminal to use the local Wanix shell."
+                ? "Saved. An open Terminal window restarts with the new profile."
+                : "Saved. An open Terminal window restarts with the local Wanix shell."
         } catch {
             savedMessage = nil
             errorMessage = error.localizedDescription

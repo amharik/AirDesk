@@ -30,17 +30,6 @@
 
   var remoteTerminalConfig = window.AIRDESK_REMOTE_TERMINAL || null;
 
-  function remoteTerminalKey(config) {
-    if (!config) return '';
-    return [
-      config.enabled ? '1' : '0',
-      config.host || '',
-      String(config.port || ''),
-      config.username || '',
-      config.startupCommand || ''
-    ].join('\u001f');
-  }
-
   function bytesToBase64(bytes) {
     var binary = '';
     var chunk = 0x8000;
@@ -61,7 +50,11 @@
 
   window.addEventListener('airdesk-terminal-control', function (event) {
     var message = event && event.detail;
-    if (message && message.type === 'terminalConfig') remoteTerminalConfig = message;
+    if (!message || message.type !== 'terminalConfig') return;
+    remoteTerminalConfig = message;
+    if (message.restart && window.AirDeskDesktop && typeof window.AirDeskDesktop.reopenApp === 'function') {
+      window.AirDeskDesktop.reopenApp('terminal');
+    }
   });
 
   function loadTerminalAssets() {
@@ -330,7 +323,6 @@
           var restartAttempts = 0;
           var receivedOutput = false;
           var currentConfig = config;
-          var currentKey = remoteTerminalKey(config);
           var removalObserver = null;
 
           function bridge() {
@@ -372,26 +364,7 @@
             var message = event && event.detail;
             if (!message || disconnected || !target.isConnected) return;
 
-            if (message.type === 'terminalConfig') {
-              var nextKey = remoteTerminalKey(message);
-              if (!message.enabled) {
-                disconnect(false);
-                showStatus('Remote terminal disabled. Reopen Terminal to use the local shell.');
-              } else if (nextKey !== currentKey) {
-                currentKey = nextKey;
-                currentConfig = message;
-                restartAttempts = 0;
-                receivedOutput = false;
-                post({ action: 'stop' });
-                if (engine) {
-                  try { engine.destroy(); } catch (error) { /* already destroyed */ }
-                  engine = null;
-                }
-                target.innerHTML = '';
-                startEngine();
-              }
-              return;
-            }
+            if (message.type === 'terminalConfig') return;
 
             if (message.type === 'terminalReady') {
               if (!receivedOutput) {

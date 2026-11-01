@@ -142,6 +142,40 @@ final class SSHPTYSessionTests: XCTestCase {
         XCTAssertFalse(controller.isRunning)
     }
 
+    @MainActor
+    func testControllerChunksLargeOutput() async throws {
+        let server = TestSSHServer()
+        let port = try await server.start()
+        defer { Task { await server.stop() } }
+
+        let configuration = try SSHPTYConfiguration(
+            host: "127.0.0.1",
+            port: port,
+            username: "tester",
+            authentication: .password("secret"),
+            expectedHostKey: String(openSSHPublicKey: server.hostKey.publicKey),
+            connectTimeout: .seconds(5)
+        )
+        let controller = RemoteTerminalController()
+        let events = RemoteEventBox()
+        controller.onEvent = { event in
+            Task { await events.append(event) }
+        }
+
+        try await controller.start(configuration: configuration)
+        let payload = String(repeating: "x", count: 200_000)
+        controller.write(Data(payload.utf8))
+
+        let received = await waitUntil(timeout: 10) {
+            await events.totalDataSize >= payload.utf8.count
+        }
+        XCTAssertTrue(received)
+        let maximum = await events.maximumDataSize
+        XCTAssertLessThanOrEqual(maximum, RemoteTerminalController.maximumFlushSize)
+
+        controller.stop()
+    }
+
     private func waitUntil(
         timeout: TimeInterval = 5,
         _ condition: () async -> Bool
@@ -190,6 +224,20 @@ private actor RemoteEventBox {
         events.contains {
             guard case .data(let data) = $0 else { return false }
             return String(decoding: data, as: UTF8.self).contains(value)
+        }
+    }
+
+    var totalDataSize: Int {
+        events.reduce(0) { total, event in
+            guard case .data(let data) = event else { return total }
+            return total + data.count
+        }
+    }
+
+    var maximumDataSize: Int {
+        events.reduce(0) { maximum, event in
+            guard case .data(let data) = event else { return maximum }
+            return max(maximum, data.count)
         }
     }
 }
