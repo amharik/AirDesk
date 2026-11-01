@@ -115,6 +115,11 @@ final class SessionCoordinator: ObservableObject {
     private var previewKeyboardRouting = false
     private var remoteTerminalRevision = 0
     private var lastRemoteTerminalConfigurationKey = ""
+    private let remoteTerminalMaximumReconnectAttempts = 3
+    private var remoteTerminalReconnectTask: Task<Void, Never>?
+    private var remoteTerminalReconnectAttempt = 0
+    private var remoteTerminalRequested = false
+    private var remoteTerminalResumeAfterBackground = false
 
     init(
         settings: AppSettings,
@@ -535,6 +540,8 @@ final class SessionCoordinator: ObservableObject {
 
     func remoteTerminalSettingsDidChange() {
         guard phase == .ready else { return }
+        remoteTerminalRequested = false
+        cancelRemoteTerminalReconnect()
         remoteTerminal.stop()
         remoteTerminalStatus = "Idle"
         pushRemoteTerminalConfiguration(force: true)
@@ -542,6 +549,11 @@ final class SessionCoordinator: ObservableObject {
 
     func sceneBecameActive() {
         guard phase == .ready else { return }
+        if remoteTerminalResumeAfterBackground {
+            remoteTerminalResumeAfterBackground = false
+            remoteTerminalRequested = true
+            startRemoteTerminal()
+        }
         if let endpoint {
             endpoint.sendControl(.resume)
             return
@@ -554,6 +566,17 @@ final class SessionCoordinator: ObservableObject {
 
     func sceneWillResignActive() {
         guard phase == .ready else { return }
+        if remoteTerminalRequested || remoteTerminal.isRunning {
+            remoteTerminalResumeAfterBackground = true
+            remoteTerminalRequested = false
+            cancelRemoteTerminalReconnect()
+            remoteTerminal.stop()
+            remoteTerminalStatus = "Paused while AirDesk is in the background"
+            desktopSurface.sendControl(
+                type: "terminalStatus",
+                payload: ["message": remoteTerminalStatus]
+            )
+        }
         if let endpoint {
             endpoint.sendControl(.suspend)
             return
@@ -666,6 +689,9 @@ final class SessionCoordinator: ObservableObject {
             phase = .ready
             stage = .ready
             pushRemoteTerminalConfiguration()
+            if remoteTerminalRequested {
+                startRemoteTerminal()
+            }
             recovery.reset()
             recoveryAttempts = 0
             diagnostics.mark("session.ready")
@@ -690,6 +716,9 @@ final class SessionCoordinator: ObservableObject {
     private func beginRecovery() {
         guard phase == .ready, recoveryTask == nil, selectedDevice != nil else { return }
         runtimeState = .recovering
+        remoteTerminalRequested = false
+        remoteTerminalResumeAfterBackground = false
+        cancelRemoteTerminalReconnect()
         remoteTerminal.stop()
         remoteTerminalStatus = "Idle"
         lastRemoteTerminalConfigurationKey = ""
@@ -777,6 +806,9 @@ final class SessionCoordinator: ObservableObject {
     }
 
     private func stopRuntime() {
+        remoteTerminalRequested = false
+        remoteTerminalResumeAfterBackground = false
+        cancelRemoteTerminalReconnect()
         remoteTerminal.stop()
         let endpoint = self.endpoint
         let runtime = self.runtime
@@ -828,6 +860,8 @@ final class SessionCoordinator: ObservableObject {
     private func handleTerminalMessage(_ message: TerminalBridgeMessage) {
         switch message.action {
         case "start":
+            cancelRemoteTerminalReconnect()
+            remoteTerminalRequested = true
             startRemoteTerminal()
         case "write":
             guard let encoded = message.data, let data = Data(base64Encoded: encoded) else { return }
@@ -836,6 +870,8 @@ final class SessionCoordinator: ObservableObject {
             guard let columns = message.columns, let rows = message.rows else { return }
             remoteTerminal.resize(columns: columns, rows: rows)
         case "stop":
+            remoteTerminalRequested = false
+            cancelRemoteTerminalReconnect()
             remoteTerminal.stop()
             remoteTerminalStatus = "Idle"
         default:
@@ -845,7 +881,12 @@ final class SessionCoordinator: ObservableObject {
 
     private func startRemoteTerminal() {
         guard phase == .ready else {
-            sendRemoteTerminalExit("Connect a desktop session before opening the remote terminal.")
+            remoteTerminalRequested = true
+            remoteTerminalStatus = "Waiting for the desktop session…"
+            desktopSurface.sendControl(
+                type: "terminalStatus",
+                payload: ["message": remoteTerminalStatus]
+            )
             return
         }
 
@@ -855,18 +896,29 @@ final class SessionCoordinator: ObservableObject {
             return
         }
 
+        #if DEBUG
+        let debugPrivateKeySeed = remoteTerminalDebugPrivateKeySeed
+        #else
+        let debugPrivateKeySeed: Data? = nil
+        #endif
+
         do {
-            let configuration = try profile.makeConfiguration()
+            let configuration = try profile.makeConfiguration(privateKeySeed: debugPrivateKeySeed)
             remoteTerminalStatus = "Connecting to \(profile.destination)…"
             Task { [weak self] in
                 guard let self else { return }
                 do {
                     try await self.remoteTerminal.start(configuration: configuration)
+                    self.remoteTerminalReconnectAttempt = 0
                 } catch is CancellationError {
                     return
                 } catch {
                     self.remoteTerminalStatus = "Failed: \(error.localizedDescription)"
-                    self.sendRemoteTerminalExit(error.localizedDescription)
+                    if self.remoteTerminalRequested {
+                        self.scheduleRemoteTerminalReconnect(reason: error.localizedDescription)
+                    } else {
+                        self.sendRemoteTerminalExit(error.localizedDescription)
+                    }
                 }
             }
         } catch {
@@ -878,6 +930,7 @@ final class SessionCoordinator: ObservableObject {
     private func handleRemoteTerminalEvent(_ event: RemoteTerminalEvent) {
         switch event {
         case .ready:
+            remoteTerminalReconnectAttempt = 0
             remoteTerminalStatus = "Connected to \(settings.remoteTerminalProfile.destination)"
             desktopSurface.sendControl(type: "terminalReady")
         case .data(let data):
@@ -886,13 +939,54 @@ final class SessionCoordinator: ObservableObject {
                 payload: ["data": data.base64EncodedString()]
             )
         case .exit(let message):
-            let detail = message ?? "The SSH session ended."
-            remoteTerminalStatus = "Disconnected: \(detail)"
-            desktopSurface.sendControl(type: "terminalExit", payload: ["message": detail])
+            if let message, remoteTerminalRequested {
+                remoteTerminalStatus = "Connection lost: \(message)"
+                scheduleRemoteTerminalReconnect(reason: message)
+            } else {
+                sendRemoteTerminalExit(message ?? "The SSH session ended.")
+            }
         }
     }
 
+    private func scheduleRemoteTerminalReconnect(reason: String) {
+        guard remoteTerminalRequested, phase == .ready else {
+            sendRemoteTerminalExit(reason)
+            return
+        }
+        guard remoteTerminalReconnectTask == nil else { return }
+        guard remoteTerminalReconnectAttempt < remoteTerminalMaximumReconnectAttempts else {
+            sendRemoteTerminalExit(reason)
+            return
+        }
+
+        remoteTerminalReconnectAttempt += 1
+        let attempt = remoteTerminalReconnectAttempt
+        let delay = min(8, 1 << (attempt - 1))
+        remoteTerminalStatus = "Reconnecting to \(settings.remoteTerminalProfile.destination) (\(attempt)/\(remoteTerminalMaximumReconnectAttempts))…"
+        desktopSurface.sendControl(
+            type: "terminalStatus",
+            payload: ["message": remoteTerminalStatus]
+        )
+
+        remoteTerminalReconnectTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000_000)
+            guard !Task.isCancelled, let self else { return }
+            self.remoteTerminalReconnectTask = nil
+            guard self.remoteTerminalRequested, self.phase == .ready else { return }
+            self.startRemoteTerminal()
+        }
+    }
+
+    private func cancelRemoteTerminalReconnect() {
+        remoteTerminalReconnectTask?.cancel()
+        remoteTerminalReconnectTask = nil
+        remoteTerminalReconnectAttempt = 0
+    }
+
     private func sendRemoteTerminalExit(_ message: String) {
+        remoteTerminalRequested = false
+        remoteTerminalResumeAfterBackground = false
+        cancelRemoteTerminalReconnect()
         remoteTerminalStatus = message
         desktopSurface.sendControl(type: "terminalExit", payload: ["message": message])
     }
@@ -1001,3 +1095,17 @@ final class SessionCoordinator: ObservableObject {
     }
 }
 
+
+#if DEBUG
+private extension SessionCoordinator {
+    var remoteTerminalDebugPrivateKeySeed: Data? {
+        let environment = ProcessInfo.processInfo.environment
+        guard ProcessInfo.processInfo.arguments.contains("-AirDeskRemoteSSHExternal"),
+              let encoded = environment["AIRDESK_SSH_PRIVATE_KEY_B64"],
+              let data = Data(base64Encoded: encoded) else {
+            return nil
+        }
+        return data
+    }
+}
+#endif

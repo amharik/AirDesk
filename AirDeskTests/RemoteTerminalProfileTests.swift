@@ -84,6 +84,24 @@ final class RemoteTerminalProfileTests: XCTestCase {
         }
     }
 
+    func testBuildsPrivateKeyConfigurationWithoutPassword() throws {
+        var candidate = profile(hostKey: hostKey())
+        candidate.password = ""
+        let seed = Curve25519.Signing.PrivateKey().rawRepresentation
+        let configuration = try candidate.makeConfiguration(privateKeySeed: seed)
+        guard case .privateKey = configuration.authentication else {
+            return XCTFail("Expected private key authentication")
+        }
+    }
+
+    func testRejectsInvalidPrivateKeySeed() {
+        var candidate = profile(hostKey: hostKey())
+        candidate.password = ""
+        XCTAssertThrowsError(try candidate.makeConfiguration(privateKeySeed: Data([1, 2, 3]))) { error in
+            XCTAssertEqual(error as? RemoteTerminalProfileError, .invalidPrivateKey)
+        }
+    }
+
     func testRejectsInvalidPinnedHostKey() {
         var candidate = profile(hostKey: hostKey())
         candidate.hostKey = "ssh-ed25519 not-a-key"

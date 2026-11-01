@@ -16,6 +16,8 @@ The primary runtime is Wanix, a Plan 9-inspired WebAssembly workspace. The deskt
 
 Settings → Remote Terminal can replace the local Wanix terminal with a native SSH PTY. AirDesk pins the server's OpenSSH host key, stores the password in the device Keychain, and sends PTY input, resize, and stop events through the separate `airdeskTerminal` web bridge. The default startup command is `tmux new -A -s airdesk`, so reconnects attach to the same remote session. Applying settings restarts an open Terminal window, and disabling the feature returns it to the local shell. The legacy local terminal remains available with `?terminal=legacy`.
 
+The DEBUG-only `scripts/real-ssh-smoke.sh` starts a throwaway OpenSSH server on loopback, provisions a temporary Ed25519 key, and runs the real-host XCUITest against a booted simulator. It uses `AIRDESK_SIMULATOR_ID` or the default iPad simulator, and does not leave credentials or private keys in the repository.
+
 ## System architecture
 
 ```mermaid
@@ -220,6 +222,14 @@ scripts/native-smoke-test.sh 3B46FDF8-1482-4517-99F3-D6EF46A85133
 ```
 
 The helper boots the simulator, installs the app, launches it with `-AirDeskSmokeTest`, and polls `Documents/airdesk-native-smoke.json` without relying on `simctl get_app_container`. It exits zero only when the JSON reports `"ok": true`. The test checks the terminal prompt, root file writes, `cp`, and the `opfs/` fallback mount.
+
+Run the real OpenSSH terminal smoke test on a Mac with `sshd` and Xcode:
+
+```bash
+scripts/real-ssh-smoke.sh
+```
+
+It starts a temporary loopback-only `sshd`, writes throwaway fixture values into the simulator's `com.airdesk.realsshsmoke` defaults domain, boots the simulator, and runs `RealSSHTerminalTests`. The script regenerates the Xcode project, builds the UI test target, and cleans up the server and defaults on exit.
 
 ## Security model
 

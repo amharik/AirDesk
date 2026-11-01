@@ -1,3 +1,4 @@
+import Crypto
 import Foundation
 import NIOSSH
 
@@ -9,6 +10,7 @@ enum RemoteTerminalProfileError: LocalizedError, Equatable {
     case missingPassword
     case missingHostKey
     case invalidHostKey(String)
+    case invalidPrivateKey
 
     var errorDescription: String? {
         switch self {
@@ -26,6 +28,8 @@ enum RemoteTerminalProfileError: LocalizedError, Equatable {
             return "Paste the server's pinned OpenSSH host key."
         case .invalidHostKey(let message):
             return "The pinned host key is invalid: \(message)"
+        case .invalidPrivateKey:
+            return "The SSH private key is invalid."
         }
     }
 }
@@ -52,7 +56,8 @@ struct RemoteTerminalProfile: Equatable, Sendable {
     }
 
     func makeConfiguration(
-        size: SSHTerminalSize = .init(columns: 80, rows: 24)
+        size: SSHTerminalSize = .init(columns: 80, rows: 24),
+        privateKeySeed: Data? = nil
     ) throws -> SSHPTYConfiguration {
         guard enabled else { throw RemoteTerminalProfileError.disabled }
 
@@ -62,7 +67,20 @@ struct RemoteTerminalProfile: Equatable, Sendable {
 
         let username = username.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !username.isEmpty else { throw RemoteTerminalProfileError.missingUsername }
-        guard !password.isEmpty else { throw RemoteTerminalProfileError.missingPassword }
+
+        let authentication: SSHPTYAuthentication
+        if let privateKeySeed {
+            let key: Curve25519.Signing.PrivateKey
+            do {
+                key = try Curve25519.Signing.PrivateKey(rawRepresentation: privateKeySeed)
+            } catch {
+                throw RemoteTerminalProfileError.invalidPrivateKey
+            }
+            authentication = .privateKey(NIOSSHPrivateKey(ed25519Key: key))
+        } else {
+            guard !password.isEmpty else { throw RemoteTerminalProfileError.missingPassword }
+            authentication = .password(password)
+        }
 
         let hostKey = hostKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !hostKey.isEmpty else { throw RemoteTerminalProfileError.missingHostKey }
@@ -78,7 +96,7 @@ struct RemoteTerminalProfile: Equatable, Sendable {
             host: host,
             port: port,
             username: username,
-            authentication: .password(password),
+            authentication: authentication,
             expectedHostKey: hostKey,
             size: size,
             startupCommand: command.isEmpty ? nil : command,

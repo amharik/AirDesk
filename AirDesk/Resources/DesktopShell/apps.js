@@ -311,6 +311,25 @@
           status.textContent = text;
         }
 
+        function showRemoteStatus(text, actionLabel, action) {
+          showStatus(text);
+          debugLog('terminal.status ' + text);
+          if (!actionLabel) return;
+          var button = document.createElement('button');
+          button.type = 'button';
+          button.textContent = actionLabel;
+          button.style.marginLeft = '10px';
+          button.style.padding = '2px 8px';
+          button.style.border = '1px solid currentColor';
+          button.style.borderRadius = '4px';
+          button.style.background = 'transparent';
+          button.style.color = 'inherit';
+          button.style.font = 'inherit';
+          button.style.cursor = 'pointer';
+          button.addEventListener('click', action);
+          status.appendChild(button);
+        }
+
         function mountRemoteTerminal(config) {
           host.innerHTML = '';
           var target = document.createElement('div');
@@ -323,6 +342,7 @@
           var restartAttempts = 0;
           var receivedOutput = false;
           var currentConfig = config;
+          var pendingInput = '';
           var removalObserver = null;
 
           function bridge() {
@@ -366,28 +386,39 @@
 
             if (message.type === 'terminalConfig') return;
 
+            if (message.type === 'terminalStatus') {
+              showRemoteStatus(message.message || 'Remote terminal status changed.');
+              return;
+            }
+
             if (message.type === 'terminalReady') {
-              if (!receivedOutput) {
-                showStatus('Connected to ' + (currentConfig.host || 'SSH') + '. Waiting for shell output…');
-              }
+              debugLog('terminal.ssh.ready');
+              showRemoteStatus(
+                (receivedOutput ? 'Reconnected to ' : 'Connected to ')
+                  + (currentConfig.host || 'SSH') + '. Waiting for shell output…'
+              );
               return;
             }
 
             if (message.type === 'terminalExit') {
               var detail = message.message || 'The SSH session ended.';
               disconnect(false);
-              showStatus('Remote terminal disconnected: ' + detail);
+              showRemoteStatus('Remote terminal disconnected: ' + detail, 'Retry', function () {
+                mountRemoteTerminal(currentConfig);
+              });
               return;
             }
 
             if (message.type === 'terminalData' && message.data && engine) {
               try {
-                engine.write(base64ToBytes(message.data));
+                var bytes = base64ToBytes(message.data);
+                debugLog('terminal.ssh.data ' + new TextDecoder().decode(bytes).replace(/\s+/g, ' ').slice(0, 120));
+                engine.write(bytes);
                 if (!receivedOutput) {
                   receivedOutput = true;
-                  status.hidden = true;
                   api.notify('Terminal attached to ' + (currentConfig.host || 'SSH') + ' over SSH');
                 }
+                status.hidden = true;
               } catch (error) {
                 debugLog('terminal.ssh.write.error ' + String(error && error.message || error));
               }
@@ -400,19 +431,21 @@
             if (restartAttempts < 2) {
               restartAttempts += 1;
               disconnect(false);
-              showStatus('Reconnecting to ' + (currentConfig.host || 'SSH') + '…');
+              showRemoteStatus('Reconnecting to ' + (currentConfig.host || 'SSH') + '…');
               setTimeout(function () {
                 if (root.isConnected) mountRemoteTerminal(currentConfig);
               }, 300);
             } else {
               disconnect(false);
-              showStatus('Could not start the remote terminal: ' + message);
+              showRemoteStatus('Could not start the remote terminal: ' + message, 'Retry', function () {
+                mountRemoteTerminal(currentConfig);
+              });
             }
           }
 
           function startEngine() {
             if (disconnected) return;
-            showStatus('Starting the SSH terminal…');
+            showRemoteStatus('Starting the SSH terminal…');
             debugLog('terminal.engine=ssh');
             loadTerminalAssets().then(function () {
               if (!window.AirDeskWTerm) throw new Error('The wterm runtime is unavailable.');
@@ -424,12 +457,18 @@
                 announceOutput: true,
                 transport: {
                   send: function (text) {
+                    pendingInput += text;
+                    if (/[\r\n]/.test(text)) {
+                      debugLog('terminal.ssh.input ' + pendingInput.replace(/\s+/g, ' ').slice(0, 120));
+                      pendingInput = '';
+                    }
                     post({ action: 'write', data: bytesToBase64(new TextEncoder().encode(text)) });
                   },
                   sendBinary: function (bytes) {
                     post({ action: 'write', data: bytesToBase64(bytes) });
                   },
                   resize: function (cols, rows) {
+                    debugLog('terminal.ssh.resize ' + cols + 'x' + rows);
                     post({ action: 'resize', columns: cols, rows: rows });
                   }
                 }

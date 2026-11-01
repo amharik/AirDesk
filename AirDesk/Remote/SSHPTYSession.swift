@@ -329,6 +329,7 @@ private final class SSHPTYChannelHandler: ChannelDuplexHandler {
     private let onData: (Data) -> Void
     private let onExit: (Int?) -> Void
     private let onError: (Error) -> Void
+    private var receivedExitStatus = false
 
     init(
         size: SSHTerminalSize,
@@ -389,6 +390,7 @@ private final class SSHPTYChannelHandler: ChannelDuplexHandler {
 
     func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
         if let exit = event as? SSHChannelRequestEvent.ExitStatus {
+            receivedExitStatus = true
             onExit(exit.exitStatus)
         }
         context.fireUserInboundEventTriggered(event)
@@ -400,7 +402,9 @@ private final class SSHPTYChannelHandler: ChannelDuplexHandler {
     }
 
     func channelInactive(context: ChannelHandlerContext) {
-        onExit(nil)
+        if !receivedExitStatus {
+            onError(SSHPTYError.connectionClosed)
+        }
         context.fireChannelInactive()
     }
 }

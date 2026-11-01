@@ -28,6 +28,9 @@ final class AppEnvironment: ObservableObject {
 
     private var bootstrapped = false
     private var cancellables = Set<AnyCancellable>()
+    #if DEBUG
+    private var remoteSSHTestServer: RemoteSSHTestServer?
+    #endif
 
     private init() {
         settings = AppSettings()
@@ -91,16 +94,71 @@ final class AppEnvironment: ObservableObject {
         diagnostics.mark("app.launch")
 
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("-AirDeskAutoDemo") {
+        let arguments = ProcessInfo.processInfo.arguments
+        let externalFixture = arguments.contains("-AirDeskRemoteSSHExternal")
+        let remoteFixture = arguments.contains("-AirDeskRemoteSSHTest")
+            || arguments.contains("-AirDeskRemoteSSHReconnectTest")
+        if externalFixture {
+            let environment = ProcessInfo.processInfo.environment
+            settings.remoteTerminalEnabled = true
+            settings.remoteTerminalHost = environment["AIRDESK_SSH_HOST"] ?? "127.0.0.1"
+            settings.remoteTerminalPort = Int(environment["AIRDESK_SSH_PORT"] ?? "") ?? 22
+            settings.remoteTerminalUsername = environment["AIRDESK_SSH_USERNAME"] ?? ""
+            settings.remoteTerminalHostKey = environment["AIRDESK_SSH_HOST_KEY"] ?? ""
+            settings.remoteTerminalStartupCommand = environment["AIRDESK_SSH_STARTUP"] ?? ""
+            settings.remoteTerminalPassword = ""
+            try? settings.saveRemoteTerminalPassword()
+            scheduleAutoDemo(arguments: arguments)
+        } else if remoteFixture {
             Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 900_000_000)
-                guard session.phase == .idle else { return }
-                session.beginConnection(to: .previewDevice)
+                do {
+                    let server = try await RemoteSSHTestServer.start(
+                        dropFirstSession: arguments.contains("-AirDeskRemoteSSHReconnectTest")
+                    )
+                    self.remoteSSHTestServer = server
+                    self.settings.remoteTerminalEnabled = true
+                    self.settings.remoteTerminalHost = "127.0.0.1"
+                    self.settings.remoteTerminalPort = server.port
+                    self.settings.remoteTerminalUsername = "tester"
+                    self.settings.remoteTerminalHostKey = server.hostKeyString
+                    self.settings.remoteTerminalStartupCommand = "tmux new -A -s airdesk"
+                    self.settings.remoteTerminalPassword = "secret"
+                    try? self.settings.saveRemoteTerminalPassword()
+                } catch {
+                    self.settings.remoteTerminalEnabled = false
+                }
+
+                if arguments.contains("-AirDeskAutoDemo") {
+                    try? await Task.sleep(nanoseconds: 900_000_000)
+                    guard self.session.phase == .idle else { return }
+                    self.session.beginConnection(to: .previewDevice)
+                }
             }
+        } else {
+            if settings.remoteTerminalHost == "127.0.0.1" {
+                settings.remoteTerminalEnabled = false
+                settings.remoteTerminalHost = ""
+                settings.remoteTerminalHostKey = ""
+                settings.remoteTerminalUsername = ""
+                settings.remoteTerminalPassword = ""
+                try? settings.saveRemoteTerminalPassword()
+            }
+            scheduleAutoDemo(arguments: arguments)
         }
         NativeSmokeTest.runIfRequested(session: session)
         #endif
     }
+
+    #if DEBUG
+    private func scheduleAutoDemo(arguments: [String]) {
+        guard arguments.contains("-AirDeskAutoDemo") else { return }
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 900_000_000)
+            guard session.phase == .idle else { return }
+            session.beginConnection(to: .previewDevice)
+        }
+    }
+    #endif
 
     private func updateIdleTimer(
         phase: SessionPhase,
