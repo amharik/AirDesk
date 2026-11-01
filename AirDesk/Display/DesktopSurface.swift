@@ -92,10 +92,6 @@ final class DesktopSurface {
         }
     }
 
-    deinit {
-        webView.configuration.userContentController.removeScriptMessageHandler(forName: RuntimeBridge.handlerName)
-    }
-
     func load(choice: RuntimeChoice, sessionId: String, generation: Int = 0, appearance: String = "dark") throws {
         let request = LoadRequest(choice: choice, sessionId: sessionId, generation: generation, appearance: appearance)
         lastLoad = request
