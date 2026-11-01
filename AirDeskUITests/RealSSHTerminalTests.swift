@@ -54,7 +54,7 @@ final class RealSSHTerminalTests: XCTestCase {
         app.launchEnvironment["AIRDESK_SSH_USERNAME"] = username
         app.launchEnvironment["AIRDESK_SSH_HOST_KEY"] = hostKey
         app.launchEnvironment["AIRDESK_SSH_PRIVATE_KEY_B64"] = privateKey
-        app.launchEnvironment["AIRDESK_SSH_STARTUP"] = ""
+        app.launchEnvironment["AIRDESK_SSH_STARTUP"] = value("startup") ?? ""
         app.launch()
         defer { app.terminate() }
 
@@ -87,10 +87,5 @@ final class RealSSHTerminalTests: XCTestCase {
             waitForProbe(app, containing: "terminal.ssh.input real-openssh", timeout: 25),
             "probe=\(probeLabel(app))"
         )
-
-        let attachment = XCTAttachment(screenshot: app.screenshot())
-        attachment.name = "real-openssh-terminal"
-        attachment.lifetime = .keepAlways
-        add(attachment)
     }
 }

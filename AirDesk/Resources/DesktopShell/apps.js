@@ -345,6 +345,18 @@
           var pendingInput = '';
           var removalObserver = null;
 
+          function printableInput(text) {
+            return text
+              .replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g, '')
+              .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '')
+              .replace(/\x1b[()][A-Za-z0-9]/g, '')
+              .replace(/\x1b[@-_]/g, '')
+              .replace(/[\x00-\x1f\x7f]/g, ' ')
+              .replace(/[^\x20-\x7e]/g, '')
+              .replace(/\s+/g, ' ')
+              .trim();
+          }
+
           function bridge() {
             return window.webkit && window.webkit.messageHandlers
               ? window.webkit.messageHandlers.airdeskTerminal
@@ -459,7 +471,8 @@
                   send: function (text) {
                     pendingInput += text;
                     if (/[\r\n]/.test(text)) {
-                      debugLog('terminal.ssh.input ' + pendingInput.replace(/\s+/g, ' ').slice(0, 120));
+                      var input = printableInput(pendingInput);
+                      if (input) debugLog('terminal.ssh.input ' + input.slice(0, 120));
                       pendingInput = '';
                     }
                     post({ action: 'write', data: bytesToBase64(new TextEncoder().encode(text)) });

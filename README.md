@@ -229,7 +229,7 @@ Run the real OpenSSH terminal smoke test on a Mac with `sshd` and Xcode:
 scripts/real-ssh-smoke.sh
 ```
 
-It starts a temporary loopback-only `sshd`, writes throwaway fixture values into the simulator's `com.airdesk.realsshsmoke` defaults domain, boots the simulator, and runs `RealSSHTerminalTests`. The script regenerates the Xcode project, builds the UI test target, and cleans up the server and defaults on exit.
+It starts a temporary loopback-only `sshd`, writes throwaway fixture values into the simulator's `com.airdesk.realsshsmoke` defaults domain, boots the simulator, and runs `RealSSHTerminalTests`. When `tmux` is available, the test starts and cleans up a temporary remote tmux session; otherwise it uses the login shell. The script regenerates the Xcode project, builds the UI test target, and cleans up the server, tmux session, and defaults on exit.
 
 ## Security model
 

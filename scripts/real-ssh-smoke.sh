@@ -6,8 +6,13 @@ PORT="${AIRDESK_SSH_SMOKE_PORT:-22222}"
 SIMULATOR_ID="${AIRDESK_SIMULATOR_ID:-F8348DD0-C13D-4A5F-A4C3-4D15589D7DDE}"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/airdesk-sshd.XXXXXX")"
 SSHD_PID=""
+TMUX_BIN="$(command -v tmux || true)"
+TMUX_SESSION=""
 
 cleanup() {
+    if [[ -n "$TMUX_BIN" && -n "$TMUX_SESSION" ]]; then
+        "$TMUX_BIN" kill-session -t "$TMUX_SESSION" >/dev/null 2>&1 || true
+    fi
     xcrun simctl spawn "$SIMULATOR_ID" defaults delete com.airdesk.realsshsmoke >/dev/null 2>&1 || true
     if [[ -n "$SSHD_PID" ]]; then
         kill "$SSHD_PID" 2>/dev/null || true
@@ -86,11 +91,17 @@ PY
 )"
 
 HOST_KEY="$(cut -d' ' -f1,2 "$WORK/host_key.pub")"
+STARTUP="${AIRDESK_SSH_STARTUP:-}"
+if [[ -z "$STARTUP" && -n "$TMUX_BIN" ]]; then
+    TMUX_SESSION="airdesk-smoke-$$"
+    STARTUP="$TMUX_BIN new -A -s $TMUX_SESSION"
+fi
 export AIRDESK_SSH_HOST=127.0.0.1
 export AIRDESK_SSH_PORT="$PORT"
 export AIRDESK_SSH_USERNAME="$(id -un)"
 export AIRDESK_SSH_HOST_KEY="$HOST_KEY"
 export AIRDESK_SSH_PRIVATE_KEY_B64="$PRIVATE_KEY_B64"
+export AIRDESK_SSH_STARTUP="$STARTUP"
 
 xcrun simctl shutdown "$SIMULATOR_ID" >/dev/null 2>&1 || true
 xcrun simctl boot "$SIMULATOR_ID" >/dev/null 2>&1 || true
@@ -113,6 +124,7 @@ xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke port 
 xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke username "$AIRDESK_SSH_USERNAME"
 xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke hostKey "$AIRDESK_SSH_HOST_KEY"
 xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke privateKey "$AIRDESK_SSH_PRIVATE_KEY_B64"
+xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke startup "$AIRDESK_SSH_STARTUP"
 
 xcodebuild test-without-building \
     -project AirDesk.xcodeproj \
