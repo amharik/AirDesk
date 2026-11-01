@@ -12,6 +12,7 @@ struct SettingsView: View {
             Form {
                 proSection
                 sessionSection
+                remoteTerminalSection
                 displaySection
                 cursorSection
                 runtimeSection
@@ -145,6 +146,50 @@ struct SettingsView: View {
             sectionHeader("Session")
         } footer: {
             Text("Display and runtime states are reported explicitly. AirDesk never claims readiness before the Wanix runtime confirms it.")
+        }
+        .listRowBackground(rowBackground)
+    }
+
+    private var remoteTerminalSection: some View {
+        Section {
+            NavigationLink {
+                RemoteTerminalSettingsView()
+            } label: {
+                HStack(spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .fill(ADTheme.accent.opacity(0.12))
+                            .frame(width: 34, height: 34)
+                        Image(systemName: "network")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(ADTheme.accent)
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("SSH remote terminal")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.9))
+                        Text(settings.remoteTerminalEnabled
+                             ? "\(settings.remoteTerminalProfile.destination) · \(session.remoteTerminalStatus)"
+                             : "Using the local Wanix shell")
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(ADTheme.textTertiary)
+                            .lineLimit(1)
+                    }
+
+                    Spacer()
+
+                    CapsuleBadge(
+                        text: settings.remoteTerminalEnabled ? "SSH" : "Local",
+                        tint: settings.remoteTerminalEnabled ? ADTheme.accent : ADTheme.textTertiary
+                    )
+                }
+                .padding(.vertical, 2)
+            }
+        } header: {
+            sectionHeader("Terminal transport")
+        } footer: {
+            Text("Attach the Terminal app to a remote PTY over pinned SSH and keep long-running work inside tmux. Credentials stay in the Keychain.")
         }
         .listRowBackground(rowBackground)
     }

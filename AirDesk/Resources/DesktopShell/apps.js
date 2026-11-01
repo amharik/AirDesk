@@ -28,6 +28,42 @@
     }
   }
 
+  var remoteTerminalConfig = window.AIRDESK_REMOTE_TERMINAL || null;
+
+  function remoteTerminalKey(config) {
+    if (!config) return '';
+    return [
+      config.enabled ? '1' : '0',
+      config.host || '',
+      String(config.port || ''),
+      config.username || '',
+      config.startupCommand || ''
+    ].join('\u001f');
+  }
+
+  function bytesToBase64(bytes) {
+    var binary = '';
+    var chunk = 0x8000;
+    for (var index = 0; index < bytes.length; index += chunk) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(index, index + chunk));
+    }
+    return btoa(binary);
+  }
+
+  function base64ToBytes(value) {
+    var binary = atob(value);
+    var bytes = new Uint8Array(binary.length);
+    for (var index = 0; index < binary.length; index++) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+    return bytes;
+  }
+
+  window.addEventListener('airdesk-terminal-control', function (event) {
+    var message = event && event.detail;
+    if (message && message.type === 'terminalConfig') remoteTerminalConfig = message;
+  });
+
   function loadTerminalAssets() {
     if (window.AirDeskWTerm) return Promise.resolve();
     if (terminalAssets) return terminalAssets;
@@ -280,6 +316,174 @@
         function showStatus(text) {
           status.hidden = false;
           status.textContent = text;
+        }
+
+        function mountRemoteTerminal(config) {
+          host.innerHTML = '';
+          var target = document.createElement('div');
+          target.className = 'wterm-term';
+          target.setAttribute('data-wterm', '');
+          host.appendChild(target);
+
+          var engine = null;
+          var disconnected = false;
+          var restartAttempts = 0;
+          var receivedOutput = false;
+          var currentConfig = config;
+          var currentKey = remoteTerminalKey(config);
+          var removalObserver = null;
+
+          function bridge() {
+            return window.webkit && window.webkit.messageHandlers
+              ? window.webkit.messageHandlers.airdeskTerminal
+              : null;
+          }
+
+          function post(message) {
+            var handler = bridge();
+            if (!handler) return false;
+            message.version = 1;
+            message.sessionId = window.AD && window.AD.sessionId ? window.AD.sessionId : '';
+            try {
+              handler.postMessage(message);
+              return true;
+            } catch (error) {
+              debugLog('terminal.ssh.post.error ' + String(error && error.message || error));
+              return false;
+            }
+          }
+
+          function disconnect(sendStop) {
+            if (disconnected) return;
+            disconnected = true;
+            if (sendStop !== false) post({ action: 'stop' });
+            window.removeEventListener('airdesk-terminal-control', handleControl);
+            if (removalObserver) {
+              removalObserver.disconnect();
+              removalObserver = null;
+            }
+            if (engine) {
+              try { engine.destroy(); } catch (error) { /* already destroyed */ }
+              engine = null;
+            }
+          }
+
+          function handleControl(event) {
+            var message = event && event.detail;
+            if (!message || disconnected || !target.isConnected) return;
+
+            if (message.type === 'terminalConfig') {
+              var nextKey = remoteTerminalKey(message);
+              if (!message.enabled) {
+                disconnect(false);
+                showStatus('Remote terminal disabled. Reopen Terminal to use the local shell.');
+              } else if (nextKey !== currentKey) {
+                currentKey = nextKey;
+                currentConfig = message;
+                restartAttempts = 0;
+                receivedOutput = false;
+                post({ action: 'stop' });
+                if (engine) {
+                  try { engine.destroy(); } catch (error) { /* already destroyed */ }
+                  engine = null;
+                }
+                target.innerHTML = '';
+                startEngine();
+              }
+              return;
+            }
+
+            if (message.type === 'terminalReady') {
+              if (!receivedOutput) {
+                showStatus('Connected to ' + (currentConfig.host || 'SSH') + '. Waiting for shell output…');
+              }
+              return;
+            }
+
+            if (message.type === 'terminalExit') {
+              var detail = message.message || 'The SSH session ended.';
+              disconnect(false);
+              showStatus('Remote terminal disconnected: ' + detail);
+              return;
+            }
+
+            if (message.type === 'terminalData' && message.data && engine) {
+              try {
+                engine.write(base64ToBytes(message.data));
+                if (!receivedOutput) {
+                  receivedOutput = true;
+                  status.hidden = true;
+                  api.notify('Terminal attached to ' + (currentConfig.host || 'SSH') + ' over SSH');
+                }
+              } catch (error) {
+                debugLog('terminal.ssh.write.error ' + String(error && error.message || error));
+              }
+            }
+          }
+
+          function fail(error) {
+            if (disconnected) return;
+            var message = String(error && error.message || error);
+            if (restartAttempts < 2) {
+              restartAttempts += 1;
+              disconnect(false);
+              showStatus('Reconnecting to ' + (currentConfig.host || 'SSH') + '…');
+              setTimeout(function () {
+                if (root.isConnected) mountRemoteTerminal(currentConfig);
+              }, 300);
+            } else {
+              disconnect(false);
+              showStatus('Could not start the remote terminal: ' + message);
+            }
+          }
+
+          function startEngine() {
+            if (disconnected) return;
+            showStatus('Starting the SSH terminal…');
+            debugLog('terminal.engine=ssh');
+            loadTerminalAssets().then(function () {
+              if (!window.AirDeskWTerm) throw new Error('The wterm runtime is unavailable.');
+              return window.AirDeskWTerm.create(target, {
+                cols: 80,
+                rows: 24,
+                autoResize: true,
+                cursorBlink: true,
+                announceOutput: true,
+                transport: {
+                  send: function (text) {
+                    post({ action: 'write', data: bytesToBase64(new TextEncoder().encode(text)) });
+                  },
+                  sendBinary: function (bytes) {
+                    post({ action: 'write', data: bytesToBase64(bytes) });
+                  },
+                  resize: function (cols, rows) {
+                    post({ action: 'resize', columns: cols, rows: rows });
+                  }
+                }
+              });
+            }).then(function (created) {
+              if (disconnected) {
+                try { created.destroy(); } catch (error) { /* already destroyed */ }
+                return false;
+              }
+              engine = created;
+              target.setAttribute('data-wterm-core', 'ghostty');
+              return engine.connect();
+            }).then(function (connected) {
+              if (connected === false || disconnected) return false;
+              engine.fit();
+              engine.focus();
+              if (!post({ action: 'start' })) throw new Error('The native terminal bridge is unavailable.');
+              return true;
+            }).catch(fail);
+          }
+
+          window.addEventListener('airdesk-terminal-control', handleControl);
+          removalObserver = new MutationObserver(function () {
+            if (!target.isConnected) disconnect();
+          });
+          removalObserver.observe(document.body, { childList: true, subtree: true });
+          startEngine();
         }
 
         function waitForTaskTerm() {
@@ -640,6 +844,11 @@
           watchdogTimer = setTimeout(function () {
             settle(new Error('The Wanix shell did not attach in time.'));
           }, 1800);
+        }
+
+        if (remoteTerminalConfig && remoteTerminalConfig.enabled) {
+          mountRemoteTerminal(remoteTerminalConfig);
+          return;
         }
 
         window.AirDeskKernel.ready.then(waitForTaskTerm).then(function () {

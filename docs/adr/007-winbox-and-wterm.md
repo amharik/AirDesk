@@ -2,7 +2,7 @@
 
 - **Status:** Proposed — WinBox parity and wterm qualification gates required
 - **Date:** 2026-10-29
-- **Updated:** 2026-10-31 — IndexedDB transcript replay and Wanix worker CSP fix
+- **Updated:** 2026-11-01 — Native SSH PTY transport and remote tmux integration
 - **Scope:** DesktopShell window management, window chrome integration, terminal emulation, WKWebView/Cast/native parity
 - **Supersedes:** ADR-002 decision to use `interact.js` for web window drag/resize/snapping and its rejection of `WinBox.js`. All other ADR-002 decisions remain in force.
 - **Related:** ADR-002, ADR-003, ADR-005
@@ -27,7 +27,7 @@ Adopt a library-backed compositor and terminal stack, behind AirDesk-owned adapt
 4. **wterm owns terminal emulation and rendering** by default in WKWebView and Cast. The DOM renderer (`@wterm/dom`) is the baseline and the production core is `@wterm/ghostty` with a 16 MiB scrollback budget; the built-in `@wterm/core` remains the lightweight preview/fallback core.
 5. **wterm sits behind a `TerminalEngine` adapter** implementing the current `wanix-term` contract. Wanix is not forked.
 6. **Wanix remains the authoritative live shell.** The `#task/shell/term` PTY is the product terminal. `@wterm/just-bash` is an offline/local shell adapter and demo fallback, not a replacement for Wanix and not an automatic silent fallback.
-7. **SSH uses a transport, not the renderer.** `WebSocketTransport` or an equivalent backend is permitted only after the ADR-005 authenticated `wss` and certificate gates pass. No SSH keys or credentials are bundled into the web shell.
+7. **SSH uses a native transport, not the renderer.** Remote shells run through SwiftNIO SSH in the app process with a pinned OpenSSH host key; no SSH keys or credentials are bundled into or exposed to the web shell. The `airdeskTerminal` bridge carries only PTY input, output, resize, and lifecycle messages. A `wss` transport remains subject to the ADR-005 certificate and relay gates if it is ever added.
 8. **`@wterm/ghostty` is the production core.** The built-in core failed the 5,000-line scrollback gate, so Ghostty is shipped locally with an explicit byte budget. The added 598 kB WASM asset is accepted pending the remaining conformance, memory, and Cast gates.
 9. **`interact.js` is retained only for non-WinBox drag surfaces**, if any remain. It is no longer the window drag/resize layer.
 10. **Thin upstream-first forks are allowed only for WinBox**, and only if AirDesk chrome cannot be preserved through supported extension points. wterm is not forked.
@@ -78,8 +78,8 @@ wterm and just-bash assets are bundled locally; no runtime CDN dependency is per
 3. **Window cutover:** swap the custom window manager for the adapter, keep a rollback flag, then delete the replaced `desktop.js` window code.
 4. **wterm spike:** implement `TerminalEngine` over the Wanix PTY; run VT conformance, complex-script, scrollback, resize, and reconnect tests. Add a just-bash smoke path only after the PTY path passes.
 5. **Terminal cutover:** ship wterm web first, retain the xterm path as a fallback until release metrics pass, then remove it.
-6. **SSH follow-up:** integrate an authenticated `wss` transport only after the ADR-005 certificate and relay gates pass.
-7. **Native follow-up:** a native terminal engine is a separate decision. GhosttyKit is not the default follow-up merely because an earlier draft selected Ghostty.
+6. **Remote SSH transport:** implemented natively with SwiftNIO SSH, a pinned host key, and remote PTY/`window-change`; the default startup command attaches to `tmux new -A -s airdesk`.
+7. **Native renderer follow-up:** a native terminal engine is a separate decision. GhosttyKit is not the default follow-up merely because an earlier draft selected Ghostty.
 
 Each cutover is independently reversible until its fallback is removed.
 
@@ -133,7 +133,8 @@ Still pending before Trial: WKWebView/Cast 60 FPS measurement at 1080p, safe-are
 - The shell now forwards WTerm resize dimensions to `#task/shell/term/winch` as `"<cols> <rows>\n"`. Wanix currently broadcasts that signal but upstream's rc design notes leave signal/resize handling unimplemented, so no running program consumes it yet. Real PTY resize remains blocked on an upstream Wanix/rc change.
 - Wanix worker sources imported their bundled client library through a base64 `data:` module. The production CSP blocks `data:` scripts, so the Go-js shell worker failed before `rc` could emit output. The Blob bootstrap now inlines that module into the worker source and leaves the CSP unchanged; live `rc` output, keyboard input, and transcript capture now work without relaxing script policy.
 - Terminal text now survives a reload or recovery within the same WKWebView session. Within 1.5 seconds of terminal output, the adapter captures retained history and the active screen with `readText()` into IndexedDB database `airdesk.terminal.v1`, store `transcripts`, key `airdesk.terminal.transcript.v1`, capped at 200,000 characters. Writes are async, failures retry, and whitespace-only captures remove the saved record instead of producing a false replay. On the next mount the adapter awaits the saved transcript and replays it with an explicit marker before starting the new shell. Storing plain text rather than raw control bytes prevents stale alternate-screen, cursor, or mouse modes from being replayed. The Wanix shell process still restarts, and byte-exact PTY reconnect plus live process resumption remain unimplemented.
-- The web terminal cutover is complete with `wanix-term` retained as an explicit rollback. SSH transport and the remaining qualification gates are still incomplete; the status remains **Proposed**.
+- The web terminal cutover is complete with `wanix-term` retained as an explicit rollback.
+- The remote SSH terminal is implemented in the native app layer: `SSHPTYSession` connects with a pinned OpenSSH host key, allocates a PTY or exec request, forwards input and resize, and streams output through `RemoteTerminalController` and the `airdeskTerminal` bridge. Settings store the password in the Keychain and default the startup command to `tmux new -A -s airdesk`. In-process SSH server tests cover PTY shell input, resize, exec, host-key rejection, and controller output relay; 113 unit tests pass. A real remote host and the remaining hardware qualification gates are still pending, so the status remains **Proposed**.
 
 ## Acceptance gates
 
@@ -157,7 +158,7 @@ Still pending before Trial: WKWebView/Cast 60 FPS measurement at 1080p, safe-are
 - Key encoding matches native input, and remote controller input reaches the PTY without DOM event synthesis.
 - The `wanix-term` contract and required `_term` compatibility hooks are preserved through the adapter.
 - The live Wanix PTY remains the default shell; just-bash is clearly labeled, optional, and isolated from the Wanix filesystem.
-- SSH remains disabled until an authenticated `wss` transport passes ADR-005 security and reconnect gates.
+- Remote SSH remains opt-in; the local Wanix shell is the default. Enabling it requires a pinned host key, and native PTY input, resize, reconnect, and host-key rejection tests must pass before release.
 - WASM load time, memory, and offline bundle size meet the agreed budget.
 - Text selection, copy/paste, find, focus order, and VoiceOver behavior pass in WKWebView.
 - No runtime CDN is required for Wanix, wterm, just-bash, fonts, or cores.
@@ -168,7 +169,7 @@ Still pending before Trial: WKWebView/Cast 60 FPS measurement at 1080p, safe-are
 - AirDesk stops owning fragile window geometry and terminal parsing code.
 - wterm remains the primary terminal stack; its production core is now Ghostty, while a standalone Ghostty terminal is still not the default path.
 - just-bash provides an offline demo and test shell, but it is not a general POSIX environment, a Wanix replacement, or a network client.
-- SSH remains a transport product, not a renderer feature; it cannot ship before authenticated remote transport exists.
+- SSH remains a transport product, not a renderer feature; the native transport can ship independently of the web renderer while the local Wanix shell remains the default.
 - Two mature libraries enter the production surface, with new pins, upgrades, and qualification work.
 - The compositor migration temporarily carries both implementations and a rollback flag.
 - WinBox’s DOM ownership may force a thin fork; that fork becomes a maintained asset and must be tracked as a supply-chain item.

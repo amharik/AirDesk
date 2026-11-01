@@ -86,6 +86,7 @@ final class SessionCoordinator: ObservableObject {
     @Published private(set) var previewKeyboardShowRequest = 0
     @Published private(set) var previewKeyboardDismissRequest = 0
     @Published private(set) var debugJSLog = ""
+    @Published private(set) var remoteTerminalStatus = "Idle"
 
     var recoveryMaximumAttempts: Int { recovery.maximumAttempts }
 
@@ -99,6 +100,7 @@ final class SessionCoordinator: ObservableObject {
     private let display: DisplayCoordinator
     private let cast: CastSessionCoordinator
     private let entitlements: EntitlementManager
+    private let remoteTerminal = RemoteTerminalController()
     private let logger = Logger(subsystem: "com.airdesk.ios", category: "Session")
 
     private var endpoint: (any RuntimeEndpoint)?
@@ -111,6 +113,8 @@ final class SessionCoordinator: ObservableObject {
     private var recovery = SessionRecovery()
     private var nativeInputCaptured = false
     private var previewKeyboardRouting = false
+    private var remoteTerminalRevision = 0
+    private var lastRemoteTerminalConfigurationKey = ""
 
     init(
         settings: AppSettings,
@@ -162,8 +166,16 @@ final class SessionCoordinator: ObservableObject {
         desktopSurface.onMessage = { [weak self] message in
             self?.handleBridgeMessage(message)
         }
+        desktopSurface.onTerminalMessage = { [weak self] message in
+            self?.handleTerminalMessage(message)
+        }
+        remoteTerminal.onEvent = { [weak self] event in
+            self?.handleRemoteTerminalEvent(event)
+        }
         desktopSurface.onReady = { [weak self] in
-            guard let self, self.phase == .ready else { return }
+            guard let self else { return }
+            self.pushRemoteTerminalConfiguration()
+            guard self.phase == .ready else { return }
             self.runtimeState = .ready
             self.pushInputRouting()
         }
@@ -521,6 +533,13 @@ final class SessionCoordinator: ObservableObject {
         }
     }
 
+    func remoteTerminalSettingsDidChange() {
+        guard phase == .ready else { return }
+        remoteTerminal.stop()
+        remoteTerminalStatus = "Idle"
+        pushRemoteTerminalConfiguration(force: true)
+    }
+
     func sceneBecameActive() {
         guard phase == .ready else { return }
         if let endpoint {
@@ -581,6 +600,7 @@ final class SessionCoordinator: ObservableObject {
                 workspace: workspace,
                 appearance: settings.desktopAppearance
             )
+            desktopSurface.remoteTerminalBootstrap = remoteTerminalControlPayload()
 
             if let endpoint = endpointFactory(activeProfile) {
                 self.endpoint = endpoint
@@ -645,6 +665,7 @@ final class SessionCoordinator: ObservableObject {
 
             phase = .ready
             stage = .ready
+            pushRemoteTerminalConfiguration()
             recovery.reset()
             recoveryAttempts = 0
             diagnostics.mark("session.ready")
@@ -669,6 +690,9 @@ final class SessionCoordinator: ObservableObject {
     private func beginRecovery() {
         guard phase == .ready, recoveryTask == nil, selectedDevice != nil else { return }
         runtimeState = .recovering
+        remoteTerminal.stop()
+        remoteTerminalStatus = "Idle"
+        lastRemoteTerminalConfigurationKey = ""
         setNotice("Desktop process restarted. Restoring the workspace…")
         diagnostics.mark("session.recovery.begin")
         recoveryTask = Task { [weak self] in
@@ -713,6 +737,8 @@ final class SessionCoordinator: ObservableObject {
         isDragging = false
         pointer.center()
         runtimeState = .idle
+        remoteTerminalStatus = "Idle"
+        lastRemoteTerminalConfigurationKey = ""
     }
 
     private func resolvedMode(for device: DisplayDevice) -> SessionMode {
@@ -751,6 +777,7 @@ final class SessionCoordinator: ObservableObject {
     }
 
     private func stopRuntime() {
+        remoteTerminal.stop()
         let endpoint = self.endpoint
         let runtime = self.runtime
         let hadEndpoint = endpoint != nil
@@ -765,6 +792,108 @@ final class SessionCoordinator: ObservableObject {
         if !hadEndpoint, selectedDevice?.kind == .cast {
             cast.disconnect()
         }
+    }
+
+    private func remoteTerminalControlPayload() -> [String: Any] {
+        let profile = settings.remoteTerminalProfile
+        return [
+            "enabled": profile.enabled,
+            "host": profile.host,
+            "username": profile.username,
+            "port": profile.port,
+            "startupCommand": profile.startupCommand
+        ]
+    }
+
+    private func pushRemoteTerminalConfiguration(force: Bool = false) {
+        let profile = settings.remoteTerminalProfile
+        let key = [
+            profile.enabled ? "1" : "0",
+            profile.host,
+            String(profile.port),
+            profile.username,
+            profile.startupCommand
+        ].joined(separator: "\u{1f}")
+
+        guard force || key != lastRemoteTerminalConfigurationKey else { return }
+        lastRemoteTerminalConfigurationKey = key
+        remoteTerminalRevision += 1
+
+        var payload = remoteTerminalControlPayload()
+        payload["revision"] = remoteTerminalRevision
+        desktopSurface.sendControl(type: "terminalConfig", payload: payload)
+    }
+
+    private func handleTerminalMessage(_ message: TerminalBridgeMessage) {
+        switch message.action {
+        case "start":
+            startRemoteTerminal()
+        case "write":
+            guard let encoded = message.data, let data = Data(base64Encoded: encoded) else { return }
+            remoteTerminal.write(data)
+        case "resize":
+            guard let columns = message.columns, let rows = message.rows else { return }
+            remoteTerminal.resize(columns: columns, rows: rows)
+        case "stop":
+            remoteTerminal.stop()
+            remoteTerminalStatus = "Idle"
+        default:
+            break
+        }
+    }
+
+    private func startRemoteTerminal() {
+        guard phase == .ready else {
+            sendRemoteTerminalExit("Connect a desktop session before opening the remote terminal.")
+            return
+        }
+
+        let profile = settings.remoteTerminalProfile
+        guard profile.enabled else {
+            sendRemoteTerminalExit("Remote terminal is disabled in Settings.")
+            return
+        }
+
+        do {
+            let configuration = try profile.makeConfiguration()
+            remoteTerminalStatus = "Connecting to \(profile.destination)…"
+            Task { [weak self] in
+                guard let self else { return }
+                do {
+                    try await self.remoteTerminal.start(configuration: configuration)
+                } catch is CancellationError {
+                    return
+                } catch {
+                    self.remoteTerminalStatus = "Failed: \(error.localizedDescription)"
+                    self.sendRemoteTerminalExit(error.localizedDescription)
+                }
+            }
+        } catch {
+            remoteTerminalStatus = error.localizedDescription
+            sendRemoteTerminalExit(error.localizedDescription)
+        }
+    }
+
+    private func handleRemoteTerminalEvent(_ event: RemoteTerminalEvent) {
+        switch event {
+        case .ready:
+            remoteTerminalStatus = "Connected to \(settings.remoteTerminalProfile.destination)"
+            desktopSurface.sendControl(type: "terminalReady")
+        case .data(let data):
+            desktopSurface.sendControl(
+                type: "terminalData",
+                payload: ["data": data.base64EncodedString()]
+            )
+        case .exit(let message):
+            let detail = message ?? "The SSH session ended."
+            remoteTerminalStatus = "Disconnected: \(detail)"
+            desktopSurface.sendControl(type: "terminalExit", payload: ["message": detail])
+        }
+    }
+
+    private func sendRemoteTerminalExit(_ message: String) {
+        remoteTerminalStatus = message
+        desktopSurface.sendControl(type: "terminalExit", payload: ["message": message])
     }
 
     private func handleBridgeMessage(_ message: BridgeMessage) {

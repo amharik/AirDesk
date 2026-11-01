@@ -34,9 +34,11 @@ final class DesktopSurface {
     private let logger = Logger(subsystem: "com.airdesk.ios", category: "DesktopSurface")
     let webView: WKWebView
     private let bridge: RuntimeBridge
+    private let terminalBridge = TerminalBridge()
     private let navigationPolicy: NavigationPolicy
 
     private(set) var isReady = false
+    var remoteTerminalBootstrap: [String: Any] = [:]
     private(set) var destination: Destination = .detached
     private(set) var lastViewport: CGSize = .zero
     private var lastLoad: LoadRequest?
@@ -45,6 +47,7 @@ final class DesktopSurface {
     weak var homeContainer: UIView?
     var onReady: (() -> Void)?
     var onMessage: ((BridgeMessage) -> Void)?
+    var onTerminalMessage: ((TerminalBridgeMessage) -> Void)?
     var onStateChange: ((String) -> Void)?
     var onFailure: ((Error) -> Void)?
 
@@ -80,7 +83,14 @@ final class DesktopSurface {
         webView.uiDelegate = navigationPolicy
 
         contentController.add(bridge, name: RuntimeBridge.handlerName)
+        contentController.add(terminalBridge, name: TerminalBridge.handlerName)
         bridge.attach(webView)
+        terminalBridge.onMessage = { [weak self] message in
+            self?.onTerminalMessage?(message)
+        }
+        terminalBridge.onDecodeFailure = { [weak self] error in
+            self?.logger.debug("Terminal bridge decode failure: \(String(describing: error), privacy: .public)")
+        }
         navigationPolicy.onFailure = { [weak self] error in
             self?.handleLoadFailure(error)
         }
@@ -97,6 +107,7 @@ final class DesktopSurface {
         lastLoad = request
         isReady = false
         bridge.sessionId = sessionId
+        terminalBridge.sessionId = sessionId
         bridge.onMessage = { [weak self] message in
             self?.handle(message)
         }
@@ -211,6 +222,7 @@ final class DesktopSurface {
         let runtime = Self.jsString(request.choice.rawValue)
         let appearance = Self.jsString(request.appearance)
         let device = Self.jsString(DeviceContext.name)
+        let remoteTerminal = Self.jsObject(remoteTerminalBootstrap)
         let source = """
         window.AIRDESK_SESSION_ID = \(session);
         window.AIRDESK_RUNTIME = \(runtime);
@@ -218,6 +230,7 @@ final class DesktopSurface {
         window.AIRDESK_APPEARANCE = \(appearance);
         window.AIRDESK_DEVICE_NAME = \(device);
         window.AIRDESK_NATIVE = true;
+        window.AIRDESK_REMOTE_TERMINAL = \(remoteTerminal);
         """
         controller.addUserScript(WKUserScript(
             source: source,
@@ -375,6 +388,17 @@ final class DesktopSurface {
     private static func jsString(_ value: String) -> String {
         let data = try? JSONEncoder().encode(value)
         return data.flatMap { String(data: $0, encoding: .utf8) } ?? "\"\""
+    }
+
+    private static func jsObject(_ value: [String: Any]) -> String {
+        guard
+            JSONSerialization.isValidJSONObject(value),
+            let data = try? JSONSerialization.data(withJSONObject: value),
+            let string = String(data: data, encoding: .utf8)
+        else {
+            return "null"
+        }
+        return string
     }
 }
 

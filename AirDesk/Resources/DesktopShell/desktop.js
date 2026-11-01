@@ -1477,6 +1477,10 @@
 
   function handleControl(message) {
     if (!message) return;
+    if (message.type && message.type.indexOf('terminal') === 0) {
+      window.dispatchEvent(new CustomEvent('airdesk-terminal-control', { detail: message }));
+      return;
+    }
     if (message.type === 'inputMode') {
       nativeInputCaptured = !!message.captured;
       if (nativeInputCaptured) {

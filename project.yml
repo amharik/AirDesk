@@ -26,6 +26,15 @@ packages:
   FlatBuffers:
     url: https://github.com/google/flatbuffers
     exactVersion: 25.12.19
+  SwiftNIO:
+    url: https://github.com/apple/swift-nio.git
+    exactVersion: 2.104.0
+  SwiftNIOSSH:
+    url: https://github.com/apple/swift-nio-ssh.git
+    exactVersion: 0.15.1
+  SwiftCrypto:
+    url: https://github.com/apple/swift-crypto.git
+    exactVersion: 4.5.2
 targets:
   AirDesk:
     type: application
@@ -55,6 +64,12 @@ targets:
         product: GoogleCastDynamic
       - package: FlatBuffers
         product: FlatBuffers
+      - package: SwiftNIO
+        product: NIOCore
+      - package: SwiftNIO
+        product: NIOPosix
+      - package: SwiftNIOSSH
+        product: NIOSSH
   AirDeskTests:
     type: bundle.unit-test
     platform: iOS
@@ -62,6 +77,14 @@ targets:
       - path: AirDeskTests
     dependencies:
       - target: AirDesk
+      - package: SwiftNIO
+        product: NIOCore
+      - package: SwiftNIO
+        product: NIOPosix
+      - package: SwiftNIOSSH
+        product: NIOSSH
+      - package: SwiftCrypto
+        product: Crypto
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.airdesk.ios.tests
