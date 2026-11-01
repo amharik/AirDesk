@@ -21,10 +21,10 @@
   function useWTermTerminal() {
     try {
       var requested = new URLSearchParams(window.location.search).get('terminal');
-      if (requested) return requested === 'wterm';
-      return localStorage.getItem('airdesk.terminal') === 'wterm';
+      if (requested) return requested !== 'legacy';
+      return localStorage.getItem('airdesk.terminal') !== 'legacy';
     } catch (error) {
-      return false;
+      return true;
     }
   }
 
@@ -275,6 +275,7 @@
         var host = root.querySelector('[data-term-host]');
         var status = root.querySelector('[data-term-status]');
         var wantsWTerm = useWTermTerminal();
+        var transcriptReplayed = false;
 
         function showStatus(text) {
           status.hidden = false;
@@ -311,8 +312,97 @@
           var disconnected = false;
           var queued = [];
           var queuedInput = [];
+          var lineBuffer = '';
           var encoder = new TextEncoder();
           var removalObserver = null;
+          var transcriptTimer = 0;
+          var transcriptInFlight = false;
+
+          var transcriptStore = null;
+
+          function transcriptSessionId() {
+            var api = window.AD;
+            return String(api && api.sessionId || 'local');
+          }
+
+          function transcriptApi() {
+            var runtime = window.AirDeskWTerm;
+            return runtime && runtime.transcript ? runtime.transcript : null;
+          }
+
+          function transcriptStoreHandle() {
+            if (transcriptStore) return transcriptStore;
+            var api = transcriptApi();
+            if (!api || typeof api.createStore !== 'function') return null;
+            try {
+              transcriptStore = api.createStore();
+            } catch (error) {
+              transcriptStore = null;
+            }
+            return transcriptStore;
+          }
+
+          function captureTranscript() {
+            if (disconnected || transcriptInFlight || !engine) return;
+            var api = transcriptApi();
+            var store = transcriptStoreHandle();
+            if (!api || !store) return;
+            var current = engine;
+            transcriptInFlight = true;
+            current.readText().then(function (text) {
+              return api.save(store, text, transcriptSessionId());
+            }).then(function (saved) {
+              if (disconnected || engine !== current) return;
+              debugLog(saved
+                ? 'terminal.transcript.saved=' + saved.length + ' session=' + transcriptSessionId()
+                : 'terminal.transcript.blank session=' + transcriptSessionId());
+            }).catch(function (error) {
+              debugLog('terminal.transcript.capture.error ' + String(error && error.message || error));
+              if (!disconnected) scheduleTranscriptCapture();
+            }).then(function () {
+              transcriptInFlight = false;
+            });
+          }
+
+          function scheduleTranscriptCapture() {
+            if (disconnected || transcriptTimer) return;
+            transcriptTimer = setTimeout(function () {
+              transcriptTimer = 0;
+              captureTranscript();
+            }, 1500);
+          }
+
+          function replayTranscript() {
+            if (transcriptReplayed || !engine) return Promise.resolve(false);
+            transcriptReplayed = true;
+            var api = transcriptApi();
+            var store = transcriptStoreHandle();
+            if (!api || !store) {
+              debugLog('terminal.transcript.unavailable');
+              return Promise.resolve(false);
+            }
+            return api.read(store, transcriptSessionId()).then(function (saved) {
+              debugLog('terminal.transcript.source=' + saved.length + ' session=' + transcriptSessionId());
+              var replay = api.replay(saved);
+              if (!replay) {
+                debugLog('terminal.transcript.empty');
+                return false;
+              }
+              engine.write(replay);
+              debugLog('terminal.transcript.replayed=' + saved.length);
+              return true;
+            }).catch(function (error) {
+              debugLog('terminal.transcript.read.error ' + String(error && error.message || error));
+              return false;
+            });
+          }
+
+          function captureWhenHidden() {
+            if (document.hidden) captureTranscript();
+          }
+
+          document.addEventListener('visibilitychange', captureWhenHidden);
+          window.addEventListener('pagehide', captureTranscript);
 
           function dispatchInput(method, data) {
             if (engine) {
@@ -341,12 +431,41 @@
           }
 
           function sendText(text) {
-            sendBytes(encoder.encode(text));
+            if (disconnected) return;
+            if (text.charAt(0) === '\x1b') {
+              sendBytes(encoder.encode(text));
+              return;
+            }
+            for (var index = 0; index < text.length; index++) {
+              var character = text.charAt(index);
+              if (character === '\x03') {
+                lineBuffer = '';
+                sendBytes(encoder.encode('\x03\n'));
+                if (engine) engine.write('^C\r\n');
+              } else if (character === '\r' || character === '\n') {
+                var line = lineBuffer;
+                lineBuffer = '';
+                sendBytes(encoder.encode(line + '\n'));
+                if (engine) engine.write('\r\n');
+              } else if (character === '\x7f' || character === '\b') {
+                if (lineBuffer) {
+                  lineBuffer = lineBuffer.slice(0, -1);
+                  if (engine) engine.write('\b \b');
+                }
+              } else if (character >= ' ') {
+                lineBuffer += character;
+                if (engine) engine.write(character);
+              }
+            }
           }
 
           function disconnect() {
             if (disconnected) return;
             disconnected = true;
+            clearTimeout(transcriptTimer);
+            transcriptTimer = 0;
+            document.removeEventListener('visibilitychange', captureWhenHidden);
+            window.removeEventListener('pagehide', captureTranscript);
             if (removalObserver) {
               removalObserver.disconnect();
               removalObserver = null;
@@ -370,7 +489,10 @@
             if (!reader || disconnected) return;
             readerTask = reader.read().then(function (result) {
               if (disconnected || result.done) return;
-              if (result.value) engine.write(result.value);
+              if (result.value) {
+                engine.write(result.value);
+                scheduleTranscriptCapture();
+              }
               pump();
             }).catch(function (error) {
               if (!disconnected) debugLog('wterm.read.error ' + String(error && error.message || error));
@@ -424,8 +546,10 @@
             return engine.connect();
           }).then(function (connected) {
             if (connected === false || disconnected) return false;
-            debugLog('wterm.ready');
-            return waitForTaskTerm();
+            return replayTranscript().then(function () {
+              debugLog('wterm.ready');
+              return waitForTaskTerm();
+            });
           }).then(function () {
             if (disconnected) return false;
             var kernel = window.AirDeskKernel.root();
@@ -451,6 +575,7 @@
             status.hidden = true;
             engine.fit();
             engine.focus();
+            scheduleTranscriptCapture();
             debugLog('wterm.connected');
             api.notify('Terminal attached to live Wanix shell');
             removalObserver = new MutationObserver(function () {
@@ -466,6 +591,7 @@
             return;
           }
           host.innerHTML = '';
+          debugLog('terminal.engine=wanix-term');
           var term = document.createElement('wanix-term');
           term.setAttribute('for', 'wanix');
           term.setAttribute('path', window.AirDeskKernel.terminalPath);

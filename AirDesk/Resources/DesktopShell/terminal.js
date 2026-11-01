@@ -1011,6 +1011,126 @@
     }
   };
 
+  // src/terminal/terminal-transcript.ts
+  var TERMINAL_TRANSCRIPT_KEY = "airdesk.terminal.transcript.v1";
+  var TERMINAL_TRANSCRIPT_LIMIT = 2e5;
+  var TERMINAL_TRANSCRIPT_MARKER = "Restored terminal history";
+  var TERMINAL_TRANSCRIPT_DATABASE = "airdesk.terminal.v1";
+  var TERMINAL_TRANSCRIPT_STORE = "transcripts";
+  function trimTranscript(text, limit = TERMINAL_TRANSCRIPT_LIMIT) {
+    if (limit <= 0) return "";
+    if (text.length <= limit) return text;
+    let start = text.length - limit;
+    const code = text.charCodeAt(start);
+    if (code >= 56320 && code <= 57343) start += 1;
+    return text.slice(start);
+  }
+  function memoryFallback() {
+    const values = /* @__PURE__ */ new Map();
+    return {
+      async read(key) {
+        return values.get(key) ?? null;
+      },
+      async write(key, value) {
+        values.set(key, value);
+      },
+      async remove(key) {
+        values.delete(key);
+      }
+    };
+  }
+  function createIndexedDBTranscriptStore(factory = globalThis.indexedDB, databaseName = TERMINAL_TRANSCRIPT_DATABASE) {
+    if (!factory) return memoryFallback();
+    let database = null;
+    const open = () => {
+      if (database) return database;
+      const pending = new Promise((resolve, reject) => {
+        const request = factory.open(databaseName, 1);
+        request.onupgradeneeded = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains(TERMINAL_TRANSCRIPT_STORE)) {
+            db.createObjectStore(TERMINAL_TRANSCRIPT_STORE);
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error ?? new Error("Transcript database could not be opened."));
+        request.onblocked = () => reject(new Error("Transcript database is blocked."));
+      }).catch((error) => {
+        database = null;
+        throw error;
+      });
+      database = pending;
+      return pending;
+    };
+    return {
+      async read(key) {
+        const db = await open();
+        return new Promise((resolve, reject) => {
+          const transaction = db.transaction(TERMINAL_TRANSCRIPT_STORE, "readonly");
+          const request = transaction.objectStore(TERMINAL_TRANSCRIPT_STORE).get(key);
+          request.onsuccess = () => resolve(typeof request.result === "string" ? request.result : null);
+          request.onerror = () => reject(request.error ?? new Error("Transcript read failed."));
+          transaction.onerror = () => reject(transaction.error ?? new Error("Transcript read failed."));
+        });
+      },
+      async write(key, value) {
+        const db = await open();
+        return new Promise((resolve, reject) => {
+          const transaction = db.transaction(TERMINAL_TRANSCRIPT_STORE, "readwrite");
+          transaction.objectStore(TERMINAL_TRANSCRIPT_STORE).put(value, key);
+          transaction.oncomplete = () => resolve();
+          transaction.onerror = () => reject(transaction.error ?? new Error("Transcript write failed."));
+          transaction.onabort = () => reject(transaction.error ?? new Error("Transcript write aborted."));
+        });
+      },
+      async remove(key) {
+        const db = await open();
+        return new Promise((resolve, reject) => {
+          const transaction = db.transaction(TERMINAL_TRANSCRIPT_STORE, "readwrite");
+          transaction.objectStore(TERMINAL_TRANSCRIPT_STORE).delete(key);
+          transaction.oncomplete = () => resolve();
+          transaction.onerror = () => reject(transaction.error ?? new Error("Transcript delete failed."));
+          transaction.onabort = () => reject(transaction.error ?? new Error("Transcript delete aborted."));
+        });
+      }
+    };
+  }
+  async function readTranscript(store, sessionId, limit = TERMINAL_TRANSCRIPT_LIMIT) {
+    try {
+      const raw = await store.read(TERMINAL_TRANSCRIPT_KEY);
+      if (!raw) return "";
+      const record = JSON.parse(raw);
+      if (record.sessionId !== sessionId || typeof record.text !== "string") return "";
+      return trimTranscript(record.text, limit);
+    } catch {
+      return "";
+    }
+  }
+  async function saveTranscript(store, text, sessionId, limit = TERMINAL_TRANSCRIPT_LIMIT) {
+    const trimmed = trimTranscript(text, limit);
+    try {
+      if (trimmed.trim()) {
+        const record = { sessionId, savedAt: Date.now(), text: trimmed };
+        await store.write(TERMINAL_TRANSCRIPT_KEY, JSON.stringify(record));
+      } else {
+        await store.remove(TERMINAL_TRANSCRIPT_KEY);
+        return "";
+      }
+    } catch {
+      return "";
+    }
+    return trimmed;
+  }
+  function formatTranscriptReplay(text, limit = TERMINAL_TRANSCRIPT_LIMIT) {
+    const trimmed = trimTranscript(text, limit).replace(/\s+$/, "");
+    if (!trimmed) return "";
+    const normalized = trimmed.replace(/\r\n/g, "\n").replace(/\r/g, "\n").replace(/\n/g, "\r\n");
+    return `\r
+\x1B[2m${TERMINAL_TRANSCRIPT_MARKER}\x1B[0m\r
+${normalized}\r
+`;
+  }
+
   // node_modules/@wterm/core/dist/wasm-loading.js
   var embedded;
   var modules2 = /* @__PURE__ */ new Map();
@@ -6870,6 +6990,12 @@
         scrollbackLimit: GHOSTTY_SCROLLBACK_LIMIT
       });
       return new WTermEngine(element, { ...options, core });
+    },
+    transcript: {
+      createStore: () => createIndexedDBTranscriptStore(),
+      read: readTranscript,
+      save: saveTranscript,
+      replay: formatTranscriptReplay
     }
   };
 })();

@@ -2,7 +2,7 @@
 
 - **Status:** Proposed — WinBox parity and wterm qualification gates required
 - **Date:** 2026-10-29
-- **Updated:** 2026-10-30 — terminal decision revised from Ghostty to wterm
+- **Updated:** 2026-10-31 — IndexedDB transcript replay and Wanix worker CSP fix
 - **Scope:** DesktopShell window management, window chrome integration, terminal emulation, WKWebView/Cast/native parity
 - **Supersedes:** ADR-002 decision to use `interact.js` for web window drag/resize/snapping and its rejection of `WinBox.js`. All other ADR-002 decisions remain in force.
 - **Related:** ADR-002, ADR-003, ADR-005
@@ -102,7 +102,7 @@ Each cutover is independently reversible until its fallback is removed.
 - WinBox can retain a stale internal root width after a hidden or late layout. Maximize now dispatches a viewport refresh, then explicitly reprojects the maximized bounds from the live viewport when WinBox's calculated size is smaller. The UI test polls through WinBox's 300 ms size transition instead of reading the frame immediately after the tap.
 - Rotation and inset changes reproject non-maximized window origins back inside the visible area through `clampToViewport()`, covered by the window-manager unit test.
 - The production adapter bundle is 32.8 kB JS with 8.1 kB CSS. No fork is required.
-- Full local verification passes: 37 web tests across 7 files, 99 iOS unit tests, 9 iOS UI tests, 6 Rust tests, and `npm run check`.
+- Full local verification passes: 43 web tests across 8 files, 99 iOS unit tests, 11 iOS UI tests, 6 Rust tests, and `npm run check`.
 - Upstream distribution sizes are 11.0 kB for minified JS and 4.8 kB for CSS; the bundled preview build is 16.0 kB.
 - License text and attribution are recorded under `third_party/winbox/`.
 
@@ -127,11 +127,13 @@ Still pending before Trial: WKWebView/Cast 60 FPS measurement at 1080p, safe-are
 - The debug bundle is 2.1 MB unminified with a 57.4 kB CSS bundle. This is not a production size measurement; the preview includes the full just-bash environment.
 - just-bash's browser bundle imports an unused `node:zlib` path. The build aliases it to a local shim; gzip is intentionally unavailable in the offline shell.
 - Initializing the preview while its sheet is hidden produced a one-column auto-sized grid. The harness uses an explicit 80x24 grid until the surface is visible. The production adapter must initialize after the surface has a real size or re-fit on visibility.
-- Added a production terminal path behind `?terminal=wterm` or `airdesk.terminal=wterm`. It lazily loads a 328.1 kB JS / 10.4 kB CSS bundle plus the 598 kB Ghostty WASM asset, waits for the Wanix task PTY, opens `${task.term}/data` read/write streams, and keeps `wanix-term` as the default until conformance passes.
+- wterm is now the default production terminal. It lazily loads a 328.1 kB JS / 10.4 kB CSS bundle plus the 598 kB Ghostty WASM asset, waits for the Wanix task PTY, and opens `${task.term}/data` read/write streams. The explicit `?terminal=wterm` pin still selects it; `?terminal=legacy` or `airdesk.terminal=legacy` retains `wanix-term` as a rollback path.
 - The WTerm adapter preserves the desktop's `_term` focus/input/paste compatibility hooks, and `desktop.js` now recognizes both `wanix-term` and `.wterm-term`.
-- A `-AirDeskWTermDesktop` route drives the production shell with wterm. Its XCUITest verifies engine selection, Ghostty core selection, live Wanix PTY attachment, and keyboard typing through the native bridge.
-- The shell now forwards WTerm resize dimensions to `#task/shell/term/winch` as `"<cols> <rows>\n"`. Wanix currently broadcasts that signal but upstream's rc design notes leave signal/resize handling unimplemented, so no running program consumes it yet. Real PTY resize remains blocked on an upstream Wanix/rc change; reconnect/replay semantics also remain unverified.
-- SSH transport and the default cutover remain incomplete. The status remains **Proposed**.
+- The production XCUITest exercises the default path without a terminal override and verifies engine selection, Ghostty core selection, live Wanix PTY attachment, and keyboard typing through the native bridge. A separate rollback XCUITest selects `-AirDeskLegacyTerminal`, verifies `wanix-term`, and types through the live PTY. The `-AirDeskWTermDesktop` debug flag remains available to pin wterm explicitly.
+- The shell now forwards WTerm resize dimensions to `#task/shell/term/winch` as `"<cols> <rows>\n"`. Wanix currently broadcasts that signal but upstream's rc design notes leave signal/resize handling unimplemented, so no running program consumes it yet. Real PTY resize remains blocked on an upstream Wanix/rc change.
+- Wanix worker sources imported their bundled client library through a base64 `data:` module. The production CSP blocks `data:` scripts, so the Go-js shell worker failed before `rc` could emit output. The Blob bootstrap now inlines that module into the worker source and leaves the CSP unchanged; live `rc` output, keyboard input, and transcript capture now work without relaxing script policy.
+- Terminal text now survives a reload or recovery within the same WKWebView session. Within 1.5 seconds of terminal output, the adapter captures retained history and the active screen with `readText()` into IndexedDB database `airdesk.terminal.v1`, store `transcripts`, key `airdesk.terminal.transcript.v1`, capped at 200,000 characters. Writes are async, failures retry, and whitespace-only captures remove the saved record instead of producing a false replay. On the next mount the adapter awaits the saved transcript and replays it with an explicit marker before starting the new shell. Storing plain text rather than raw control bytes prevents stale alternate-screen, cursor, or mouse modes from being replayed. The Wanix shell process still restarts, and byte-exact PTY reconnect plus live process resumption remain unimplemented.
+- The web terminal cutover is complete with `wanix-term` retained as an explicit rollback. SSH transport and the remaining qualification gates are still incomplete; the status remains **Proposed**.
 
 ## Acceptance gates
 
@@ -151,7 +153,7 @@ Still pending before Trial: WKWebView/Cast 60 FPS measurement at 1080p, safe-are
 - VT conformance suite passes against the current terminal behavior.
 - Devanagari, Arabic, CJK, emoji, combining marks, and wide characters render correctly.
 - 5,000-line scrollback, alternate screen, mouse reporting, and bracketed paste pass.
-- `fit`, resize, focus, and reconnect replay preserve terminal state without byte loss.
+- `fit`, resize, and focus preserve terminal state; reconnect replays bounded transcript text but does not resume the live process without byte loss.
 - Key encoding matches native input, and remote controller input reaches the PTY without DOM event synthesis.
 - The `wanix-term` contract and required `_term` compatibility hooks are preserved through the adapter.
 - The live Wanix PTY remains the default shell; just-bash is clearly labeled, optional, and isolated from the Wanix filesystem.

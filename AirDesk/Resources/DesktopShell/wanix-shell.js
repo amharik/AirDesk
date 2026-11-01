@@ -29,6 +29,65 @@
   var DB_KEY = 'opfs';
   var LOCAL_KEY = 'airdesk.workspace.snapshot.v1';
   var MAX_SNAPSHOT_FILE = 2 * 1024 * 1024;
+  var WORKER_DATA_IMPORT = /import\s*\{[^}]*\}\s*from\s*"(data:text\/javascript;base64,[^"]+)"\s*;?/;
+
+  function partText(part) {
+    if (typeof part === 'string') return part;
+    if (part && typeof ArrayBuffer !== 'undefined' && ArrayBuffer.isView && ArrayBuffer.isView(part)) {
+      return new TextDecoder().decode(part);
+    }
+    if (part && typeof ArrayBuffer !== 'undefined' && part instanceof ArrayBuffer) {
+      return new TextDecoder().decode(part);
+    }
+    return '';
+  }
+
+  function decodeDataURL(url) {
+    var comma = url.indexOf(',');
+    if (comma < 0) return '';
+    var meta = url.slice(0, comma);
+    var payload = url.slice(comma + 1);
+    if (meta.indexOf(';base64') < 0) return decodeURIComponent(payload);
+    var binary = atob(payload);
+    var bytes = new Uint8Array(binary.length);
+    for (var index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+    return new TextDecoder().decode(bytes);
+  }
+
+  function stripExports(source) {
+    return source.replace(/export\s*\{([^}]*)\}\s*;?/g, function (_, entries) {
+      return entries.split(',').map(function (entry) {
+        var parts = entry.trim().split(/\s+as\s+/);
+        return parts.length === 2 ? 'var ' + parts[1] + ' = ' + parts[0] + ';' : '';
+      }).join('');
+    });
+  }
+
+  function inlineDataImport(source) {
+    var match = source.match(WORKER_DATA_IMPORT);
+    if (!match) return source;
+    var lib = stripExports(decodeDataURL(match[1]));
+    return source.replace(match[0], lib);
+  }
+
+  function installWorkerPatch() {
+    var NativeBlob = window.Blob;
+    if (!NativeBlob || NativeBlob.__airdeskWorkerPatch) return;
+    function PatchedBlob(parts, options) {
+      if (!parts || typeof parts.length !== 'number') return new NativeBlob(parts, options);
+      var patched = [];
+      for (var index = 0; index < parts.length; index++) {
+        var part = parts[index];
+        var text = partText(part);
+        var inlined = inlineDataImport(text);
+        patched.push(inlined !== text ? inlined : part);
+      }
+      return new NativeBlob(patched, options);
+    }
+    PatchedBlob.prototype = NativeBlob.prototype;
+    PatchedBlob.__airdeskWorkerPatch = true;
+    window.Blob = PatchedBlob;
+  }
 
   function bridge() {
     return window.AD || null;
@@ -295,6 +354,7 @@
       if (!root) fail('The Wanix kernel did not become ready. Retry the desktop.');
     }, 45000);
 
+    installWorkerPatch();
     prepareWorkspace().then(loadRuntime);
   }
 

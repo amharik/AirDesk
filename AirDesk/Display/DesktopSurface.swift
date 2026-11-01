@@ -257,6 +257,8 @@ final class DesktopSurface {
         }
         if usesWTermDesktop {
             queryItems.append(URLQueryItem(name: "terminal", value: "wterm"))
+        } else if usesLegacyTerminal {
+            queryItems.append(URLQueryItem(name: "terminal", value: "legacy"))
         }
         components?.queryItems = queryItems
         guard let url = components?.url else {
@@ -353,6 +355,14 @@ final class DesktopSurface {
     private var usesWTermDesktop: Bool {
 #if DEBUG
         ProcessInfo.processInfo.arguments.contains("-AirDeskWTermDesktop")
+#else
+        false
+#endif
+    }
+
+    private var usesLegacyTerminal: Bool {
+#if DEBUG
+        ProcessInfo.processInfo.arguments.contains("-AirDeskLegacyTerminal")
 #else
         false
 #endif
