@@ -29,6 +29,7 @@ final class AppEnvironment: ObservableObject {
     private var bootstrapped = false
     private var cancellables = Set<AnyCancellable>()
     #if DEBUG
+    private static let externalSSHFixtureKey = "airdesk.debug.externalSSHFixture"
     private var remoteSSHTestServer: RemoteSSHTestServer?
     #endif
 
@@ -99,6 +100,7 @@ final class AppEnvironment: ObservableObject {
         let remoteFixture = arguments.contains("-AirDeskRemoteSSHTest")
             || arguments.contains("-AirDeskRemoteSSHReconnectTest")
         if externalFixture {
+            UserDefaults.standard.set(true, forKey: Self.externalSSHFixtureKey)
             let environment = ProcessInfo.processInfo.environment
             settings.remoteTerminalEnabled = true
             settings.remoteTerminalHost = environment["AIRDESK_SSH_HOST"] ?? "127.0.0.1"
@@ -135,13 +137,12 @@ final class AppEnvironment: ObservableObject {
                 }
             }
         } else {
-            if settings.remoteTerminalHost == "127.0.0.1" {
-                settings.remoteTerminalEnabled = false
-                settings.remoteTerminalHost = ""
-                settings.remoteTerminalHostKey = ""
-                settings.remoteTerminalUsername = ""
-                settings.remoteTerminalPassword = ""
-                try? settings.saveRemoteTerminalPassword()
+            let hadExternalFixture = UserDefaults.standard.bool(forKey: Self.externalSSHFixtureKey)
+            if hadExternalFixture {
+                UserDefaults.standard.removeObject(forKey: Self.externalSSHFixtureKey)
+            }
+            if hadExternalFixture || settings.remoteTerminalHost == "127.0.0.1" {
+                clearRemoteTerminalSettings()
             }
             scheduleAutoDemo(arguments: arguments)
         }
@@ -150,6 +151,15 @@ final class AppEnvironment: ObservableObject {
     }
 
     #if DEBUG
+    private func clearRemoteTerminalSettings() {
+        settings.remoteTerminalEnabled = false
+        settings.remoteTerminalHost = ""
+        settings.remoteTerminalHostKey = ""
+        settings.remoteTerminalUsername = ""
+        settings.remoteTerminalPassword = ""
+        try? settings.saveRemoteTerminalPassword()
+    }
+
     private func scheduleAutoDemo(arguments: [String]) {
         guard arguments.contains("-AirDeskAutoDemo") else { return }
         Task { @MainActor in

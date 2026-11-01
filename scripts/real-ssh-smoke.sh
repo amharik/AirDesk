@@ -3,6 +3,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PORT="${AIRDESK_SSH_SMOKE_PORT:-22222}"
+BIND_HOST="${AIRDESK_SSH_BIND_HOST:-127.0.0.1}"
+SSH_HOST="${AIRDESK_SSH_HOST:-$BIND_HOST}"
 SIMULATOR_ID="${AIRDESK_SIMULATOR_ID:-F8348DD0-C13D-4A5F-A4C3-4D15589D7DDE}"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/airdesk-sshd.XXXXXX")"
 SSHD_PID=""
@@ -35,7 +37,7 @@ chmod 600 "$WORK/authorized_keys" "$WORK/host_key" "$WORK/client_key"
 
 cat > "$WORK/sshd_config" <<CONFIG
 Port $PORT
-ListenAddress 127.0.0.1
+ListenAddress $BIND_HOST
 HostKey $WORK/host_key
 PidFile $WORK/sshd.pid
 AuthorizedKeysFile $WORK/authorized_keys
@@ -96,7 +98,7 @@ if [[ -z "$STARTUP" && -n "$TMUX_BIN" ]]; then
     TMUX_SESSION="airdesk-smoke-$$"
     STARTUP="$TMUX_BIN new -A -s $TMUX_SESSION"
 fi
-export AIRDESK_SSH_HOST=127.0.0.1
+export AIRDESK_SSH_HOST="$SSH_HOST"
 export AIRDESK_SSH_PORT="$PORT"
 export AIRDESK_SSH_USERNAME="$(id -un)"
 export AIRDESK_SSH_HOST_KEY="$HOST_KEY"
