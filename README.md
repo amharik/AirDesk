@@ -173,6 +173,14 @@ npm run build
 
 `npm run build` writes `AirDesk/Resources/DesktopShell/bridge.js` and its source map. Xcode still builds without Node; only edit the generated shell files through `web/src`.
 
+Run the CI-equivalent iOS checks, including XcodeGen, the 116 unit tests, and the UI-test build, with:
+
+```bash
+./scripts/ci-ios.sh
+```
+
+Set `AIRDESK_DESTINATION` to override the simulator destination. `.github/workflows/ios.yml` runs the same script on macOS CI.
+
 ## Protocol bindings
 
 `protocol/airdesk.fbs` is the source of truth for input, control, and packed pointer frames. Install `flatc` 25.12.19, then regenerate the checked-in Swift, TypeScript, and Rust bindings:
@@ -285,7 +293,7 @@ Ordered by release risk and dependency. Google Cast work is paused by request.
 10. **UI, accessibility, and CI**
     - Add UI smoke coverage for Connect, Settings, display-mode switching, and preview ownership.
     - Audit VoiceOver labels, Dynamic Type, and reduced motion.
-    - Add CI for `xcodegen generate`, build, and tests.
+    - iOS CI runs XcodeGen, the 116 unit tests, and the UI-test build via `.github/workflows/ios.yml`; add hosted UI smoke runs next.
 11. **Documentation and screenshots**
     - Refresh screenshots for AirPlay modes and Cast setup.
     - Document the receiver registration checklist and the Android architecture decision.

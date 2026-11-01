@@ -1,0 +1,30 @@
+name: iOS
+
+on:
+  push:
+    paths:
+      - "AirDesk/**"
+      - "AirDeskTests/**"
+      - "AirDeskUITests/**"
+      - "project.yml"
+      - "scripts/ci-ios.sh"
+      - ".github/workflows/ios.yml"
+  pull_request:
+    paths:
+      - "AirDesk/**"
+      - "AirDeskTests/**"
+      - "AirDeskUITests/**"
+      - "project.yml"
+      - "scripts/ci-ios.sh"
+      - ".github/workflows/ios.yml"
+
+jobs:
+  test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "16.4"
+      - run: brew install xcodegen
+      - run: ./scripts/ci-ios.sh
