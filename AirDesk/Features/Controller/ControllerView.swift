@@ -108,6 +108,7 @@ struct ControllerView: View {
             physicalInput.start()
             syncInputRouting()
             session.setPreviewKeyboardRouting(false)
+            openPreviewForUITestIfNeeded()
         }
         .onDisappear {
             physicalInput.stop()
@@ -137,6 +138,19 @@ struct ControllerView: View {
         ProcessInfo.processInfo.arguments.contains("-AirDeskUITestProbe")
     }
 
+    private func openPreviewForUITestIfNeeded() {
+        guard ProcessInfo.processInfo.arguments.contains("-AirDeskUITestOpenPreview") else { return }
+        Task { @MainActor in
+            let deadline = Date().addingTimeInterval(30)
+            while !session.canShowPreview && Date() < deadline {
+                try? await Task.sleep(nanoseconds: 200_000_000)
+            }
+            if session.canShowPreview {
+                session.openPreview()
+            }
+        }
+    }
+
     private var shouldShowDeck: Bool {
         showDeck && !physicalInput.isRouting
     }
@@ -153,6 +167,11 @@ struct ControllerView: View {
     private func configurePhysicalInput() {
         updatePhysicalViewport()
         physicalInput.keyboardRoutingEnabled = false
+        let keepPhysicalInput = ProcessInfo.processInfo.arguments.contains("-AirDeskUITestKeepPhysicalInput")
+        physicalInput.suppressCapture = isUITestProbe && !keepPhysicalInput
+        if physicalInput.suppressCapture {
+            physicalInput.setCaptured(false)
+        }
         physicalInput.onCursor = { action, viewport in
             session.handleCursor(action, viewport: viewport)
         }

@@ -17,6 +17,7 @@
   var persistent = true;
   var shellStarted = false;
   var lastWindowSize = '';
+  var lastResizeError = '';
   var terminalPath = '#task/shell/term';
   var database = null;
   var persistTimer = 0;
@@ -363,6 +364,16 @@
     return ready;
   }
 
+  function writeWindowSize(payload) {
+    if (!root || !payload) return Promise.resolve(false);
+    return root.writeFile('tmp/airdesk-term-size', payload).then(function () {
+      return true;
+    }, function (error) {
+      lastResizeError = String(error && error.message || error);
+      return false;
+    });
+  }
+
   window.AirDeskKernel = {
     ready: ready,
     terminalPath: terminalPath,
@@ -376,17 +387,17 @@
     snapshot: function () { return snapshotWorkspace(); },
     lastPersistError: function () { return lastPersistError; },
     root: function () { return root; },
+    setTerminalPath: function (path) {
+      if (path) terminalPath = String(path);
+      return Promise.resolve(true);
+    },
+    currentTerminalPath: function () { return terminalPath; },
+    lastResizeError: function () { return lastResizeError; },
     resizeTerminal: function (cols, rows) {
-      if (!root || !Number.isFinite(cols) || !Number.isFinite(rows)) return Promise.resolve(false);
-      var payload = Math.max(1, Math.floor(cols)) + ' ' + Math.max(1, Math.floor(rows)) + '\n';
-      if (payload === lastWindowSize) return Promise.resolve(true);
-      return root.writeFile(terminalPath + '/winch', payload).then(function () {
-        lastWindowSize = payload;
-        return true;
-      }).catch(function () {
-        lastWindowSize = '';
-        return false;
-      });
+      if (!Number.isFinite(cols) || !Number.isFinite(rows)) return Promise.resolve(false);
+      lastWindowSize = Math.max(1, Math.floor(cols)) + ' ' + Math.max(1, Math.floor(rows)) + '\n';
+      lastResizeError = '';
+      return writeWindowSize(lastWindowSize);
     },
     startShell: function () {
       if (shellStarted) return Promise.resolve(true);
@@ -395,6 +406,11 @@
           shellStarted = true;
           var api = bridge();
           if (api) api.state('wanix.shell.started');
+          if (lastWindowSize) {
+            [500, 1500, 3000].forEach(function (delay) {
+              setTimeout(function () { writeWindowSize(lastWindowSize); }, delay);
+            });
+          }
           return true;
         });
       });

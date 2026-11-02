@@ -50,7 +50,7 @@ final class WinBoxPreviewTests: XCTestCase {
 
     private func window(_ title: String, in webView: XCUIElement) -> XCUIElement {
         webView.otherElements.matching(
-            NSPredicate(format: "label BEGINSWITH %@", "\(title), web dialogue")
+            NSPredicate(format: "label BEGINSWITH %@", "\(title), web dialog")
         ).firstMatch
     }
 

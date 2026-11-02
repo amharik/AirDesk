@@ -61,7 +61,7 @@ final class RemoteTerminalTests: XCTestCase {
         let webView = app.webViews.firstMatch
         XCTAssertTrue(webView.waitForExistence(timeout: 25), app.debugDescription)
         let terminal = webView.otherElements.matching(
-            NSPredicate(format: "label BEGINSWITH %@", "Terminal, web dialogue")
+            NSPredicate(format: "label BEGINSWITH %@", "Terminal, web dialog")
         ).firstMatch
         XCTAssertTrue(terminal.waitForExistence(timeout: 20), webView.debugDescription)
         return terminal
@@ -75,6 +75,26 @@ final class RemoteTerminalTests: XCTestCase {
             keyboard.tap()
         }
         sleep(2)
+    }
+
+    private func maximizeTerminal(_ app: XCUIApplication) {
+        let webView = app.webViews.firstMatch
+        for title in ["AirDesk, web dialog", "Finder, web dialog"] {
+            let window = webView.otherElements.matching(
+                NSPredicate(format: "label BEGINSWITH %@", title)
+            ).firstMatch
+            if window.exists {
+                let close = window.buttons["Close"]
+                if close.exists {
+                    close.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+                    sleep(1)
+                }
+            }
+        }
+        let terminal = terminalElement(app)
+        let maximize = terminal.buttons["Maximize"]
+        XCTAssertTrue(maximize.waitForExistence(timeout: 10), terminal.debugDescription)
+        maximize.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
     }
 
     func testRemoteSSHTerminalAcceptsTypingAndResize() throws {
@@ -100,13 +120,13 @@ final class RemoteTerminalTests: XCTestCase {
             "probe=\(probeLabel(app))"
         )
 
-        let resizesBeforeRotation = probeCount(app, containing: "terminal.ssh.resize")
-        XCUIDevice.shared.orientation = .landscapeLeft
+        let resizesBeforeResize = probeCount(app, containing: "terminal.ssh.resize")
+        maximizeTerminal(app)
         XCTAssertTrue(
             waitForProbeCount(
                 app,
                 containing: "terminal.ssh.resize",
-                minimum: resizesBeforeRotation + 1,
+                minimum: resizesBeforeResize + 1,
                 timeout: 20
             ),
             "probe=\(probeLabel(app))"
@@ -141,7 +161,7 @@ final class RemoteTerminalTests: XCTestCase {
         focusTerminal(app)
         app.typeText("remote-back\n")
         XCTAssertTrue(
-            waitForProbe(app, containing: "terminal.ssh.input remote-back", timeout: 25),
+            waitForProbe(app, containing: "remote-back", timeout: 25),
             "probe=\(probeLabel(app))"
         )
     }

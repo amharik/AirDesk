@@ -18,6 +18,30 @@
     } catch (error) { /* logging must never break the shell */ }
   }
 
+  var probePending = '';
+  var probeTimer = 0;
+
+  function flushProbeTerminalData() {
+    probeTimer = 0;
+    if (!probePending) return;
+    var text = probePending;
+    probePending = '';
+    debugLog('wterm.data ' + text.slice(-480));
+  }
+
+  function probeTerminalData(bytes) {
+    if (!window.AIRDESK_UITEST_PROBE) return;
+    try {
+      var text = new TextDecoder().decode(bytes)
+        .replace(/\u001b\][^\u0007]*(?:\u0007|\u001b\\)/g, '')
+        .replace(/\u001b\[[0-?]*[ -\/]*[@-~]/g, '')
+        .replace(/[^\x20-\x7e\n]/g, '');
+      if (!text) return;
+      probePending = (probePending + text).slice(-960);
+      if (!probeTimer) probeTimer = setTimeout(flushProbeTerminalData, 100);
+    } catch (error) { /* probe logging must never break the shell */ }
+  }
+
   function useWTermTerminal() {
     try {
       var requested = new URLSearchParams(window.location.search).get('terminal');
@@ -693,6 +717,10 @@
             disconnected = true;
             clearTimeout(transcriptTimer);
             transcriptTimer = 0;
+            if (probeTimer) {
+              clearTimeout(probeTimer);
+              flushProbeTerminalData();
+            }
             document.removeEventListener('visibilitychange', captureWhenHidden);
             window.removeEventListener('pagehide', captureTranscript);
             if (removalObserver) {
@@ -718,10 +746,13 @@
             if (!reader || disconnected) return;
             readerTask = reader.read().then(function (result) {
               if (disconnected || result.done) return;
-              if (result.value) {
-                engine.write(result.value);
-                scheduleTranscriptCapture();
+              if (!result.value || result.value.length === 0) {
+                setTimeout(pump, 0);
+                return;
               }
+              probeTerminalData(result.value);
+              engine.write(result.value);
+              scheduleTranscriptCapture();
               pump();
             }).catch(function (error) {
               if (!disconnected) debugLog('wterm.read.error ' + String(error && error.message || error));
@@ -754,9 +785,22 @@
                 send: sendText,
                 sendBinary: sendBytes,
                 resize: function (cols, rows) {
+                  if (window.AIRDESK_UITEST_PROBE) debugLog('wterm.resize ' + cols + 'x' + rows);
                   var kernel = window.AirDeskKernel;
                   if (kernel && typeof kernel.resizeTerminal === 'function') {
-                    kernel.resizeTerminal(cols, rows);
+                    var result = kernel.resizeTerminal(cols, rows);
+                    if (window.AIRDESK_UITEST_PROBE && result && typeof result.then === 'function') {
+                      result.then(function (ok) {
+                        var detail = '';
+                        if (!ok && kernel && typeof kernel.lastResizeError === 'function') {
+                          detail = ' err=' + kernel.lastResizeError();
+                          if (typeof kernel.currentTerminalPath === 'function') {
+                            detail += ' path=' + kernel.currentTerminalPath();
+                          }
+                        }
+                        debugLog('kernel.resize.ok=' + ok + detail);
+                      });
+                    }
                   }
                 }
               }
@@ -785,8 +829,14 @@
             var task = document.querySelector('#wanix wanix-task');
             var path = task && task.term;
             if (!kernel || !path) throw new Error('The shell task did not allocate a terminal.');
+            if (window.AIRDESK_UITEST_PROBE) debugLog('wterm.term=' + path);
+            var pathReady = typeof window.AirDeskKernel.setTerminalPath === 'function'
+              ? window.AirDeskKernel.setTerminalPath(path)
+              : Promise.resolve(true);
             var dataPath = String(path) + '/data';
-            return kernel.waitFor(dataPath, 30000).then(function () {
+            return pathReady.then(function () {
+              return kernel.waitFor(dataPath, 30000);
+            }).then(function () {
               return Promise.all([
                 kernel.openReadable(dataPath),
                 kernel.openWritable(dataPath)

@@ -68,12 +68,12 @@ final class WinBoxDesktopTests: XCTestCase {
         XCTAssertTrue(webView.exists, app.debugDescription)
 
         let terminal = webView.otherElements.matching(
-            NSPredicate(format: "label BEGINSWITH %@", "Terminal, web dialogue")
+            NSPredicate(format: "label BEGINSWITH %@", "Terminal, web dialog")
         ).firstMatch
         XCTAssertTrue(terminal.waitForExistence(timeout: 20), webView.debugDescription)
 
         let welcome = webView.otherElements.matching(
-            NSPredicate(format: "label BEGINSWITH %@", "AirDesk, web dialogue")
+            NSPredicate(format: "label BEGINSWITH %@", "AirDesk, web dialog")
         ).firstMatch
         XCTAssertTrue(welcome.exists, webView.debugDescription)
         welcome.buttons["Close"].tap()

@@ -102,9 +102,7 @@ struct WelcomeView: View {
         }
         .onAppear {
             guard !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: 3.6).repeatForever(autoreverses: true)) {
-                animateHero = true
-            }
+            animateHero = true
         }
     }
 
@@ -162,49 +160,13 @@ struct DisplayHero: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            VStack(spacing: 0) {
-                ZStack {
-                    MiniDesktop()
-                        .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 13, style: .continuous)
-                                .strokeBorder(Color.white.opacity(0.16), lineWidth: 1)
-                        }
-                        .overlay(alignment: .top) {
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.10), .clear],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                            .frame(height: 40)
-                            .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
-                        }
-                        .aspectRatio(16 / 9, contentMode: .fit)
-                        .shadow(color: ADTheme.accent.opacity(0.18), radius: 40, y: 24)
+            if animate {
+                TimelineView(.periodic(from: .now, by: 0.05)) { context in
+                    monitor.offset(y: monitorOffset(at: context.date))
                 }
-                .padding(7)
-                .background {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(Color(white: 0.06))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
-                        }
-                }
-
-                Capsule()
-                    .fill(Color.white.opacity(0.12))
-                    .frame(width: 74, height: 5)
-                    .padding(.top, 5)
-                Ellipse()
-                    .fill(Color.black.opacity(0.45))
-                    .frame(width: 150, height: 12)
-                    .blur(radius: 7)
-                    .padding(.top, -2)
+            } else {
+                monitor
             }
-            .padding(.trailing, 42)
-            .offset(y: animate ? -5 : 5)
-            .animation(.easeInOut(duration: 3.6).repeatForever(autoreverses: true), value: animate)
 
             PhoneMockup()
                 .frame(width: 118, height: 224)
@@ -213,6 +175,57 @@ struct DisplayHero: View {
                 .shadow(color: .black.opacity(0.6), radius: 24, y: 16)
         }
         .frame(height: 292)
+    }
+
+    private var monitor: some View {
+        VStack(spacing: 0) {
+            ZStack {
+                MiniDesktop()
+                    .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 13, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.16), lineWidth: 1)
+                    }
+                    .overlay(alignment: .top) {
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.10), .clear],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .frame(height: 40)
+                        .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+                    }
+                    .aspectRatio(16 / 9, contentMode: .fit)
+                    .shadow(color: ADTheme.accent.opacity(0.18), radius: 40, y: 24)
+            }
+            .padding(7)
+            .background {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color(white: 0.06))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+                    }
+            }
+
+            Capsule()
+                .fill(Color.white.opacity(0.12))
+                .frame(width: 74, height: 5)
+                .padding(.top, 5)
+            Ellipse()
+                .fill(Color.black.opacity(0.45))
+                .frame(width: 150, height: 12)
+                .blur(radius: 7)
+                .padding(.top, -2)
+        }
+        .padding(.trailing, 42)
+    }
+
+    private func monitorOffset(at date: Date) -> CGFloat {
+        let period = 7.2
+        let phase = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: period)
+        let wave = phase < period / 2 ? phase / (period / 2) : (period - phase) / (period / 2)
+        return 5 - 10 * (wave * wave * (3 - 2 * wave))
     }
 }
 

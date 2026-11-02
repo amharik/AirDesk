@@ -11,6 +11,7 @@ final class PhysicalInputRouter: ObservableObject {
 
     var viewport: CGSize = .zero
     var keyboardRoutingEnabled = true
+    var suppressCapture = false
     var onCursor: ((CursorAction, CGSize) -> Void)?
     var onText: ((String, Set<InputModifier>) -> Void)?
     var onKey: ((String, String?, Set<InputModifier>) -> Void)?
@@ -111,6 +112,7 @@ final class PhysicalInputRouter: ObservableObject {
     }
 
     func setCaptured(_ captured: Bool) {
+        guard !suppressCapture || !captured else { return }
         guard captured != isCaptured else { return }
         isCaptured = captured
         if !captured {
@@ -147,7 +149,7 @@ final class PhysicalInputRouter: ObservableObject {
         }
         self.keyboard = keyboard
         keyboardAvailable = true
-        isCaptured = true
+        isCaptured = !suppressCapture
         keyboard.keyboardInput?.keyChangedHandler = { [weak self] input, _, keyCode, pressed in
             Task { @MainActor in
                 self?.handleKey(keyCode, pressed: pressed, input: input)
@@ -184,7 +186,7 @@ final class PhysicalInputRouter: ObservableObject {
 
         self.mouse = mouse
         mouseAvailable = true
-        isCaptured = true
+        isCaptured = !suppressCapture
 
         input.mouseMovedHandler = { [weak self] _, dx, dy in
             Task { @MainActor in

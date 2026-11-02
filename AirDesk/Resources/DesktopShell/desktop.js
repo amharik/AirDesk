@@ -997,14 +997,26 @@
     };
   }
 
+  function closestComposed(node, selector) {
+    var found = node && node.closest ? node.closest(selector) : null;
+    if (found) return found;
+    var root = node && node.getRootNode ? node.getRootNode() : null;
+    while (root && root.host) {
+      found = root.host.closest ? root.host.closest(selector) : null;
+      if (found) return found;
+      root = root.host.getRootNode ? root.host.getRootNode() : null;
+    }
+    return null;
+  }
+
   function focusDirectTarget(target) {
-    if (!target || !target.closest) return;
-    var term = target.closest('wanix-term, .wterm-term');
+    if (!target) return;
+    var term = closestComposed(target, 'wanix-term, .wterm-term');
     if (term) {
       focusTerminal(term);
       return;
     }
-    var editable = target.closest('input, textarea, [contenteditable="true"]');
+    var editable = closestComposed(target, 'input, textarea, [contenteditable="true"]');
     if (editable && typeof editable.focus === 'function') {
       try { editable.focus(); } catch (error) { /* no-op */ }
     }
@@ -1027,7 +1039,7 @@
   function requestPreviewKeyboard(target) {
     if (!previewKeyboardRouting || nativeInputCaptured) return;
     var api = window.AD;
-    var terminal = target && target.closest ? target.closest('wanix-term, .wterm-term') : null;
+    var terminal = closestComposed(target, 'wanix-term, .wterm-term');
     debugLog('pointerdown term=' + !!terminal + ' target=' + (target && target.tagName) + ' host=' + (api && api.host));
     if (!api || typeof api.post !== 'function' || api.host === 'cast') return;
     var actionName = terminal ? 'keyboard' : 'keyboardDismiss';
@@ -1048,20 +1060,20 @@
     var p = directCoordinates(event);
     moveCursor(p.x * window.innerWidth, p.y * window.innerHeight);
     focusDirectTarget(target);
-    if (target && target.closest && target.closest('wanix-term, .wterm-term')) {
-      var terminalEl = target.closest('.window');
+    if (closestComposed(target, 'wanix-term, .wterm-term')) {
+      var terminalEl = closestComposed(target, '.window');
       var terminalWindow = terminalEl ? state.windows.find(function (entry) { return entry.el === terminalEl; }) : null;
       if (terminalWindow) focusWindow(terminalWindow);
     }
     requestPreviewKeyboard(target);
-    if (!target || !target.closest) return;
-    if (useWinBox && target.closest('.winbox')) return;
-    var winEl = target.closest('.window');
+    if (!target) return;
+    if (useWinBox && closestComposed(target, '.winbox')) return;
+    var winEl = closestComposed(target, '.window');
     if (!winEl) return;
     var win = state.windows.find(function (entry) { return entry.el === winEl; });
     if (!win) return;
-    var isResize = !!target.closest('.resize-grip');
-    var isTitlebar = !!target.closest('.titlebar') && !target.closest('.traffic, .titlebar-actions');
+    var isResize = !!closestComposed(target, '.resize-grip');
+    var isTitlebar = !!closestComposed(target, '.titlebar') && !closestComposed(target, '.traffic, .titlebar-actions');
     if (!isResize && !isTitlebar) return;
     pointerDown({ x: p.x, y: p.y });
     if (!state.drag) return;

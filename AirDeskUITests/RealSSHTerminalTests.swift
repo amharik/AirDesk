@@ -18,7 +18,7 @@ final class RealSSHTerminalTests: XCTestCase {
         let webView = app.webViews.firstMatch
         XCTAssertTrue(webView.waitForExistence(timeout: 25), app.debugDescription)
         let terminal = webView.otherElements.matching(
-            NSPredicate(format: "label BEGINSWITH %@", "Terminal, web dialogue")
+            NSPredicate(format: "label BEGINSWITH %@", "Terminal, web dialog")
         ).firstMatch
         XCTAssertTrue(terminal.waitForExistence(timeout: 20), webView.debugDescription)
         terminal.tap()

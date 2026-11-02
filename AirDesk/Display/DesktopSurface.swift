@@ -223,6 +223,11 @@ final class DesktopSurface {
         let appearance = Self.jsString(request.appearance)
         let device = Self.jsString(DeviceContext.name)
         let remoteTerminal = Self.jsObject(remoteTerminalBootstrap)
+#if DEBUG
+        let uiTestProbe = ProcessInfo.processInfo.arguments.contains("-AirDeskUITestProbe")
+#else
+        let uiTestProbe = false
+#endif
         let source = """
         window.AIRDESK_SESSION_ID = \(session);
         window.AIRDESK_RUNTIME = \(runtime);
@@ -230,6 +235,7 @@ final class DesktopSurface {
         window.AIRDESK_APPEARANCE = \(appearance);
         window.AIRDESK_DEVICE_NAME = \(device);
         window.AIRDESK_NATIVE = true;
+        window.AIRDESK_UITEST_PROBE = \(uiTestProbe ? "true" : "false");
         window.AIRDESK_REMOTE_TERMINAL = \(remoteTerminal);
         """
         controller.addUserScript(WKUserScript(

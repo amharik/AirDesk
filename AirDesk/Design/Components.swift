@@ -119,23 +119,34 @@ struct CapsuleBadge: View {
 struct StatusDot: View {
     var color: Color
     var pulsing: Bool = false
-    @State private var visible = true
 
     var body: some View {
+        Group {
+            if pulsing {
+                TimelineView(.periodic(from: .now, by: 0.1)) { context in
+                    dot.opacity(pulseOpacity(at: context.date))
+                }
+            } else {
+                dot
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private var dot: some View {
         Circle()
             .fill(color)
             .frame(width: 8, height: 8)
             .overlay {
                 Circle().stroke(color.opacity(0.35), lineWidth: 4)
             }
-            .opacity(pulsing ? (visible ? 1 : 0.35) : 1)
-            .onAppear {
-                guard pulsing else { return }
-                withAnimation(.easeInOut(duration: 1.05).repeatForever(autoreverses: true)) {
-                    visible = false
-                }
-            }
-            .accessibilityHidden(true)
+    }
+
+    private func pulseOpacity(at date: Date) -> Double {
+        let period = 2.1
+        let phase = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: period)
+        let wave = phase < period / 2 ? phase / (period / 2) : (period - phase) / (period / 2)
+        return 1 - 0.65 * (wave * wave * (3 - 2 * wave))
     }
 }
 

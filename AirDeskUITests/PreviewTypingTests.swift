@@ -27,7 +27,7 @@ final class PreviewTypingTests: XCTestCase {
         XCTAssertTrue(webView.waitForExistence(timeout: 25), app.debugDescription)
 
         let terminal = webView.otherElements.matching(
-            NSPredicate(format: "label BEGINSWITH %@", "Terminal, web dialogue")
+            NSPredicate(format: "label BEGINSWITH %@", "Terminal, web dialog")
         ).firstMatch
         if terminal.waitForExistence(timeout: 20) {
             terminal.tap()

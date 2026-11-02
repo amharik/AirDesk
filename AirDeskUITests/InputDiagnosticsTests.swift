@@ -3,7 +3,7 @@ import XCTest
 final class InputDiagnosticsTests: XCTestCase {
     private func launchProbeApp(extraArguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-AirDeskAutoDemo", "-AirDeskUITestProbe"] + extraArguments
+        app.launchArguments = ["-AirDeskAutoDemo", "-AirDeskUITestProbe", "-AirDeskUITestKeepPhysicalInput"] + extraArguments
         app.launch()
         XCTAssertTrue(app.buttons["Session menu"].waitForExistence(timeout: 150), app.debugDescription)
         return app
