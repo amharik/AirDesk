@@ -88,6 +88,46 @@ final class WorkspaceManifestTests: XCTestCase {
         XCTAssertEqual(manifest.mergeMetadata.mergeClass(for: "unknown.field"), .manual)
     }
 
+    func testDefaultMergeMetadataCoversEverySyncableField() {
+        let expected: [String: WorkspaceMergeClass] = [
+            "metadata.name": .lww,
+            "metadata.updatedAt": .lww,
+            "metadata.lastActiveDeviceId": .lww,
+            "layout.displays": .lww,
+            "layout.windows": .lww,
+            "layout.focusOrder": .lww,
+            "layout.activeWindowId": .lww,
+            "preferences": .lww,
+            "applications": .manual,
+            "instances": .manual,
+            "executionBindings": .manual,
+            "resources": .manual,
+            "owner": .manual,
+            "recovery": .manual
+        ]
+
+        let metadata = WorkspaceMergeMetadata.default
+        XCTAssertEqual(metadata.fields.count, expected.count)
+        XCTAssertEqual(Set(metadata.fields.map(\.path)).count, expected.count)
+        for (path, mergeClass) in expected {
+            XCTAssertEqual(metadata.mergeClass(for: path), mergeClass, path)
+        }
+    }
+
+    func testMergeClassMatchesOnlyWholePathSegments() {
+        let metadata = WorkspaceMergeMetadata(fields: [
+            WorkspaceFieldMetadata(path: "layout.displays", merge: .lww, sinceSchemaVersion: 1),
+            WorkspaceFieldMetadata(path: "instances", merge: .manual, sinceSchemaVersion: 1),
+            WorkspaceFieldMetadata(path: "resources", merge: .appendLog, sinceSchemaVersion: 1)
+        ])
+
+        XCTAssertEqual(metadata.mergeClass(for: "layout.displays.display.main.bounds"), .lww)
+        XCTAssertEqual(metadata.mergeClass(for: "layout.displaysX"), .manual)
+        XCTAssertEqual(metadata.mergeClass(for: "instances.instance.terminal"), .manual)
+        XCTAssertEqual(metadata.mergeClass(for: "resources.resource.home"), .appendLog)
+        XCTAssertEqual(metadata.mergeClass(for: "unknown.field"), .manual)
+    }
+
     func testDuplicateMergePathIsRejected() throws {
         var manifest = try makeValidManifest()
         manifest.mergeMetadata.fields.append(manifest.mergeMetadata.fields[0])

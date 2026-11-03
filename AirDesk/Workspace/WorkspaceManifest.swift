@@ -244,9 +244,12 @@ struct WorkspaceMergeMetadata: Codable, Equatable, Sendable {
 
     static let `default` = WorkspaceMergeMetadata(fields: [
         WorkspaceFieldMetadata(path: "metadata.name", merge: .lww, sinceSchemaVersion: 1),
+        WorkspaceFieldMetadata(path: "metadata.updatedAt", merge: .lww, sinceSchemaVersion: 1),
+        WorkspaceFieldMetadata(path: "metadata.lastActiveDeviceId", merge: .lww, sinceSchemaVersion: 1),
         WorkspaceFieldMetadata(path: "layout.displays", merge: .lww, sinceSchemaVersion: 1),
         WorkspaceFieldMetadata(path: "layout.windows", merge: .lww, sinceSchemaVersion: 1),
         WorkspaceFieldMetadata(path: "layout.focusOrder", merge: .lww, sinceSchemaVersion: 1),
+        WorkspaceFieldMetadata(path: "layout.activeWindowId", merge: .lww, sinceSchemaVersion: 1),
         WorkspaceFieldMetadata(path: "preferences", merge: .lww, sinceSchemaVersion: 1),
         WorkspaceFieldMetadata(path: "applications", merge: .manual, sinceSchemaVersion: 1),
         WorkspaceFieldMetadata(path: "instances", merge: .manual, sinceSchemaVersion: 1),
