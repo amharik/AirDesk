@@ -13,6 +13,8 @@ AirDesk versions protocols, schemas and capability contracts independently.
 | Capability host ABI | `host-abi 1` | Native adapter version |
 | Capability descriptor | `camera.capture@1` | Capability-specific contract |
 | Application manifest | `app-manifest 1` | Install and launch validation |
+| WASI target | `wasi-cli@0.2` | World and version checked at placement |
+| Transport binding | `webtransport-http3` | Transport protocol negotiated separately from ADFP |
 
 Do not use one version number for all surfaces.
 
@@ -26,7 +28,9 @@ Do not use one version number for all surfaces.
 
 ## Negotiation
 
-Peers advertise supported ADFP major versions, module versions, runtime contracts and capability versions. The highest mutually supported compatible version is selected. There is no silent downgrade.
+Peers advertise supported ADFP major versions, module versions, runtime contracts, capability versions and transport bindings. The highest mutually supported compatible version is selected. There is no silent downgrade.
+
+ADFP semantic compatibility and transport compatibility are negotiated separately. A peer that supports WebTransport is not automatically compatible with the endpoint's HTTP/3 deployment, and a WASI 0.2 peer is not a WASI 0.3 peer.
 
 ## Schema migration
 

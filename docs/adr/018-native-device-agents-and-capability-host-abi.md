@@ -83,7 +83,9 @@ Leases are time-bounded, scoped and revocable. Indefinite implicit access to dev
 - Wanix and other runtime providers access host functionality only through an explicit host adapter.
 - The adapter enforces capability grants and platform permissions.
 - The host adapter must not expose unrestricted filesystem, process or device access.
-- The ABI is versioned independently of the runtime and ADFP wire versions.
+- On Wanix, map the ABI onto its existing file-service and host-exported-device boundary (`#web`, exported devices and scoped namespace binds) rather than adding a parallel unrestricted host bridge.
+- A namespace import grants only what the namespace exposes; the ABI still checks workspace, application, lease and platform policy.
+- The ABI is versioned independently of the runtime, namespace layout and ADFP wire versions.
 - Unsupported host operations fail closed with a typed error.
 
 ### 6. Native execution remains first-class

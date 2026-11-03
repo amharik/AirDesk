@@ -3,8 +3,9 @@
 - **Status:** Proposed — benchmark and qualification gates required
 - **Date:** 2026-11-03
 - **Updated:** 2026-11-03 — control, data, media and presentation separated
+- **Updated:** 2026-11-03 — research update: WebTransport Baseline 2026, transport evolution negotiation, SAB fallback
 - **Deciders:** Engineering lead, transport owner
-- **Scope:** Transport adapters, control/data/media planes, browser and native transport sequencing, relay policy
+- **Scope:** Transport adapters, control/data/media planes, browser and native transport sequencing, WebTransport, relay policy
 - **Supersedes:** None
 - **Amends:** ADR-005 transport sequencing only; display profiles and Cast messaging remain
 - **Related:** ADR-001, ADR-004, ADR-005, ADR-008, ADR-010, ADR-011, ADR-012, ADR-014, ADR-015, ADR-016, ADR-017
@@ -13,13 +14,13 @@
 
 ADR-005 establishes WebSocket and WebRTC as the transport baseline. The device-fabric and browser-endpoint releases add constraints:
 
-- Browser receivers require secure contexts and, for Wanix/WASM, cross-origin isolation.
+- Browser receivers require secure contexts and, for threaded Wanix/WASM, cross-origin isolation and `SharedArrayBuffer`.
 - mDNS and local-network discovery are restricted in browsers.
 - WebRTC adds ICE, signaling and TURN complexity.
-- WebTransport and QUIC may be useful later but are not required for the first endpoint.
+- WebTransport is Baseline 2026 and a named browser-to-host candidate, but it is not required and its wire protocol is still evolving.
 - Cast uses custom messaging and cannot be treated as a WebRTC browser.
 
-Transport choice must follow measured need. It must not become a prerequisite for the first usable workspace.
+Transport choice must follow measured need. It must not become a prerequisite for the first usable workspace. A browser endpoint must start with the single-threaded profile when cross-origin isolation or `SharedArrayBuffer` is unavailable.
 
 ## Decision
 
@@ -61,13 +62,26 @@ The logical message model is independent of transport. Transport choice must not
 | Device fabric | WebRTC data channels | Preferred direct device data path |
 | Device fabric | QUIC | Native direct candidate, qualified by benchmark |
 | Browser endpoint | Loopback HTTP/WS to local agent | Required browser bootstrap |
+| Browser endpoint | WebTransport over HTTP/3 | Baseline 2026; candidate for browser data, not required |
 | Display release | Cast custom messaging | Development-only until hardware qualification |
 | Display release | Existing AirPlay/external-display path | Fallback endpoint |
-| Later | WebTransport | Candidate for browser-to-host after support qualification |
+| Later | WebTransport as primary data path | Only after benchmark and wire-version review |
 | Later | WebRTC/QUIC relay | Encrypted fallback when direct connectivity fails |
 | Future | libp2p adapter | Optional, never mandatory |
 
 The device fabric requires a direct data path. It does not require relay. If a direct path cannot be established, the session fails closed with a diagnostic rather than silently using a control-plane relay.
+
+### 2.1 WebTransport is available but still optional
+
+WebTransport is Baseline 2026 in current browsers, including Safari 26.4 and later, and the W3C specification reached Candidate Recommendation in July 2026. It is a named candidate for the browser-to-host data channel because it provides multiple streams, datagrams and lower head-of-line blocking than WebSocket.
+
+It is not a requirement:
+
+- The browser endpoint must work over loopback WebSocket before WebTransport is enabled.
+- Transport negotiation must advertise WebTransport support and fall back explicitly.
+- HTTP/3, certificates, proxies and NAT behavior are qualified per deployment.
+- The IETF wire protocol and browser API may still change; version negotiation must cover transport bindings, not only ADFP semantics.
+- WebTransport does not replace AD-RUNTIME, AD-RESOURCE or capability authorization semantics.
 
 ### 3. WebRTC channel semantics
 
@@ -91,7 +105,8 @@ Cast remains development-only until physical Chromecast or Google TV qualificati
 A browser endpoint must account for:
 
 - HTTPS or a secure-context equivalent;
-- COOP/COEP headers for cross-origin isolation;
+- COOP/COEP headers for cross-origin isolation where threaded WASM is requested;
+- `SharedArrayBuffer` availability detection with a single-threaded fallback;
 - hosting of receiver assets;
 - QR or authenticated rendezvous instead of mDNS;
 - browser permission prompts for camera, microphone and clipboard.
@@ -130,13 +145,17 @@ No relay or TURN service is implemented in this cycle. The coordinator may provi
 - WebSocket may not meet every future latency or peer-to-peer requirement.
 - Adding WebRTC later requires signaling, ICE and TURN work.
 - Browser isolation and hosting may block the browser endpoint release.
+- `SharedArrayBuffer` or COOP/COEP failures force the single-threaded profile.
+- WebTransport availability varies by browser, network and server, so it cannot replace WebSocket yet.
 - Multiple transport adapters increase qualification effort.
 
 ## Acceptance gates
 
 - A direct browser session meets the defined control and input budget for the supported matrix.
 - The browser receiver proves or disproves COOP/COEP and secure-context viability.
-- A direct WebRTC/QUIC versus WebSocket benchmark records p50/p95 latency, CPU, reconnect time and battery impact.
+- The browser endpoint starts in single-threaded mode without `SharedArrayBuffer` and only selects the threaded profile when isolation is confirmed.
+- A direct WebRTC/QUIC/WebTransport versus WebSocket benchmark records p50/p95 latency, CPU, reconnect time and battery impact.
+- WebTransport negotiation and fallback are tested on the supported browser matrix.
 - Concurrent bulk transfer does not create visible pointer latency.
 - Disconnect, focus loss and generation changes produce no stuck keys or buttons.
 - A failed direct path fails closed; no relay is silently used in the MVP release.
@@ -145,7 +164,8 @@ No relay or TURN service is implemented in this cycle. The coordinator may provi
 
 ## Out of scope
 
-- Implementing relay, TURN, WebTransport or libp2p in this cycle.
+- Implementing relay or TURN before measured need.
+- Making WebTransport, WebRTC, QUIC or libp2p mandatory.
 - Production WebRTC relay infrastructure and pricing.
 - Production Cast qualification without hardware.
 - Multi-user traffic routing or group media.

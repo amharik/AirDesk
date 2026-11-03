@@ -23,7 +23,7 @@ A single transport adapter may carry more than one plane, but plane separation m
 | QUIC | Yes | Yes | Limited | Qualified native direct path |
 | Cast custom messaging | No | No | Yes | Development-only until hardware qualification |
 | AirPlay/external display | No | No | Yes | Fallback presentation path |
-| WebTransport | Yes | Yes | Limited | Later browser data path |
+| WebTransport | Yes | Yes | Limited | Baseline 2026; browser data candidate, not required |
 | Relay | Yes | Yes | Limited | Encrypted fallback only |
 
 ## Rules
@@ -34,7 +34,8 @@ A single transport adapter may carry more than one plane, but plane separation m
 - WebRTC DTLS fingerprints must be bound to authenticated identities.
 - Transport discovery does not establish trust.
 - Cast is never assumed to be a WebRTC browser.
-- Browser endpoints require secure contexts and COOP/COEP where isolation is needed.
+- Browser endpoints require secure contexts. Threaded WASM additionally requires COOP/COEP, `crossOriginIsolated` and `SharedArrayBuffer`; otherwise use the single-threaded profile.
+- WebTransport wire behavior and browser support are versioned separately from ADFP semantics.
 
 ## Selection
 
@@ -42,7 +43,8 @@ Selection follows measured evidence:
 
 1. local IPC or loopback where possible;
 2. direct authenticated WebSocket/WebRTC/QUIC;
-3. explicit encrypted relay fallback;
-4. typed failure with diagnostics if no authorized path exists.
+3. WebTransport where supported and benchmarked for browser data;
+4. explicit encrypted relay fallback;
+5. typed failure with diagnostics if no authorized path exists.
 
 Do not make relay a hidden prerequisite for local operation.

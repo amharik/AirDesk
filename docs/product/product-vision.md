@@ -27,6 +27,27 @@ Workspace -> Orchestration -> Devices, Capabilities and Runtime Providers -> App
 
 The workspace is the persistent environment. The orchestrator decides how it is realized. Devices contribute hardware, native functionality and execution resources. Runtime providers execute applications. The shell presents the workspace. Sessions connect displays and controllers.
 
+## Prior art and differentiation
+
+Apple Continuity is the closest reference for positioning: Universal Control, Sidecar and Continuity Camera each solve one bounded cross-device job rather than merging the operating systems. That validates the Release 1 → 2 sequence and the rule that devices contribute capabilities instead of being replaced.
+
+AirDesk differs by being the open, heterogeneous equivalent:
+
+- works across device vendors and operating systems;
+- does not require an Apple account or a single-vendor ecosystem;
+- keeps the workspace independent of the display and device;
+- exposes capability and protocol boundaries that third parties can implement.
+
+AirDesk should adopt the bounded-job pattern, not imitate OS-level integration that depends on platform-private APIs.
+
+## Standards posture
+
+- Prefer WASI 0.2 Component Model worlds for portable applications.
+- Treat WASIX as a vendor extension, not a portability baseline.
+- Treat WebTransport as a qualified browser transport, not a requirement.
+- Use WebAuthn/FIDO2 as the future reference for user identity, separate from device keys.
+- Prefer 9P for Wanix namespace import/export where it fits, rather than inventing a parallel remote filesystem protocol.
+
 ## Initial market
 
 The first useful product is a stable personal workspace on a single device. The device fabric follows only after that workspace is coherent, recoverable and independent of a display session.

@@ -9,6 +9,7 @@ AD-RUNTIME is the ADFP module for runtime provider lifecycle and execution statu
 - Execution requests.
 - Observed runtime status and errors.
 - Runtime capability negotiation.
+- Remote namespace role (runtime, resource or both) and 9P binding.
 
 It does not define workspace persistence, application identity, placement policy or capability authorization. Those belong to AD-WS, AD-APP, AD-CAP and the orchestrator.
 
@@ -21,6 +22,9 @@ RuntimeProviderDescriptor
   version
   capabilities[]
   supportedArchitectures[]
+  wasiWorlds[]
+  taskDrivers[]
+  namespaceRoles[]
   resourceLimits
 ```
 
@@ -45,7 +49,7 @@ RuntimeProviderDescriptor
 observedState: starting | running | suspended | stopped | failed | unavailable
 ```
 
-Status must distinguish provider failure from unavailability and from desired-state changes.
+Status must distinguish provider failure from unavailability and from desired-state changes. A remote 9P namespace must report whether it is mounted, degraded or gone, and whether it is a runtime, resource or both.
 
 ## Placement
 

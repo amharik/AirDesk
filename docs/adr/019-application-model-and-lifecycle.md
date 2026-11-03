@@ -24,11 +24,17 @@ An application manifest describes:
 AirDeskApplicationManifest
   id, version, name
   entrypoint
-  supportedRuntimes[]
+  runtimeTargets[]
   requiredCapabilities[]
   presentation
   permissions[]
   lifecycle
+```
+
+```text
+RuntimeTarget
+  provider: native | wanix | browser | remote
+  world: wasi-cli@0.2 | wasi-http@0.2 | wasi-filesystem@0.2 | wasi-sockets@0.2 | ...
 ```
 
 An application may be:
@@ -38,6 +44,8 @@ An application may be:
 - Wanix/WASI;
 - remote;
 - built into AirDesk.
+
+WASI applications pin a Component Model world and version. A bare `wasi` target is not sufficient. Preview 1 targets are an explicit compatibility target, not an alias for a 0.2 world. WASIX is a named vendor target, not a fallback.
 
 The manifest does not name a specific device or runtime instance.
 
@@ -101,6 +109,8 @@ The shell must not depend on Wanix internals, runtime-specific DOM or a provider
 Remote applications are provider adapters, not a separate workspace model.
 
 - RDP RAIL, Xpra, SSH-backed terminals and similar integrations implement presentation/execution adapters.
+- Remote application protocols are advertised through AD-CAP; the orchestrator selects a compatible provider.
+- Remote window/session persistence is reported truthfully. Prefer Xpra-style reattach, where the application survives client disconnect.
 - Remote application windows use the same window and lifecycle abstractions.
 - Remote execution is explicit, not an implicit consequence of display connectivity.
 - Remote application support is post-MVP.
@@ -138,7 +148,9 @@ Remote applications are provider adapters, not a separate workspace model.
 - The shell uses the provider-neutral application/window abstraction.
 - Required capabilities are authorized separately from runtime availability.
 - An incompatible provider fails closed rather than silently substituting.
+- A WASI application declares a world and version; unsupported worlds or versions fail closed.
 - Remote application adapters do not change the workspace identity model.
+- Remote application protocol selection comes from AD-CAP facts, not a hard-coded workspace branch.
 
 ## Out of scope
 

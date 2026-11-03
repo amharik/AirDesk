@@ -16,6 +16,19 @@ DeviceAgent
 
 The contract is logical. Components in the same process may call it directly; remote components use ADFP.
 
+The canonical contract is `CapabilityHostABI`. The device agent and Wanix provider are adapters around it, not competing authorities.
+
+## Wanix boundary
+
+Wanix exposes a unified per-process namespace. Tasks are driven by namespaced file-service interfaces; host-exported devices and `#web` services are the host boundary. A native agent maps `CapabilityHostABI` onto that boundary:
+
+- capability requests become scoped file-service or exported-device operations;
+- leases are enforced before any host bind is exposed;
+- event subscriptions become namespace reads or callbacks;
+- a remote Wanix namespace can be imported over 9P/WebSocket without granting workspace authority.
+
+AirDesk does not assume an undocumented public “host command namespace.” Where Wanix lacks a stable interface, the adapter implements one inside AirDesk and keeps it versioned.
+
 ## Platform responsibilities
 
 - Device identity and key storage.
@@ -41,6 +54,7 @@ CapabilityHostABI
 
 - The adapter enforces capability leases and platform permissions.
 - It must not provide unrestricted filesystem, process or device access.
+- A Wanix-backed adapter may expose only an explicit, scoped namespace subtree.
 - It is versioned independently of ADFP wire versions and runtime versions.
 - Unsupported operations fail closed with a typed error.
 
@@ -50,7 +64,7 @@ Native execution is first-class. It covers native applications, platform APIs, h
 
 ## Browser agents
 
-A browser endpoint is a presentation consumer. It may hold a browser identity and request scoped capabilities, but it is not a native agent and does not bypass platform or browser permissions.
+A browser endpoint is a presentation consumer. It may hold a browser identity and request scoped capabilities, but it is not a native agent and does not bypass platform or browser permissions. It starts with a single-threaded Wanix profile and upgrades to threaded execution only after cross-origin isolation checks.
 
 ## Agent failure
 

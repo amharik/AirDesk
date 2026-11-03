@@ -41,6 +41,19 @@ No account login is required for local pairing in v1. Cloud identity and cross-d
 - Future user identity, workspace membership and roles require a separate decision.
 - Revoking a device invalidates its trust and session credentials; it does not delete the workspace.
 
+### 1.2 Future user identity uses WebAuthn/FIDO2, not device keys
+
+When AirDesk adds account or multi-user identity, use WebAuthn/FIDO2 as the user-authentication reference:
+
+- A passkey or platform authenticator proves user identity to a relying party.
+- The user handle is opaque and separate from device names, device IDs and public-key fingerprints.
+- User verification is requested explicitly; user presence and user verification are not treated as equivalent.
+- Synced and device-bound credentials are distinguishable for policy.
+- Device identity remains the transport and capability-trust anchor. A user credential does not automatically grant device trust, and device trust does not prove user identity.
+- Workspace ownership and membership reference user identity, not a device identity.
+
+Local v1 pairing still requires no account.
+
 ### 2. Discovery is layered
 
 | Path | Use | Notes |
@@ -173,7 +186,8 @@ AirDesk must not promise persistent peer availability while the iOS app is suspe
 
 ## Out of scope
 
-- Account identity and cloud login.
+- Account identity and cloud login in v1.
+- WebAuthn/FIDO2 implementation before a user-identity release.
 - Cross-network rendezvous and TURN relay.
 - Multi-user group membership.
 - libp2p as a required identity layer.

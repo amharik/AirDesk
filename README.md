@@ -12,6 +12,8 @@ AirDesk is in active development. It builds and runs on iOS and iPadOS 17+, and 
 
 The revised architecture moves from a browser-first MVP to a five-release sequence: stable personal workspace, personal device fabric, universal display endpoints, distributed execution, and intent/collaboration. See the [release roadmap](docs/planning/release-roadmap.md).
 
+The target runtime baseline is WASI 0.2 worlds; WASI 0.3 is an evaluation target and WASIX is a vendor extension. WebTransport is a qualified optional browser transport, not a requirement. Browser endpoints use a single-threaded Wanix profile unless `SharedArrayBuffer` isolation is available.
+
 | Area | Current state |
 | --- | --- |
 | iPhone / iPad controller | Working |
@@ -160,6 +162,8 @@ The workspace owns identity and desired state. The orchestrator resolves devices
 The current iOS implementation still centers on a `RuntimeBridge`, WKWebView desktop shell and local Wanix namespace. The phone sends normalized input through one bridge, and a native loopback asset server provides cross-origin isolation. See [ADR-001](docs/adr/001-multi-runtime-architecture.md), [ADR-005](docs/adr/005-display-and-transport.md), [ADR-007](docs/adr/007-winbox-and-wterm.md), [ADR-008](docs/adr/008-input-and-control-protocol.md), [ADR-016](docs/adr/016-workspace-domain-model-and-authority.md) and [ADR-017](docs/adr/017-workspace-orchestration-and-runtime-providers.md).
 
 The browser endpoint is part of Release 3. It uses a local host agent and direct data connections but remains a presentation endpoint; see [ADR-014](docs/adr/014-browser-endpoint-topology.md), the [system overview](docs/architecture/system-overview.md) and the [release roadmap](docs/planning/release-roadmap.md).
+
+Runtime, device and persistence boundaries are detailed in the [runtime architecture](docs/architecture/runtime-architecture.md), [device agent architecture](docs/architecture/device-agent-architecture.md) and [persistence and recovery](docs/architecture/persistence-and-recovery.md). Transport and version negotiation are in the [transport mapping](docs/protocols/transport-mapping.md) and [protocol versioning](docs/protocols/protocol-versioning.md) docs.
 
 ## Development
 

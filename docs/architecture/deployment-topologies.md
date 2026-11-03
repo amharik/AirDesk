@@ -45,6 +45,8 @@ Workspace host -> remote runtime/application provider on another device
 
 Remote placement is explicit. Quotas, network failures, capability availability and recovery must be visible to the user.
 
+A remote Wanix namespace may be imported over 9P/WebSocket. Remote application protocols, including RDP RAIL and Xpra, are selected through AD-CAP. Xpra-style persistent sessions are preferred where the host supports reattachment.
+
 ## Topology 6 — Shared workspace
 
 ```text

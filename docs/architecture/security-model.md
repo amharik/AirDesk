@@ -5,12 +5,14 @@ AirDesk coordinates devices with different operating systems, permissions and tr
 ## Identities
 
 - **Workspace identity:** stable logical workspace; independent of devices and sessions.
-- **User identity:** local personal identity initially; multi-user identity later.
+- **User identity:** local personal identity initially; WebAuthn/FIDO2-backed user identity later.
 - **Device identity:** long-lived key associated with a device.
 - **Session identity:** credentials for one display or controller session.
 - **Runtime identity:** provider instance identity; not a workspace identity.
 
 Device keys use Ed25519 by default. WebCrypto/platform P-256 is a documented fallback. Private keys remain in platform secure storage where available.
+
+User identity and device identity remain separate. A passkey or platform authenticator proves user presence/verification to a relying party; it does not establish device trust. A paired device does not prove a user's identity. User verification must be requested explicitly, and synced versus device-bound credentials are a policy input.
 
 ## Pairing and trust
 
@@ -36,7 +38,7 @@ Revocation is separate from disconnect. Disconnecting a device does not necessar
 - Loopback is not automatically trusted; local origin checks still apply.
 - WebRTC DTLS fingerprints must be bound to authenticated device or session identity.
 - Relay is an encrypted fallback, not a silent substitute for a failed direct path.
-- Browser endpoints require secure contexts and cross-origin isolation where needed.
+- Browser endpoints require secure contexts. Cross-origin isolation and `SharedArrayBuffer` are required only for the threaded Wanix profile; otherwise use the single-threaded profile.
 
 ## Coordinator
 

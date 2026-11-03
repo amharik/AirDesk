@@ -28,6 +28,7 @@ WorkspaceManifest
   preferences
   executionBindings[]
   resources[]
+  mergeMetadata[]
   recovery
 ```
 
@@ -70,6 +71,23 @@ ResourceReference
 ```
 
 Resources may live on a device, a remote provider or future synchronized storage. The workspace references them; it does not assume a single storage location.
+
+## Merge metadata
+
+Every field that may later be synchronized carries a merge class:
+
+```text
+FieldMetadata
+  path
+  merge: lww | append-log | manual
+  sinceSchemaVersion
+```
+
+- `lww` is limited to scalar preferences or metadata where the latest accepted revision wins.
+- `append-log` is for history and audit records.
+- `manual` is the default for identity, ownership, security, placement and structural changes.
+- V1 still rejects concurrent writers. Merge metadata prepares Release 4 sync; it does not enable multi-writer behavior.
+- CRDTs are confined to Release 5 shared documents.
 
 ## Lifecycle
 

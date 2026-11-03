@@ -35,8 +35,8 @@ Required behavior:
 | --- | --- | --- |
 | AD-WS | Active | Workspace desired state, placement and observed status |
 | AD-DEV | Active | Device identity, discovery, pairing and health |
-| AD-CAP | Active | Capability advertisement, leases and revocation |
-| AD-RUNTIME | Active MVP | Runtime provider lifecycle and execution status |
+| AD-CAP | Active | Capability advertisement, leases, revocation and remote-application protocol descriptors |
+| AD-RUNTIME | Active MVP | Runtime provider lifecycle, execution status and remote namespace role |
 | AD-RESOURCE | Active MVP | File and resource access |
 | AD-INPUT | Active MVP | Keyboard, pointer, touch and controller events |
 | AD-DISPLAY | Active MVP | Display capability, viewport and presentation status |
@@ -50,6 +50,7 @@ Required behavior:
 ## Boundary rules
 
 - AD-RUNTIME does not define workspace persistence.
+- AD-RUNTIME may describe a remote Wanix namespace imported over 9P, but the mount is not workspace authority.
 - AD-RESOURCE does not grant unrestricted filesystem access.
 - AD-INPUT carries controller events; it does not decide workspace ownership.
 - AD-DISPLAY presents state; it does not write canonical workspace state.

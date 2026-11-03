@@ -57,13 +57,23 @@ Rules:
 - Corrupt workspace records must not be silently replaced by empty defaults.
 - Recovery must not claim more than was restored.
 
+## Merge metadata
+
+Synchronizable fields carry `lww`, `append-log` or `manual` metadata now, even though v1 rejects concurrent writers.
+
+- `lww`: scalar preferences and metadata.
+- `append-log`: history, audit and event records.
+- `manual`: identity, ownership, security, placement and structural state.
+
+Unknown fields default to `manual`. A field without merge metadata must not be synchronized automatically. CRDTs are not the workspace merge strategy.
+
 ## Sync
 
-Encrypted, conflict-aware synchronization is a later release. Until then:
+Encrypted, conflict-aware synchronization is Release 4. Until then:
 
 - the canonical workspace is device-local;
 - export/import is the supported transfer path;
 - no CRDT or multi-writer protocol is required;
 - resource references must not be assumed reachable from another device.
 
-Future sync must preserve workspace identity, schema versioning and authority boundaries.
+Future sync must preserve workspace identity, schema versioning, merge metadata and authority boundaries. CRDTs are confined to Release 5 shared documents, not workspace desired state.

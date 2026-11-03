@@ -8,14 +8,20 @@ Applications are first-class workspace entities. They are independent of the des
 AirDeskApplicationManifest
   id, version, name
   entrypoint
-  supportedRuntimes[]
+  runtimeTargets[]
   requiredCapabilities[]
   presentation
   permissions[]
   lifecycle
 ```
 
-An application may be native, web, Wanix/WASI, remote or built into AirDesk.
+```text
+RuntimeTarget
+  provider: native | wanix | browser | remote
+  world: wasi-cli@0.2 | wasi-http@0.2 | wasi-filesystem@0.2 | wasi-sockets@0.2 | ...
+```
+
+An application may be native, web, Wanix/WASI, remote or built into AirDesk. WASI applications pin a Component Model world and version; Preview 1 and WASIX are explicit compatibility/vendor targets, not aliases for WASI 0.2.
 
 ## Instances
 
@@ -72,4 +78,4 @@ Remote applications are provider and presentation adapters:
 - SSH-backed terminals;
 - future remote protocols.
 
-They use the same application and window abstractions. Remote support is post-MVP and requires explicit placement.
+They use the same application and window abstractions. Remote support is post-MVP and requires explicit placement. Remote-application protocols are advertised through AD-CAP, not hard-coded in the workspace. Prefer Xpra-style persistent sessions and report whether a remote application survived disconnect.

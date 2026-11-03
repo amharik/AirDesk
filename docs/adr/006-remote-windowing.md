@@ -3,6 +3,7 @@
 - **Status:** Proposed — post-MVP, qualification spikes required
 - **Date:** 2026-10-29
 - **Updated:** 2026-11-03 — remote windows are presentation/execution adapters
+- **Updated:** 2026-11-03 — research update: Xpra session persistence preferred; remote-app protocols negotiated via AD-CAP
 - **Scope:** Windows/Linux/macOS application remoting, remote window integration, decode paths, remote-host security
 - **Supersedes:** None
 - **Related:** ADR-001, ADR-003, ADR-004, ADR-005, ADR-007, ADR-008, ADR-016, ADR-017, ADR-019
@@ -20,6 +21,8 @@ When it enters scope:
 5. **Linux fallback:** integrate Xpra seamless first because it is operationally simpler. Treat patched `wslg` + FreeRDP as a later spike, not an initial dependency.
 6. **macOS:** use a ScreenCaptureKit host with AirDesk’s own per-window metadata and input protocol. Sill is a reference implementation, not an embedded dependency.
 7. **Presentation:** remote windows are ordinary `DesktopWindowManager` windows with a remote surface, not a single full-screen remote desktop.
+8. **Persistence:** prefer Xpra-style server-side session persistence, where windows and applications survive client disconnect and reconnect. RDP RAIL sessions follow host policy and must report whether an application survived.
+9. **Negotiation:** remote-application protocols are advertised and selected through AD-CAP descriptors. The client must not assume RDP, Xpra or a specific remote host capability.
 
 No remote host implementation ships inside the AirDesk client. Remote backends are separate services or host agents.
 
@@ -57,6 +60,7 @@ Xpra is the first Linux seamless backend:
 
 - Run Xpra server-side only, under the GPLv2+ server-side boundary in ADR-003.
 - Use Xpra’s seamless window model to enumerate and control application windows.
+- Prefer Xpra’s persistent, reattachable application sessions. Reconnecting presentation must not be treated as relaunching the application.
 - Start with the HTML5 client in the web runtime as the integration reference; build a thin AirDesk adapter if native integration is required.
 - Do not bundle GPL Xpra code into the iOS client.
 
@@ -107,8 +111,10 @@ Patched `wslg` + FreeRDP remains a later spike:
 ### Linux / Xpra
 
 - Seamless window enumeration, geometry updates, focus, and close pass against a real Xpra host.
+- Disconnect and reattach restore the same remote windows and application state where the host supports persistence.
 - GPL server-side distribution boundary and source-offer obligations are documented.
 - The HTML5 integration spike proves whether a native adapter is needed.
+- The remote-app protocol is selected through an AD-CAP descriptor, not a hard-coded provider branch.
 
 ### Linux / wslg
 

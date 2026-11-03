@@ -130,8 +130,9 @@ Track separately:
 - Workspace-manifest version.
 - Application-manifest version.
 - Discovery protocol version.
+- Transport binding and transport protocol version, including WebTransport's evolving wire format.
 
-A protocol version match is not sufficient. Peers negotiate supported capabilities and fail closed when a required capability or version is absent.
+A protocol version match is not sufficient. Peers negotiate supported capabilities and fail closed when a required capability or version is absent. AD-LINK negotiation must distinguish ADFP semantic compatibility from transport compatibility.
 
 ### 7. Request semantics are explicit
 

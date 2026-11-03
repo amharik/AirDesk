@@ -3,7 +3,8 @@
 - **Status:** Proposed — packaging, provider and performance gates required
 - **Date:** 2026-10-29
 - **Updated:** 2026-11-03 — Wanix re-scoped as preferred provider; native and browser providers first-class
-- **Scope:** Runtime provider model, Wanix packaging, WASI engines, mobile/web FFI, runtime assets, Puter disposition
+- **Updated:** 2026-11-03 — research update: Wanix task drivers and 9P namespaces, WASI 0.2 worlds, WASIX demoted, threading profiles
+- **Scope:** Runtime provider model, Wanix packaging, WASI targets, task drivers, 9P namespaces, threading profiles, mobile/web FFI, runtime assets, Puter disposition
 - **Amends:** ADR-001 runtime implementation choice only; workspace, display and protocol authority comes from ADR-016/017
 - **Supersedes:** None
 - **Related:** ADR-001, ADR-003, ADR-006, ADR-007, ADR-009, ADR-014, ADR-017, ADR-018, ADR-019
@@ -14,7 +15,9 @@ AirDesk uses a provider-neutral runtime model. Wanix is the preferred portable r
 
 - Native platform execution is a first-class provider.
 - Browser execution is a first-class provider for web applications and browser presentation.
-- Wanix executes portable WASI workloads where its sandbox and namespace model fit.
+- Wanix executes portable WASI workloads and can host multiple task drivers in its unified namespace where the platform supports them.
+- Wanix may import or export namespaces over 9P/WebSocket. A remote namespace is an execution/resource mechanism, not workspace authority.
+- Host functionality reaches Wanix through the capability host ABI, layered on Wanix's file-service boundary rather than an unrestricted host bridge.
 - No device is required to install or run Wanix.
 - A runtime provider binds to a workspace; it does not own workspace identity, persistence or orchestration.
 
@@ -23,14 +26,28 @@ The provider contract, registry and placement policy are defined by ADR-017.
 ### Wanix execution baseline
 
 - Wanix executes inside the web runtime on iOS, and later inside Android WebView and a Cast receiver. It does not run as an in-process native Go runtime in the baseline.
-- WASI Preview 1 is the supported execution target. WASI Preview 2 is demand-driven and requires a separate Wasmtime spike.
-- `wazero` is the only baseline WASM engine inside Wanix. Wanix is the runtime; wazero executes WASI modules inside the Wanix Go runtime, not as a native iOS engine.
-- WAMR, Wasmtime and v86 are not shipped until a concrete workload requires them and passes a qualification spike.
+- Wanix is a Plan 9-inspired namespace and task system, not only a WASI wrapper. Its task drivers include Go/TinyGo (`gojs`), WASI Wasm, JavaScript workers and v86 x86 Linux. Only qualified drivers ship on a given platform.
+- WASI 0.2 Component Model worlds are AirDesk's portable application baseline: `wasi-cli@0.2`, `wasi-http@0.2`, `wasi-filesystem@0.2` and `wasi-sockets@0.2`. Preview 1 modules may be adapted where a toolchain or task driver requires them.
+- Wanix's documented `wasi` task driver targets `wasip1`. WASI 0.2 support is a qualification gate for the selected driver/toolchain, not an assumed property of Wanix.
+- Application manifests reference a world and version, not just "WASI". A runtime provider must reject unsupported worlds with a typed capability error.
+- WASI 0.3 is stable as of June 2026 and supported by Wasmtime 46+ and jco, but it is not the baseline until Wanix's execution path and the selected toolchain pass qualification. Do not claim 0.3 support from manifest metadata alone.
+- WASIX is a Wasmer-specific extension, not the standards baseline. Support it only for a named workload that cannot be built against WASI 0.2/0.3 and only after dependency admission.
+- `wazero`, WAMR, Wasmtime and v86 are implementation choices, not architecture. Adopt one only for a named workload and a measured gap in the selected Wanix task driver.
+- Threaded WebAssembly requires `SharedArrayBuffer` and cross-origin isolation. The default browser profile is single-threaded; threaded execution is an opt-in profile with a single-threaded fallback.
+- Remote namespace import over 9P/WebSocket is a candidate transport for Release 4. It must not bypass capability leases or workspace authority.
 - Rust shared cores use UniFFI for Swift/Kotlin bindings. Gomobile is limited to Go/Wanix boundaries where no Rust boundary is appropriate.
 - All runtime and terminal assets are bundled locally. No production path depends on a runtime CDN.
 - Puter is removed entirely. It is not a production runtime, fallback, reference implementation, demo fixture or bundled asset.
 
 ADRs 001 and 017 define the boundary: `DesktopRuntime` remains the local Wanix adapter, RuntimeRegistry selects providers, and Wanix is one provider among native and browser execution.
+
+### Wanix namespace and host boundary
+
+- Wanix exposes processes, terminals, VMs, browser services and storage as files in a composable namespace.
+- OPFS provides browser-persistent storage; it remains subject to eviction and is not the canonical workspace store.
+- Remote namespace import uses 9P over WebSocket. Whether a remote namespace is a runtime provider, resource provider or both is an orchestration decision.
+- Wanix's host-exported devices and `#web` services provide the existing file-service boundary. The capability host ABI must map onto that boundary with scoped leases, not add an unrestricted host syscall surface.
+- A namespace import grants only the files or capabilities exposed by that namespace. It does not grant workspace ownership, device trust or capabilities outside the mounted namespace.
 
 ## Runtime provider responsibilities
 
@@ -54,7 +71,7 @@ A provider is not responsible for:
 
 ## Wanix packaging
 
-Wanix and wazero must be reproducible and auditable:
+Wanix and any selected engine or task driver must be reproducible and auditable:
 
 - pin the Wanix module to an exact commit or pseudo-version;
 - vendor Go modules with `go mod vendor`;
@@ -66,17 +83,18 @@ Wanix and wazero must be reproducible and auditable:
 
 Updates require a new pin, checksum, SBOM diff and runtime regression run. A floating `@latest` or unversioned CDN URL is not permitted.
 
-## Execution engines
+## Execution engines and task drivers
 
-The baseline Wanix engine is wazero because it is pure Go, avoids CGO, and fits the Wanix execution model.
+The runtime provider owns engine choice. AirDesk does not mandate a single Wasm engine.
 
-WAMR, Wasmtime and v86 remain **Hold** until a named workload requires them:
+- **Wanix task drivers:** `gojs`, WASI and JavaScript workers are the initial portable drivers; v86 is an optional legacy x86 driver. A driver is qualified per platform and per workload.
+- **WASI 0.2:** baseline target for new portable applications. The documented Wanix `wasi` driver is `wasip1`; if the selected driver cannot execute a required component world, the provider must report it as unsupported rather than silently downgrade.
+- **WASI 0.3:** evaluation target. Wasmtime 46+ and jco support it; adopt only after Wanix integration, toolchain, memory and startup gates pass.
+- **WASIX:** vendor extension, not a baseline. Admit only for a named Wasmer workload.
+- **WAMR / Wasmtime / wazero:** qualification candidates where a named workload exposes a gap. Wasmtime is the likely path for Component Model worlds that the browser Wanix driver cannot run.
+- **v86:** only for a legacy x86 workload that cannot be rebuilt or emulated more narrowly. It is a task driver, not a second workspace or display authority.
 
-- **WAMR:** only for a C/AOT workload with demonstrated wazero gaps; requires iOS/Android embedding and memory review.
-- **Wasmtime:** only for a WASI Preview 2 component requirement; requires browser/native integration and binary-size review.
-- **v86:** only for a legacy x86 workload that cannot be rebuilt or emulated more narrowly.
-
-Adopting an additional engine requires its own ADR update, bundle-size measurement, startup benchmark and failure-mode tests. “Available” is not a product requirement.
+Adopting an additional engine or driver requires a bundle-size measurement, startup benchmark, fidelity tests and failure-mode tests. “Available” is not a product requirement.
 
 ## FFI strategy
 
@@ -114,20 +132,30 @@ Wanix parity is measured against product requirements, not Puter behavior.
 - A browser provider can execute a supported web application without owning workspace state.
 - Pinned, vendored Wanix builds reproduce the committed WASM checksum.
 - Cold start, compile time, memory and OPFS persistence meet the agreed Wanix budget.
-- `crossOriginIsolated` and required headers are verified in WKWebView and Cast where Wanix runs.
+- Application manifests resolve a declared WASI world and version; unsupported worlds fail closed with typed errors.
+- Wanix's documented `wasi` driver is verified as `wasip1`; WASI 0.2 worlds run only through a qualified driver/toolchain.
+- WASI Preview 1 adaptation, WASI 0.2 worlds and any claimed WASI 0.3 support are tested separately; none is inferred from another.
+- WASIX is absent unless admitted for a named workload.
+- The default single-threaded browser profile starts without `SharedArrayBuffer`; the threaded profile requires `crossOriginIsolated` and falls back explicitly.
+- `crossOriginIsolated` and required headers are verified in WKWebView and Cast where threaded Wanix runs.
+- A 9P namespace import or export is scoped to its mount and cannot bypass capability leases or workspace authority.
 - Offline startup succeeds with no executable CDN dependency.
 - Runtime state transitions are provider-defined and exposed through the ADR-017 contract.
 - The runtime reports capabilities truthfully; absence is handled without UI or transport branching.
-- No Wanix/wazero source is fetched at runtime, and SBOM entries match the shipped artifacts.
+- No Wanix or runtime implementation source is fetched at runtime, and SBOM entries match the shipped artifacts.
 - No Puter code, assets or adapter remain in the shipped product.
 - Provider failure leaves workspace desired state intact.
 
 ## Consequences
 
 - The runtime layer has multiple implementations but one provider contract.
+- Wanix is treated as a namespace/task runtime, not a WASI-only sandbox, so its 9P and task-driver capabilities can serve later releases without redefining the provider contract.
 - Native platform functionality remains available without Wanix.
 - Wanix packaging and SBOM maintenance add release work.
 - Reproducible WASM builds and offline startup remain hard requirements for Wanix.
 - Demand-driven engines keep the support matrix small but delay optional workloads until a real use case exists.
+- WASI 0.2 worlds improve portability, but the Wanix driver and toolchain may not support every world on every platform.
+- Keeping a single-threaded profile is less performant but avoids making `SharedArrayBuffer` availability a startup requirement.
+- 9P namespace import gives a concrete remote-runtime mechanism but adds authorization, latency and failure-mode work.
 - Removing Puter reduces runtime surface and eliminates a competing implementation.
 - Bundling all assets increases app/Cast size but removes CDN availability, integrity and offline risks.

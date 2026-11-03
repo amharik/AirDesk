@@ -10,9 +10,10 @@ This roadmap follows the revised architecture blueprint. Dates are intentionally
 - Define workspace manifest, schema versioning and desired/observed state.
 - Add device-local persistence and truthful recovery.
 - Introduce the runtime provider interface.
-- Integrate Wanix through a provider adapter.
+- Integrate Wanix through a provider adapter and task-driver profile.
 - Preserve native execution.
-- Define the application manifest and lifecycle.
+- Define the application manifest and lifecycle with WASI 0.2 worlds.
+- Add per-field `lww`, `append-log` or `manual` merge metadata now.
 - Separate display and input state from workspace state.
 
 **Exit:** A user can open a workspace, use applications, close the display session and recover the workspace without losing logical state.
@@ -43,6 +44,8 @@ This roadmap follows the revised architecture blueprint. Dates are intentionally
 - Android device agent.
 - USB-C/HDMI qualification.
 - AirPlay and Cast feasibility or compatibility testing.
+- Single-threaded Wanix browser profile with `SharedArrayBuffer` detection.
+- WebTransport qualification as a candidate browser data path.
 - Display reconnection and restoration.
 
 **Exit:** A workspace can be presented on supported native and browser endpoints without making the endpoint the workspace authority.
@@ -51,13 +54,14 @@ This roadmap follows the revised architecture blueprint. Dates are intentionally
 
 **Objective:** Run workloads on the most appropriate participating device.
 
-- Remote Wanix runtime provider.
+- Remote Wanix runtime provider, including a 9P remote-namespace feasibility spike.
 - Runtime placement policies.
 - Remote terminal execution.
-- Remote application provider.
-- RDP RAIL and Xpra experiments.
+- Remote application provider with AD-CAP protocol negotiation.
+- RDP RAIL and Xpra experiments, preferring Xpra-style reattach.
 - Resource access and transfer.
-- Encrypted workspace synchronization.
+- Encrypted workspace synchronization using merge metadata, not workspace-wide CRDTs.
+- WASI 0.3 evaluation after Wanix/toolchain qualification.
 
 **Exit:** An application can execute on a different device from the active display with explicit placement, authorization and failure handling.
 
@@ -67,10 +71,12 @@ This roadmap follows the revised architecture blueprint. Dates are intentionally
 
 - Intent-driven task interface.
 - Approval-gated agent operations.
+- WebAuthn/FIDO2-based user identity, separate from device identity.
 - Shared workspace identity and membership.
 - Roles and permissions.
 - Shared resource semantics.
 - Collaboration audit and revocation.
+- CRDTs confined to shared documents.
 - Optional group sessions.
 
 **Exit:** Multiple authenticated users can collaborate in a shared workspace with explicit ownership and access policies.

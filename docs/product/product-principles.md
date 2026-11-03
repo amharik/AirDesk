@@ -12,3 +12,5 @@
 10. **Truthful recovery.** The product reports what was restored, restarted, reconnected or lost.
 11. **No premature distribution.** Do not introduce CRDTs, a general scheduler or cloud synchronization before the local workspace is dependable.
 12. **Fail closed.** Unsupported versions, unauthorized operations and invalid state produce typed errors, not silent fallbacks.
+13. **Standards first, vendor extensions second.** Target WASI 0.2 worlds and qualified web standards; admit WASIX or a vendor protocol only for a named workload.
+14. **Degrade explicitly.** If `SharedArrayBuffer`, WebTransport, a WASI world or a remote protocol is unavailable, select the documented fallback and report it.

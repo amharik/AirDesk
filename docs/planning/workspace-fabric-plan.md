@@ -14,12 +14,14 @@
 | Authority | Workspace model owns identity and desired state; coordinator, endpoints and providers are not workspace authority |
 | Orchestration | `WorkspaceOrchestrator` above `SessionCoordinator`; deterministic local reconciliation first |
 | Runtimes | Provider-neutral; native, Wanix and browser execution are first-class; Wanix is preferred, not mandatory |
+| Standards | WASI 0.2 worlds baseline; WASIX vendor extension; WASI 0.3 evaluation target |
 | Devices | Native agents expose scoped capabilities; pairing grants trust, not workspace ownership |
 | Protocol | ADFP with AD-RUNTIME and AD-RESOURCE active for the MVP; AD-WS/DEV/CAP/INPUT/DISPLAY baseline |
 | Browser | Presentation endpoint in Release 3, not the first-release authority or MVP requirement |
+| Transport | WebSocket baseline; WebTransport Baseline 2026 candidate; `SharedArrayBuffer` optional |
 | Multi-controller | Multi-pointer default; one keyboard focus owner with explicit handoff |
-| Persistence | Device-local first; encrypted synchronization in Release 4 |
-| Collaboration | Shared workspaces in Release 5; not inferred from pairing or controllers |
+| Persistence | Device-local first; merge metadata now; encrypted synchronization in Release 4 |
+| Collaboration | Shared workspaces in Release 5; CRDTs only for shared documents |
 | License | Open business decision; required before SDK or ecosystem publication |
 
 These decisions are recorded in ADR-001 through ADR-019. Implementation must not promote an ADR or release gate ahead of evidence.
@@ -48,12 +50,16 @@ These decisions are recorded in ADR-001 through ADR-019. Implementation must not
 | WS-03 | Separate desired and observed state | 4 | WS-02 | Observed runtime, application and capability state is never merged into manifest |
 | WS-04 | Persist logical workspace layout | 3 | WS-02 | Window identity, bounds, display, state and focus order restored without DOM state |
 | WS-05 | Add recovery test suite | 3 | WS-03, WS-04 | Relaunch, disconnect, corruption, migration, disk-full and atomic-write tests |
+| WS-06 | Add per-field merge metadata | 2 | WS-02 | Every syncable field has `lww`, `append-log` or `manual`; unknown defaults to `manual` |
 | RT-01 | Approve ADR-004/017 provider model | 2 | GOV-03 | Runtime provider contract and placement boundaries approved |
 | RT-02 | Implement runtime provider registry | 4 | RT-01 | Provider advertisement, selection and typed unavailable states |
 | RT-03 | Wrap Wanix in a provider adapter | 6 | RT-02 | Wanix lifecycle is provider-managed; workspace does not depend on Wanix internals |
 | RT-04 | Preserve native execution path | 4 | RT-02 | Native applications remain first-class and do not require Wanix |
+| RT-05 | Define WASI 0.2 world profiles | 3 | RT-01 | `wasi-cli`, `wasi-http`, `wasi-filesystem`, `wasi-sockets` validate; Wanix `wasip1` and 0.2 drivers are checked separately; WASIX is not implicit |
+| RT-06 | Qualify single-threaded browser profile | 3 | RT-03 | Starts without `SharedArrayBuffer`; threaded mode is opt-in and detects isolation |
 | APP-01 | Approve ADR-019 application model | 2 | GOV-03 | Manifest, instance state and lifecycle approved |
 | APP-02 | Implement application manifest and lifecycle | 5 | APP-01, RT-02 | Install, start, suspend, stop and observed status work |
+| APP-03 | Pin runtime world and version in manifests | 2 | APP-02, RT-05 | Unsupported worlds fail closed; Preview 1 and WASIX are explicit |
 | UX-01 | Add truthful restore report | 2 | WS-03 | UI states what was restored, restarted, reconnected or lost |
 | A11Y-01 | Accessibility baseline | 3 | GOV-01 | VoiceOver, keyboard focus, Dynamic Type, reduced motion and IME text commit |
 | PUTER-01 | Remove Puter entirely | 3 | — | Adapter, enum, UI, labels, Pro copy and tests removed; build and tests pass |
@@ -90,14 +96,16 @@ These decisions are recorded in ADR-001 through ADR-019. Implementation must not
 
 | ID | Task | Est. | Depends | Acceptance |
 | --- | --- | ---: | --- | --- |
-| END-01 | Browser endpoint feasibility spike | 5 | Release 2 | Loopback hosting, COOP/COEP, secure context, asset isolation and QR bootstrap proven or disproven |
+| END-01 | Browser endpoint feasibility spike | 5 | Release 2 | Loopback hosting, COOP/COEP, secure context, `SharedArrayBuffer` detection, asset isolation and QR bootstrap proven or disproven |
 | END-02 | Local host agent | 7 | END-01, ORCH-02 | Serves browser endpoint over loopback with strict origin and capability boundaries |
 | END-03 | Browser presentation endpoint | 10 | END-02 | Opens, pairs, presents workspace and recovers committed state; endpoint is not authority |
+| END-04 | Single-threaded Wanix browser profile | 4 | END-03, RT-06 | Works without `SharedArrayBuffer`; threaded mode is opt-in and reports `crossOriginIsolated` |
 | AND-01 | Android device agent | 8 | AGENT-01 | Capability and presentation baseline under Android permissions |
 | DISP-01 | USB-C/HDMI qualification | 5 | Release 2 | Supported combinations documented with known limitations |
 | DISP-02 | AirPlay/external-display qualification | 4 | DISP-01 | Fallback path tested with truthful recovery |
 | DISP-03 | Cast feasibility or qualification | 5 | Hardware available | Development-only until physical hardware passes; otherwise deferred |
 | DISP-04 | Display reconnect and recovery | 4 | END-03, DISP-01 | Reconnect does not recreate the workspace |
+| XPORT-03 | WebTransport browser qualification | 4 | END-03 | Baseline 2026 support, fallback to WebSocket, and wire-version negotiation documented |
 
 **Exit gate:** Supported display endpoints present the workspace without becoming authority; browser hosting threat model and CSP/SRI requirements pass or the endpoint stays local-only; reconnect preserves workspace identity.
 
@@ -110,10 +118,14 @@ These decisions are recorded in ADR-001 through ADR-019. Implementation must not
 | REM-01 | Remote Wanix provider | 8 | Release 2, RT-03 | Remote runtime lifecycle and observed status work |
 | REM-02 | Placement policies | 5 | ORCH-01, REM-01 | Explicit local/device/runtime placement with explainable diagnostics |
 | REM-03 | Remote terminal execution | 5 | REM-01 | Terminal workloads execute remotely with capability-scoped access |
-| REM-04 | RDP RAIL and Xpra experiments | 8 | REM-03 | Feasibility documented; remote applications use shared window model |
+| REM-04 | RDP RAIL and Xpra experiments | 8 | REM-03 | Feasibility documented; remote applications use shared window model; Xpra reattach preferred |
+| REM-05 | Remote Wanix 9P namespace spike | 4 | REM-01 | Namespace import over 9P/WebSocket is scoped, mountable and does not bypass leases |
+| REM-06 | Persistent remote application sessions | 4 | REM-04 | Xpra-style reattach preserves application state across display disconnect |
+| REM-07 | WASI 0.3 evaluation | 4 | RT-05, REM-01 | Wanix, Wasmtime and jco support checked; 0.3 remains non-baseline until qualified |
 | RES-01 | Cross-device resource access | 5 | CAP-02, AD-RESOURCE | Scoped resource handles, streaming and conflict errors |
 | SYNC-01 | Encrypted workspace synchronization | 10 | WS-02, ID-02 | Explicit conflict model; no silent multi-writer corruption |
 | SYNC-02 | Sync recovery and migration tests | 5 | SYNC-01 | Interrupted sync, version skew and revocation are testable |
+| SYNC-03 | Merge-class synchronization tests | 4 | SYNC-01, WS-06 | `lww`, `append-log` and `manual` behave as declared; unknown metadata fails to `manual` |
 
 **Exit gate:** Remote placement is explicit and authorized; network loss produces typed failure; synchronization does not introduce silent corruption.
 
@@ -129,6 +141,8 @@ These decisions are recorded in ADR-001 through ADR-019. Implementation must not
 | GROUP-02 | Collaboration permissions and audit | 6 | GROUP-01 | Access and revocation are auditable and testable |
 | GROUP-03 | Shared resource semantics | 5 | GROUP-02 | Shared files and application data have explicit policy |
 | GROUP-04 | Optional group sessions | 5 | GROUP-02 | Collaboration is not inferred from pairing or controllers |
+| GROUP-05 | WebAuthn/FIDO2 user identity | 6 | GROUP-01 | User authentication remains separate from device identity and workspace ownership |
+| GROUP-06 | CRDT shared documents | 6 | GROUP-03 | CRDTs are confined to shared documents; workspace desired state is unaffected |
 
 **Exit gate:** Multiple authenticated users can collaborate with explicit ownership, permissions, conflict handling and revocation.
 
@@ -137,12 +151,12 @@ These decisions are recorded in ADR-001 through ADR-019. Implementation must not
 | Gate | Exit criteria |
 | --- | --- |
 | G0: Privacy and CI | No sensitive release logging; strict origins; protocol generation and conformance pass; SBOM produced |
-| G1: Workspace durability | Desired state survives relaunch, disconnect, corruption and migration; restore report is truthful |
+| G1: Workspace durability | Desired state survives relaunch, disconnect, corruption and migration; every syncable field has merge metadata; restore report is truthful |
 | G2: Device trust | Pairing rejects replay, expiry, transcript mismatch and bad signatures; revocation works; discovery leaks no secrets |
 | G3: Capabilities | Unauthorized, expired and revoked leases are denied; invocation is auditable |
 | G4: Orchestration | Desired and observed state remain separate; placement is explicit; failure preserves definitions |
-| G5: Display endpoints | Endpoints present state without becoming workspace authority; reconnect does not recreate the workspace |
-| G6: Transport | Direct path meets budget; relay is absent or explicitly authorized; transport changes follow evidence |
+| G5: Display endpoints | Endpoints present state without becoming workspace authority; reconnect does not recreate the workspace; browser starts without `SharedArrayBuffer` |
+| G6: Transport | Direct path meets budget; WebTransport falls back to WebSocket; relay is absent or explicitly authorized; transport changes follow evidence |
 | G7: Accessibility | VoiceOver, keyboard-only, Dynamic Type, reduced motion and IME pass the supported matrix |
 | G8: Multi-controller | Distinct cursors, single keyboard focus, explicit handoff, no stuck input and revocation enforcement |
 
@@ -162,9 +176,14 @@ Targets are qualification hypotheses, not current measurements. Do not claim res
 
 | Risk | Mitigation |
 | --- | --- |
-| Workspace model expands into sync and CRDTs too early | Release 1 keeps device-local state and truthful recovery; sync is Release 4 |
+| Workspace model expands into sync and CRDTs too early | Release 1 keeps device-local state, merge metadata and truthful recovery; sync is Release 4; CRDTs are Release 5 |
 | Runtime provider work destabilizes native shell | Provider contract behind a neutral interface; native path remains first-class |
 | Wanix is assumed mandatory | Provider registry accepts native and browser providers; Wanix remains preferred where it fits |
+| WASI 0.3 or WASIX is mistaken for the baseline | ADR-004 keeps WASI 0.2 worlds baseline; 0.3 is an evaluation; WASIX is a vendor extension |
+| Browser endpoint requires threaded WASM | Single-threaded profile is default; `SharedArrayBuffer` is optional and detected |
+| WebTransport is treated as universally available | Baseline 2026 candidate only; WebSocket fallback and per-transport versioning required |
+| A 9P mount becomes unrestricted host access | Remote namespaces are capability-scoped and cannot bypass leases |
+| Mixed remote application protocols fragment behavior | AD-CAP descriptors select RDP RAIL, Xpra or a native protocol; semantics stay in ADFP |
 | Device pairing is confused with ownership | ADR-011/015/016 separate device trust, controller attachment and workspace ownership |
 | Capability model becomes device-wide access | ADR-012 requires scoped leases and typed operations |
 | Browser endpoint becomes authority | ADR-014/016 explicitly prohibit it; Release 3 follows Release 2 |

@@ -93,10 +93,14 @@ Initial providers:
 
 Future providers:
 
-- remote Wanix;
+- remote Wanix, including a namespace imported over 9P/WebSocket;
 - SSH-backed applications;
 - RDP RAIL or Xpra-backed applications;
 - hosted execution.
+
+A remote Wanix provider may expose a namespace as execution, resources or both. The orchestrator records which role the provider fulfils; a mounted namespace does not become workspace authority or bypass capability leases.
+
+Remote application protocols are advertised through AD-CAP and selected by the orchestrator. Do not hard-code an RDP or Xpra branch in the workspace model.
 
 Runtime providers do not own workspace identity, discovery, pairing, workspace persistence, synchronization, capability authorization, controller arbitration or transport selection.
 
@@ -171,6 +175,8 @@ The first implementation is local and deterministic. A distributed scheduler is 
 - Display reconnect does not restart unrelated runtimes.
 - Placement is deterministic for the supported modes and explained in diagnostics.
 - Provider version or capability mismatch fails closed.
+- A remote namespace import is scoped to its provider role and cannot mutate workspace authority.
+- Remote application providers are selected through AD-CAP descriptors, not protocol-specific branches.
 
 ## Out of scope
 
