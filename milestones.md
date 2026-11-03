@@ -17,12 +17,12 @@ This file is the implementation tracker. `docs/adr/README.md` remains authoritat
 ## Current focus
 
 - Milestone: `M1`
-- Work item: `WS-06` merge metadata enforcement
-- Next: `UX-01` truthful restore report, `M2` runtime provider registry
+- Work item: `UX-01` truthful restore report and app boot from manifest
+- Next: `M1` exit verification, `M2` runtime provider registry
 
 ## Verification blocker
 
-Real iPad tests are currently blocked over SSH: the Mac login keychain is locked (`User interaction is not allowed`), so Xcode free provisioning cannot install the iOS Development certificate for team `4PL99B52DB`. The iOS simulator build compiles the app and test target, and the workspace core's 62 unit tests pass on macOS via SwiftPM (`swift test`). To run tests on `Hari's iPad`, unlock the login keychain in a GUI session or run the test from Xcode.
+Real iPad tests are currently blocked over SSH: the Mac login keychain is locked (`User interaction is not allowed`), so Xcode free provisioning cannot install the iOS Development certificate for team `4PL99B52DB`. The iOS simulator build compiles the app and test target, and the workspace core's 64 unit tests pass on macOS via SwiftPM (`swift test`). To run tests on `Hari's iPad`, unlock the login keychain in a GUI session or run the test from Xcode.
 
 ## M0 — Plan reset and guardrails
 
@@ -43,7 +43,7 @@ Real iPad tests are currently blocked over SSH: the Mac login keychain is locked
 | WS-03 | Desired/observed separation | Done | WS-02 | Observed runtime/application state never mutates the manifest |
 | WS-04 | Layout persistence | Done | WS-01 | Window identity, bounds, display and focus order restore without DOM state |
 | WS-05 | Recovery test suite | Done | WS-02, WS-03, WS-04 | Relaunch, corruption, future schema, disk-full and interrupted-write tests |
-| WS-06 | Merge metadata enforcement | Pending | WS-01 | Every syncable field is `lww`, `append-log` or `manual`; unknown defaults to `manual` |
+| WS-06 | Merge metadata enforcement | Done | WS-01 | Every syncable field is `lww`, `append-log` or `manual`; unknown defaults to `manual` |
 | HOST-01 | Single-device `WorkspaceHost` | Done | WS-02 | Only host commits; `workspaceSeq` contiguous; `hostEpoch` present; host-degraded typed error |
 | ORCH-01 | Minimal `WorkspaceOrchestrator` | Done | HOST-01 | Open, attach, place, reconcile above `SessionCoordinator`; no workspace mutation from sessions |
 | UX-01 | Truthful restore report | Pending | WS-03 | UI states restored, restarted, reconnected or lost |
@@ -150,3 +150,4 @@ Exit: endpoints present without authority; browser stays loopback-only in v1.
 | 2026-11-03 | ORCH-01 / WS-03 | Added orchestrator and observed-only instance state outside the manifest | f1da00a |
 | 2026-11-03 | WS-04 | Added persisted display/window/focus layout controller without DOM state | 49f3faa |
 | 2026-11-03 | WS-05 | Hardened future-schema and torn-journal recovery; added relaunch/disk-failure tests | c9150ad |
+| 2026-11-03 | WS-06 | Covered all syncable fields with explicit merge classes; unknown paths remain manual | df6d43f |
