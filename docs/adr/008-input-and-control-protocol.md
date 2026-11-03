@@ -4,9 +4,12 @@
 - **Date:** 2026-10-29
 - **Updated:** 2026-11-03 — Input source, focus owner and controller arbitration added
 - **Updated:** 2026-11-03 — peer review: dual-path wire discriminator, FlatBuffers evolution rules and conformance gate
+- **Updated:** 2026-11-03 — peer review round 3: movement-only packed frame, reliable edge channel, connection-derived context and latency probe
+- **Amended:** 2026-11-03 — channel-first routing and layout portability added; packed frames no longer carry edges or timestamps.
 - **Scope:** Input event vocabulary, schema ownership, coordinates, coalescing, click semantics, session/generation/sequence rules, multi-controller arbitration
 - **Supersedes:** None
 - **Related:** ADR-001, ADR-002, ADR-005, ADR-007, ADR-010, ADR-015, ADR-017
+- **Counters:** `docs/architecture/identifiers-and-counters.md`
 
 ## Decision
 
@@ -39,7 +42,7 @@ Control messages include session lifecycle, readiness, acknowledgements, appeara
 
 ## Multi-controller input context
 
-Every input frame carries an envelope in addition to its event payload:
+Every reliable input event carries an envelope in addition to its event payload. Packed movement frames omit these fields and derive them from the authenticated connection (see "Connection-derived context").
 
 | Field | Purpose |
 | --- | --- |
@@ -67,28 +70,49 @@ ADR-015 owns cursor, focus and arbitration semantics; this ADR owns the wire fie
 The protocol source lives in a neutral `protocol/` directory:
 
 - FlatBuffers IDL for control messages and variable-length input metadata.
-- A versioned packed-frame specification for high-frequency pointer events.
+- A versioned packed-frame specification for high-frequency pointer movement.
 - Generated Swift, TypeScript, and Rust types.
 - Shared constants for event names, versions, modifier allowlists, and bounds.
 
 No language owns a hand-edited copy of the schema. Generated files are committed or reproducibly generated at build time. Contract tests must fail if any language drifts.
 
-Packed pointer frames are used on WebSocket and WebRTC. Cast uses its compact JSON profile over the text-only custom channel. JSON is not the production pointer format elsewhere.
+Packed movement frames are used for pointer *movement* on WebSocket and WebRTC data channels. Every input-critical edge (`pointerDown`, `pointerUp`, `pointerClick`, `pointerCancel`, `scroll`, `keyDown`, `keyUp`, `textInput`, `focusChanged`) travels as a FlatBuffers `Envelope` on a reliable, ordered input-critical channel. Cast uses its compact JSON profile over the text-only custom channel. JSON is not the production pointer format elsewhere.
 
-### Dual-path wire discriminator
+### Packed movement frame and reliable edge events
 
-Packed pointer frames and FlatBuffers envelopes share transport channels. A receiver MUST distinguish them in O(1) time without trial deserialization. `PackedPointerFrame` v12 is a fixed 16-byte little-endian frame beginning with `frame_magic = 0xA5`. FlatBuffers root offsets begin in the `0x04...0x20` range, so the magic byte cannot collide with a valid root offset.
+`PackedPointerFrame` v12 is a **movement-only** frame: it reports the current pointer position, held-button mask and modifier state. It does not carry press, release, click, cancel or scroll edges. Sending an edge as a packed frame is a protocol error.
 
 | Offset | Field | Type | Endianness | Constraint |
 | --- | --- | --- | --- | --- |
 | 0 | `frame_magic` | `uint8` | — | `0xA5` for PackedPointerFrame v12 |
-| 1 | `event_flags` | `uint8` | — | bits 0–1 phase (move/down/up/scroll), bits 2–4 button mask, bits 5–7 modifier mask |
+| 1 | `event_flags` | `uint8` | — | bits 0–1 phase: `0b00` = move, other values rejected; bits 2–4 current held-button mask; bits 5–7 current modifier state |
 | 2–3 | `lease_epoch_lo` | `uint16` | little | Low 16 bits of the active input lease epoch (ADR-015); mismatches are dropped |
-| 4–7 | `seq` | `uint32` | little | Per-controller monotonic sequence; `seq <= last_seq` is dropped |
-| 8–11 | `x_norm_or_dx` | `float32` | IEEE-754 little | Normalized X in `0...1`, or relative `dx` |
-| 12–15 | `y_norm_or_dy` | `float32` | IEEE-754 little | Normalized Y in `0...1`, or relative `dy` / scroll delta |
+| 4–7 | `seq` | `uint32` | little | Per-controller monotonic movement sequence; `seq <= last_seq` is dropped |
+| 8–11 | `x_norm` | `float32` | IEEE-754 little | Normalized X in `0...1` |
+| 12–15 | `y_norm` | `float32` | IEEE-754 little | Normalized Y in `0...1` |
 
-A frame without `0xA5` is parsed as a FlatBuffers `Envelope` only after its root offset and `file_identifier` are validated. Unknown discriminators are rejected as a typed protocol error.
+Movement frames are stateless hints: dropping one is allowed, and the next frame restores the full position and held-state. Button and modifier edges are authoritative and are never inferred from a movement frame.
+
+### Channel-first routing and discriminator
+
+Receivers route **by channel class first** (ADR-010, `transport-mapping.md`):
+
+- Channel 1 carries packed movement frames only.
+- Control, runtime, resource and reliable input-critical channels carry FlatBuffers envelopes only.
+
+The `0xA5` check is therefore defense-in-depth on channels that deliberately multiplex, not the primary discriminator. When a channel does multiplex, a frame beginning with `0xA5` is a packed movement frame; anything else is parsed as a FlatBuffers `Envelope` only after its root offset and `file_identifier` are validated. Unknown discriminators are rejected as a typed protocol error. CI fuzzes the FlatBuffers corpus and fails if any valid envelope's first byte is `0xA5` on a multiplexed channel.
+
+### Connection-derived context
+
+The 16-byte movement frame has no `sessionId`, `generation` or `controllerId`. The receiver MUST derive all three from the authenticated transport connection the frame arrived on (ADR-011). A frame arriving on a connection belonging to a previous session or generation is discarded at the transport before the input path sees it. This is why the packed frame needs only `lease_epoch_lo` and `seq`: identity and session binding are properties of the encrypted connection, not of the frame. This rule does not hold on any shared or unauthenticated path, and movement frames are not accepted there.
+
+### Packed-format versioning
+
+The packed format is negotiated on Channel 0 during the session handshake (`input_packed_version`). `0xA5` identifies v12 and is sent only after both peers advertise a supported packed version. A future packed format uses a new magic byte and is never sent before negotiation; a receiver that sees an unnegotiated magic rejects it with a typed protocol error rather than guessing. This keeps the fixed 16-byte frame self-identifying without spending bytes on an in-frame version field.
+
+### Input latency measurement
+
+The packed frame carries no timestamp: at 120 Hz a 16-bit millisecond timestamp wraps in 65 s, and adding a 32-bit timestamp would not fit the 16-byte budget. Instead, input latency is measured with a `LatencyProbe` exchange on Channel 0 (control), timestamped at send and echo. Per-frame latency is derived from the most recent probe; diagnostics MUST NOT claim per-frame timestamps that the wire does not carry.
 
 ### FlatBuffers schema evolution and conformance
 
@@ -109,11 +133,25 @@ Schema changes MUST obey these invariants:
 - Display-side transforms convert normalized coordinates to viewport pixels exactly once.
 - Missing or invalid coordinates are rejected; they must never default to `0,0`.
 - Multi-display or mirrored sessions still use the active desktop viewport, not the phone viewport.
+- Persisted window geometry is stored in **logical desktop coordinates** derived from the active `DisplayProfile` (ADR-001), never in phone or preview-sheet pixels.
+- Opening, dismissing or resizing `DesktopPreviewSheet` or `MirroredDesktopView` applies a pure CSS/Metal affine transform to the composited surface. Preview presentation must not mutate stored bounds, z-order, focus order or remote surface dimensions.
+- Pointer normalization uses the same inverse transform as rendering, so a tap lands at the same logical point at any preview scale.
+
+### Layout portability across display profiles
+
+A workspace may be presented on a different `DisplayProfile` (phone preview, Cast 1080p, external display) without rewriting desired state.
+
+- Stored geometry is normalized to the profile it was authored on, then scaled by the ratio of logical desktop dimensions. Scale factors are clamped to a documented range so a large desktop does not produce unusably small windows on a phone preview.
+- Scaled windows are clamped to the visible desktop bounds; a window is never persisted fully off-screen.
+- Minimum and maximum window sizes are profile constraints, applied after scaling and recorded as presentation state, not desired state.
+- Focus order and z-order are profile-independent: scaling or reflowing must not reorder them.
+- If a window cannot be represented without violating a constraint, it is placed in a deterministic fallback position and flagged `relocated` in the recovery/report output rather than silently dropped.
+- Layout changes made solely to fit a preview profile are session-local presentation state and are not committed to the manifest.
 
 ## Coalescing and ordering
 
-- Pointer moves are coalesced to a 120 Hz cadence with an 8 ms latest-wins window.
-- `pointerDown`, `pointerUp`, `pointerClick`, `scroll`, `keyDown`, `keyUp`, and `textInput` are never coalesced or reordered.
+- Pointer moves are coalesced to a 120 Hz cadence with an 8 ms latest-wins window; they are the only traffic allowed on the unreliable packed movement path.
+- `pointerDown`, `pointerUp`, `pointerClick`, `pointerCancel`, `scroll`, `keyDown`, `keyUp`, `textInput` and `focusChanged` travel on the reliable input-critical channel and are never coalesced or reordered.
 - A drop of a stale pointer move is allowed; a drop of a click, key, or text event is not silently ignored without a recovery rule.
 - Sequence numbers are monotonic per session. Generation changes invalidate older frames.
 - The receiver rejects stale session/generation frames and ignores duplicate sequence numbers according to ADR-001’s at-most-once rules.
@@ -146,10 +184,13 @@ Validation errors are diagnostic. They must not crash the shell or trigger a ret
 ## Acceptance gates
 
 - All 11 events round-trip through Swift, TypeScript, and Rust generated bindings.
-- Packed pointer frames and FlatBuffers control messages decode identically across languages.
-- The `0xA5` discriminator routes pointer frames and `ADEN`-identified FlatBuffers envelopes without trial deserialization or ambiguity.
+- Packed movement frames and FlatBuffers control messages decode identically across languages.
+- Channel-first routing sends every edge event on the reliable channel; the `0xA5` check rejects unnegotiated or misplaced packed frames without trial deserialization.
+- No valid FlatBuffers envelope in the CI fuzz corpus begins with `0xA5` on a multiplexed channel.
 - `flatc --conform` against the frozen baseline schema passes in CI, and generated bindings show zero diff after regeneration.
-- Fuzz tests reject malformed, oversized, stale-generation, and duplicate-sequence frames.
+- Fuzz tests reject malformed, oversized, stale-generation, and duplicate-sequence frames, and reject a packed frame carrying an edge phase.
+- A movement frame can be dropped with no lost button, key or scroll edge.
+- Latency is measured by the Channel 0 probe; diagnostics do not report per-frame timestamps.
 - Coalescing preserves down/up ordering and keeps click/key/text delivery intact.
 - One tap produces exactly one activation, whether delivered by down/up or by a constrained-source click.
 - Cursor coordinates remain correct after viewport resize, rotation, and external-display changes; no `0,0` regression.
@@ -163,7 +204,7 @@ Validation errors are diagnostic. They must not crash the shell or trigger a ret
 
 - One schema and generated bindings replace implicit string contracts and reduce cross-language drift.
 - Code generation adds a build step and must be reproducible under ADR-003.
-- Packed pointer frames improve bandwidth and decode cost, but require a versioned binary specification and fuzzing.
+- Packed movement frames improve bandwidth and decode cost, but require a versioned binary specification and fuzzing. Edges cost a FlatBuffers envelope, which is the correct trade for ordering and reliability.
 - Restricting `pointerClick` to constrained sources avoids double activation but requires source-specific adapters.
 - Cast’s JSON profile remains a separate encoding, so semantic parity tests are mandatory.
 - The current `InputEvent` enum and validation code will need migration, but their bounds and failure cases are a useful baseline.

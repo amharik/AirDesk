@@ -17,9 +17,9 @@ A single transport adapter may carry more than one plane, but plane separation m
 | Channel | Class | Transport semantics | Traffic |
 | --- | --- | --- | --- |
 | 0 | Control and handshake | Reliable, ordered bidirectional stream | Version negotiation, pairing, capability presentation, lease heartbeats |
-| 1 | Input hot path | Unreliable QUIC datagram / unordered WebSocket binary | 16-byte `PackedPointerFrame` with monotonic `seq`; stale frames dropped, not retransmitted |
+| 1 | Pointer-movement hot path | Unreliable QUIC datagram, or the ordered reliable WebSocket binary channel (WebSocket cannot send unordered) | 16-byte `PackedPointerFrame` movement only, with monotonic `seq`; stale frames dropped, not retransmitted. All input edges (`pointerDown`/`Up`/`Click`/`Cancel`, `scroll`, keyboard, text, focus) use a reliable ordered FlatBuffers input-critical channel, never Channel 1 |
 | 2..N | Runtime and PTY streams | Reliable bidirectional streams | Per-instance `stdin`/`stdout`/`stderr`/`resize`/`signal` with 256 KiB byte-credit flow control |
-| M..K | VFS resource mounts | Reliable bidirectional streams | Plan 9/Wanix resource RPCs (`Tattach`, `Twalk`, `Topen`, `Tread`, `Twrite`, `Tclunk`, `Tstat`, `Twstat`) |
+| M..K | VFS resource mounts | Reliable bidirectional streams | Plan 9-inspired ADFP `ResourceRpc` ops (`Attach`, `Walk`, `Open`, `Read`, `Write`, `Clunk`, `Stat`, `Wstat`); ADFP op codes, not 9P2000 tags |
 
 ## WebTransport certificate rules
 
@@ -45,6 +45,8 @@ A single transport adapter may carry more than one plane, but plane separation m
 ## Rules
 
 - Behavior must not depend on which transport carries a message.
+- Receivers route by channel class before inspecting payloads: Channel 1 is packed movement only, Channel 1R and all other ADFP channels are FlatBuffers envelopes only. The `0xA5` discriminator is defense-in-depth, not the primary router.
+- A packed movement frame carries no session, generation or controller identity; the receiver derives them from the authenticated connection. Movement frames are never accepted on shared or unauthenticated paths.
 - The control plane must not carry bulk content.
 - A failed direct path fails closed unless an encrypted relay is explicitly authorized.
 - WebRTC DTLS fingerprints must be bound to authenticated identities.

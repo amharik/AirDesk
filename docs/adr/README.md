@@ -23,6 +23,7 @@ This index is the authoritative map of which decision is in force. An ADR's orig
 | [017](017-workspace-orchestration-and-runtime-providers.md) | Workspace orchestration and runtime providers | Proposed | Not started | WorkspaceOrchestrator above SessionCoordinator; provider-neutral contract; remote Wanix may be imported over 9P |
 | [018](018-native-device-agents-and-capability-host-abi.md) | Native device agents and capability host ABI | Proposed | Not started | Devices expose capabilities through native agents; Wanix is optional; host ABI maps to its file-service/exported-device boundary |
 | [019](019-application-model-and-lifecycle.md) | Application model and lifecycle | Proposed | Not started | Applications are provider-neutral; manifests pin WASI worlds; remote apps select protocols via AD-CAP |
+| [020](020-workspace-host-role-and-authority-handoff.md) | Workspace host role and authority handoff | Proposed | Not started | `WorkspaceHost` owns store commits, structural sequencing and orchestration; input leases stay at the display sink; handoff is explicit and `host_epoch`-fenced |
 
 ## Effective decisions
 
@@ -38,14 +39,14 @@ This index is the authoritative map of which decision is in force. An ADR's orig
 - **Capabilities:** scoped, time-bounded, revocable leases; advertisement is not permission.
 - **Input:** multiple controllers may attach; one keyboard focus owner at a time; this is not multi-user collaboration.
 
-## Lifecycle tags and lineage
+## Delivery phase and lineage
 
-Every record carries one lifecycle tag, separate from its decision and implementation status:
+Phase is a planning label. It does not change decision or implementation status.
 
-| Tag | Meaning | Records |
+| Phase | Meaning | Records |
 | --- | --- | --- |
-| `Accepted & Implemented (Phase 1 Baseline)` | Decision is in force and the local/Cast/SSH baseline implements it | ADR-001–ADR-009 |
-| `Accepted — Phase 2/3 Architecture Target` | Decision is in force for the device fabric; implementation and qualification gates are open | ADR-010–ADR-019 |
+| Phase 1 baseline | Describes behavior the shipped app is built around; implementation status is per ADR | ADR-001 – ADR-009 |
+| Phase 2/3 target | Describes the device-fabric architecture; no implementation yet | ADR-010 – ADR-020 |
 
 Lineage is recorded explicitly so a fabric ADR cannot silently redefine a baseline decision:
 
@@ -54,13 +55,14 @@ Lineage is recorded explicitly so a fabric ADR cannot silently redefine a baseli
 - ADR-015 and ADR-016 extend ADR-009 (workspace persistence and recovery).
 - ADR-017 and ADR-018 extend ADR-001 and ADR-004 (runtime and execution).
 - ADR-019 extends ADR-006 and ADR-007 (remote windowing and shell/terminal).
+- ADR-020 extends ADR-009, ADR-012, ADR-015, ADR-016 and ADR-017 (host role and authority handoff).
 
 CI verification gates referenced by the records:
 
 - `.github/workflows/ios.yml` — iOS build and unit tests.
 - `.github/workflows/desktop-shell.yml` — TypeScript build, artifact-diff gate, dependency/SBOM check, `flatc --conform` and generated-binding drift.
 - `AirDeskTests/`, `AirDeskUITests/`, `web/test/` — behavior suites cited by each Phase 1 record.
-- Phase 2/3 records remain `Proposed` until their protocol fixtures and qualification gates exist; the tag does not promote them to `Accepted & Implemented`.
+- Phase 2/3 records remain `Proposed` until their protocol fixtures and qualification gates exist; the phase label does not promote them to `Accepted`.
 
 ## Status rules
 

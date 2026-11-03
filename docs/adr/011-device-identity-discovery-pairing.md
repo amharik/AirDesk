@@ -4,6 +4,7 @@
 - **Date:** 2026-11-03
 - **Updated:** 2026-11-03 — device trust separated from workspace ownership and user identity
 - **Updated:** 2026-11-03 — peer review: RFC 9383 SPAKE2+ pairing bound to the TLS 1.3 exporter
+- **Updated:** 2026-11-03 — peer review round 3: browser pairing binds the host certificate hash; canonical DNS-SD records and TXT keys
 - **Deciders:** Security owner, engineering lead
 - **Scope:** Device keys, identity lifecycle, local discovery, QR pairing, session authentication, revocation, trust boundaries
 - **Supersedes:** None
@@ -68,25 +69,34 @@ Do not require mDNS for correctness. Browser endpoints use QR or an authenticate
 
 ### 3. DNS-SD advertises minimal information
 
-Advertise only a service record and coarse metadata, for example:
+The canonical service records are:
+
+- `_airdesk._tcp.local.` — control endpoint (TLS WebSocket), advertised whenever mDNS is enabled.
+- `_airdesk._udp.local.` — optional WebTransport/QUIC hint, advertised only when a WebTransport listener is running.
+
+Canonical TXT keys:
 
 ```text
-_airdesk._tcp
-protocol=1
-device_type=host
-security=required
+txtvers=1
+adfp_ver=1.0
+device_type=host|controller|display
+certhash_current=<sha256>
+certhash_next=<sha256>
 ```
+
+`device_type` is coarse. The DNS-SD instance name is a random per-boot label, not a stable device identifier.
 
 Do not advertise:
 
+- a stable device ID (`dev_id`) or role bitmask (`role_mask`);
 - authentication tokens;
 - private paths;
 - capability details;
 - user names;
 - camera, microphone or filesystem availability;
-- anything that enables fingerprinting before authentication.
+- anything that enables fingerprinting or capability inference before authentication.
 
-Detailed capabilities are exchanged only after authenticated pairing.
+Detailed capabilities and stable identities are exchanged only after authenticated pairing. The `certhash_*` values are certificate hashes, not identities; they are accepted only as described in section 4.2.
 
 ### 4. QR pairing is an authenticated bootstrap
 
@@ -114,10 +124,10 @@ Pairing transcript:
 
 - The password-authenticated exchange is RFC 9383 SPAKE2+ over P-256 for browser/native interoperability (section 4.1).
 - The transcript hash binds `protocol_version`, initiator and responder device IDs, both SPAKE2+ shares and confirmation tags, nonces, expiry, endpoint hints and requested capabilities with SHA-256.
-- The transcript also binds the TLS exporter value `EXPORTER-AirDesk-Pairing-v1`, so it is tied to the actual connection.
+- The transcript binds a channel-binding value: the TLS exporter `EXPORTER-AirDesk-Pairing-v1` when both peers are native and can read it, otherwise the host certificate hash delivered out of band (section 4.2). It is never left unbound.
 - Each side signs the transcript with its long-term Ed25519 key, or its P-256 key when that is the device identity.
 - The short authentication string is a truncated hash of the completed transcript and is compared out of band where a display is available.
-- Session keys are derived from the SPAKE2+ secret, the TLS exporter value and the transcript hash; long-term private keys never leave their device.
+- Session keys are derived from the SPAKE2+ secret, the channel-binding value and the transcript hash; long-term private keys never leave their device.
 
 The flow rejects expired nonces, replayed QR codes, transcript mismatches, invalid signatures and mismatched fingerprints.
 
@@ -129,12 +139,24 @@ AD-PAIR-1 uses RFC 9383 SPAKE2+ for the PIN/QR password-authenticated exchange. 
 
 - The password is the short-lived 6-digit PIN or the secret carried in the QR payload. It is never transmitted.
 - The group is P-256 for browser/native interoperability; the SPAKE2+ identity fields are `initiator` / `responder` domain-separated with the ADFP protocol version and both device IDs.
-- The exchange is bound to the established TLS 1.3 connection through the keying-material exporter with label `EXPORTER-AirDesk-Pairing-v1` and the pairing transcript as context. A relay that terminates TLS on a different connection cannot complete the exchange.
-- The exporter output and the SPAKE2+ confirmation keys are mixed into the session-key derivation; the short authentication string is derived from the combined transcript.
+- When both peers are native, the exchange is bound to the established TLS 1.3 connection through the keying-material exporter with label `EXPORTER-AirDesk-Pairing-v1` and the pairing transcript as context. A relay that terminates TLS on a different connection cannot complete the exchange.
+- The channel-binding value and the SPAKE2+ confirmation keys are mixed into the session-key derivation; the short authentication string is derived from the combined transcript.
 - Failed attempts are rate-limited; the PIN expires after a short window and after a bounded number of attempts.
 - The transcript, confirmation tags and key schedule are specified with test vectors before implementation.
 
 An active MITM relay that forwards bytes between two TLS connections cannot produce the same exporter value on both legs, so binding the SPAKE2+ transcript to the exporter closes the relay attack that SPAKE2+ alone does not.
+
+### 4.2 Browser endpoints bind to the host certificate hash instead of the exporter
+
+Web browsers do not expose TLS keying-material exporters to JavaScript, and WKWebView does not expose them to the page either. A browser/native pairing therefore cannot use `EXPORTER-AirDesk-Pairing-v1`. The rule is:
+
+- If either peer is a browser (including the WKWebView shell), the host's TLS certificate SHA-256 is carried out of band in the QR payload or the authenticated rendezvous response, and that hash is mixed into the pairing transcript.
+- The hash must come from the pairing payload or a signed advertisement. A hash observed from the live connection, from mDNS alone, or from an unsigned redirect is not accepted; accepting it would let a relay substitute its own certificate.
+- The browser verifies the server certificate matches the out-of-band hash before the SPAKE2+ exchange (WebTransport `serverCertificateHashes`, WebSocket via the native shell's pinned-certificate policy).
+- Native peers continue to bind the exporter and may additionally bind the certificate hash. The transcript records which binding was used so the two sides cannot silently disagree.
+- A pairing attempt that presents no acceptable binding is rejected; there is no "unbound" mode.
+
+This closes the same relay attack for browser endpoints while remaining implementable in WebKit.
 
 ### 5. Transport security is not reimplemented
 
@@ -187,7 +209,9 @@ AirDesk must not promise persistent peer availability while the iOS app is suspe
 ## Acceptance gates
 
 - AD-PAIR-1 succeeds between a supported controller and a native agent or browser endpoint with Ed25519 identities, or P-256 where Ed25519 is unavailable.
-- AD-PAIR-1 uses RFC 9383 SPAKE2+ over P-256 and binds the transcript to `EXPORTER-AirDesk-Pairing-v1`; a relay that terminates two different TLS connections cannot complete pairing.
+- AD-PAIR-1 uses RFC 9383 SPAKE2+ over P-256 and binds the transcript to `EXPORTER-AirDesk-Pairing-v1` for native/native pairs; a relay that terminates two different TLS connections cannot complete pairing.
+- Browser/native pairing binds the host certificate SHA-256 from the pairing payload or signed advertisement (no browser exporter is assumed); a certificate hash taken only from the live connection or unsigned mDNS is rejected.
+- An unbound pairing attempt is rejected; the transcript records which binding was used.
 - Expired, replayed or transcript-mismatched QR codes are rejected; failed PIN attempts are rate-limited and the PIN expires.
 - A revoked device cannot establish a new session or use existing grants.
 - Pairing alone does not grant workspace ownership, membership or optional capabilities.
@@ -199,6 +223,16 @@ AirDesk must not promise persistent peer availability while the iOS app is suspe
 - Browser permission and secure-context limitations are reported truthfully.
 - Browser identity storage eviction produces an explicit re-pair flow and no silent key rotation.
 - Pairing transcript construction, signature inputs and session-key derivation are specified and have test vectors.
+
+## Options considered
+
+| Option | Why not chosen |
+| --- | --- |
+| Account-based identity | Requires a cloud service and breaks offline-first pairing |
+| Trust-on-first-use without a PIN or QR secret | Gives no protection against an active MITM |
+| Plain SPAKE2+ without a channel binding | A TLS-terminating relay can complete two independent exchanges |
+| SPAKE2+ plus TLS exporter or out-of-band certificate hash | Chosen: password-authenticated, offline, and bound to the real channel in both native and browser cases |
+| Noise layered over TLS | Adds complexity without a named threat the TLS binding does not cover |
 
 ## Out of scope
 

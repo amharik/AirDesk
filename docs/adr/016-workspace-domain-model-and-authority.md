@@ -3,11 +3,14 @@
 - **Status:** Proposed — domain schema and recovery gates required
 - **Date:** 2026-11-03
 - **Updated:** 2026-11-03 — peer review: single-writer workspace sequencer and geometry LWW reconciliation
+- **Updated:** 2026-11-03 — peer review round 3: v1 geometry authority is host receive order; LWW deferred to Release 4
+- **Amended by:** ADR-020 (workspace host role and authority handoff)
 - **Deciders:** Product owner, engineering lead
 - **Scope:** Workspace identity, desired state, observed state, resource references, ownership, recovery domains
 - **Supersedes:** None
 - **Amends:** ADR-001, ADR-005, ADR-009, ADR-014, ADR-015
-- **Related:** ADR-004, ADR-010, ADR-011, ADR-012, ADR-017, ADR-018, ADR-019
+- **Related:** ADR-004, ADR-010, ADR-011, ADR-012, ADR-017, ADR-018, ADR-019, ADR-020
+- **Counters:** `docs/architecture/identifiers-and-counters.md`
 
 ## Context
 
@@ -113,7 +116,8 @@ A display reconnect must not recreate the workspace. A runtime crash must not er
 
 ### 7. Initial authority is local and explicit
 
-- Release 1 stores the workspace locally and uses a single local authority.
+- Release 1 stores the workspace locally and uses a single local authority, placed on the `WorkspaceHost` defined by ADR-020.
+- Authority is split by duty: the host commits and sequences structure; the display session's `SessionCoordinator` arbitrates input leases; the provider device or workspace owner approves root grants (ADR-020).
 - A future synchronization service introduces explicit membership and conflict policy.
 - The coordinator is not the workspace authority.
 - No runtime provider may claim authority over workspace identity or persistence.
@@ -125,10 +129,12 @@ The workspace host is the **Single-Writer Sequencer** for structural mutations: 
 - Each accepted structural transition receives a contiguous `workspace_seq: uint64`.
 - An update carries the expected `workspace_seq`; a stale sequence is rejected and the caller reloads.
 - Only the workspace host assigns `workspace_seq`; display sessions, runtimes and browser endpoints never do.
-- High-frequency window drag/resize geometry uses optimistic local rendering and Last-Writer-Wins reconciliation tagged with `(lease_epoch, client_seq)`.
-- LWW applies only to geometry fields; application definitions, ownership and resource bindings remain single-writer and are never LWW-merged.
+- High-frequency window drag/resize geometry may render optimistically on the controller, but the authoritative order is the order the workspace host **receives** updates. The host applies the latest received value for a geometry field; it does not compare `lease_epoch`, client timestamps or client counters in v1 (ADR-020).
+- `(lease_epoch, client_seq)` Last-Writer-Wins is not a v1 rule. It is reserved for the Release 4 synchronization layer, where updates from multiple hosts must be merged without a single receive order.
+- LWW, when introduced, applies only to geometry fields; application definitions, ownership and resource bindings remain single-writer and are never LWW-merged.
 - A reconciled geometry update must not advance or reorder `workspace_seq`.
 - The sequencer is local in Release 1; a future synchronization service preserves the same invariant per workspace.
+- Geometry updates are not accepted while the workspace host is unreachable; the display may hold them as session-local presentation state and offer them on reconnect (ADR-020 §5).
 
 ### 8. Schema and evolution are mandatory
 
@@ -159,7 +165,9 @@ The workspace host is the **Single-Writer Sequencer** for structural mutations: 
 
 - A workspace can be created and restored without a display session.
 - A workspace can be presented on a different endpoint without changing its identity.
-- Structural mutations receive contiguous `workspace_seq` values, and a stale sequence is rejected; geometry LWW never advances the sequencer.
+- Structural mutations receive contiguous `workspace_seq` values, and a stale sequence is rejected.
+- v1 geometry authority follows host receive order; `(lease_epoch, client_seq)` LWW is not used and cannot advance the sequencer.
+- A structural mutation attempted while the host is unreachable is rejected with a typed error, not queued.
 - A device disconnect marks observed state unavailable but leaves the desired state intact.
 - A runtime failure does not delete application definitions or workspace metadata.
 - A display session cannot write canonical workspace state.
@@ -167,6 +175,16 @@ The workspace host is the **Single-Writer Sequencer** for structural mutations: 
 - Resource references survive provider or device changes for local resources.
 - A schema mismatch produces a typed error and preserves the last readable revision.
 - Pairing and controller attachment do not grant workspace ownership.
+
+## Options considered
+
+| Option | Why not chosen |
+| --- | --- |
+| Device-centric model | Loses workspace independence; closing a device would close the workspace |
+| One document per window | Cannot commit a workspace revision atomically or order cross-window mutations |
+| Shell-owned workspace state | Makes the shell the authority and ties state to one platform |
+| Provider-neutral workspace with a single-writer host sequencer | Chosen: explicit authority, atomic revisions and honest recovery |
+| Multi-host merge in v1 | Requires synchronization and conflict resolution that belong to Release 4 |
 
 ## Out of scope
 

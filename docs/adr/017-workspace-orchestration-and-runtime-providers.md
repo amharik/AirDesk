@@ -3,6 +3,8 @@
 - **Status:** Proposed — orchestration contracts and provider qualification required
 - **Date:** 2026-11-03
 - **Updated:** 2026-11-03 — peer review: provider health checks, circuit breaker and failover state machine
+- **Updated:** 2026-11-03 — peer review round 3: orchestrator placed on `WorkspaceHost`; host-degraded behavior defined
+- **Amended by:** ADR-020 (workspace host role and authority handoff)
 - **Deciders:** Engineering lead, product owner
 - **Scope:** WorkspaceOrchestrator, SessionCoordinator boundary, RuntimeRegistry, RuntimeProvider, placement and reconciliation
 - **Supersedes:** None
@@ -45,6 +47,8 @@ Without that separation, display connectivity becomes execution authority, and r
 - session-level recovery.
 
 The orchestrator calls the session coordinator. The session coordinator is not authoritative for workspace state.
+
+`WorkspaceOrchestrator` runs on the `WorkspaceHost` (ADR-020), alongside store commits and structural sequencing. When the host is unreachable, orchestration is unavailable: running runtimes and leased input continue on the display side, but structural placement and lifecycle mutations fail with a typed error rather than being queued.
 
 ### 2. The logical contracts are explicit
 
@@ -191,12 +195,23 @@ Mid-session loss of an SSH or LAN provider must be handled by an explicit state 
 - The orchestrator selects a provider through `RuntimeRegistry`, not a Wanix-specific branch.
 - Native execution works without Wanix.
 - A runtime failure leaves desired application state intact and reports observed failure.
+- Orchestration runs on the `WorkspaceHost`; when it is unreachable, structural placement and lifecycle mutations fail with a typed error instead of queueing.
 - Provider loss follows the `HEALTHY → DEGRADED → OPEN → HALF_OPEN` circuit-breaker table with bounded backoff; no unbounded retry or silent rerun occurs.
 - Display reconnect does not restart unrelated runtimes.
 - Placement is deterministic for the supported modes and explained in diagnostics.
 - Provider version or capability mismatch fails closed.
 - A remote namespace import is scoped to its provider role and cannot mutate workspace authority.
 - Remote application providers are selected through AD-CAP descriptors, not protocol-specific branches.
+
+## Options considered
+
+| Option | Why not chosen |
+| --- | --- |
+| Shell owns orchestration | Makes the shell the authority and couples reconciliation to one UI |
+| Coordinator owns runtimes | Turns the control-plane coordinator into a data-plane authority |
+| Per-provider ad hoc placement | Duplicates policy and produces inconsistent failure reporting |
+| Host-local orchestrator with provider adapters | Chosen: one policy, typed provider differences and observed state that cannot rewrite desired state |
+| Cloud scheduler | Adds a dependency and an availability requirement the local-first product rejects |
 
 ## Out of scope
 

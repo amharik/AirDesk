@@ -5,6 +5,7 @@
 - **Updated:** 2026-11-03 — Wanix re-scoped as preferred provider; native and browser providers first-class
 - **Updated:** 2026-11-03 — research update: Wanix task drivers and 9P namespaces, WASI 0.2 worlds, WASIX demoted, threading profiles
 - **Updated:** 2026-11-03 — peer review: execution-tier routing policy and mandatory COOP/COEP isolation headers
+- **Updated:** 2026-11-03 — peer review round 3: just-bash removed from production tiers; per-session tier selection; Release 1 WASI split; synchronous WASI fails closed
 - **Scope:** Runtime provider model, Wanix packaging, WASI targets, task drivers, 9P namespaces, threading profiles, mobile/web FFI, runtime assets, Puter disposition
 - **Amends:** ADR-001 runtime implementation choice only; workspace, display and protocol authority comes from ADR-016/017
 - **Supersedes:** None
@@ -28,8 +29,9 @@ The provider contract, registry and placement policy are defined by ADR-017.
 
 - Wanix executes inside the web runtime on iOS, and later inside Android WebView and a Cast receiver. It does not run as an in-process native Go runtime in the baseline.
 - Wanix is a Plan 9-inspired namespace and task system, not only a WASI wrapper. Its task drivers include Go/TinyGo (`gojs`), WASI Wasm, JavaScript workers and v86 x86 Linux. Only qualified drivers ship on a given platform.
-- WASI 0.2 Component Model worlds are AirDesk's portable application baseline: `wasi-cli@0.2`, `wasi-http@0.2`, `wasi-filesystem@0.2` and `wasi-sockets@0.2`. Preview 1 modules may be adapted where a toolchain or task driver requires them.
-- Wanix's documented `wasi` task driver targets `wasip1`. WASI 0.2 support is a qualification gate for the selected driver/toolchain, not an assumed property of Wanix.
+- Release 1 has two concrete WASI targets, not one: the Wanix driver runs **`wasip1`** modules, and the native agent runs **`wasi-cli@0.2`** Component Model worlds. A manifest may declare both targets; each provider executes only the world it is qualified for.
+- WASI 0.2 Component Model worlds are the native provider's portable baseline: `wasi-cli@0.2`, `wasi-http@0.2`, `wasi-filesystem@0.2` and `wasi-sockets@0.2`. `wasip1` modules are the Wanix baseline. Preview 1 modules may be adapted where a toolchain or task driver requires them.
+- Wanix's documented `wasi` task driver targets `wasip1`. WASI 0.2 on Wanix is a qualification gate for the selected driver/toolchain, not an assumed property of Wanix; until it passes, a `wasi-cli@0.2` target is placed on the native provider or reported unsupported.
 - Application manifests reference a world and version, not just "WASI". A runtime provider must reject unsupported worlds with a typed capability error.
 - WASI 0.3 is stable as of June 2026 and supported by Wasmtime 46+ and jco, but it is not the baseline until Wanix's execution path and the selected toolchain pass qualification. Do not claim 0.3 support from manifest metadata alone.
 - WASIX is a Wasmer-specific extension, not the standards baseline. Support it only for a named workload that cannot be built against WASI 0.2/0.3 and only after dependency admission.
@@ -52,17 +54,18 @@ ADRs 001 and 017 define the boundary: `DesktopRuntime` remains the local Wanix a
 
 ### Execution tier routing
 
-AirDesk runs three execution tiers with different isolation and latency properties. The provider and the shell must choose a tier explicitly; a command must not silently fall back from one tier to another.
+AirDesk has two **production** execution tiers with different isolation and latency properties. The provider and the shell choose a tier explicitly per terminal session; a session must not silently fall back from one tier to another and individual commands do not choose a tier.
 
 | Tier | Engine | Isolation | Use when |
 | --- | --- | --- | --- |
-| Instant shell | just-bash (TypeScript AST interpreter) | In-process parser sandbox (`DefenseInDepthBox`, `AsyncLocalStorage`, parser depth/token limits); no VM | Stateless pipelines, text processing and built-ins with sub-millisecond cold start |
 | Portable runtime | Wanix task drivers (`gojs`, WASI, JavaScript workers, v86) | Web Worker per task, WASI/Wasm or x86 sandbox, Plan 9 namespace | Stateful WASI/Go/Zig binaries and workloads that need a namespaced filesystem |
 | Remote host | `SSHPTYSession` / native agent | Remote POSIX process isolation | Workloads that must run on a remote host or access host-only tooling |
 
-- just-bash is not a security boundary for untrusted code and must not be described as VM isolation.
-- A workload that requires filesystem persistence, native syscalls or an unsupported world must fail closed with a typed capability error rather than executing in just-bash.
-- Tier selection is recorded with the runtime instance so diagnostics explain where a command ran.
+The just-bash TypeScript AST interpreter is an **offline/demo shell only**. It is not a production execution tier, is not admitted as a runtime dependency under ADR-003, and is not offered on any authenticated or remote path. It has no `AsyncLocalStorage` dependency; the demo shell relies on parser depth/token limits and a process-level timeout only. Treating it as a security boundary or as a fallback for a failed portable runtime is prohibited.
+
+- Tier selection is recorded with the terminal session (not per command) so diagnostics explain where the session ran.
+- A workload that requires filesystem persistence, native syscalls or an unsupported world fails closed with a typed capability error; it must not be retried in a different tier without a new user-visible session decision.
+- Switching tiers requires closing the session and opening a new one; the two tiers never share a process namespace.
 
 ### Cross-origin isolation and SharedArrayBuffer
 
@@ -70,8 +73,9 @@ Threaded WebAssembly and synchronous WASI pipes require `SharedArrayBuffer`, whi
 
 - `LocalAssetServer` and any Cast/browser receiver host MUST send `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` on every HTML, JavaScript and WASM response.
 - `LocalAssetServerTests` MUST assert that `window.crossOriginIsolated === true` inside the served WKWebView before the threaded profile is selectable.
-- When `SharedArrayBuffer` is unavailable, `wanix-file-worker-fix.js` MUST degrade file-worker RPCs to asynchronous `MessagePort` transferables (ArrayBuffer ownership transfer) and the runtime MUST select the single-threaded profile.
-- Cast receivers and restricted browser endpoints that cannot satisfy isolation MUST use the single-threaded profile; they must not throw `DataCloneError` by posting a `SharedArrayBuffer` across a non-isolated context.
+- When `SharedArrayBuffer` is unavailable, only asynchronous file-worker RPCs may degrade to `MessagePort` transferables (ArrayBuffer ownership transfer). Synchronous WASI entry points, `wasi-threads`, blocking `fd_read`/`fd_write` and any workload that requires shared memory MUST fail closed with a typed `SynchronizationUnavailable` error. They must not be emulated on the main thread.
+- Cast receivers and restricted browser endpoints that cannot satisfy isolation MUST use the single-threaded profile and may run only workloads that do not require `SharedArrayBuffer`; they must not throw `DataCloneError` by posting a `SharedArrayBuffer` across a non-isolated context.
+- The single-threaded profile is a real capability reduction, not a transparent fallback: it is chosen per session with a visible diagnostic, and a session that needs shared memory refuses to start rather than degrading silently.
 
 ## Runtime provider responsibilities
 
@@ -112,8 +116,9 @@ Updates require a new pin, checksum, SBOM diff and runtime regression run. A flo
 The runtime provider owns engine choice. AirDesk does not mandate a single Wasm engine.
 
 - **Wanix task drivers:** `gojs`, WASI and JavaScript workers are the initial portable drivers; v86 is an optional legacy x86 driver. A driver is qualified per platform and per workload.
-- **WASI 0.2:** baseline target for new portable applications. The documented Wanix `wasi` driver is `wasip1`; if the selected driver cannot execute a required component world, the provider must report it as unsupported rather than silently downgrade.
-- **WASI 0.3:** evaluation target. Wasmtime 46+ and jco support it; adopt only after Wanix integration, toolchain, memory and startup gates pass.
+- **Release 1 split:** Wanix executes `wasip1`; the native agent executes `wasi-cli@0.2`. A manifest that declares only `wasi-cli@0.2` is not placed on Wanix until Wanix 0.2 support qualifies; a manifest that declares only `wasip1` is not placed on a native agent that has dropped Preview 1.
+- **WASI 0.2:** native baseline target for new portable applications. If a provider cannot execute a required component world, it reports the target unsupported rather than silently downgrading to `wasip1`.
+- **WASI 0.3:** evaluation target. Wasmtime 46+ and jco support it; the native agent may target `wasi-cli@0.3` after qualification (with `wasi:io` replaced by `stream<T>`/`future<T>`), but Release 1 ships `0.2`.
 - **WASIX:** vendor extension, not a baseline. Admit only for a named Wasmer workload.
 - **WAMR / Wasmtime / wazero:** qualification candidates where a named workload exposes a gap. Wasmtime is the likely path for Component Model worlds that the browser Wanix driver cannot run.
 - **v86:** only for a legacy x86 workload that cannot be rebuilt or emulated more narrowly. It is a task driver, not a second workspace or display authority.
@@ -132,7 +137,7 @@ The app and Cast receiver bundle:
 
 - the pinned Wanix WASM/JS runtime;
 - the shell and generated TypeScript bundles;
-- wterm, its selected core, and optional just-bash assets once adopted;
+- wterm and its selected core; demo-only just-bash assets are development dependencies and are not part of the production bundle;
 - required fonts, workers and WASI modules;
 - checksums or integrity metadata used by the loader.
 
@@ -157,13 +162,13 @@ Wanix parity is measured against product requirements, not Puter behavior.
 - Pinned, vendored Wanix builds reproduce the committed WASM checksum.
 - Cold start, compile time, memory and OPFS persistence meet the agreed Wanix budget.
 - Application manifests resolve a declared WASI world and version; unsupported worlds fail closed with typed errors.
-- Wanix's documented `wasi` driver is verified as `wasip1`; WASI 0.2 worlds run only through a qualified driver/toolchain.
+- Release 1 places `wasip1` workloads on Wanix and `wasi-cli@0.2` workloads on the native agent; a manifest with no qualified target for a provider fails closed.
 - WASI Preview 1 adaptation, WASI 0.2 worlds and any claimed WASI 0.3 support are tested separately; none is inferred from another.
 - WASIX is absent unless admitted for a named workload.
 - The default single-threaded browser profile starts without `SharedArrayBuffer`; the threaded profile requires `crossOriginIsolated` and falls back explicitly.
 - `LocalAssetServer` responses carry `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`; `LocalAssetServerTests` asserts `window.crossOriginIsolated === true`.
-- File-worker RPCs fall back to `MessagePort` transferables and never post a `SharedArrayBuffer` outside an isolated context.
-- A workload is routed to just-bash, Wanix or a remote host by an explicit tier policy, and an unsupported tier fails closed rather than silently downgrading.
+- Async file-worker RPCs fall back to `MessagePort` transferables and never post a `SharedArrayBuffer` outside an isolated context; synchronous WASI and `wasi-threads` fail closed with `SynchronizationUnavailable`.
+- A terminal session is routed to Wanix or a remote host by an explicit per-session policy; an unsupported tier fails closed rather than silently downgrading. just-bash is never a production target.
 - A 9P namespace import or export is scoped to its mount and cannot bypass capability leases or workspace authority.
 - Offline startup succeeds with no executable CDN dependency.
 - Runtime state transitions are provider-defined and exposed through the ADR-017 contract.

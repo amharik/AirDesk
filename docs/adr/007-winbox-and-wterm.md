@@ -4,6 +4,8 @@
 - **Date:** 2026-10-29
 - **Updated:** 2026-11-03 — Shell and terminal boundaries made provider-neutral
 - **Updated:** 2026-11-03 — peer review: Ghostty WASM zero-initialization invariant and PTY flow-control contract
+- **Updated:** 2026-11-03 — peer review round 3: just-bash confined to offline/demo; PTY ack, timer fallback and stall timeout defined
+- **Amended:** 2026-11-03 — no production execution tier is chosen by this ADR; tier selection belongs to ADR-004.
 - **Scope:** DesktopShell window management, window chrome integration, terminal emulation, WKWebView/Cast/native parity
 - **Supersedes:** ADR-002 decision to use `interact.js` for web window drag/resize/snapping and its rejection of `WinBox.js`. All other ADR-002 decisions remain in force.
 - **Related:** ADR-002, ADR-003, ADR-004, ADR-005, ADR-008, ADR-009, ADR-017, ADR-019
@@ -28,13 +30,15 @@ Adopt a library-backed compositor and terminal stack, behind AirDesk-owned adapt
 3. **Full replacement, not a hybrid**: the custom window manager is replaced behind a `DesktopWindowManager` adapter after parity tests pass.
 4. **wterm owns terminal emulation and rendering** by default in WKWebView and Cast. The DOM renderer (`@wterm/dom`) is the baseline and the production core is `@wterm/ghostty` with a 16 MiB scrollback budget; the built-in `@wterm/core` remains the lightweight preview/fallback core.
 5. **wterm sits behind a `TerminalEngine` adapter** implementing the current `wanix-term` contract. Wanix is not forked.
-6. **The terminal is a provider-backed application, not Wanix authority.** The `#task/shell/term` PTY is the default terminal provider in the current release. `@wterm/just-bash` remains an offline/local shell adapter and demo fallback. The shell must use the application/runtime interfaces in ADR-017/019 so another terminal provider can be added without changing workspace or shell semantics.
+6. **The terminal is a provider-backed application, not Wanix authority.** The `#task/shell/term` PTY is the default terminal provider in the current release. `@wterm/just-bash` remains an offline/local demo adapter only; it is not a fallback runtime for a failed PTY or Wanix session. The shell must use the application/runtime interfaces in ADR-017/019 so another terminal provider can be added without changing workspace or shell semantics.
 7. **SSH uses a native transport, not the renderer.** Remote shells run through SwiftNIO SSH in the app process with a pinned OpenSSH host key; no SSH keys or credentials are bundled into or exposed to the web shell. The `airdeskTerminal` bridge carries only PTY input, output, resize, and lifecycle messages. A `wss` transport remains subject to the ADR-005 certificate and relay gates if it is ever added.
 8. **`@wterm/ghostty` is the production core.** The built-in core failed the 5,000-line scrollback gate, so Ghostty is shipped locally with an explicit byte budget. The added 598 kB WASM asset is accepted pending the remaining conformance, memory, and Cast gates.
 9. **`interact.js` is retained only for non-WinBox drag surfaces**, if any remain. It is no longer the window drag/resize layer.
 10. **Thin upstream-first forks are allowed only for WinBox**, and only if AirDesk chrome cannot be preserved through supported extension points. wterm is not forked.
 
-Exact versions must be pinned under ADR-003. The selected candidates are WinBox `0.2.82` (Apache-2.0), wterm `0.5.7` (Apache-2.0), and `just-bash` `3.6.0` (Apache-2.0). All require release, checksum, license, and platform verification before Trial.
+Exact versions must be pinned under ADR-003. The selected candidates are WinBox `0.2.82` (Apache-2.0), wterm `0.5.7` (Apache-2.0), `@wterm/ghostty` `0.5.7` (Apache-2.0) and `just-bash` `3.6.0` (Apache-2.0). All require release, checksum, license, and platform verification before Trial.
+
+`just-bash` is **not a production execution tier**. It is an offline/demo terminal adapter only, is not admitted under ADR-003/ADR-004 as a runtime, and is never offered on an authenticated, remote or workspace-backed path. It is built from development dependencies and must be labeled as an offline sandbox wherever the debug preview exposes it.
 
 ## Architecture
 
@@ -73,11 +77,11 @@ wterm and just-bash assets are bundled locally; no runtime CDN dependency is per
 
 #### Ghostty WASM page zero-initialization
 
-Upstream `@wterm/ghostty` fixed an allocator defect where reused WASM linear-memory pages were not zero-initialized after terminal reset or scrollback reallocation, leaking stale glyphs and attributes across sessions (vercel-labs/wterm#207).
+Upstream `@wterm/ghostty` fixed an allocator defect where reused WASM linear-memory pages were not zero-initialized after terminal reset or scrollback reallocation, leaking stale glyphs and attributes across sessions ([vercel-labs/wterm#207](https://github.com/vercel-labs/wterm/issues/207)). The production core is pinned to `@wterm/ghostty` `0.5.7`, the first selected build that contains the fix.
 
-- The production `terminal-core.wasm` must include that fix, pinned to a reviewed build.
+- The production `terminal-core.wasm` must include that fix, pinned to the reviewed `0.5.7` build.
 - `wterm-ghostty.test.ts` must reset and reallocate the terminal repeatedly and assert that new pages render blank with default attributes.
-- A committed WASM binary is a release artifact: CI rebuilds it from the pinned Zig 0.15.2 source and fails if the binary differs byte-for-byte.
+- A committed WASM binary is a release artifact. The chosen trust root is **byte-for-byte reproduction**: CI rebuilds it from the pinned Zig 0.15.2 source and fails if the binary differs byte-for-byte. Source review alone is not the gate, because a reviewed source tree can still produce a different binary; a reproducible build makes the committed artifact auditable.
 
 #### PTY flow control
 
@@ -86,13 +90,15 @@ Terminal output must not stall the WebKit main thread or overrun the Cast channe
 | Parameter | Value | Rule |
 | --- | --- | --- |
 | In-flight window | 256 KiB | Unacknowledged bytes per terminal stream |
-| Ack unit | `ack_bytes` control frame | Emitted after each committed `requestAnimationFrame` DOM update |
+| Ack unit | `ack_bytes` control frame | Emitted after the terminal core consumes the write into scrollback, not merely after paint. A 16 ms timer fallback emits the ack if `requestAnimationFrame` is starved |
 | Pause threshold | 256 KiB unacknowledged | `SSHPTYSession` and Wanix PTY reads pause |
 | Resume threshold | 128 KiB unacknowledged | Reads resume with hysteresis |
 | Cast pacing | Bounded JSON message size and rate | Fragmented payloads never exceed the receiver's documented limit |
 
 - Output is delivered in bounded chunks; a single read cannot exceed the window.
 - Dropping terminal output is not permitted: the producer pauses instead.
+- The consumer acknowledges only after the terminal core has consumed the bytes into its scrollback model. Paint is not the acknowledgement point, so a slow renderer cannot cause the producer to overrun unread state.
+- A 16 ms timer fallback emits the pending ack when `requestAnimationFrame` is starved (background tab, main-thread contention). If no ack arrives for 2 seconds, the stream enters a stall timeout: the producer pauses, the lease is released, and the PTY is closed or suspended deterministically with a typed diagnostic.
 - A stalled or disconnected consumer releases the lease and the PTY is closed or suspended deterministically.
 
 ### Dependency evidence

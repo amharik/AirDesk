@@ -4,6 +4,7 @@
 - **Date:** 2026-11-03
 - **Updated:** 2026-11-03 — browser re-scoped as a presentation endpoint; local agent is not workspace authority
 - **Updated:** 2026-11-03 — peer review: client-only browser WebTransport, reverse-stream registration and Happy Eyeballs fallback
+- **Updated:** 2026-11-03 — peer review round 3: browser dials loopback WebSocket only; WebTransport and 300 ms fallback are native-controller paths
 - **Deciders:** Product owner, engineering lead, security owner
 - **Scope:** Browser endpoint, local host service, coordinator, certificates, browser identity storage, presentation authority
 - **Supersedes:** None
@@ -124,16 +125,17 @@ A coordinator compromise must not expose workspace files or device private keys.
 - A LAN-reachable browser asset server requires a separately documented certificate model and is not part of the MVP.
 - The agent's LAN controller listener is authenticated and encrypted; it is not a browser asset origin.
 
-### 7.1 Browser endpoints are WebTransport clients only
+### 7.1 The browser dials its loopback agent only
 
-WebTransport is client-initiated; a browser endpoint cannot accept an inbound WebTransport or QUIC connection. The browser therefore always dials out to a local host agent or a native/IOS host.
+A browser endpoint cannot accept inbound connections and is not a peer on the device fabric. In v1 it dials exactly one endpoint: the **loopback agent** embedded in the same app (the native process serving the page), over `ws://127.0.0.1:<port>` with strict origin and token checks. It does not dial a native/iOS device, a coordinator, or a LAN peer, and no native/iOS device is a browser host.
 
-- The browser attempts WebTransport over HTTP/3 (UDP) first when the host advertises a compatible `certhash`.
-- A **300 ms** fallback timer opens a WebSocket (`wss://`, or `ws://` on loopback with origin checks) when UDP is blocked or WebTransport fails.
-- If neither path succeeds, the endpoint fails closed with a typed diagnostic; it does not silently use a relay.
-- After connecting, the browser registers as a display sink by opening a persistent bidirectional control stream.
-- The host pushes window, runtime and surface updates over server-initiated streams on that established session; it never dials the browser directly.
-- The browser cannot become a listener, workspace authority or coordinator.
+- The loopback WebSocket is the browser transport. It is ordered and reliable; packed movement frames ride its binary channel and stale movement is discarded by `seq`.
+- WebTransport is a **native controller ↔ LAN agent** path, not a browser path. The browser does not attempt WebTransport in v1, so `serverCertificateHashes` support is not on the browser critical path.
+- The 300 ms fallback belongs to the native controller path: a native controller tries WebTransport first and falls back to WebSocket when UDP is blocked. The browser has nothing to fall back to and fails closed if loopback is unavailable.
+- If loopback fails, the endpoint fails closed with a typed diagnostic; it does not silently use a relay.
+- After connecting, the browser registers as a display sink by opening a persistent bidirectional control stream with the loopback agent.
+- The loopback agent, not the browser, dials remote peers over the fabric on the browser's behalf. The host pushes window, runtime and surface updates over the loopback session; it never dials the browser directly.
+- The browser cannot become a listener, workspace host or coordinator.
 
 ### 8. Threat boundaries are explicit
 
@@ -176,7 +178,8 @@ SEC-04 must cover these before the browser endpoint is qualified.
 - A host-agent failure leaves the workspace definition intact.
 - Controllers pair through the coordinator or QR bootstrap.
 - Direct data works when connectivity allows; no relay is silently used.
-- The browser endpoint dials WebTransport first and falls back to WebSocket within 300 ms when UDP is blocked; it never accepts inbound WebTransport or dials the browser.
+- The browser endpoint dials only its loopback agent over WebSocket; it never accepts inbound connections, dials a LAN or native device, or uses WebTransport in v1.
+- A native controller tries WebTransport and falls back to WebSocket within 300 ms when UDP is blocked; the fallback is not a browser behavior.
 - Coordinator compromise cannot expose workspace content, terminal output or device private keys.
 - Browser identity eviction produces a re-pair flow, not a silent identity change.
 - Two controllers attach with distinct cursors and explicit keyboard focus.

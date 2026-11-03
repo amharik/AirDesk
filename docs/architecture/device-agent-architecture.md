@@ -8,7 +8,7 @@ A device agent is the native integration point between AirDesk and a platform op
 DeviceAgent
   identity()
   capabilities()
-  requestCapability(capabilityId, request)
+  requestCapability(cap_uri, request)
   releaseCapability(leaseId)
   subscribe(eventType, handler)
   health()

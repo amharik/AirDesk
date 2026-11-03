@@ -3,6 +3,7 @@
 - **Status:** Proposed — specification and conformance gates required
 - **Date:** 2026-11-03
 - **Updated:** 2026-11-03 — major amendment for orchestration, runtime and resource modules
+- **Updated:** 2026-11-03 — peer review round 3: channel 1R for reliable edges; AD-DEV naming; AD-CAP consumer timing
 - **Deciders:** Engineering lead, protocol owner
 - **Scope:** Protocol semantics, module boundaries, versioning, schema evolution, orchestration and lifecycle messages, Cast projection
 - **Supersedes:** None
@@ -37,16 +38,17 @@ ADFP does not define TCP, UDP, TLS, WebRTC, QUIC or a new cryptographic transpor
 
 ### 1.1 Channel classes
 
-ADFP traffic is partitioned into four logical channel classes. The transport binding maps them to datagrams or streams without changing semantics (see `docs/protocols/transport-mapping.md`).
+ADFP traffic is partitioned into five logical channel classes. The transport binding maps them to datagrams or streams without changing semantics (see `docs/protocols/transport-mapping.md`).
 
 | Channel | Class | Traffic | Delivery |
 | --- | --- | --- | --- |
-| 0 | Control and handshake | Version negotiation, pairing, capability presentation, lease heartbeats | Reliable bidirectional stream |
-| 1 | Input hot path | 16-byte `PackedPointerFrame`, monotonic `seq` | Unreliable datagrams or unordered binary; stale frames dropped |
+| 0 | Control and handshake | Version negotiation (including packed-format version), pairing, capability presentation, lease heartbeats, `LatencyProbe` | Reliable bidirectional stream |
+| 1 | Pointer-movement hot path | 16-byte `PackedPointerFrame` movement only, monotonic `seq` | Unreliable datagrams; WebSocket fallback is ordered reliable and relies on `seq` discard; stale frames dropped |
+| 1R | Reliable input-critical | Input edges: `pointerDown`/`Up`/`Click`/`Cancel`, `scroll`, keyboard, text, focus, as FlatBuffers `Envelope` | Reliable ordered stream |
 | 2..N | Runtime and PTY streams | `stdin`, `stdout`, `stderr`, `resize`, `signal` | Reliable bidirectional streams with per-stream byte credit |
-| M..K | VFS resource mounts | Plan 9/Wanix resource RPCs (`Tattach` … `Tclunk`) | Reliable bidirectional streams |
+| M..K | VFS resource mounts | Plan 9-inspired ADFP `ResourceRpc` ops (`Attach` … `Clunk`), not 9P2000 tags | Reliable bidirectional streams |
 
-A heavy build on a runtime stream cannot block interactive input on Channel 1 or resource mounts on another stream.
+Receivers route by channel first: Channel 1 is packed movement only and Channel 1R is FlatBuffers edges only; neither channel is multiplexed. A heavy build on a runtime stream cannot block interactive input on Channel 1/1R or resource mounts on another stream.
 
 ### 2. Module set is deliberately scoped
 
@@ -54,7 +56,7 @@ MVP modules:
 
 | Module | Responsibility | Relationship |
 | --- | --- | --- |
-| AD-ID | Device identity references and pairing messages | ADR-011 |
+| AD-DEV | Device identity, discovery, pairing and health | ADR-011 |
 | AD-LINK | Session establishment, connectivity and transport negotiation, cancellation | ADR-005, ADR-013 |
 | AD-CAP | Capability descriptor, leases and invocation | ADR-012, ADR-018 |
 | AD-WS | Workspace identity, desired-state references, reconciliation and recovery | ADR-009, ADR-016, ADR-017 |
@@ -100,7 +102,7 @@ These messages describe intent and observed results. They do not make the coordi
 - ADR-014 owns browser endpoint topology.
 - ADR-015 owns session ownership, cursors and keyboard focus.
 
-AD-CAP is active, not speculative. The browser applications are concrete consumers: files and camera use scoped grants, not device-wide permissions.
+AD-CAP is active, not speculative. The first concrete consumers are the Release 2 native/phone files and camera capabilities, which use scoped grants rather than device-wide permissions. Browser applications consume the same model in Release 3; they are not the justification for shipping AD-CAP in Release 2.
 
 `ProfileResolver` (ADR-001) chooses a display/runtime profile. `CapabilityResolver` (ADR-012) chooses a capability provider. They are separate resolvers; AD-CAP supplies the provider facts both consume.
 
@@ -109,7 +111,7 @@ ADFP must not duplicate or contradict those decisions.
 ### 4. Session ownership is explicit
 
 - AD-LINK is the canonical ADFP session-establishment vocabulary.
-- AD-ID supplies device identity and pairing.
+- AD-DEV supplies device identity, discovery and pairing.
 - ADR-011 supplies session credentials.
 - ADR-015 owns cursor, focus and multi-controller arbitration.
 - ADR-001's Cast v2 handshake is a transport-specific legacy handshake.
@@ -203,6 +205,16 @@ Maintain shared fixtures across Swift, TypeScript and Rust:
 - AD-CAP can express a scoped lease, expiry and revocation.
 - AD-RESOURCE can resolve a resource reference and report access denial without embedding a provider-local path.
 - Lifecycle messages are idempotent and correlated.
+
+## Options considered
+
+| Option | Why not chosen |
+| --- | --- |
+| One monolithic protocol module | Couples identity, capability, workspace and input policy; the scoped module set keeps ownership explicit |
+| JSON-only wire format | Cannot meet the pointer hot path; JSON is kept only for the Cast adapter |
+| Reuse 9P, mDNS and HTTP unchanged | None of them expresses capability leases, workspace sequencing or authenticated pairing by itself |
+| A custom transport | Loses mature WebSocket, QUIC, WebRTC and WebTransport adapters and their browser support |
+| FlatBuffers envelopes plus packed movement frames | Chosen: typed control messages, compact hot path, and generated cross-language bindings |
 
 ## Out of scope
 

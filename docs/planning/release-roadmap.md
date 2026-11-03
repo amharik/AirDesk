@@ -13,7 +13,7 @@ Deliverables:
 - Runtime provider interface and task-driver profile.
 - Wanix provider adapter.
 - Native execution integration.
-- Application manifest and lifecycle with WASI 0.2 world targets.
+- Application manifest and lifecycle with per-provider WASI targets: `wasip1` on Wanix, `wasi-cli@0.2` on the native agent (`wasi-cli@0.3` only after qualification).
 - Per-field merge metadata (`lww`, `append-log`, `manual`).
 - Display/input state separated from workspace state.
 - Truthful recovery and diagnostics.
@@ -24,7 +24,7 @@ Gates:
 - Workspace survives shell close and application/runtime failure.
 - Corrupt or future schema is rejected safely.
 - Wanix failure is reported, not hidden by a fallback runtime.
-- Unsupported WASI worlds or versions fail closed.
+- A provider executes only its qualified `(provider, world)` pair; unsupported worlds or versions fail closed.
 - No workspace credential or private key is stored in the manifest.
 
 ## Release 2 — Personal device fabric

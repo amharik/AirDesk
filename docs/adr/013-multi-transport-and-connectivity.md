@@ -5,6 +5,7 @@
 - **Updated:** 2026-11-03 — control, data, media and presentation separated
 - **Updated:** 2026-11-03 — research update: WebTransport Baseline 2026, transport evolution negotiation, SAB fallback
 - **Updated:** 2026-11-03 — peer review: ephemeral WebTransport certificate rotation and dual-hash advertisement
+- **Updated:** 2026-11-03 — peer review round 3: signed/pairing-only cert hashes; WebTransport Baseline date and WKWebView qualification gate
 - **Deciders:** Engineering lead, transport owner
 - **Scope:** Transport adapters, control/data/media planes, browser and native transport sequencing, WebTransport, relay policy
 - **Supersedes:** None
@@ -90,10 +91,18 @@ A LAN host has no publicly trusted CA certificate. WebTransport accepts a self-s
 
 - Every host running a WebTransport listener generates an ephemeral **ECDSA P-256** certificate with a **7-day** validity at startup.
 - The certificate rotates every **5 days** with a **48-hour dual-hash overlap**: mDNS TXT records and pairing payloads advertise both `certhash_current=<sha256>` and `certhash_next=<sha256>`.
-- The current SHA-256 fingerprint is also served over the authenticated bootstrap endpoint.
-- A client accepts only a hash advertised for that device and pins it for the session; an unknown hash fails closed.
+- The current SHA-256 fingerprint may also be served over an authenticated bootstrap endpoint or a signed advertisement; it is never accepted from an unsigned mDNS TXT record alone.
+- A client accepts a certificate hash only from the pairing payload or a signed advertisement for that device, and pins it for the session; an unknown, unsigned or mismatched hash fails closed.
 - Expired, more-than-14-day or non-ECDSA certificates are rejected before connection.
 - Rotation does not invalidate an established session; new sessions use the newest advertised hash.
+
+Browser support for `serverCertificateHashes` is a qualification gate, not an assumption. WebTransport reached Baseline in March 2026, but `serverCertificateHashes` availability differs: Chrome 100+, Firefox 125+, and Safari/iOS 26.4+. Before the WKWebView shell enables WebTransport:
+
+- the target runtime must expose `WebTransport` and accept `serverCertificateHashes` with an ECDSA P-256 certificate;
+- the shell must verify the certificate hash against the pairing payload, not merely against the handshake;
+- if the gate fails, the shell uses the loopback WebSocket path and reports `webtransport_unqualified` in diagnostics.
+
+A native controller may use WebTransport over the LAN once its own qualification passes; this does not relax the browser gate.
 
 ### 3. WebRTC channel semantics
 
@@ -168,12 +177,23 @@ No relay or TURN service is implemented in this cycle. The coordinator may provi
 - The browser endpoint starts in single-threaded mode without `SharedArrayBuffer` and only selects the threaded profile when isolation is confirmed.
 - A direct WebRTC/QUIC/WebTransport versus WebSocket benchmark records p50/p95 latency, CPU, reconnect time and battery impact.
 - WebTransport negotiation and fallback are tested on the supported browser matrix.
-- A WebTransport LAN endpoint presents an ECDSA P-256 certificate valid ≤14 days, rotates every 5 days and advertises current and next hashes during the 48-hour overlap; unknown or expired hashes are rejected.
+- A WebTransport LAN endpoint presents an ECDSA P-256 certificate valid ≤14 days, rotates every 5 days and advertises current and next hashes during the 48-hour overlap; unknown, unsigned or expired hashes are rejected.
+- WKWebView WebTransport qualification passes (`WebTransport` plus `serverCertificateHashes`, ECDSA P-256, pinned hash from pairing); on failure the shell uses loopback WebSocket and reports `webtransport_unqualified`.
 - Concurrent bulk transfer does not create visible pointer latency.
 - Disconnect, focus loss and generation changes produce no stuck keys or buttons.
 - A failed direct path fails closed; no relay is silently used in the MVP release.
 - Cast remains development-only until hardware qualification passes.
 - No plaintext LAN transport exists.
+
+## Options considered
+
+| Option | Why not chosen |
+| --- | --- |
+| WebSocket only | No datagram path, weaker loss handling and no QUIC multiplexing for the input/PTY mix |
+| WebRTC first | Requires signaling, ICE and TURN work before a second device ships |
+| Require WebTransport | Not qualified in every target browser or network; would block the baseline |
+| Layered selection: loopback/WebSocket, WebRTC/QUIC/WebTransport where qualified, relay only when authorized | Chosen: each path is measured and failure is explicit |
+| Silent relay fallback | Hides cost, latency and trust changes from the user |
 
 ## Out of scope
 

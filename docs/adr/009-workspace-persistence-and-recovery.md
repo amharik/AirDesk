@@ -5,11 +5,14 @@
 - **Updated:** 2026-11-03 — major amendment for workspace desired/observed state and independent recovery domains
 - **Updated:** 2026-11-03 — research update: per-field merge metadata recorded now; CRDTs confined to Release 5 shared documents
 - **Updated:** 2026-11-03 — peer review: monotonic checkpoint sequencing and two-phase browser/native reconciliation
+- **Updated:** 2026-11-03 — peer review round 3: native commits independently; `webcontent_checkpoint_seq`; terminal transcript references replace "terminal head"
+- **Amended by:** ADR-020 (workspace host role and authority handoff)
 - **Deciders:** Product owner, engineering lead
 - **Scope:** Workspace manifest, desired/observed state, merge metadata, local storage, resource references, recovery checkpoints, migration, layout persistence
 - **Supersedes:** None
 - **Amends:** ADR-001, ADR-005, ADR-016
 - **Related:** ADR-004, ADR-011, ADR-013, ADR-014, ADR-015, ADR-016, ADR-017, ADR-019
+- **Counters:** `docs/architecture/identifiers-and-counters.md`
 
 ## Context
 
@@ -147,16 +150,25 @@ For the native store, a commit is durable only after:
 
 The implementation records the iOS file-protection class. Writes may fail when the device is locked; the UI must report that state rather than claiming success. Browser OPFS/IndexedDB durability is explicitly weaker and is not included in the native zero-loss gate.
 
-### 5.1 Checkpoint sequencing and two-phase reconciliation
+### 5.1 Native commits independently; WebContent is reconcilable
 
-A single counter orders durable state across the native store and the WebContent (OPFS/IndexedDB) store:
+The native store is authoritative and commits without waiting for the WebContent (OPFS/IndexedDB) store. The two stores keep separate counters:
 
-- Each committed checkpoint carries a monotonic `checkpoint_seq: uint64`; sequence values are never reused across relaunch.
-- A checkpoint is acknowledged only after the native store has durably committed its metadata **and** the WebContent store has confirmed its OPFS/IndexedDB flush. The two stores form a two-phase commit: prepare, then acknowledge.
-- If the WebContent process terminates between prepare and acknowledge, the native store replays only the journal delta committed after the last acknowledged `checkpoint_seq`, so window creation, layout and terminal head are not duplicated or truncated.
-- A replay is idempotent: applying the same delta twice produces the same workspace revision.
-- If the WebContent store reports a lower `checkpoint_seq` than the native store expects, the recovery report marks browser state as degraded rather than silently discarding native state.
-- `checkpoint_seq` is independent of the workspace manifest revision and of the ADR-016 `workspace_seq`; it orders durable flushes only.
+- The native store assigns a monotonic `checkpoint_seq: uint64` for each durable native commit. Sequence values are never reused across relaunch. A native commit is complete when its manifest revision is durable (section 5); it is not delayed by a browser flush.
+- The WebContent store assigns `webcontent_checkpoint_seq: uint64` for its own flushes. It is a distinct counter with a distinct owner and is not compared for ordering against the native `checkpoint_seq`.
+- On recovery, the native store replays its journal from the last durable native checkpoint. The WebContent store then reconciles from the last `webcontent_checkpoint_seq` it can prove.
+- If the WebContent store reports a lower sequence, or cannot report one (OPFS evicted, private mode, first run), the recovery report marks browser presentation state as **degraded** and rebuilds it from native durable state. Native state is never truncated to match a browser store.
+- Replay is idempotent: applying the same native journal delta twice produces the same workspace revision. Browser replay is keyed by the WebContent checkpoint and is likewise idempotent.
+- `checkpoint_seq`, `webcontent_checkpoint_seq`, the manifest revision and ADR-016 `workspace_seq` are all different counters; see `docs/architecture/identifiers-and-counters.md`.
+
+### 5.2 Terminal state has no "head" counter
+
+A terminal is workspace state, not a stream offset. Persistent terminal state is a `terminal_session_id` plus a reference to a transcript store:
+
+- The native transcript store commits independently under its own journal and `checkpoint_seq`. A terminal session can be recovered by replaying its transcript from a known durable offset.
+- The WebContent shell records `webcontent_checkpoint_seq` for the presentation copy only. A lower or missing value marks the terminal view degraded; the transcript is re-fetched from the native store rather than truncated or assumed current.
+- Browser and native terminal replay is idempotent and keyed by `(terminal_session_id, durable_offset)`. Applying the same transcript range twice does not duplicate output or input echoes.
+- There is no single "terminal head" shared across stores, and no counter implies that a browser copy and the native transcript are at the same position.
 
 ### 6. Multiple writers are rejected, not merged
 
@@ -248,10 +260,21 @@ A Cast receiver or browser may report persistent storage while still losing it. 
 - Transcript persistence, if enabled, is encrypted at rest, bounded and disclosed.
 - Browser OPFS eviction is documented as a limitation and does not corrupt native state.
 - Committed-state loss is zero for the native store under the defined test matrix; browser and in-flight state are excluded and reported truthfully.
-- A WebContent relaunch replays only the delta after the last acknowledged `checkpoint_seq`, and replay is idempotent.
+- A WebContent relaunch replays from its last provable `webcontent_checkpoint_seq` and is idempotent; a lower or missing value marks browser state degraded and never truncates native state.
+- Native commits do not wait for a browser flush.
+- Terminal recovery replays a transcript range keyed by `(terminal_session_id, durable_offset)` without duplicating output.
 - Concurrent writers with a stale revision are rejected and cannot overwrite a newer revision.
 - Every synchronizable field has `lww`, `append-log` or `manual` metadata; unclassified fields default to `manual` and are not auto-merged.
 - Recovery distinguishes workspace, runtime, display and device-attachment outcomes.
+
+## Options considered
+
+| Option | Why not chosen |
+| --- | --- |
+| Manifest plus append-only journal | Chosen: small, auditable, no database dependency for v1 |
+| SQLite from day one | Adds an ADR-003 dependency before journal size or querying justifies it; the backend can be replaced without changing the manifest contract |
+| Two-phase commit with the WebContent store | Couples native durability to an evictable browser flush; replaced by independent native commits in §5.1 |
+| Full event log or CRDT | Belongs to Release 4 synchronization, not local recovery |
 
 ## Out of scope
 

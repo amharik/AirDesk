@@ -6,7 +6,7 @@ AirDesk exposes device functionality as scoped capabilities. A device does not g
 
 ```text
 CapabilityDescriptor
-  id, providerDeviceId
+  cap_uri, providerDeviceId
   type, version
   availability: available | busy | restricted | unavailable
   constraints
@@ -36,7 +36,7 @@ Every capability operation is checked against:
 A capability lease contains:
 
 - lease ID;
-- device and capability IDs;
+- device and `cap_uri`;
 - workspace and application IDs;
 - requester device and session;
 - granted operations and resource scope;
@@ -49,13 +49,15 @@ A lease cannot outlive its grant or workspace authorization. It is scoped to one
 
 ## Grant tokens
 
-Grants and delegated chains are compact `COSE_Sign1` tokens signed with Ed25519. Claims include `iss`, `sub`, `aud`, `cap_uri`, `op`, `nbf`, `exp`, `epoch_id` and a parent hash.
+Grants and delegated chains are compact `COSE_Sign1` tokens signed with Ed25519. Claims include `iss`, `sub`, `aud`, `jti`, `cap_uri`, `op`, `nbf`, `exp`, `epoch_id` (session `generation`), optional `cnf` and a parent hash.
 
-- A chain is at most 3 hops: controller root → workspace orchestrator → runtime task.
+- Root grants are issued only by the provider device's authenticated user or the workspace owner key; the coordinator and requester cannot mint them.
+- A chain is at most 3 hops: provider-approved root → workspace orchestrator → runtime task.
 - Each hop may only attenuate scope, operations and expiry.
 - Effective validity is the latest `nbf` to the earliest `exp` across the chain.
 - Chain length and token size are bounded before parsing.
-- Compact binary tokens are used instead of nested-JWT UCAN because token size grows quadratically with delegation hops.
+- A `cnf` claim requires proof of possession on every invocation.
+- Compact binary tokens are used instead of nested-JWT UCAN because UCAN adds DID resolution and per-hop envelope overhead at runtime.
 
 ## Revocation
 
@@ -67,14 +69,14 @@ Grants and delegated chains are compact `COSE_Sign1` tokens signed with Ed25519.
 
 ## Examples
 
-- `filesystem.documents.read`
-- `filesystem.documents.write`
-- `media.camera.capture`
-- `audio.input`
-- `input.pointer`
-- `input.keyboard`
-- `display.output`
-- `compute.wasi.execute`
-- `location.read`
+- `airdesk://fs/documents/read`
+- `airdesk://fs/documents/write`
+- `airdesk://media/camera/capture`
+- `airdesk://audio/input`
+- `airdesk://input/pointer`
+- `airdesk://input/keyboard`
+- `airdesk://display/output`
+- `airdesk://compute/wasi/execute`
+- `airdesk://location/read`
 
 Do not grant `filesystem.access` or other device-wide authorities.

@@ -26,7 +26,7 @@ The initial store should be embedded, transactional and available on supported n
 
 Browser storage is not the canonical workspace store. Browser-local state may cache presentation and recent workspace references.
 
-Durable flushes carry a monotonic `checkpointSeq`. Native metadata and the WebContent (OPFS/IndexedDB) store commit in two phases: prepare, then acknowledge. A WebContent relaunch replays only the journal delta after the last acknowledged `checkpointSeq`, and replay is idempotent.
+The native store is authoritative and commits independently; it does not wait for a browser flush. It assigns `checkpointSeq` for durable native commits. The WebContent (OPFS/IndexedDB) store assigns its own `webcontentCheckpointSeq` for presentation state. On recovery the native journal is replayed from the last durable native checkpoint, then the WebContent store reconciles from its last provable sequence. A lower or missing WebContent sequence marks browser state degraded and is rebuilt from native state; native state is never truncated. Replay is idempotent. See `docs/architecture/identifiers-and-counters.md`.
 
 ## Versioning
 

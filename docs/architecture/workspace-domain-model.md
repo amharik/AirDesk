@@ -64,9 +64,10 @@ The workspace host is the single-writer sequencer for structural mutations. Each
 
 - A structural update carries the expected `workspaceSeq`; a stale value is rejected and the caller reloads.
 - Display sessions, runtimes, browser endpoints and devices never assign `workspaceSeq`.
-- Window drag/resize geometry is optimistic and reconciled with LWW tagged by `(leaseEpoch, clientSeq)`.
-- LWW applies only to geometry; identity, ownership, placement, resources and application definitions stay single-writer.
+- Window drag/resize geometry may render optimistically on a controller, but v1 authority is the order the workspace host receives updates. `(leaseEpoch, clientSeq)` LWW is not a v1 rule.
+- LWW is reserved for the Release 4 synchronization layer and then applies only to geometry; identity, ownership, placement, resources and application definitions stay single-writer.
 - Reconciled geometry does not advance `workspaceSeq`.
+- While the host is unreachable, geometry is held as session-local presentation state and offered on reconnect; it is not written.
 
 ## Resources
 

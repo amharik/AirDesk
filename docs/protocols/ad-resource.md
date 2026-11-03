@@ -53,20 +53,22 @@ A resource reference is not an authorization token.
 
 AD-RESOURCE runs on ADFP Channel M..K as reliable, bidirectional QUIC/WebTransport streams (or the WebSocket fallback), separate from the input hot path and from interactive terminal streams. A large file read or write must not block pointer input or terminal output.
 
-Each mount is a Plan 9/Wanix-style file service in the workspace namespace (`/#cap` or `/workspace`). Messages are encoded inside the FlatBuffers `ResourceRpc` union.
+Each mount is a Plan 9-inspired file service in the workspace namespace (`/#cap` or `/workspace`). Messages are encoded inside the FlatBuffers `ResourceRpc` union.
 
-## Plan 9 RPC surface
+## ADFP resource RPC surface (not 9P2000)
 
-| RPC | Tag | Fields | Semantics |
+These names and numbers are **ADFP-local op codes**, not 9P2000 message types. ADFP does not tunnel 9P2000 frames: there is no `Tversion`/`Rversion`, no 2-byte 9P tag field, and no 9P `msize` negotiation on this path. Calling them "9P tags" is incorrect; the implementation must not expect a 9P2000 peer to interoperate. If real 9P interop is needed later, it is a separate adapter that tunnels encoded 9P frames inside `ResourceRpc` and is qualified as such.
+
+| RPC | ADFP op code | Fields | Semantics |
 | --- | --- | --- | --- |
-| `TAttach` / `RAttach` | 100 / 101 | `fid:u32`, `afid:u32`, `uname:string`, `aname:string`, `cose_token:[ubyte]` | Validate the ADR-012 `COSE_Sign1` token against `aname` (`opfs`, `tarfs`, `tmpfs`, `hostfs`) and bind the root handle |
-| `TWalk` / `RWalk` | 102 / 103 | `fid:u32`, `new_fid:u32`, `wnames:[string] -> wqids:[Qid]` | Traverse path segments relative to `fid`; reject `..` escapes outside the capability root; return 13-byte `Qid` tuples |
-| `TOpen` / `ROpen` | 104 / 105 | `fid:u32`, `mode:BindMode -> qid:Qid`, `iounit:u32` | Open under Wanix bind mode (`READ_ONLY`, `READ_WRITE`, `EXEC`, `APPEND`); default `iounit` is 65536 bytes |
-| `TRead` / `RRead` | 106 / 107 | `fid:u32`, `offset:u64`, `count:u32 -> data:[ubyte]` | Read up to `count` bytes from the underlying Wanix or native descriptor |
-| `TWrite` / `RWrite` | 108 / 109 | `fid:u32`, `offset:u64`, `data:[ubyte] -> count:u32` | Write at `offset`; rejected immediately for a read-only attenuated token |
-| `TClunk` / `RClunk` | 110 / 111 | `fid:u32 -> status:ubyte` | Release `fid` deterministically on close, task exit or lease revocation (ADR-015) |
+| `Attach` / `AttachResult` | 100 / 101 | `fid:u32`, `afid:u32`, `uname:string`, `aname:string`, `cose_token:[ubyte]` | Validate the ADR-012 `COSE_Sign1` token against `aname` (`opfs`, `tarfs`, `tmpfs`, `hostfs`) and bind the root handle |
+| `Walk` / `WalkResult` | 102 / 103 | `fid:u32`, `new_fid:u32`, `wnames:[string] -> wqids:[Qid]` | Traverse path segments relative to `fid`; reject `..` escapes outside the capability root; return 13-byte `Qid` tuples |
+| `Open` / `OpenResult` | 104 / 105 | `fid:u32`, `mode:BindMode -> qid:Qid`, `iounit:u32` | Open under Wanix bind mode (`READ_ONLY`, `READ_WRITE`, `EXEC`, `APPEND`); default `iounit` is 65536 bytes |
+| `Read` / `ReadResult` | 106 / 107 | `fid:u32`, `offset:u64`, `count:u32 -> data:[ubyte]` | Read up to `count` bytes from the underlying Wanix or native descriptor |
+| `Write` / `WriteResult` | 108 / 109 | `fid:u32`, `offset:u64`, `data:[ubyte] -> count:u32` | Write at `offset`; rejected immediately for a read-only attenuated token |
+| `Clunk` / `ClunkResult` | 110 / 111 | `fid:u32 -> status:ubyte` | Release `fid` deterministically on close, task exit or lease revocation (ADR-015) |
 
-`Qid` is a 13-byte tuple: `type:u8`, `version:u32`, `path:u64`. `Tstat`/`Rstat` and `Twstat`/`Rwstat` (112–115) expose and update bounded metadata; they never expose host paths outside the mount root.
+`Qid` is a 13-byte tuple: `type:u8`, `version:u32`, `path:u64`; this matches the 9P `Qid` layout and is safe to reuse. `Stat`/`StatResult` and `Wstat`/`WstatResult` (112–115) expose and update bounded metadata; they never expose host paths outside the mount root.
 
 ## Streaming
 

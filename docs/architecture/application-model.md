@@ -64,13 +64,16 @@ installed -> available -> starting -> running -> suspended -> stopped
 Sandboxed applications additionally use an explicit sandbox lifecycle:
 
 ```text
-RESOLVED -> MOUNTING_CAPABILITIES -> ACTIVE_FOREGROUND <-> ACTIVE_BACKGROUND
-         -> SUSPENDED_CHECKPOINTED -> TERMINATED
+RESOLVED -> MOUNTING_CAPABILITIES -> ACTIVE -> SUSPENDED_CHECKPOINTED -> TERMINATED
 ```
 
+`ACTIVE` maps to `observedState: running`. Foreground/background is a `presentation` attribute owned by the display session, not a lifecycle state; changing it does not change `observedState`, and background input is withheld.
+
 - A failure while mounting capabilities terminates the instance with a typed error and no partial mount.
+- `SUSPENDED_CHECKPOINTED` requires an app-cooperative checkpoint; the orchestrator does not snapshot a process or JS heap. An application that cannot checkpoint is terminated or left active, never labeled checkpointed.
 - `TERMINATED` revokes all capability handles and leases before releasing resources and is idempotent.
 - Quota exhaustion moves the instance to `failed`; it never silently degrades the workspace.
+- Quotas are enforced only on providers whose enforcement matrix covers the required dimensions; an unenforceable required quota fails placement closed with `QuotaUnenforceable`.
 
 ## Shell boundary
 
