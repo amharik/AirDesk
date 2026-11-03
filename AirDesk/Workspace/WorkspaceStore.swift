@@ -104,6 +104,7 @@ final class NativeWorkspaceStore: WorkspaceStore {
         guard fileManager.fileExists(atPath: manifestURL.path) else {
             if let recovered = try recoverFromJournalUnlocked() {
                 lastRecoveryWarning = .manifestMissing
+                try? writeManifest(recovered)
                 return recovered
             }
             return nil
@@ -118,6 +119,10 @@ final class NativeWorkspaceStore: WorkspaceStore {
         } catch {
             let failure = mapLoadError(error)
             lastRecoveryWarning = failure
+
+            if case .unsupportedSchemaVersion = failure {
+                throw failure
+            }
 
             if let recovered = try recoverFromJournalUnlocked() {
                 try? writeManifest(recovered)
@@ -227,6 +232,7 @@ final class NativeWorkspaceStore: WorkspaceStore {
         data.append(0x0A)
 
         do {
+            try repairJournalTailUnlocked()
             let handle = try FileHandle(forWritingTo: journalURL)
             defer { try? handle.close() }
             try handle.seekToEnd()
@@ -235,6 +241,36 @@ final class NativeWorkspaceStore: WorkspaceStore {
         } catch {
             throw WorkspaceStoreError.writeFailed(error.localizedDescription)
         }
+    }
+
+    private func repairJournalTailUnlocked() throws {
+        guard fileManager.fileExists(atPath: journalURL.path) else { return }
+
+        let data = try Data(contentsOf: journalURL)
+        guard !data.isEmpty, data.last != 0x0A else { return }
+
+        let text = String(decoding: data, as: UTF8.self)
+        let lastLine = text.split(separator: "\n", omittingEmptySubsequences: false).last.map(String.init) ?? ""
+        let lastLineIsComplete = !lastLine.isEmpty
+            && (try? decoder.decode(WorkspaceJournalEntry.self, from: Data(lastLine.utf8))) != nil
+
+        let targetLength: UInt64
+        if lastLineIsComplete {
+            targetLength = UInt64(data.count)
+        } else if let lastNewline = data.lastIndex(of: 0x0A) {
+            targetLength = UInt64(data.distance(from: data.startIndex, to: lastNewline) + 1)
+        } else {
+            targetLength = 0
+        }
+
+        let handle = try FileHandle(forWritingTo: journalURL)
+        defer { try? handle.close() }
+        try handle.truncate(atOffset: targetLength)
+        try handle.seekToEnd()
+        if lastLineIsComplete {
+            try handle.write(contentsOf: Data([0x0A]))
+        }
+        try synchronize(handle)
     }
 
     private func writeManifest(_ manifest: WorkspaceManifest) throws {

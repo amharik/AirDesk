@@ -161,6 +161,131 @@ final class NativeWorkspaceStoreTests: XCTestCase {
         }
     }
 
+    func testRelaunchLoadsCommittedManifestAndJournal() throws {
+        let (store, directory) = try makeStore()
+        let first = try store.commit(makeManifest(), expectedRevision: nil)
+        var second = first
+        second.metadata.name = "Second"
+        let committed = try store.commit(second, expectedRevision: 1)
+
+        let relaunched = try NativeWorkspaceStore(directory: directory)
+
+        XCTAssertEqual(try relaunched.load(), committed)
+        XCTAssertEqual(try relaunched.loadJournal().map(\.revision), [1, 2])
+    }
+
+    func testMissingManifestRecoversFromJournalAndRewritesManifest() throws {
+        let (store, directory) = try makeStore()
+        let committed = try store.commit(makeManifest(), expectedRevision: nil)
+        let manifestURL = directory.appendingPathComponent(NativeWorkspaceStore.manifestFileName)
+        try FileManager.default.removeItem(at: manifestURL)
+
+        let relaunched = try NativeWorkspaceStore(directory: directory)
+
+        XCTAssertEqual(try relaunched.load(), committed)
+        XCTAssertEqual(relaunched.lastRecoveryWarning, .manifestMissing)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: manifestURL.path))
+    }
+
+    func testFutureSchemaFailsClosedEvenWithRecoverableJournal() throws {
+        let (store, directory) = try makeStore()
+        _ = try store.commit(makeManifest(), expectedRevision: nil)
+        let manifestURL = directory.appendingPathComponent(NativeWorkspaceStore.manifestFileName)
+        let data = try Data(contentsOf: manifestURL)
+        var json = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+        json["schemaVersion"] = 2
+        try JSONSerialization.data(withJSONObject: json, options: [.sortedKeys]).write(to: manifestURL)
+
+        let relaunched = try NativeWorkspaceStore(directory: directory)
+
+        XCTAssertThrowsError(try relaunched.load()) { error in
+            XCTAssertEqual(error as? WorkspaceStoreError, .unsupportedSchemaVersion(2))
+        }
+        let persisted = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: Data(contentsOf: manifestURL)) as? [String: Any]
+        )
+        XCTAssertEqual(persisted["schemaVersion"] as? Int, 2)
+    }
+
+    func testInterruptedTemporaryManifestIsIgnored() throws {
+        let (store, directory) = try makeStore()
+        let committed = try store.commit(makeManifest(), expectedRevision: nil)
+        let temporaryURL = directory.appendingPathComponent("workspace.json.tmp-crash")
+        try Data("{partial".utf8).write(to: temporaryURL)
+
+        let relaunched = try NativeWorkspaceStore(directory: directory)
+
+        XCTAssertEqual(try relaunched.load(), committed)
+        XCTAssertNil(relaunched.lastRecoveryWarning)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: temporaryURL.path))
+    }
+
+    func testManifestWriteFailureLeavesPreviousRevisionAddressable() throws {
+        let (store, directory) = try makeStore()
+        let first = try store.commit(makeManifest(), expectedRevision: nil)
+        var second = first
+        second.metadata.name = "Second"
+
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o555],
+            ofItemAtPath: directory.path
+        )
+        defer {
+            try? FileManager.default.setAttributes(
+                [.posixPermissions: 0o755],
+                ofItemAtPath: directory.path
+            )
+        }
+
+        XCTAssertThrowsError(try store.commit(second, expectedRevision: 1)) { error in
+            guard let storeError = error as? WorkspaceStoreError,
+                  case .writeFailed = storeError else {
+                XCTFail("Expected write failure, got \(error)")
+                return
+            }
+        }
+
+        XCTAssertEqual(try store.load(), first)
+    }
+
+    func testCorruptJournalMiddleLineFailsWhenReadDirectly() throws {
+        let (store, directory) = try makeStore()
+        var manifest = try store.commit(makeManifest(), expectedRevision: nil)
+        manifest.metadata.name = "Second"
+        _ = try store.commit(manifest, expectedRevision: 1)
+
+        let journalURL = directory.appendingPathComponent(NativeWorkspaceStore.journalFileName)
+        let text = try String(contentsOf: journalURL, encoding: .utf8)
+        var lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        lines.insert("{broken", at: 1)
+        try lines.joined(separator: "\n").write(to: journalURL, atomically: true, encoding: .utf8)
+
+        XCTAssertThrowsError(try store.loadJournal()) { error in
+            XCTAssertEqual(error as? WorkspaceStoreError, .corruptJournal(line: 2))
+        }
+    }
+
+    func testCorruptJournalTailIsRepairedBeforeNextAppend() throws {
+        let (store, directory) = try makeStore()
+        let first = try store.commit(makeManifest(), expectedRevision: nil)
+
+        let journalURL = directory.appendingPathComponent(NativeWorkspaceStore.journalFileName)
+        let handle = try FileHandle(forWritingTo: journalURL)
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data("{partial".utf8))
+        try handle.close()
+
+        var second = first
+        second.metadata.name = "Second"
+        _ = try store.commit(second, expectedRevision: 1)
+
+        let entries = try store.loadJournal()
+        XCTAssertEqual(entries.map(\.sequence), [1, 2])
+        XCTAssertEqual(entries.map(\.revision), [1, 2])
+    }
+
     private func makeStore() throws -> (NativeWorkspaceStore, URL) {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("AirDeskWorkspaceStoreTests-\(UUID().uuidString)", isDirectory: true)
