@@ -17,12 +17,12 @@ This file is the implementation tracker. `docs/adr/README.md` remains authoritat
 ## Current focus
 
 - Milestone: `M1`
-- Work item: `WS-02` native workspace store
-- Next: `HOST-01` workspace host, `ORCH-01` orchestration skeleton
+- Work item: `HOST-01` single-device workspace host
+- Next: `ORCH-01` orchestration skeleton, `WS-03` desired/observed separation
 
 ## Verification blocker
 
-Real iPad tests are currently blocked over SSH: the Mac login keychain is locked (`User interaction is not allowed`), so Xcode free provisioning cannot install the iOS Development certificate for team `4PL99B52DB`. The simulator build compiled the app and test target, and a host-side Swift harness passed the `WorkspaceManifest` checks. To run tests on `Hari's iPad`, unlock the login keychain in a GUI session or run the test from Xcode.
+Real iPad tests are currently blocked over SSH: the Mac login keychain is locked (`User interaction is not allowed`), so Xcode free provisioning cannot install the iOS Development certificate for team `4PL99B52DB`. The iOS simulator build compiles the app and test target, and the workspace core's 20 unit tests pass on macOS via SwiftPM (`swift test`). To run tests on `Hari's iPad`, unlock the login keychain in a GUI session or run the test from Xcode.
 
 ## M0 — Plan reset and guardrails
 
@@ -39,7 +39,7 @@ Real iPad tests are currently blocked over SSH: the Mac login keychain is locked
 | ID | Task | Status | Depends | Acceptance |
 | --- | --- | --- | --- | --- |
 | WS-01 | `WorkspaceManifest` v1 schema | Done | M0-05 | Identity, revision, `workspaceSeq`, `hostEpoch`, desired state, resources, layout and merge metadata encode/decode |
-| WS-02 | Native `WorkspaceStore` | Pending | WS-01 | Atomic revision commit, `expectedRevision`, journal append/replay, `fsync`/`F_FULLFSYNC`, typed errors |
+| WS-02 | Native `WorkspaceStore` | Done | WS-01 | Atomic revision commit, `expectedRevision`, journal append/replay, `fsync`/`F_FULLFSYNC`, typed errors |
 | WS-03 | Desired/observed separation | Pending | WS-02 | Observed runtime/application state never mutates the manifest |
 | WS-04 | Layout persistence | Pending | WS-01 | Window identity, bounds, display and focus order restore without DOM state |
 | WS-05 | Recovery test suite | Pending | WS-02, WS-03, WS-04 | Relaunch, corruption, future schema, disk-full and interrupted-write tests |
@@ -145,3 +145,4 @@ Exit: endpoints present without authority; browser stays loopback-only in v1.
 | --- | --- | --- | --- |
 | 2026-11-03 | M0-01 | Created `milestones.md` as the execution tracker | b122d3c |
 | 2026-11-03 | WS-01 | Added versioned `WorkspaceManifest` schema, validation and merge metadata | 76206c3 |
+| 2026-11-03 | WS-02 | Added atomic native store, journal recovery, integrity hashes and revision fencing | 306c7d0 |
