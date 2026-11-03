@@ -119,6 +119,45 @@ final class InputLeaseManagerTests: XCTestCase {
         XCTAssertNil(manager.sharedCursor)
     }
 
+    func testPrimaryAndPinnedControllersKeepDistinctCursors() throws {
+        let manager = makeManager()
+        try manager.attach(controllerId: "primary", deviceId: "d1", role: .primaryDriver, now: start)
+        try manager.attach(
+            controllerId: "pinned",
+            deviceId: "d2",
+            role: .pinnedSurfaceDriver,
+            targetWindowId: "window.1",
+            now: start
+        )
+        _ = try manager.requestLease(controllerId: "primary", now: start)
+
+        let primary = try manager.moveCursor(
+            controllerId: "primary",
+            to: InputPoint(x: 0.2, y: 0.3),
+            epoch: 1
+        )
+        let pinned = try manager.moveCursor(
+            controllerId: "pinned",
+            to: InputPoint(x: 0.8, y: 0.7),
+            epoch: 1
+        )
+
+        XCTAssertEqual(primary.local, InputPoint(x: 0.2, y: 0.3))
+        XCTAssertEqual(primary.shared, InputPoint(x: 0.2, y: 0.3))
+        XCTAssertEqual(pinned.local, InputPoint(x: 0.8, y: 0.7))
+        XCTAssertNil(pinned.shared)
+        XCTAssertEqual(manager.sharedCursor, InputPoint(x: 0.2, y: 0.3))
+
+        let key = InputEvent.make(.keyDown, sessionId: "s", generation: 1, seq: 1, key: "a")
+        XCTAssertNoThrow(try manager.validateEdge(key, on: context("primary", epoch: 1), now: start))
+        let pinnedKey = InputEvent.make(.keyDown, sessionId: "s", generation: 1, seq: 1, key: "b")
+        XCTAssertThrowsError(try manager.validateEdge(
+            pinnedKey,
+            on: context("pinned", epoch: 1),
+            now: start
+        ))
+    }
+
     func testMovementFramesAreStaleDroppedAndUpdateSharedCursorForPrimary() throws {
         let manager = makeManager()
         try manager.attach(controllerId: "c1", deviceId: "d1", role: .primaryDriver, now: start)
