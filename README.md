@@ -1,122 +1,148 @@
 # AirDesk
 
-AirDesk turns an iPhone or iPad into a precision remote for a macOS-style desktop running on a TV, external display, or Google Cast receiver. The desktop is a live web surface; the phone sends normalized pointer, scroll, keyboard, and text events through one bridge.
+[![iOS CI](https://github.com/amharik/AirDesk/actions/workflows/ios.yml/badge.svg)](https://github.com/amharik/AirDesk/actions/workflows/ios.yml)
 
-The primary runtime is Wanix, a Plan 9-inspired WebAssembly workspace. The desktop shell embeds a live Wanix namespace so Finder, Terminal, and Notes operate on the same virtual filesystem instead of a mock workspace.
+AirDesk turns an iPhone or iPad into a wireless keyboard, trackpad, and remote for a macOS-style desktop. The desktop runs locally in a Wanix WebAssembly workspace and can be shown on a TV, an external display, or a Google Cast receiver while the phone stays in your hand as the controller.
+
+## Status
+
+AirDesk is in active development. It builds and runs on iOS and iPadOS 17+, and the core input, desktop, terminal, and display paths are implemented. It is **not yet App Store-ready**: ADR-007 is still Proposed and the remaining Cast, external-display, performance, and distribution gates must pass first.
+
+| Area | Current state |
+| --- | --- |
+| iPhone / iPad controller | Working |
+| Wanix desktop and WinBox windows | Working |
+| WTerm + Ghostty terminal | Working, default |
+| Remote SSH PTY | Working, opt-in |
+| AirPlay / external display | Implemented |
+| Google Cast receiver | Development app |
+| Unit tests | 116 passing |
+| iPad UI suite | Passing; 1 opt-in test skipped |
+| App Store release | Not yet |
+
+## Features
+
+### A real desktop, not a mock
+
+- A macOS-style workspace with a menubar, Dock, Spotlight, desktop icons, context menus, and window controls.
+- **Finder**, **Terminal**, and **Notes** share the same Wanix virtual filesystem.
+- Windows are managed by WinBox behind an AirDesk-owned adapter, with focus, z-order, minimize, maximize, restore, close, drag, and resize.
+- The desktop shell is served from a loopback-only asset server with a strict Content Security Policy. Wanix, WTerm, fonts, and terminal cores do not require a runtime CDN.
+
+### Precise remote input
+
+- Normalized pointer movement, tap, drag, scroll, text, and key events over one native bridge.
+- Pointer ballistics and trackpad-style gestures for precise control on a phone or tablet.
+- On-screen keyboard deck plus optional physical keyboard and mouse capture, with a clear capture/release state.
+- Long-press drag mode and window drag mode for controlling a desktop from a touch screen.
+- The same normalized event stream powers the phone preview and external display, and is the basis for Cast input.
+
+### Terminal built for real work
+
+- **WTerm** with the **Ghostty** core is the default terminal renderer.
+- The local terminal attaches to the live Wanix shell and supports selection, copy/paste, scrollback, and transcript replay after a reload.
+- A legacy `wanix-term` renderer remains available as an explicit rollback path.
+- **Remote SSH** replaces the local shell with a native SwiftNIO SSH PTY. The app pins the server host key, stores the password in the Keychain, and defaults to `tmux new -A -s airdesk` so reconnects attach to the same remote session.
+- Terminal window resize is bridged into the shell environment. See [current state and limitations](#current-state-and-limitations) for the current boundary.
+
+### Flexible output
+
+- **Extended desktop** sends the workspace to an AirPlay or external display while the phone remains a controller.
+- **Mirror iPhone screen** renders the desktop full-screen on the phone and lets iOS mirror the whole screen to a TV.
+- A separate **CastReceiver** development app is included for Google Cast work.
+- A phone preview mode keeps the desktop visible while the floating remote stays available.
+
+### Pro runtime
+
+- The standalone **Wanix Kernel** runtime requires a Pro entitlement.
+- Pro products are wired through StoreKit 2 and the local `AirDesk.storekit` configuration for development.
+
+## Requirements
+
+- iPhone or iPad running **iOS / iPadOS 17 or later**.
+- A Mac for building the app.
+- **Xcode 16.4** or later and **XcodeGen**.
+- **Node.js 22** only when changing the bundled desktop shell.
+- Optional: an AirPlay receiver, external display, Cast receiver, or an SSH host for the remote terminal.
+
+## Quick start
+
+AirDesk is currently built from source.
+
+```bash
+brew install xcodegen
+git clone git@github.com:amharik/AirDesk.git
+cd AirDesk
+xcodegen generate
+open AirDesk.xcodeproj
+```
+
+In Xcode, select the **AirDesk** scheme, choose your development team under Signing & Capabilities, select an iPhone or iPad, and run.
+
+To build and test on a simulator without signing:
+
+```bash
+./scripts/ci-ios.sh
+```
+
+Override the default simulator with an Xcode destination:
+
+```bash
+AIRDESK_DESTINATION='platform=iOS Simulator,name=iPad Pro (11-inch) (3rd generation)' ./scripts/ci-ios.sh
+```
+
+## Using AirDesk
+
+1. Launch AirDesk on your iPhone or iPad.
+2. Choose the **Wanix Desktop** runtime and connect. A demo session is available for trying the interface without a second device.
+3. Send the desktop to a display with AirPlay, an external display, or a Cast receiver.
+4. Open **Preview Desktop** to use the workspace on the phone. Use the floating remote for pointer, keyboard, and window actions.
+5. Use **Session → Remote Terminal** in Settings to point the terminal at an SSH host instead of the local Wanix shell.
+
+### Remote terminal setup
+
+Remote SSH is opt-in and uses the native SSH stack, not the web shell.
+
+- Host, port, username, password, and pinned host key are entered in Settings.
+- The default startup command is `tmux new -A -s airdesk`.
+- Applying new settings restarts an open Terminal window so the new transport takes effect immediately.
+- Turning the feature off returns the Terminal to the local Wanix shell.
 
 ## Runtime modes
 
-| Mode | Engine | Pro | Status |
-| --- | --- | --- | --- |
-| Wanix Desktop | `index.html` + embedded `wanix-namespace` | No | Active development |
-| Wanix Kernel | Standalone `wanix-live.html` kernel surface | Yes | Implemented |
-| Puter | Remote Puter.js runtime | No | Adapter present, URL not configured |
+| Mode | What it is | Access |
+| --- | --- | --- |
+| **Wanix Desktop** | Default local desktop with the embedded Wanix namespace | Free |
+| **Wanix Kernel** | Standalone live Wanix kernel surface | Pro |
+| **Puter** | Remote Puter.js adapter | Present but not configured in this build |
 
-## Remote SSH terminal
+## Current state and limitations
 
-Settings → Remote Terminal can replace the local Wanix terminal with a native SSH PTY. AirDesk pins the server's OpenSSH host key, stores the password in the device Keychain, and sends PTY input, resize, and stop events through the separate `airdeskTerminal` web bridge. The default startup command is `tmux new -A -s airdesk`, so reconnects attach to the same remote session. Applying settings restarts an open Terminal window, and disabling the feature returns it to the local shell. The legacy local terminal remains available with `?terminal=legacy`.
+- ADR-007 (WinBox + WTerm) is **Proposed**. WinBox parity, WTerm conformance, and hardware qualification gates remain.
+- Hardware and release gates still pending: Cast parity, external-display and safe-area behavior, 60 FPS at 1080p, signed offline install, Xcode 26 Cast SDK, and category-D parity.
+- Terminal resize currently updates `COLUMNS` and `LINES` for subsequent shell commands. A running full-screen program does not receive a true PTY resize yet; that remains blocked on an upstream Wanix/`rc` change. Rotating the device alone does not resize the floating terminal window.
+- Transcript replay restores terminal text after a reload, but the Wanix shell process restarts. Byte-exact PTY reconnect and live process resumption are not implemented.
+- The real OpenSSH smoke test is opt-in because it needs a reachable SSH host and throwaway credentials. The default UI suite uses an in-process fixture.
+- Puter is not configured in the current build.
 
-The DEBUG-only `scripts/real-ssh-smoke.sh` starts a throwaway OpenSSH server on loopback, provisions a temporary Ed25519 key, and runs the real-host XCUITest against a booted simulator. It uses `AIRDESK_SIMULATOR_ID` or the default iPad simulator, and does not leave credentials or private keys in the repository.
-
-## System architecture
+## Architecture at a glance
 
 ```mermaid
 flowchart LR
-  subgraph Phone["iPhone / iPad controller"]
-    UI["SwiftUI controller<br/>10-screen flow"]
-    ID["InputDispatcher<br/>8 ms coalescing"]
-    RB["RuntimeBridge<br/>WKScriptMessageHandler"]
-  end
-
-  subgraph Display["TV / external display"]
-    DC["DisplayCoordinator<br/>UIWindowScene"]
-    DS["DesktopSurface<br/>WKWebView"]
-    LS["LocalAssetServer<br/>127.0.0.1"]
-    SH["DesktopShell<br/>index.html + desktop.js"]
-    WX["wanix-namespace<br/>wanix@0.4.0-rc2"]
-    FS[("OPFS<br/>/opfs")]
-    TERM["wanix-term<br/>#task/shell/term"]
-  end
-
-  subgraph Cast["Google Cast receiver"]
-    CR["CastReceiver<br/>CAF development app"]
-  end
-
-  UI --> ID --> RB
-  RB -->|"airdesk handler"| SH
-  SH --> WX
-  WX --> FS
-  SH --> TERM
-  DC --> DS --> LS --> SH
-  SH -->|"ready / state / viewport / ack"| RB
-  CR -.->|"planned custom channel"| WX
+  Phone["iPhone / iPad<br/>SwiftUI controller"] -->|"pointer, keys, text"| Bridge["RuntimeBridge"]
+  Bridge --> Shell["WKWebView desktop shell"]
+  Shell --> Wanix["Wanix WebAssembly namespace"]
+  Wanix --> Apps["Finder · Terminal · Notes"]
+  Shell --> Display["AirPlay / external display"]
+  Shell -.-> Cast["Cast receiver"]
+  Phone -->|"native SSH PTY"| Remote["Remote terminal"]
 ```
 
-## Input dataflow
+The phone sends normalized input through one bridge. The desktop shell owns the workspace and routes input to windows, fields, or the terminal. A native loopback asset server provides cross-origin isolation for the WebAssembly runtime. See [ADR-005](docs/adr/005-display-and-transport.md), [ADR-007](docs/adr/007-winbox-and-wterm.md), and [ADR-008](docs/adr/008-input-and-control-protocol.md) for the decisions behind the architecture.
 
-```mermaid
-sequenceDiagram
-  participant C as iPhone Controller
-  participant I as InputDispatcher
-  participant W as WKWebView
-  participant B as bridge.js
-  participant D as desktop.js
-  participant T as wanix-term
-  participant K as Wanix kernel
+## Development
 
-  C->>I: pointer / text / key event
-  I->>W: send normalized event
-  W->>B: AirDeskBridge.receive(event)
-  B->>D: onInput(event)
-  D->>D: route to window, field, or terminal
-  D->>T: xterm.input(data, true)
-  T->>K: write #task/shell/term/data
-  K-->>T: terminal output
-  T-->>D: xterm render
-  B-->>C: ack(seq)
-```
-
-Coordinates are normalized to `0...1`, so the same event stream works on a phone preview, a 4K TV, or a Cast receiver. The terminal uses `raw` mode so the shell receives Enter, Backspace, arrows, and control sequences directly.
-
-## Wanix boot and filesystem
-
-```mermaid
-flowchart TD
-  HTML["index.html"] --> NS["wanix-namespace#wanix"]
-  NS --> WASM["wanix.wasm<br/>CDN"]
-  NS --> ROOT["#ramfs/new<br/>/"]
-  NS --> OPFS["#web/opfs<br/>/opfs"]
-  NS --> TMP["#ramfs/new<br/>/tmp"]
-  NS --> RC["rc.wasm<br/>/rc.wasm"]
-  NS --> README["README.md"]
-  NS --> TASK["wanix-task#shell<br/>cmd=rc.wasm term"]
-  TASK --> TERMPATH["#task/shell/term"]
-  TERMPATH --> TERM["wanix-term<br/>for=wanix raw"]
-  TERM --> INPUT["Controller input"]
-```
-
-The namespace is mounted inside the desktop shell but hidden. Terminal windows create their own `wanix-term`, attach to the shared `#task/shell/term`, and then start the shell task. Finder reads the same root with `readDir`; Notes writes to `opfs/notes.json` and can open arbitrary files from the namespace. Terminal attachment has a 1.8 s watchdog and retries up to three times if the PTY handshake stalls.
-
-The native app serves `DesktopShell` from a loopback-only `NWListener` at `http://127.0.0.1:<port>/` instead of loading `file://`. Every response carries `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`, so `WKWebView` reports `crossOriginIsolated === true` and exposes `SharedArrayBuffer`. `LocalAssetServerTests` verifies cross-origin isolation, `SharedArrayBuffer`, OPFS file creation, and a worker `createSyncAccessHandle` write on the simulator.
-
-`WKWebView` on iOS 18.6 exposes OPFS directory handles but not `FileSystemFileHandle.createWritable`, which Wanix's `#web/opfs` provider requires. The shell therefore checks for writable OPFS support and falls back to `#ramfs/new` with IndexedDB snapshot persistence when it is missing; the `opfs/` path still works for the terminal, Finder, and Notes. Native smoke testing confirms the fallback mount and terminal file operations.
-
-`wanix-file-worker-fix.js` patches the embedded gojs worker on both loopback HTTP and `file://`: it creates missing files for `O_CREAT`, normalizes rc2 timestamp arguments, and wraps the Blob before Wanix starts. For `file://` it also inlines the `WanixHandle` module and converts the module worker into a self-contained classic worker, which Chrome requires. When OPFS is unavailable, the shell falls back to `#ramfs/new` and snapshots `opfs/` to IndexedDB (with a localStorage fallback), restoring the workspace on the next load.
-
-If the desktop process terminates, `SessionCoordinator` retries with exponential backoff (four attempts, 0.5–8 s). If recovery is exhausted, `SessionRecoveryView` offers retry, display change, and diagnostics actions.
-
-## Display and AirPlay
-
-`DisplayCoordinator` supports two output modes, persisted in Settings:
-
-- **Extended desktop** attaches and makes visible a `UIWindow` in the external `.windowExternalDisplayNonInteractive` scene, moves the Wanix surface there, and uses the display's native bounds. On AirPlay this asks iOS to leave system mirroring and render the desktop independently; the controller stays on the iPhone.
-- **Mirror iPhone screen** intentionally leaves the external display scene without a window, which lets the system mirror the entire iPhone screen. AirPlay mirroring is started from Control Center; iOS does not provide a public API to start Screen Mirroring from inside an app. In this mode AirDesk renders the desktop full-screen on the phone with a collapsible floating remote, so the TV shows the desktop rather than the full controller.
-
-When AirPlay mirroring does not create an external display scene, `DisplayCoordinator` detects the mirrored `UIScreen` and reports mirroring state so Connect, Settings, and the floating remote stay in sync. The idle timer is disabled while an external display or Cast session is active so the phone does not lock the desktop surface.
-
-`AVRoutePickerView` is not used for this path because it routes media playback, not screen mirroring. A silent `AVPlayer` does not create an external display scene either. Extended desktop remains the better choice when iOS provides the external scene.
-
-## Repository layout
+### Project layout
 
 ```text
 AirDesk/
@@ -124,66 +150,38 @@ AirDesk/
   Features/            Welcome, pairing, remote, keyboard, settings
   Session/             Session state machine and coordinator
   Display/             WKWebView surface and external display scenes
-  Runtime/             Wanix, Puter, and runtime adapters
+  Runtime/             Wanix and Puter runtime adapters
   Input/               Input schema, dispatcher, pointer ballistics
   Web/                 Swift-to-JavaScript bridge, loopback asset server
   Security/            Origin and navigation policy
   Store/               StoreKit 2 entitlement manager
   Resources/
-    DesktopShell/      index.html, desktop.js, apps.js, shell.css
-    wanix-live.html    Standalone live kernel surface
+    DesktopShell/      index.html, desktop.js, apps.js, shell.css, bundled assets
 AirDeskTests/          Unit tests
-CastReceiver/          CAF receiver development app
-scripts/               Local preview and simulator helpers
+AirDeskUITests/        UI and device tests
+CastReceiver/          Google Cast receiver development app
+scripts/               Build, CI, simulator, and smoke-test helpers
+protocol/              FlatBuffers schema and language bindings
+docs/adr/              Architecture decision records
 project.yml            XcodeGen project definition
 ```
 
-## Build and test
+### Desktop shell
+
+The shell source lives in `web/src`; generated bundles are committed under `AirDesk/Resources/DesktopShell`.
 
 ```bash
-cd ~/airdesk
-xcodegen generate
-xcodebuild -project AirDesk.xcodeproj -scheme AirDesk \
-  -sdk iphonesimulator \
-  -destination "platform=iOS Simulator,id=3B46FDF8-1482-4517-99F3-D6EF46A85133" \
-  -configuration Debug \
-  -derivedDataPath ~/airdesk/DerivedData \
-  build CODE_SIGNING_ALLOWED=NO
-
-xcodebuild -project AirDesk.xcodeproj -scheme AirDesk \
-  -sdk iphonesimulator \
-  -destination "platform=iOS Simulator,id=3B46FDF8-1482-4517-99F3-D6EF46A85133" \
-  -configuration Debug \
-  -derivedDataPath ~/airdesk/DerivedData \
-  test CODE_SIGNING_ALLOWED=NO
-```
-
-DesktopShell sources live in `web/src`. Build and verify the committed bundle with Node 22:
-
-```bash
-cd ~/airdesk/web
+cd web
 npm ci
 npm run check
-npm run licenses
-npm run sbom
 npm run build
 ```
 
-`npm run check` includes TypeScript, lint, tests, a committed-bundle freshness check, and the license policy in `web/dependency-policy.json`. `npm run sbom` writes `web/build/sbom.cdx.json`; CI uploads it as an artifact. Bundled third-party license texts and attributions live under `third_party/`.
+`npm run check` runs TypeScript, lint, tests, a committed-bundle freshness check, and the license policy. `npm run sbom` writes `web/build/sbom.cdx.json`. Bundled third-party notices live under `third_party/`.
 
-`npm run build` writes `AirDesk/Resources/DesktopShell/bridge.js` and its source map. Xcode still builds without Node; only edit the generated shell files through `web/src`.
+### Protocol bindings
 
-Run the CI-equivalent iOS checks, including XcodeGen, the 116 unit tests, and the UI-test build, with:
-
-```bash
-./scripts/ci-ios.sh
-```
-
-Set `AIRDESK_DESTINATION` to override the simulator destination. `.github/workflows/ios.yml` runs the same script on macOS CI.
-
-## Protocol bindings
-
-`protocol/airdesk.fbs` is the source of truth for input, control, and packed pointer frames. Install `flatc` 25.12.19, then regenerate the checked-in Swift, TypeScript, and Rust bindings:
+`protocol/airdesk.fbs` is the source of truth for input and control messages. Install `flatc` 25.12.19, then regenerate the checked-in Swift, TypeScript, and Rust bindings:
 
 ```bash
 ./protocol/generate.sh
@@ -191,109 +189,34 @@ cd web && npm run check
 cargo test --manifest-path ../protocol/rust/Cargo.toml
 ```
 
-The shared packed-frame fixtures live in `protocol/fixtures/packed-frames.json` and are exercised by all three language test suites.
+### Tests and CI
 
-## Local preview and simulator helpers
+- `AirDeskTests`: 116 unit tests covering input, runtime routing, SSH PTY, reconnect, terminal messages, and entitlements.
+- `AirDeskUITests`: controller and desktop flows, terminal typing, resize, transcript replay, remote SSH, and WinBox lifecycle.
+- `.github/workflows/ios.yml` runs the CI-equivalent checks on macOS through `scripts/ci-ios.sh`.
 
-Serve the desktop shell from loopback for Chrome or Safari so COOP/COEP apply:
-
-```bash
-python3 scripts/dev-desktop-server.py
-# open http://127.0.0.1:8123/index.html
-```
-
-Use the detached simulator helper when `simctl launch` or `bootstatus` stalls:
-
-```bash
-scripts/simctl-launch.sh "iPhone 16 Pro" com.airdesk.ios
-scripts/simctl-launch.sh "iPhone 16 Pro" com.airdesk.ios "" -AirDeskAutoDemo
-```
-
-The helper boots, waits with a timeout, installs the Debug app, and launches it in the background. Extra arguments after the app path are forwarded to `simctl launch`.
-
-Run the Chrome CDP smoke test after starting the loopback server and a headless Chrome instance with remote debugging:
-
-```bash
-"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
-  --headless=new --disable-gpu --remote-debugging-port=9222 about:blank
-
-uv run --with websockets python3 scripts/desktop-smoke-test.py \
-  http://127.0.0.1:8123/index.html
-```
-
-The test verifies terminal startup, `touch`, `>`, `>>`, `cat`, `cp`, and OPFS reads and writes. It exits nonzero on a missing prompt or content mismatch.
-
-Run the native smoke test after building the Debug app:
-
-```bash
-scripts/native-smoke-test.sh 3B46FDF8-1482-4517-99F3-D6EF46A85133
-```
-
-The helper boots the simulator, installs the app, launches it with `-AirDeskSmokeTest`, and polls `Documents/airdesk-native-smoke.json` without relying on `simctl get_app_container`. It exits zero only when the JSON reports `"ok": true`. The test checks the terminal prompt, root file writes, `cp`, and the `opfs/` fallback mount.
-
-Run the real OpenSSH terminal smoke test on a Mac with `sshd` and Xcode:
+For a real OpenSSH smoke test on a Mac with `sshd` and Xcode:
 
 ```bash
 scripts/real-ssh-smoke.sh
 ```
 
-It starts a temporary `sshd` on loopback by default, writes throwaway fixture values into the simulator's `com.airdesk.realsshsmoke` defaults domain, boots the simulator, and runs `RealSSHTerminalTests`. When `tmux` is available, the test starts and cleans up a temporary remote tmux session; otherwise it uses the login shell. Set `AIRDESK_SSH_BIND_HOST` to bind `sshd` to a non-loopback address and exercise the real network stack; `AIRDESK_SSH_HOST` overrides the simulator's target address. The script regenerates the Xcode project, builds the UI test target, and cleans up the server, tmux session, and defaults on exit.
+## Security and privacy
 
-## Security model
+- The desktop asset server binds to loopback and enforces COOP/COEP and a strict CSP.
+- No runtime CDN is required for Wanix, WTerm, fonts, or terminal cores.
+- Remote SSH uses the native SwiftNIO stack with a pinned OpenSSH host key.
+- Passwords are stored in the device Keychain. SSH credentials and private keys are not bundled into the web shell or committed to the repository.
+- The `airdeskTerminal` bridge carries only PTY input, output, resize, and lifecycle messages.
 
-- File URLs are restricted to the bundled `DesktopShell` directory.
-- The native desktop is served from a loopback-only HTTP listener; navigation policy accepts plain HTTP only for loopback origins.
-- Wanix CDN origins are allowlisted for the desktop and kernel surfaces.
-- Remote runtime URLs must be HTTPS and match the configured origin.
-- The bridge validates message envelopes and ignores mismatched session IDs.
-- Readiness comes from the JavaScript runtime, never from page load.
+## Documentation
 
-## Backlog
+- [ADR-001: Multi-runtime architecture](docs/adr/001-multi-runtime-architecture.md)
+- [ADR-005: Display and transport](docs/adr/005-display-and-transport.md)
+- [ADR-006: Remote windowing](docs/adr/006-remote-windowing.md)
+- [ADR-007: WinBox and WTerm](docs/adr/007-winbox-and-wterm.md)
+- [ADR-008: Input and control protocol](docs/adr/008-input-and-control-protocol.md)
 
-Ordered by release risk and dependency. Google Cast work is paused by request.
+## License
 
-### P0 - Release blockers
-
-1. **Cast receiver registration and hosting**
-   - The SDK 4.8.4 dynamic sender is linked, and session, input, and control channels are wired.
-   - Still needed: registered receiver application ID (`AIRDESK_CAST_RECEIVER_APP_ID`), public HTTPS receiver, Cast Developer Console registration, v86 disabled, and receiver heap below 512 MB.
-   - Validate discovery, session start/end, input latency, reconnect, and receiver reload on hardware.
-2. **Display hardware validation**
-   - AirPlay mirroring and extended desktop on Apple TV, wired displays, and 1080p/4K TVs.
-   - Verify disconnect/reconnect, orientation, controller versus preview ownership, and recovery when the display changes mid-session.
-   - AirPlay Screen Mirroring must be started from Control Center; iOS does not allow the app to launch it.
-3. **StoreKit sandbox validation**
-   - Monthly, yearly, family yearly, and lifetime purchase, restore, expiration, grace period, and Manage Subscriptions.
-   - Confirm the Wanix Kernel Pro gate and entitlement refresh across launches.
-4. **Release readiness**
-   - Signing and provisioning, privacy manifest/local-network justification, app icons, versioning, archive, and TestFlight upload.
-
-### P1 - Platform parity
-
-5. **Android controller and display client**
-   - Not started. First decide whether Android runs the Wanix shell locally or acts as a remote display client.
-   - Reuse the normalized input schema, then build the Compose controller, WebView shell, and Cast parity.
-   - The build host has Android Studio but no installed Android SDK or emulator yet; add those before implementation.
-
-### P2 - Runtime hardening
-
-6. **Wanix/WASI filesystem parity**
-   - rc2 ignores `O_CREAT`, rejects integer `chtimes` timestamps, hardcodes zero inodes, and does not honor `O_APPEND`.
-   - `wanix-file-worker-fix.js` patches the embedded gojs worker used by `rc.wasm`; standalone WASI workers still use upstream behavior.
-7. **OPFS persistence**
-   - WKWebView exposes OPFS handles without `createWritable`, so the shell falls back to `#ramfs/new` plus an IndexedDB snapshot.
-   - The fallback snapshots `opfs/` only; terminal writes outside `opfs/` are not persisted. Chrome loopback HTTP still uses full OPFS via `scripts/dev-desktop-server.py`.
-8. **AirPlay mirroring hardware validation**
-   - `DisplayCoordinator` now detects a mirrored `UIScreen` when AirPlay does not create an external display scene. Validate detection, Preview, and disconnect handling on an Apple TV.
-9. **Cast SDK upgrade path**
-   - The SDK is pinned to 4.8.4. Version 4.8.6 references iOS 26 `UIGlassEffect` and does not link with the current Xcode 16.4/iOS 18.5 SDK; revisit after upgrading Xcode.
-
-### P3 - Quality
-
-10. **UI, accessibility, and CI**
-    - Add UI smoke coverage for Connect, Settings, display-mode switching, and preview ownership.
-    - Audit VoiceOver labels, Dynamic Type, and reduced motion.
-    - iOS CI runs XcodeGen, the 116 unit tests, and the UI-test build via `.github/workflows/ios.yml`; add hosted UI smoke runs next.
-11. **Documentation and screenshots**
-    - Refresh screenshots for AirPlay modes and Cast setup.
-    - Document the receiver registration checklist and the Android architecture decision.
+No license file is currently included in this repository. All rights are reserved unless a license is added.
