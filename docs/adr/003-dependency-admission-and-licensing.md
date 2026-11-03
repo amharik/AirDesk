@@ -2,10 +2,11 @@
 
 - **Status:** Proposed — qualification gates required
 - **Date:** 2026-10-29
-- **Scope:** All third-party source, binaries, WASM, SDKs, and services used by AirDesk or Wanix
+- **Scope:** All third-party source, binaries, WASM, SDKs, runtime providers, native agents and services used by AirDesk or Wanix
 - **Supersedes:** None
-- **Related:** ADR-001, ADR-002, ADR-007
+- **Related:** ADR-001, ADR-002, ADR-004, ADR-007, ADR-013, ADR-017, ADR-018, ADR-019
 - **Implementation:** Web dependency pins, license gate, and CycloneDX SBOM generation are active as of 2026-10-29.
+- **Review 2026-11-03:** Reconciled with the revised provider/agent/application model. This policy is not superseded; new providers and agents must pass the same gates.
 
 ## Decision
 
@@ -20,6 +21,18 @@ Every dependency is assigned one status:
 - **Reject:** not permitted without a superseding ADR.
 
 Promotion requires the evidence below. A Trial may not become Adopt because it “works on my machine.”
+
+### Scope under the revised architecture
+
+The policy applies independently to:
+
+- native device agents and platform adapters;
+- runtime providers, including Wanix, native and browser providers;
+- transport, identity and persistence dependencies;
+- application packaging and remote-application adapters;
+- protocol code generation and SDKs.
+
+Adding a provider or agent does not inherit approval from another platform. Each shipped dependency and binary artifact is admitted or excepted explicitly. Runtime providers must also declare their license and distribution terms in the manifest.
 
 ## License policy
 

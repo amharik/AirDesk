@@ -2,10 +2,11 @@
 
 - **Status:** Proposed — capability and authorization gates required
 - **Date:** 2026-11-03
+- **Updated:** 2026-11-03 — capability leases and application context added
 - **Deciders:** Security owner, engineering lead
-- **Scope:** Capability descriptors, grants, invocation, resolution, audit, revocation
+- **Scope:** Capability descriptors, leases, grants, invocation, resolution, audit, revocation, application context
 - **Supersedes:** None
-- **Related:** ADR-001, ADR-005, ADR-008, ADR-010, ADR-011, ADR-013, ADR-014, ADR-015
+- **Related:** ADR-001, ADR-005, ADR-008, ADR-010, ADR-011, ADR-013, ADR-014, ADR-015, ADR-016, ADR-017, ADR-018, ADR-019
 
 ## Context
 
@@ -78,15 +79,44 @@ High-impact capabilities require explicit user approval. Expired, revoked or out
 - Offline providers may accept a bounded-staleness revocation window; the window is explicit per capability.
 - Revocation invalidates new invocations; an in-flight invocation is cancelled unless the capability declares a safe completion path.
 
+### 4.1 Capability leases are the bounded access object
+
+A **capability lease** is the time-bounded authorization a requester holds for a capability. A signed grant records the policy decision; the lease records the active, scoped access.
+
+A lease contains:
+
+- lease ID;
+- device and capability IDs;
+- workspace ID;
+- requesting application ID;
+- requester device and session IDs;
+- granted operations and resource scope;
+- issue time and expiry;
+- revocation state;
+- usage constraints;
+- audit identifier.
+
+Rules:
+
+- A lease is required for every non-public capability invocation.
+- The workspace and application context are part of the authorization decision.
+- A lease cannot outlive its grant or workspace authorization.
+- A lease is scoped to one application instance unless the capability contract explicitly permits sharing.
+- A lease may be revoked without revoking unrelated capabilities.
+- The provider enforces the lease; the requester cannot self-extend it.
+- A lease does not grant workspace ownership or collaboration rights.
+
 ### 5. Invocation is request/response with cancellation
 
 A capability invocation includes:
 
 - request and correlation IDs;
-- workspace and provider device;
+- workspace ID;
+- requesting application and instance IDs;
+- provider device and session;
 - capability ID and version;
+- lease reference;
 - typed arguments;
-- grant reference;
 - expiry and cancellation token.
 
 The response includes:
@@ -153,11 +183,14 @@ AD-CAP is active in the MVP, not deferred. The initial consumer set is files and
 ## Acceptance gates
 
 - Descriptor validation rejects unknown required versions and malformed constraints.
-- Unauthorized, expired and revoked grants are denied.
+- Unauthorized, expired and revoked grants and leases are denied.
+- A lease cannot outlive its grant, application instance or workspace authorization.
+- A capability request can be authorized, leased and revoked.
+- Application context is part of the authorization decision.
 - A granted but busy capability is reported as unavailable, not denied.
 - Invocation cancellation releases resources and is idempotent.
 - Resolver selection is deterministic and explained in diagnostics.
-- Pairing alone grants no optional capability.
+- Pairing alone grants no optional capability or workspace ownership.
 - Grant issuance names an authenticated issuer and is signed; the coordinator cannot mint grants.
 - Expired, revoked and stale-revocation grants are denied; bounded offline windows are explicit.
 - Browser files and camera consumers receive scoped grants, not device-wide access.

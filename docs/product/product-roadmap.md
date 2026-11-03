@@ -1,0 +1,76 @@
+# Product roadmap
+
+This roadmap follows the revised architecture blueprint. Dates are intentionally omitted until the preceding release gates pass.
+
+## Release 1 — Stable personal workspace
+
+**Objective:** Make AirDesk useful as a coherent workspace on one device.
+
+- Stabilize the existing native shell.
+- Define workspace manifest, schema versioning and desired/observed state.
+- Add device-local persistence and truthful recovery.
+- Introduce the runtime provider interface.
+- Integrate Wanix through a provider adapter.
+- Preserve native execution.
+- Define the application manifest and lifecycle.
+- Separate display and input state from workspace state.
+
+**Exit:** A user can open a workspace, use applications, close the display session and recover the workspace without losing logical state.
+
+## Release 2 — Personal device fabric
+
+**Objective:** Let a second device contribute capabilities to the workspace.
+
+- Native device agent.
+- Device identity and pairing.
+- Capability registry, leases and scoped authorization.
+- ADFP baseline.
+- `WorkspaceOrchestrator` and `SessionCoordinator` integration.
+- Phone-as-controller.
+- Phone camera and files as explicit capabilities.
+- Multi-controller input arbitration.
+- Direct transport connectivity.
+
+**Exit:** A paired device can provide an authorized capability to an active workspace, and the workspace remains recoverable after that device disconnects.
+
+## Release 3 — Universal display endpoints
+
+**Objective:** Present the workspace across common display environments.
+
+- Browser presentation endpoint.
+- Local host agent.
+- External display integration.
+- Android device agent.
+- USB-C/HDMI qualification.
+- AirPlay and Cast feasibility or compatibility testing.
+- Display reconnection and restoration.
+
+**Exit:** A workspace can be presented on supported native and browser endpoints without making the endpoint the workspace authority.
+
+## Release 4 — Distributed execution
+
+**Objective:** Run workloads on the most appropriate participating device.
+
+- Remote Wanix runtime provider.
+- Runtime placement policies.
+- Remote terminal execution.
+- Remote application provider.
+- RDP RAIL and Xpra experiments.
+- Resource access and transfer.
+- Encrypted workspace synchronization.
+
+**Exit:** An application can execute on a different device from the active display with explicit placement, authorization and failure handling.
+
+## Release 5 — Intent and collaboration
+
+**Objective:** Make the workspace easier to operate and share.
+
+- Intent-driven task interface.
+- Approval-gated agent operations.
+- Shared workspace identity and membership.
+- Roles and permissions.
+- Shared resource semantics.
+- Collaboration audit and revocation.
+- Optional group sessions.
+
+**Exit:** Multiple authenticated users can collaborate in a shared workspace with explicit ownership and access policies.

@@ -2,11 +2,12 @@
 
 - **Status:** Proposed — hardware and latency qualification required
 - **Date:** 2026-10-29
-- **Scope:** USB-C/AirPlay external displays, Cast receiver, controller mode, WebSocket/WebRTC transport, binary framing, latency targets
-- **Amends:** ADR-001 Cast-first MVP sequencing and transport details; Cast remains receiver-hosted
+- **Updated:** 2026-11-03 — display endpoints separated from workspace authority
+- **Scope:** USB-C/AirPlay external displays, Cast receiver, browser and TV endpoints, controller mode, transport, binary framing, latency targets
+- **Amends:** ADR-001 display sequencing and transport details; Cast remains receiver-hosted but not workspace-authoritative
 - **Supersedes:** None
-- **Amended by:** ADR-013 (transport sequencing), ADR-014 (browser endpoint topology)
-- **Related:** ADR-001, ADR-003, ADR-004, ADR-008, ADR-010, ADR-013, ADR-014
+- **Amended by:** ADR-013 (transport planes), ADR-014 (browser endpoint), ADR-016 (workspace authority), ADR-017 (orchestration)
+- **Related:** ADR-001, ADR-003, ADR-004, ADR-008, ADR-010, ADR-013, ADR-014, ADR-016, ADR-017
 
 ## Decision
 
@@ -14,10 +15,10 @@ Adopt four explicit display modes and prioritize the native external-display pat
 
 1. **Mode A — Independent external desktop:** the phone runs the controller while the external display presents the desktop. USB-C is the primary target; AirPlay is supported only where the OS and display path actually permit an independent scene.
 2. **Mode B — Mirrored presentation:** used when the OS or display route only supports mirroring. The UI must say so and must not imply an independent desktop.
-3. **Mode C — Cast desktop:** the receiver hosts the runtime and presents the desktop. Cast custom messaging is tried first; authenticated LAN `wss` is the fallback.
+3. **Mode C — Cast desktop:** the receiver hosts an approved runtime provider and presents the workspace. Cast custom messaging is tried first; authenticated LAN `wss` is the fallback. The receiver is not the workspace authority.
 4. **Mode D — Controller/disconnected:** setup, diagnostics, and recovery when no display path is active.
 
-USB-C/AirPlay is the first production milestone. Cast remains receiver-hosted and supported, but follows the native external-display path rather than defining the MVP sequence.
+USB-C/AirPlay is the first native milestone. A browser endpoint follows the personal device fabric, not the first workspace release. Cast remains receiver-hosted and supported, but follows the native external-display path rather than defining the MVP sequence.
 
 The modes are presentation outcomes, not a second profile model:
 
@@ -25,10 +26,19 @@ The modes are presentation outcomes, not a second profile model:
 | --- | --- | --- |
 | Mode A | iOS extended | Independent external scene |
 | Mode B | iOS mirrored | Mirrored scene only |
-| Mode C | Cast | Receiver owns runtime and workspace |
+| Mode C | Cast | Receiver hosts a runtime provider; workspace remains independent |
 | Mode D | None / preview or disconnected | Controller, setup or recovery |
 
 `ProfileResolver` remains the authority for the profile axes; the mode resolver reports the local presentation outcome.
+
+### Display sessions do not own the workspace
+
+- A workspace may have zero, one or many display sessions.
+- A display session stores presentation state, focus and controller attachment.
+- Window layout preferences may be persisted by the workspace; transient display state is session-scoped.
+- A display reconnect must not recreate or overwrite the workspace.
+- A browser, TV or Cast endpoint cannot become the canonical workspace owner.
+- Closing a display session does not stop unrelated runtimes or delete application definitions.
 
 ## Display rules
 

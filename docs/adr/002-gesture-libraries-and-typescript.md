@@ -4,8 +4,9 @@
 - **Date:** 2026-10-29
 - **Scope:** iOS/iPadOS trackpad input, WKWebView desktop pointer/window interaction, DesktopShell build tooling
 - **Supersedes:** None
-- **Related:** ADR-001, ADR-003, ADR-007, `docs/backlog/desktop-shell-typescript.md`
+- **Related:** ADR-001, ADR-003, ADR-007, ADR-015, ADR-019, `docs/backlog/desktop-shell-typescript.md`
 - **Effective note:** The `interact.js` web window-manager decision is superseded by ADR-007. Native trackpad and TypeScript decisions remain in force.
+- **Review 2026-11-03:** Rechecked against workspace independence and local-first operation. The input and build decisions remain valid; the shell must call the application/runtime interfaces in ADR-017/019 rather than infer workspace or runtime state from DOM or window objects.
 
 ## Decision
 

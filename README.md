@@ -2,11 +2,15 @@
 
 [![iOS CI](https://github.com/amharik/AirDesk/actions/workflows/ios.yml/badge.svg)](https://github.com/amharik/AirDesk/actions/workflows/ios.yml)
 
-AirDesk turns an iPhone or iPad into a wireless keyboard, trackpad, and remote for a macOS-style desktop. The desktop runs locally in a Wanix WebAssembly workspace and can be shown on a TV, an external display, or a Google Cast receiver while the phone stays in your hand as the controller.
+AirDesk is building a distributed personal workspace. Its first implementation turns an iPhone or iPad into a controller for a macOS-style desktop running in a local Wanix WebAssembly workspace, displayed on the phone, a TV, an external display, or a Cast receiver.
+
+The architecture is workspace-centric: the workspace is a persistent logical environment independent of devices, runtimes and display sessions. Devices contribute capabilities, runtime providers execute workloads, and display endpoints present the workspace without owning it. The current iOS app is the first implementation of that direction, not the completed fabric.
 
 ## Status
 
-AirDesk is in active development. It builds and runs on iOS and iPadOS 17+, and the core input, desktop, terminal, and display paths are implemented. It is **not yet App Store-ready**: ADR-007 is still Proposed and the remaining Cast, external-display, performance, and distribution gates must pass first.
+AirDesk is in active development. It builds and runs on iOS and iPadOS 17+, and the current input, desktop, terminal, and display paths are implemented. It is **not yet App Store-ready**: ADR-007 is still Proposed and the remaining Cast, external-display, performance, and distribution gates must pass first.
+
+The revised architecture moves from a browser-first MVP to a five-release sequence: stable personal workspace, personal device fabric, universal display endpoints, distributed execution, and intent/collaboration. See the [release roadmap](docs/planning/release-roadmap.md).
 
 | Area | Current state |
 | --- | --- |
@@ -18,6 +22,8 @@ AirDesk is in active development. It builds and runs on iOS and iPadOS 17+, and 
 | Google Cast receiver | Development app |
 | Unit tests | 116 passing |
 | iPad UI suite | Passing; 1 opt-in test skipped |
+| Workspace model and orchestration | Architecture defined; not implemented |
+| Device fabric and browser endpoint | Architecture defined; Release 2/3 |
 | App Store release | Not yet |
 
 ## Features
@@ -114,7 +120,7 @@ Remote SSH is opt-in and uses the native SSH stack, not the web shell.
 | --- | --- | --- |
 | **Wanix Desktop** | Default local desktop with the embedded Wanix namespace | Free |
 | **Wanix Kernel** | Standalone live Wanix kernel surface | Pro |
-| **Puter** | Remote Puter.js adapter | Pending removal; not configured in this build |
+| **Puter** | Removed from the product direction | Code removal pending `PUTER-01`; not configured in this build |
 
 ## Current state and limitations
 
@@ -124,23 +130,36 @@ Remote SSH is opt-in and uses the native SSH stack, not the web shell.
 - Transcript replay restores terminal text after a reload, but the Wanix shell process restarts. Byte-exact PTY reconnect and live process resumption are not implemented.
 - The real OpenSSH smoke test is opt-in because it needs a reachable SSH host and throwaway credentials. The default UI suite uses an in-process fixture.
 - Puter removal is tracked as `PUTER-01`; its adapter and assets are still present in this build but are not configured.
+- The workspace store, `WorkspaceOrchestrator`, runtime provider registry, native device agents and capability leases are architecture targets, not shipped features yet.
+- The browser endpoint is Release 3 and is a presentation endpoint. It is not the first release or the workspace authority.
 
 ## Architecture at a glance
 
+The target architecture separates the persistent workspace from the devices, runtimes and display sessions that realize it.
+
 ```mermaid
-flowchart LR
-  Phone["iPhone / iPad<br/>SwiftUI controller"] -->|"pointer, keys, text"| Bridge["RuntimeBridge"]
-  Bridge --> Shell["WKWebView desktop shell"]
-  Shell --> Wanix["Wanix WebAssembly namespace"]
-  Wanix --> Apps["Finder · Terminal · Notes"]
-  Shell --> Display["AirPlay / external display"]
-  Shell -.-> Cast["Cast receiver"]
-  Phone -->|"native SSH PTY"| Remote["Remote terminal"]
+flowchart TB
+  Workspace["Persistent workspace<br/>desired state"]
+  Orchestrator["WorkspaceOrchestrator"]
+  Session["SessionCoordinator"]
+  Registry["Device and capability registry"]
+  Runtime["Runtime providers<br/>native · Wanix · browser · remote"]
+  Agents["Native device agents<br/>capabilities and permissions"]
+  Displays["Display endpoints<br/>native · browser · TV"]
+
+  Workspace --> Orchestrator
+  Orchestrator --> Session
+  Orchestrator --> Registry
+  Orchestrator --> Runtime
+  Registry <--> Agents
+  Session <--> Displays
 ```
 
-The phone sends normalized input through one bridge. The desktop shell owns the workspace and routes input to windows, fields, or the terminal. A native loopback asset server provides cross-origin isolation for the WebAssembly runtime. See [ADR-005](docs/adr/005-display-and-transport.md), [ADR-007](docs/adr/007-winbox-and-wterm.md), and [ADR-008](docs/adr/008-input-and-control-protocol.md) for the decisions behind the architecture.
+The workspace owns identity and desired state. The orchestrator resolves devices, capabilities and runtime providers, while the session coordinator manages controller attachment and presentation sessions. Neither a runtime provider nor a display endpoint becomes the workspace authority.
 
-The planned browser-first workspace fabric is not shipped yet. It uses a local AirDesk agent on the display machine, a coordinator for pairing and presence, and direct data connections; see [ADR-014](docs/adr/014-browser-endpoint-topology.md) and the [Workspace Fabric plan](docs/planning/workspace-fabric-plan.md).
+The current iOS implementation still centers on a `RuntimeBridge`, WKWebView desktop shell and local Wanix namespace. The phone sends normalized input through one bridge, and a native loopback asset server provides cross-origin isolation. See [ADR-001](docs/adr/001-multi-runtime-architecture.md), [ADR-005](docs/adr/005-display-and-transport.md), [ADR-007](docs/adr/007-winbox-and-wterm.md), [ADR-008](docs/adr/008-input-and-control-protocol.md), [ADR-016](docs/adr/016-workspace-domain-model-and-authority.md) and [ADR-017](docs/adr/017-workspace-orchestration-and-runtime-providers.md).
+
+The browser endpoint is part of Release 3. It uses a local host agent and direct data connections but remains a presentation endpoint; see [ADR-014](docs/adr/014-browser-endpoint-topology.md), the [system overview](docs/architecture/system-overview.md) and the [release roadmap](docs/planning/release-roadmap.md).
 
 ## Development
 
@@ -164,7 +183,11 @@ AirDeskUITests/        UI and device tests
 CastReceiver/          Google Cast receiver development app
 scripts/               Build, CI, simulator, and smoke-test helpers
 protocol/              FlatBuffers schema and language bindings
+docs/product/          Product vision, principles and roadmap
+docs/architecture/     Workspace, device, runtime and security architecture
+docs/protocols/        ADFP module and transport documentation
 docs/adr/              Architecture decision records
+docs/planning/         Release roadmap and implementation plan
 project.yml            XcodeGen project definition
 ```
 
@@ -228,7 +251,31 @@ scripts/real-ssh-smoke.sh
 - [ADR-013: Multi-transport and connectivity](docs/adr/013-multi-transport-and-connectivity.md)
 - [ADR-014: Browser endpoint topology](docs/adr/014-browser-endpoint-topology.md)
 - [ADR-015: Session ownership and multi-controller](docs/adr/015-session-ownership-and-multi-controller.md)
+- [ADR-016: Workspace domain model and authority](docs/adr/016-workspace-domain-model-and-authority.md)
+- [ADR-017: Workspace orchestration and runtime providers](docs/adr/017-workspace-orchestration-and-runtime-providers.md)
+- [ADR-018: Native device agents and capability host ABI](docs/adr/018-native-device-agents-and-capability-host-abi.md)
+- [ADR-019: Application model and lifecycle](docs/adr/019-application-model-and-lifecycle.md)
 - [ADR index](docs/adr/README.md)
+- [Product vision](docs/product/product-vision.md)
+- [Product principles](docs/product/product-principles.md)
+- [Product roadmap](docs/product/product-roadmap.md)
+- [System overview](docs/architecture/system-overview.md)
+- [Workspace domain model](docs/architecture/workspace-domain-model.md)
+- [Workspace orchestration](docs/architecture/workspace-orchestration.md)
+- [Device fabric](docs/architecture/device-fabric.md)
+- [Device agent architecture](docs/architecture/device-agent-architecture.md)
+- [Runtime architecture](docs/architecture/runtime-architecture.md)
+- [Application model](docs/architecture/application-model.md)
+- [Capability model](docs/architecture/capability-model.md)
+- [Persistence and recovery](docs/architecture/persistence-and-recovery.md)
+- [Security model](docs/architecture/security-model.md)
+- [Deployment topologies](docs/architecture/deployment-topologies.md)
+- [ADFP overview](docs/protocols/adfp-overview.md)
+- [AD-RUNTIME](docs/protocols/ad-runtime.md)
+- [AD-RESOURCE](docs/protocols/ad-resource.md)
+- [Protocol versioning](docs/protocols/protocol-versioning.md)
+- [Transport mapping](docs/protocols/transport-mapping.md)
+- [Release roadmap](docs/planning/release-roadmap.md)
 - [Workspace Fabric plan](docs/planning/workspace-fabric-plan.md)
 
 ## License

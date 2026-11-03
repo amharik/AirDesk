@@ -2,10 +2,10 @@
 
 - **Status:** Proposed — WinBox parity and wterm qualification gates required
 - **Date:** 2026-10-29
-- **Updated:** 2026-11-01 — Native SSH PTY transport and remote tmux integration
+- **Updated:** 2026-11-03 — Shell and terminal boundaries made provider-neutral
 - **Scope:** DesktopShell window management, window chrome integration, terminal emulation, WKWebView/Cast/native parity
 - **Supersedes:** ADR-002 decision to use `interact.js` for web window drag/resize/snapping and its rejection of `WinBox.js`. All other ADR-002 decisions remain in force.
-- **Related:** ADR-002, ADR-003, ADR-005, ADR-008, ADR-009
+- **Related:** ADR-002, ADR-003, ADR-004, ADR-005, ADR-008, ADR-009, ADR-017, ADR-019
 - **Effective note:** This ADR is still Proposed because WinBox parity and wterm qualification are incomplete. Splitting the decision, spike evidence and native SSH transport into separate records is deferred until those gates close.
 
 ## Context
@@ -27,7 +27,7 @@ Adopt a library-backed compositor and terminal stack, behind AirDesk-owned adapt
 3. **Full replacement, not a hybrid**: the custom window manager is replaced behind a `DesktopWindowManager` adapter after parity tests pass.
 4. **wterm owns terminal emulation and rendering** by default in WKWebView and Cast. The DOM renderer (`@wterm/dom`) is the baseline and the production core is `@wterm/ghostty` with a 16 MiB scrollback budget; the built-in `@wterm/core` remains the lightweight preview/fallback core.
 5. **wterm sits behind a `TerminalEngine` adapter** implementing the current `wanix-term` contract. Wanix is not forked.
-6. **Wanix remains the authoritative live shell.** The `#task/shell/term` PTY is the product terminal. `@wterm/just-bash` is an offline/local shell adapter and demo fallback, not a replacement for Wanix and not an automatic silent fallback.
+6. **The terminal is a provider-backed application, not Wanix authority.** The `#task/shell/term` PTY is the default terminal provider in the current release. `@wterm/just-bash` remains an offline/local shell adapter and demo fallback. The shell must use the application/runtime interfaces in ADR-017/019 so another terminal provider can be added without changing workspace or shell semantics.
 7. **SSH uses a native transport, not the renderer.** Remote shells run through SwiftNIO SSH in the app process with a pinned OpenSSH host key; no SSH keys or credentials are bundled into or exposed to the web shell. The `airdeskTerminal` bridge carries only PTY input, output, resize, and lifecycle messages. A `wss` transport remains subject to the ADR-005 certificate and relay gates if it is ever added.
 8. **`@wterm/ghostty` is the production core.** The built-in core failed the 5,000-line scrollback gate, so Ghostty is shipped locally with an explicit byte budget. The added 598 kB WASM asset is accepted pending the remaining conformance, memory, and Cast gates.
 9. **`interact.js` is retained only for non-WinBox drag surfaces**, if any remain. It is no longer the window drag/resize layer.
@@ -36,6 +36,15 @@ Adopt a library-backed compositor and terminal stack, behind AirDesk-owned adapt
 Exact versions must be pinned under ADR-003. The selected candidates are WinBox `0.2.82` (Apache-2.0), wterm `0.5.7` (Apache-2.0), and `just-bash` `3.6.0` (Apache-2.0). All require release, checksum, license, and platform verification before Trial.
 
 ## Architecture
+
+### Provider-neutral shell boundary
+
+- The shell presents applications and windows through ADR-019 interfaces.
+- The terminal engine is an application/runtime provider detail, not a workspace authority.
+- The shell must not read Wanix namespace internals to determine workspace state, application identity or recovery status.
+- Wanix-specific hooks stay behind adapters selected by the runtime provider.
+- A terminal or window provider failure is reported as observed application state; it does not delete the workspace definition.
+- Window geometry is presentation state; workspace layout may persist preferences, but the shell is not the workspace store.
 
 ### Window manager
 

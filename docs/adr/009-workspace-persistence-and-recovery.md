@@ -1,75 +1,113 @@
-# ADR-009: Runtime-independent workspace persistence and recovery
+# ADR-009: Workspace persistence, desired state and recovery
 
 - **Status:** Proposed — implementation and recovery gates required
 - **Date:** 2026-11-03
+- **Updated:** 2026-11-03 — major amendment for workspace desired/observed state and independent recovery domains
 - **Deciders:** Product owner, engineering lead
-- **Scope:** Workspace manifest, local storage, recovery checkpoints, migration, window layout persistence
+- **Scope:** Workspace manifest, desired/observed state, local storage, resource references, recovery checkpoints, migration, layout persistence
 - **Supersedes:** None
-- **Related:** ADR-001, ADR-004, ADR-005, ADR-007, ADR-011, ADR-013, ADR-014, ADR-015
+- **Amends:** ADR-001, ADR-005, ADR-016
+- **Related:** ADR-004, ADR-011, ADR-013, ADR-014, ADR-015, ADR-016, ADR-017, ADR-019
 
 ## Context
 
 The current `Workspace` is a runtime label plus an identifier. `SessionCoordinator` resets to `.default` during session setup, and `SessionRecovery` is retry backoff rather than durable state restoration. Window state is owned by the desktop shell and WinBox adapter.
 
-This is a product problem, not only an implementation gap. A workspace that loses its layout, preferences and application state on disconnect is a demonstration rather than a dependable workspace.
+That is a product problem, not only an implementation gap. A workspace that loses its layout, preferences and application state on disconnect is a demonstration rather than a dependable workspace.
 
-AirDesk also has several storage domains with different guarantees:
+The revised blueprint makes the workspace the persistent logical environment and separates desired state from observed state. This ADR defines persistence and recovery for that model.
 
-- Native application storage.
-- Wanix and browser OPFS/IndexedDB storage.
-- Cast receiver storage.
-- Remote terminal sessions.
-- Native SSH and Keychain credentials.
+Storage domains have different guarantees and must not be treated as one:
 
-These must not be treated as one durability domain.
+- native workspace and application storage;
+- Wanix and browser OPFS/IndexedDB storage;
+- Cast receiver storage;
+- remote terminal sessions;
+- native SSH and Keychain credentials.
 
 ## Decision
 
-### 1. Workspace state is independent of the runtime
+### 1. Workspace persists independently of runtime and display
 
-Introduce a versioned `WorkspaceManifest` owned by AirDesk, not by Wanix, WinBox, WebKit or a Cast receiver. A runtime binds to a workspace; it does not define the workspace.
+Introduce a versioned `WorkspaceManifest` owned by AirDesk, not by Wanix, WinBox, WebKit, a Cast receiver or a browser endpoint. A runtime binds to a workspace; it does not define it.
 
 The manifest contains:
 
 | Field | Purpose |
 | --- | --- |
-| `id` | Stable workspace identity, not a device or runtime identity |
+| `id` | Stable workspace identity, independent of device, runtime and session |
 | `schemaVersion` | Manifest schema version |
 | `revision` | Monotonic local revision |
+| `owner` | Local personal identity reference; not a device identity |
 | `metadata` | Name, timestamps, last active device |
 | `layout` | Logical display preferences, window records and focus order |
-| `applications` | Application instance identity, app type, execution plane and restore policy |
+| `applications` | Application definitions |
+| `instances` | Desired instance state, placement and configuration |
+| `executionBindings` | Preferred provider, placement and fallback policy |
+| `resources` | Resource references and access policy |
 | `preferences` | Workspace-scoped user preferences |
-| `runtimeBinding` | Last selected runtime and safe fallback |
 | `recovery` | Last checkpoint ID, journal sequence and integrity hash |
 
 The manifest must not contain credentials, private keys, raw terminal output, clipboard contents or arbitrary remote URIs.
 
-### 2. Define a backend-neutral `WorkspaceStore`
+### 2. Desired state and observed state are separate
+
+The manifest is desired state. Observed state is produced by orchestration and runtime providers and is never merged into the manifest.
+
+```text
+ApplicationInstanceDefinition
+  id, applicationId
+  desiredState: running | stopped | suspended
+  placement
+  configuration
+```
+
+```text
+ApplicationInstanceStatus
+  instanceId
+  observedState: starting | running | suspended | stopped | failed | unavailable
+  runtimeProviderId, runtimeInstanceId, deviceId
+  lastHeartbeat, lastError
+```
+
+- A disconnected device makes observed state `unavailable`; it does not remove the definition.
+- A runtime failure reports `failed`; it does not rewrite desired state.
+- Reconciling desired state is an orchestrator action, not a persistence mutation.
+
+### 3. Resources are references
+
+The manifest references resources rather than assuming one storage location:
+
+```text
+ResourceReference
+  id
+  kind: file | document | database | application-data | runtime-volume
+  providerId
+  resourceId
+  accessPolicy
+  persistence
+```
+
+- Resource identity is stable across devices and providers.
+- Resource access policy is separate from runtime placement.
+- Local, remote and later synchronized storage use the same reference model.
+- A missing provider makes a resource unavailable; it does not silently rewrite the reference.
+
+### 4. Define a backend-neutral `WorkspaceStore`
 
 The store contract supports:
 
-- Load latest committed manifest.
-- Commit an atomic revision.
-- Append a recovery journal entry.
-- Read a checkpoint.
-- Validate schema and integrity.
-- Migrate older schema versions.
-- Report durability honestly.
+- load latest committed manifest;
+- commit an atomic revision;
+- append a recovery journal entry;
+- read a checkpoint;
+- validate schema and integrity;
+- migrate older schema versions;
+- report durability honestly.
 
-The v1 native reference implementation uses an atomic file-backed manifest and append-only journal under Application Support. SQLite may replace the backend without changing the manifest contract if journal size, querying or transactional requirements justify it. A new database dependency requires ADR-003 admission.
+The v1 native reference uses an atomic file-backed manifest and append-only journal under Application Support. SQLite may replace the backend without changing the manifest contract if journal size, querying or transactional requirements justify it. A new database dependency requires ADR-003 admission.
 
-Browser implementations use OPFS or IndexedDB as local, origin-scoped storage. Browser storage is not a backup and may be evicted.
-
-### 3. Separate committed state from in-flight work
-
-- **Committed state** is data acknowledged as saved by the store.
-- **In-flight state** is data not yet committed.
-- Forced termination may lose in-flight state.
-- The UI must not claim that in-flight work was saved.
-- Recovery tests measure loss of committed state, not arbitrary filesystem writes.
-
-### 4. Durability has a concrete definition
+### 5. Durability has a concrete definition
 
 For the native store, a commit is durable only after:
 
@@ -80,38 +118,42 @@ For the native store, a commit is durable only after:
 
 The implementation records the iOS file-protection class. Writes may fail when the device is locked; the UI must report that state rather than claiming success. Browser OPFS/IndexedDB durability is explicitly weaker and is not included in the native zero-loss gate.
 
-### 5. Multiple writers are rejected, not merged
+### 6. Multiple writers are rejected, not merged
 
 - The native store accepts one writer per workspace revision.
 - A commit carries the expected revision.
 - A mismatched revision is rejected and the caller must reload.
-- Do not use last-writer-wins for window layout, preferences or application instance state.
-- Multi-device aggregate sessions are display/input views, not concurrent writers to the same manifest.
-- Coordinator-owned session metadata and conflict resolution are future work.
+- Do not use last-writer-wins for workspace desired state, application definitions or resource ownership.
+- Multi-device synchronization later introduces explicit conflict policy; it is not simulated by concurrent local writes.
+- A display session or runtime provider is never a second workspace writer.
 
-### 6. Terminal transcripts are a separate, sensitive store
+### 7. Recovery domains are independent
+
+Recovery must distinguish:
+
+1. **Workspace recovery** — desired state, layout, preferences and metadata.
+2. **Runtime recovery** — a provider restarting or reconnecting an instance.
+3. **Display session recovery** — reconnecting or replacing presentation.
+4. **Device attachment recovery** — a device or capability becoming available again.
+
+Rules:
+
+- A display reconnect must not recreate or overwrite the workspace.
+- A runtime crash must not erase application definitions.
+- A device disconnect must not revoke workspace ownership.
+- Recovery reports what was restored, restarted, reattached, made unavailable or lost.
+- Unresolved state is preserved for later reconciliation.
+
+### 8. Terminal transcripts are a separate, sensitive store
 
 - Terminal transcripts are not stored in the workspace manifest.
 - Transcript persistence is opt-in or clearly disclosed.
 - Transcripts are encrypted at rest and bounded by retention and size limits.
 - Remote SSH output may contain secrets and is treated as sensitive.
-- The `no raw terminal output in manifest` gate does not permit plaintext transcript storage elsewhere.
+- The `no raw terminal output in manifest` rule does not permit plaintext transcript storage elsewhere.
 - Transcript replay never implies live process restoration.
 
-### 7. Recovery is explicit and truthful
-
-Restore what can be restored and report the rest:
-
-- Window layout, geometry and focus order.
-- Open application instances where the runtime can recreate them.
-- Preferences and selected runtime.
-- Terminal transcript where available.
-- Terminal process state: recreated or not restored.
-- Remote SSH: reattached session or restarted shell.
-
-`SessionRecovery` restores from the latest verified checkpoint. `.default` is used only for first launch or explicit workspace reset.
-
-### 8. Window layout is logical, not DOM state
+### 9. Window layout is logical, not DOM state
 
 Persist:
 
@@ -122,37 +164,41 @@ Persist:
 
 Do not persist raw `zIndex`, DOM nodes, WinBox instances or transient pointer state. z-order is reconstructed from focus history. WinBox remains an adapter, not the source of truth.
 
-### 9. Schema evolution is mandatory
+### 10. Schema evolution is mandatory
 
-- Unknown fields are preserved where practical.
+- Unknown optional fields are preserved where practical.
 - Missing optional fields receive documented defaults.
 - A failed migration must preserve the last readable revision.
 - A corrupt manifest falls back to the last valid checkpoint and shows a recovery warning.
 - Integrity hashes detect corruption; they do not authenticate the manifest.
+- Schema versions are independent for workspace, application, capability and resource records.
 
-### 10. Browser and receiver durability are qualified, not assumed
+### 11. Browser and receiver durability are qualified, not assumed
 
-A Cast receiver or browser may report persistent storage while still losing it. `persistentStorage: true` is a capability observation, not a durability guarantee. Cross-device resume requires a later synchronization service and is out of scope for this ADR.
+A Cast receiver or browser may report persistent storage while still losing it. `persistentStorage: true` is a capability observation, not a durability guarantee. Cross-device resume requires the later synchronization service and is out of scope for this ADR.
 
 ## Consequences
 
 ### Positive
 
-- Workspace identity survives runtime, display and receiver changes.
-- Recovery behavior becomes testable and explainable.
-- WinBox and Wanix can be replaced without losing workspace semantics.
-- The product can stop making continuity claims it cannot prove.
+- Workspace desired state survives device, runtime and display failure.
+- Recovery behavior can be reasoned about per domain.
+- Resource references allow local, remote and future synchronized storage.
+- Runtime and display components cannot silently become persistence authorities.
+- Browser and Cast storage limits are stated honestly.
 
 ### Negative
 
-- Adds schema, migration and corruption-handling work.
-- Requires coordinated changes in Swift and the desktop shell.
-- Does not by itself provide synchronization or multi-device collaboration.
-- Browser durability remains limited by the browser vendor's storage policy.
+- Requires versioned schemas, migration and a journal.
+- Requires reconciliation between desired and observed state.
+- Recovery reports and UI states become more detailed.
+- Cross-device synchronization remains deferred.
 
 ## Acceptance gates
 
 - Workspace survives app termination, relaunch, display disconnect and receiver reload in controlled tests.
+- A workspace can be restored without a display session.
+- Desired application state is not rewritten by observed runtime failure.
 - Corrupt manifest and failed migration fall back to the last valid revision with a user-visible report.
 - Committed window layout and focus order restore without DOM or WinBox state.
 - Terminal transcript restore is labeled separately from process restoration.
@@ -161,6 +207,7 @@ A Cast receiver or browser may report persistent storage while still losing it. 
 - Browser OPFS eviction is documented as a limitation and does not corrupt native state.
 - Committed-state loss is zero for the native store under the defined test matrix; browser and in-flight state are excluded and reported truthfully.
 - Concurrent writers with a stale revision are rejected and cannot overwrite a newer revision.
+- Recovery distinguishes workspace, runtime, display and device-attachment outcomes.
 
 ## Out of scope
 

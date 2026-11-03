@@ -2,10 +2,11 @@
 
 - **Status:** Proposed — specification and conformance gates required
 - **Date:** 2026-11-03
+- **Updated:** 2026-11-03 — major amendment for orchestration, runtime and resource modules
 - **Deciders:** Engineering lead, protocol owner
-- **Scope:** Protocol semantics, module boundaries, versioning, schema evolution, Cast projection
+- **Scope:** Protocol semantics, module boundaries, versioning, schema evolution, orchestration and lifecycle messages, Cast projection
 - **Supersedes:** None
-- **Related:** ADR-001, ADR-004, ADR-005, ADR-008, ADR-009, ADR-011, ADR-012, ADR-013, ADR-014, ADR-015
+- **Related:** ADR-001, ADR-004, ADR-005, ADR-008, ADR-009, ADR-011, ADR-012, ADR-013, ADR-014, ADR-015, ADR-016, ADR-017, ADR-018, ADR-019
 
 ## Context
 
@@ -34,30 +35,48 @@ ADFP defines workspace and device meaning:
 
 ADFP does not define TCP, UDP, TLS, WebRTC, QUIC or a new cryptographic transport.
 
-### 2. Module set is deliberately small
+### 2. Module set is deliberately scoped
 
-Active modules for the browser-first plan:
+MVP modules:
 
 | Module | Responsibility | Relationship |
 | --- | --- | --- |
 | AD-ID | Device identity references and pairing messages | ADR-011 |
-| AD-LINK | Session establishment, protocol negotiation, cancellation | ADR-005, ADR-013 |
-| AD-CAP | Capability descriptor, grants and invocation | ADR-012 |
-| AD-WS | Workspace identity, persistence references and recovery | ADR-009 |
-| AD-INPUT | Pointer, keyboard, touch and text input | ADR-008 |
-| AD-DISPLAY | Display registration, viewport and profile | ADR-005 |
+| AD-LINK | Session establishment, connectivity and transport negotiation, cancellation | ADR-005, ADR-013 |
+| AD-CAP | Capability descriptor, leases and invocation | ADR-012, ADR-018 |
+| AD-WS | Workspace identity, desired-state references, reconciliation and recovery | ADR-009, ADR-016, ADR-017 |
+| AD-INPUT | Pointer, keyboard, touch, text and controller arbitration | ADR-008, ADR-015 |
+| AD-DISPLAY | Display registration, viewport and presentation profile | ADR-005, ADR-014 |
+| AD-RUNTIME | Runtime provider lifecycle, execution and observed status | ADR-004, ADR-017 |
+| AD-RESOURCE | Resource references, access and transfer | ADR-009, ADR-016 |
 
-Future modules, not active:
+Early modules:
 
-- AD-APP: application registry and lifecycle.
-- AD-WINDOW: window lifecycle and geometry.
-- AD-RESOURCE: file, clipboard and resource transfer.
+- AD-APP: application manifests and lifecycle (ADR-019).
+- AD-WINDOW: window metadata and operations.
+
+Later modules:
+
 - AD-MEDIA: camera, microphone, audio and video negotiation.
-- AD-SYNC: synchronization and conflict handling.
+- AD-SYNC: encrypted synchronization and conflict handling.
 - AD-AI: intent and task execution.
-- AD-GROUP: multi-user membership.
+- AD-GROUP: multi-user membership and collaboration.
 
-A device may implement AD-INPUT and AD-DISPLAY without implementing AD-APP or AD-MEDIA.
+A device may implement AD-INPUT and AD-DISPLAY without implementing AD-APP, AD-RUNTIME or AD-MEDIA. ADFP must not require a device to implement every module.
+
+### 2.1 Orchestration and lifecycle messages
+
+AD-WS and AD-RUNTIME carry semantic messages for:
+
+- workspace open, close, desired-state update and reconciliation;
+- application instance desired/observed state;
+- runtime create, start, suspend, stop, destroy and status;
+- capability lease request, release, expiry and revocation;
+- resource reference resolution and access denial;
+- placement request and placement result;
+- recovery and unavailable-state reporting.
+
+These messages describe intent and observed results. They do not make the coordinator, display endpoint or runtime provider the workspace authority.
 
 ### 3. Existing ADRs remain authoritative for their domains
 
@@ -163,13 +182,17 @@ Maintain shared fixtures across Swift, TypeScript and Rust:
 - The envelope and typed control payloads round-trip across Swift and TypeScript; Rust round-trip is qualified only when a Rust host is in scope.
 - Malformed, oversized, duplicate and stale-generation messages are rejected.
 - Cast JSON and FlatBuffers carry equivalent control semantics for supported messages.
-- No active module duplicates ADR-005, ADR-008, ADR-014 or ADR-015 ownership.
+- No active module duplicates ADR-005, ADR-008, ADR-014, ADR-015, ADR-016 or ADR-017 ownership.
 - A device can participate with a subset of modules.
 - AD-LINK, ADR-001, ADR-011 and ADR-015 use one session vocabulary; the Cast v2 relationship is stated.
+- AD-WS and AD-RUNTIME can express workspace desired state, placement and observed runtime status without transferring workspace authority.
+- AD-CAP can express a scoped lease, expiry and revocation.
+- AD-RESOURCE can resolve a resource reference and report access denial without embedding a provider-local path.
+- Lifecycle messages are idempotent and correlated.
 
 ## Out of scope
 
 - Replacing FlatBuffers with another serialization format.
 - Defining a new transport or cryptographic handshake.
-- Implementing AD-APP, AD-WINDOW, AD-RESOURCE, AD-MEDIA, AD-SYNC, AD-AI or AD-GROUP in this cycle.
+- Implementing AD-APP, AD-WINDOW, AD-MEDIA, AD-SYNC, AD-AI or AD-GROUP in this cycle.
 - Making libp2p a required dependency.

@@ -2,14 +2,15 @@
 
 - **Status:** Proposed — pairing and platform qualification gates required
 - **Date:** 2026-11-03
+- **Updated:** 2026-11-03 — device trust separated from workspace ownership and user identity
 - **Deciders:** Security owner, engineering lead
-- **Scope:** Device keys, identity lifecycle, local discovery, QR pairing, session authentication, revocation
+- **Scope:** Device keys, identity lifecycle, local discovery, QR pairing, session authentication, revocation, trust boundaries
 - **Supersedes:** None
-- **Related:** ADR-001, ADR-005, ADR-009, ADR-010, ADR-012, ADR-013, ADR-014, ADR-015
+- **Related:** ADR-001, ADR-005, ADR-009, ADR-010, ADR-012, ADR-013, ADR-014, ADR-015, ADR-016, ADR-018
 
 ## Context
 
-The browser-first MVP needs a pairing path that works without a central account and without assuming that multicast discovery works on the target network. Future native devices need stable identities that survive address changes.
+The device-fabric release needs a pairing path that works without a central account and without assuming that multicast discovery works on the target network. Native and future browser endpoints need stable identities that survive address changes.
 
 The pairing design must also work with iOS background restrictions and browser permission and secure-context rules.
 
@@ -30,11 +31,21 @@ Each AirDesk device generates a persistent key pair.
 
 No account login is required for local pairing in v1. Cloud identity and cross-device account sync are separate future decisions.
 
+### 1.1 Device trust is not workspace ownership
+
+- A paired device is trusted to participate, not to own the workspace.
+- Device identity is not a user identity and not a workspace owner identity.
+- Pairing does not grant workspace membership, collaboration rights or optional capabilities.
+- Workspace ownership belongs to the workspace model in ADR-016.
+- A controller attachment is a session role, not workspace ownership.
+- Future user identity, workspace membership and roles require a separate decision.
+- Revoking a device invalidates its trust and session credentials; it does not delete the workspace.
+
 ### 2. Discovery is layered
 
 | Path | Use | Notes |
 | --- | --- | --- |
-| QR pairing | Universal fallback and browser bootstrap | Required for the browser-first MVP |
+| QR pairing | Universal fallback and endpoint bootstrap | Required for the device fabric and browser endpoint |
 | Bonjour/DNS-SD | Native local discovery | Optional adapter, never required |
 | Authenticated rendezvous | Browser or cross-network discovery | Future; must not be required for LAN use |
 | Nearby Connections / Wi-Fi Aware | Optional native proximity adapters | Deferred until measured need |
@@ -147,9 +158,11 @@ AirDesk must not promise persistent peer availability while the iOS app is suspe
 
 ## Acceptance gates
 
-- AD-PAIR-1 succeeds between the supported controller and browser endpoint with Ed25519 identities, or P-256 where Ed25519 is unavailable.
+- AD-PAIR-1 succeeds between a supported controller and a native agent or browser endpoint with Ed25519 identities, or P-256 where Ed25519 is unavailable.
 - Expired, replayed or transcript-mismatched QR codes are rejected.
 - A revoked device cannot establish a new session or use existing grants.
+- Pairing alone does not grant workspace ownership, membership or optional capabilities.
+- Device trust, workspace ownership and controller attachment are represented by separate identifiers.
 - DNS-SD records contain no tokens, private paths or capability details.
 - Pairing works when mDNS is unavailable.
 - No plaintext LAN session path exists.

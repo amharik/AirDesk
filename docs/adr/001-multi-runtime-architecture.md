@@ -1,12 +1,28 @@
 # ADR-001: Multi-runtime desktop architecture
 
-- **Status:** Accepted — revised after architecture review
+- **Status:** Accepted — revised 2026-11-03 for workspace-centric architecture
 - **Date:** 2026-10-28
-- **Scope:** iOS/iPadOS, Google Cast receiver, future Android, future remote runtime
+- **Updated:** 2026-11-03
+- **Scope:** Workspace, orchestration, runtime and presentation boundaries; iOS/iPadOS, Cast, Android, browser and future devices
 - **Implementation:** Phases 1–2 implemented and simulator-verified 2026-10-28; receiver hardware validation pending
 - **Supersedes:** None
-- **Amended by:** ADR-004 (runtime baseline), ADR-005 (display/transport), ADR-007 (window manager), ADR-013 (transport sequencing), ADR-014 (browser topology), ADR-015 (session ownership)
-- **Related:** ADR-002, ADR-003, ADR-004, ADR-005, ADR-007, ADR-008, ADR-013, ADR-014, ADR-015
+- **Amended by:** ADR-004 (runtime providers), ADR-005 (display/transport), ADR-007 (window manager), ADR-013 (transport planes), ADR-014 (browser endpoint), ADR-015 (ownership layers), ADR-016 (workspace authority), ADR-017 (orchestration), ADR-018 (device agents), ADR-019 (application model)
+- **Related:** ADR-002, ADR-003, ADR-004, ADR-005, ADR-007, ADR-008, ADR-009, ADR-013, ADR-014, ADR-015, ADR-016, ADR-017, ADR-018, ADR-019
+
+## Revision 2026-11-03 — workspace-centric architecture
+
+The revised blueprint supersedes the Cast-first and Wanix-only assumptions in this ADR.
+
+The authoritative model is:
+
+- the workspace is the persistent logical environment;
+- `WorkspaceOrchestrator` coordinates workspace lifecycle, devices, capabilities and execution placement;
+- `SessionCoordinator` manages display sessions and controller attachment only;
+- native agents expose device capabilities;
+- native, Wanix and browser execution are runtime providers;
+- a display session, including Cast or a browser endpoint, presents a workspace but does not own it.
+
+The detailed Cast, Android and profile sections below remain useful implementation history where they do not contradict ADR-016 through ADR-019.
 
 ## Review summary
 
@@ -60,51 +76,57 @@ capabilities are sufficient.
 
 ## Decision
 
-1. **Cast is receiver-hosted for the MVP.** The receiver owns and runs the desktop runtime.
-   The phone sends normalized input and session/control messages. Do not encode and stream
-   the desktop in this path.
-2. **Android is standalone.** The Android device owns its runtime. Use an Android activity
-   or `Presentation` for the applicable display. Do not add a framebuffer transport for a
-   local HDMI path.
-3. **Video/WebRTC is deferred.** Define seams that do not prevent it, but implement frame
-   transport only when a concrete remote-execution, unsupported-device, or network-sharing
-   use case justifies it.
-4. **Runtime location, display target, and input route are independent axes.** Resolve them
-   into a `DisplayProfile` before connecting. The controller UI may render capabilities and
-   status, but must not branch its layout on runtime location.
-5. **Session orchestration is separate from runtime implementation.** `SessionCoordinator`
-   owns session lifecycle and selects an endpoint; it does not directly construct a
-   concrete runtime or attach a local surface for every target.
-6. **Platform validation is path-specific.** Apple TV/AirPlay validates the applicable
-   external-scene and mirroring behavior; USB-C/HDMI validates wired display behavior;
-   Cast hardware validates the receiver-hosted runtime. These are not interchangeable
-   tests.
-7. **Fail closed on invalid or unsupported remote messages.** Protocol version, message
-   shape, session identity/generation, and input values are validated at the receiving
-   boundary.
+1. **Workspace is independent of device, runtime and display.** Workspace identity,
+   desired state and persistence authority are defined by ADR-016. A runtime binds to a
+   workspace; it does not define it. A display session presents a workspace; it does not
+   own it.
+2. **Orchestration is above session management.** `WorkspaceOrchestrator` owns workspace
+   lifecycle, device and capability resolution, runtime selection, placement and
+   reconciliation. `SessionCoordinator` owns display sessions, controller attachment and
+   presentation-session state. See ADR-017.
+3. **Native devices participate through agents.** Every participating platform exposes
+   capabilities through a native `DeviceAgent`. Wanix does not replace native platform
+   integration, and a device must be useful without Wanix. See ADR-018.
+4. **Runtime location, display target and input route remain independent axes.** Resolve
+   them into a `DisplayProfile` before connecting. The controller UI may render
+   capabilities and status, but must not branch its layout on runtime location or infer
+   workspace authority from the active endpoint.
+5. **Native, Wanix and browser execution are providers.** Wanix is the preferred portable
+   provider, not the only runtime. Native execution is first-class. Browser execution is a
+   provider and presentation path. See ADR-004 and ADR-017.
+6. **A display endpoint is not the workspace authority.** This applies to Cast, external
+   displays, browser endpoints and future TV endpoints. Cast may host an execution
+   provider, but the logical workspace remains governed by ADR-016.
+7. **Platform validation is path-specific.** Apple TV/AirPlay validates external-scene and
+   mirroring behavior; USB-C/HDMI validates wired display behavior; Cast hardware validates
+   its receiver-hosted provider; browser endpoints validate loopback hosting, isolation and
+   direct data. These are not interchangeable tests.
+8. **Fail closed on invalid or unsupported remote messages.** Protocol version, message
+   shape, session identity/generation, capability and input values are validated at the
+   receiving boundary.
 
 ## Consequences
 
 ### Positive
 
 - The normal Cast path needs no desktop video encoder.
-- Cast cannot accidentally create a second local runtime when profile resolution and
-  runtime creation are enforced as acceptance-tested invariants.
+- Workspace identity survives device, runtime and display changes.
 - The controller can remain mostly target-agnostic while still exposing target-specific
   capabilities and recovery state.
-- Android can reuse shell assets and protocol schemas without reusing iOS display code.
+- Native execution can serve platform functionality without requiring Wanix.
+- Android and browser endpoints can reuse shell assets and protocol schemas without
+  reusing iOS display code.
 - A future streamed target can add a frame transport without forcing frame delivery into
   the runtime-control interface.
 
 ### Negative and trade-offs
 
-- Cast workspace state is receiver-owned; continuity across receivers or devices is not
-  automatic.
+- A workspace store must be independent of any receiver or browser endpoint.
 - Receiver CPU, memory, WASM support, browser APIs, storage behavior, and lifecycle must be
   tested on actual hardware.
-- iOS and Android require platform-specific display implementations.
-- `SessionCoordinator` becomes an orchestrator and must have explicit lifecycle/state
-  transition tests.
+- iOS and Android require platform-specific display and agent implementations.
+- `WorkspaceOrchestrator` and `SessionCoordinator` must have explicit lifecycle and
+  reconciliation tests.
 - A common input schema does not guarantee identical input semantics across all runtimes;
   unsupported events must be rejected or reported rather than silently reinterpreted.
 
@@ -116,15 +138,21 @@ capabilities are sufficient.
 - Cross-device workspace synchronization or migration.
 - Guaranteed background execution by iOS or a Cast receiver.
 - Full Android implementation details in this ADR.
+- Making a display session or runtime provider the workspace authority.
 
 ## Target model
 
 ```text
-SessionCoordinator
-  ├─ ProfileResolver       requested target + discovered capabilities -> DisplayProfile
-  ├─ RuntimeEndpoint       start / input / control / state / stop
-  ├─ DisplayCoordinator   local iOS scene and surface presentation only
-  └─ InputTransport       local or remote delivery of normalized InputEvent
+WorkspaceOrchestrator
+  ├─ WorkspaceStore        desired state, revisions and recovery metadata
+  ├─ RuntimeRegistry       provider availability and capabilities
+  ├─ DeviceRegistry        device agents and capability sources
+  ├─ CapabilityResolver    required capabilities -> authorized providers
+  └─ SessionCoordinator
+       ├─ ProfileResolver  requested target + discovered capabilities -> DisplayProfile
+       ├─ RuntimeEndpoint  start / input / control / state / stop
+       ├─ DisplayCoordinator local iOS scene and surface presentation only
+       └─ InputTransport    local or remote delivery of normalized InputEvent
 ```
 
 `DisplayProfile = RuntimeLocation + DisplayTarget + InputRoute + required capabilities`
@@ -133,18 +161,18 @@ The axes are independent types, but not every Cartesian-product combination is v
 `ProfileResolver` must reject invalid combinations with a typed error rather than relying
 on UI conditionals.
 
-| Profile | Runtime location | Display target | Input route | Runtime/workspace authority |
+| Profile | Runtime location | Display target | Input route | Runtime/workspace relationship |
 | --- | --- | --- | --- | --- |
-| Preview | iOS device | Phone | Local surface | iOS runtime |
-| iOS extended | iOS device | External scene | Local surface | iOS runtime |
-| iOS mirrored | iOS device | Mirrored phone | Local surface | iOS runtime |
-| Cast | Cast receiver | Cast receiver | Cast channel | Receiver owns desktop/workspace; phone owns controller UI |
-| Android standalone | Android device | Android activity / `Presentation` | In-process | Android runtime |
-| Future remote | Remote host | Local stream or remote display | Remote channel | Remote host, subject to an explicit authority model |
+| Preview | iOS device | Phone | Local surface | iOS runtime binds to workspace |
+| iOS extended | iOS device | External scene | Local surface | iOS runtime binds to workspace |
+| iOS mirrored | iOS device | Mirrored phone | Local surface | iOS runtime binds to workspace |
+| Cast | Cast receiver | Cast receiver | Cast channel | Receiver hosts a runtime provider; workspace authority is ADR-016 |
+| Android standalone | Android device | Android activity / `Presentation` | In-process | Android runtime binds to workspace |
+| Future remote | Remote host | Local stream or remote display | Remote channel | Remote provider, explicit placement and authority |
 
 The phone may retain the client-side session identifier and controller state while
-connected to Cast, but it does not own the receiver filesystem or imply that receiver
-workspace state is backed up. Do not describe this as synchronized state.
+connected to Cast, but no display endpoint owns workspace identity. Do not describe
+receiver or browser storage as synchronized workspace state.
 
 ## Proposed types and boundaries
 
@@ -304,7 +332,8 @@ Required invariants:
   `DesktopSurface` runtime.
 - `ready` means the selected runtime has acknowledged that it is ready to accept input; a
   loaded web page or connected Cast session alone is insufficient.
-- Only the endpoint selected for the active profile receives input.
+- Input is routed to the endpoint selected for the active profile; multiple controllers may
+  attach to that display session under ADR-015.
 - Ending a session stops input immediately. Runtime shutdown and receiver retention are
   explicit lifecycle decisions, not side effects of UI dismissal.
 - All asynchronous completions must be checked against the active session ID/generation so

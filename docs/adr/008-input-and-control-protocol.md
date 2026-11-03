@@ -2,9 +2,10 @@
 
 - **Status:** Proposed — schema generation and contract tests required
 - **Date:** 2026-10-29
-- **Scope:** Input event vocabulary, schema ownership, coordinates, coalescing, click semantics, session/generation/sequence rules
+- **Updated:** 2026-11-03 — Input source, focus owner and controller arbitration added
+- **Scope:** Input event vocabulary, schema ownership, coordinates, coalescing, click semantics, session/generation/sequence rules, multi-controller arbitration
 - **Supersedes:** None
-- **Related:** ADR-001, ADR-002, ADR-005, ADR-007
+- **Related:** ADR-001, ADR-002, ADR-005, ADR-007, ADR-010, ADR-015, ADR-017
 
 ## Decision
 
@@ -34,6 +35,31 @@ Adopt one canonical input vocabulary shared by native gestures, the Air Cursor c
 | `viewportChanged` | `width`, `height` | Logical display pixels. |
 
 Control messages include session lifecycle, readiness, acknowledgements, appearance, runtime state, and shell actions. ADR-001 owns the session handshake; this ADR owns the input vocabulary.
+
+## Multi-controller input context
+
+Every input frame carries an envelope in addition to its event payload:
+
+| Field | Purpose |
+| --- | --- |
+| `sessionId` | Display session receiving the input |
+| `generation` | Session epoch; stale generations are rejected |
+| `senderDeviceId` | Authenticated controller identity |
+| `controllerId` | Session-scoped controller attachment |
+| `sequence` | Monotonic per-controller sequence |
+| `inputSource` | `pointer`, `keyboard`, `touch`, `stylus`, `hardware` or `ime` |
+| `focusOwnerId` | Current keyboard/text focus owner, when applicable |
+
+Rules:
+
+- Pointer events identify their controller and render at that controller's cursor.
+- Keyboard, text and focus events are accepted only from the current focus owner.
+- A focus handoff includes a new `focusChanged` message with the new owner and releases modifiers on the previous owner.
+- Disconnect, focus loss and generation change release pressed keys and buttons.
+- Duplicate controller IDs, stale generations and revoked devices are rejected.
+- Input source is metadata for arbitration and diagnostics, not a permission grant.
+
+ADR-015 owns cursor, focus and arbitration semantics; this ADR owns the wire fields.
 
 ## Schema authority
 
@@ -99,6 +125,9 @@ Validation errors are diagnostic. They must not crash the shell or trigger a ret
 - Cursor coordinates remain correct after viewport resize, rotation, and external-display changes; no `0,0` regression.
 - The 50 ms p95 LAN and 100 ms p95 remote transport budgets from ADR-005 are measured with the canonical schema.
 - Reconnect does not replay clicks or keys and does not accept stale-generation input.
+- Two controllers can move independent cursors without stealing each other's pointer.
+- Keyboard and text events from a non-focus controller are rejected.
+- Focus handoff and disconnect release modifiers and pressed buttons on the previous owner.
 
 ## Consequences
 

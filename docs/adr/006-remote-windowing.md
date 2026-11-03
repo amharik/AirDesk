@@ -2,9 +2,10 @@
 
 - **Status:** Proposed — post-MVP, qualification spikes required
 - **Date:** 2026-10-29
+- **Updated:** 2026-11-03 — remote windows are presentation/execution adapters
 - **Scope:** Windows/Linux/macOS application remoting, remote window integration, decode paths, remote-host security
 - **Supersedes:** None
-- **Related:** ADR-001, ADR-003, ADR-004, ADR-005, ADR-007, ADR-008
+- **Related:** ADR-001, ADR-003, ADR-004, ADR-005, ADR-007, ADR-008, ADR-016, ADR-017, ADR-019
 
 ## Decision
 
@@ -21,6 +22,14 @@ When it enters scope:
 7. **Presentation:** remote windows are ordinary `DesktopWindowManager` windows with a remote surface, not a single full-screen remote desktop.
 
 No remote host implementation ships inside the AirDesk client. Remote backends are separate services or host agents.
+
+### Relationship to workspace and runtime providers
+
+- Remote applications are `RuntimeProvider` and presentation adapters under ADR-017/019.
+- The remote provider executes; the display session presents; neither owns the workspace.
+- Remote placement is explicit. A remote window must not appear merely because a display endpoint is connected.
+- A remote host failure marks the application instance `failed` or `unavailable`; the workspace definition remains.
+- Remote window geometry and surface state are presentation state, not workspace authority.
 
 ## Client architecture
 

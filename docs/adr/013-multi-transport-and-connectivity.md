@@ -2,15 +2,16 @@
 
 - **Status:** Proposed — benchmark and qualification gates required
 - **Date:** 2026-11-03
+- **Updated:** 2026-11-03 — control, data, media and presentation separated
 - **Deciders:** Engineering lead, transport owner
-- **Scope:** Transport adapters, channel semantics, browser and native transport sequencing, relay policy
+- **Scope:** Transport adapters, control/data/media planes, browser and native transport sequencing, relay policy
 - **Supersedes:** None
 - **Amends:** ADR-005 transport sequencing only; display profiles and Cast messaging remain
-- **Related:** ADR-001, ADR-004, ADR-005, ADR-008, ADR-010, ADR-011, ADR-012, ADR-014, ADR-015
+- **Related:** ADR-001, ADR-004, ADR-005, ADR-008, ADR-010, ADR-011, ADR-012, ADR-014, ADR-015, ADR-016, ADR-017
 
 ## Context
 
-ADR-005 establishes WebSocket and WebRTC as the transport baseline. The browser-first MVP creates new constraints:
+ADR-005 establishes WebSocket and WebRTC as the transport baseline. The device-fabric and browser-endpoint releases add constraints:
 
 - Browser receivers require secure contexts and, for Wanix/WASM, cross-origin isolation.
 - mDNS and local-network discovery are restricted in browsers.
@@ -36,21 +37,37 @@ Define a transport adapter interface covering:
 
 The logical message model is independent of transport. Transport choice must not change input or workspace semantics.
 
+### 1.1 Control, data, media and presentation are separate planes
+
+| Plane | Carries | Examples |
+| --- | --- | --- |
+| Control | identity, discovery, policy, workspace coordination, lifecycle | pairing, capability leases, placement, runtime status |
+| Data | inputs, files, resource transfer, application data | pointer frames, file chunks |
+| Media | audio and video streams | camera, microphone, remote surface |
+| Presentation | visual composition and interaction | shell, windows, cursor, display endpoint |
+
+- Control must not become the bulk-data path.
+- The workspace store and orchestrator are not in the presentation plane.
+- Media and bulk transfer must not block control or input.
+- A transport adapter may carry more than one channel but must preserve the plane separation.
+- Workspace semantics must not depend on which plane or transport carries a message.
+
 ### 2. Sequence transports by evidence
 
 | Phase | Transport | Status |
 | --- | --- | --- |
-| MVP | Loopback HTTP/WS to local agent | Required browser bootstrap |
-| MVP | WebSocket + TLS | Control and coordinator baseline |
-| MVP | WebRTC data channels | Required direct browser data path where the endpoint supports it |
-| MVP | QUIC | Native direct candidate, qualified by benchmark |
-| MVP | Cast custom messaging | Development-only until hardware qualification |
-| MVP | Existing AirPlay/external-display path | Fallback endpoint |
-| Post-MVP | WebTransport | Candidate for browser-to-host after support qualification |
-| Post-MVP | WebRTC/QUIC relay | Encrypted fallback when direct connectivity fails |
+| Workspace release | Native IPC / loopback | Local control and presentation |
+| Device fabric | WebSocket + TLS | Control and coordinator baseline |
+| Device fabric | WebRTC data channels | Preferred direct device data path |
+| Device fabric | QUIC | Native direct candidate, qualified by benchmark |
+| Browser endpoint | Loopback HTTP/WS to local agent | Required browser bootstrap |
+| Display release | Cast custom messaging | Development-only until hardware qualification |
+| Display release | Existing AirPlay/external-display path | Fallback endpoint |
+| Later | WebTransport | Candidate for browser-to-host after support qualification |
+| Later | WebRTC/QUIC relay | Encrypted fallback when direct connectivity fails |
 | Future | libp2p adapter | Optional, never mandatory |
 
-The MVP requires a direct data path. It does not require relay. If a direct path cannot be established, the session fails closed with a diagnostic rather than silently using a control-plane relay.
+The device fabric requires a direct data path. It does not require relay. If a direct path cannot be established, the session fails closed with a diagnostic rather than silently using a control-plane relay.
 
 ### 3. WebRTC channel semantics
 
@@ -67,7 +84,7 @@ Clicks, key releases, text commits and lifecycle transitions must not be sent on
 
 Cast uses the existing custom message channels and compact JSON profile. Do not attempt WebRTC inside the Cast receiver sandbox.
 
-Cast remains development-only until physical Chromecast or Google TV qualification passes. Cast is not a browser MVP dependency.
+Cast remains development-only until physical Chromecast or Google TV qualification passes. Cast is not a browser endpoint dependency.
 
 ### 5. Browser receiver requirements are part of transport design
 
@@ -79,7 +96,7 @@ A browser endpoint must account for:
 - QR or authenticated rendezvous instead of mDNS;
 - browser permission prompts for camera, microphone and clipboard.
 
-In the MVP the local agent serves the receiver over loopback, as specified in ADR-014. A hosted receiver is not part of the MVP. Any future hosted receiver must use a first-party origin, pinned assets with SRI, a strict CSP, a documented update process and a pairing-key threat model. If these cannot be satisfied, the external-display path remains the MVP fallback.
+In the browser-endpoint release the local host agent serves the receiver over loopback, as specified in ADR-014. A hosted endpoint is not part of that release. Any future hosted endpoint must use a first-party origin, pinned assets with SRI, a strict CSP, a documented update process and a pairing-key threat model. If these cannot be satisfied, the external-display path remains the fallback.
 
 ### 6. Connectivity is direct-first, relay-second
 
@@ -112,7 +129,7 @@ No relay or TURN service is implemented in this cycle. The coordinator may provi
 
 - WebSocket may not meet every future latency or peer-to-peer requirement.
 - Adding WebRTC later requires signaling, ICE and TURN work.
-- Browser isolation and hosting may block the browser MVP.
+- Browser isolation and hosting may block the browser endpoint release.
 - Multiple transport adapters increase qualification effort.
 
 ## Acceptance gates
@@ -122,7 +139,7 @@ No relay or TURN service is implemented in this cycle. The coordinator may provi
 - A direct WebRTC/QUIC versus WebSocket benchmark records p50/p95 latency, CPU, reconnect time and battery impact.
 - Concurrent bulk transfer does not create visible pointer latency.
 - Disconnect, focus loss and generation changes produce no stuck keys or buttons.
-- A failed direct path fails closed; no relay is silently used in the MVP.
+- A failed direct path fails closed; no relay is silently used in the MVP release.
 - Cast remains development-only until hardware qualification passes.
 - No plaintext LAN transport exists.
 
