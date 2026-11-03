@@ -5,6 +5,8 @@
 - **Scope:** iOS/iPadOS, Google Cast receiver, future Android, future remote runtime
 - **Implementation:** Phases 1–2 implemented and simulator-verified 2026-10-28; receiver hardware validation pending
 - **Supersedes:** None
+- **Amended by:** ADR-004 (runtime baseline), ADR-005 (display/transport), ADR-007 (window manager), ADR-013 (transport sequencing), ADR-014 (browser topology), ADR-015 (session ownership)
+- **Related:** ADR-002, ADR-003, ADR-004, ADR-005, ADR-007, ADR-008, ADR-013, ADR-014, ADR-015
 
 ## Review summary
 
@@ -223,9 +225,9 @@ controller can display capability labels, but its layout must not depend on
 
 ## Runtime seam
 
-`DesktopRuntime` remains the local Wanix/Puter adapter interface. Add a session-facing
-endpoint so the coordinator can control local and receiver-hosted runtimes through one
-lifecycle contract.
+`DesktopRuntime` remains the local Wanix adapter interface; Puter is removed per ADR-004.
+Add a session-facing endpoint so the coordinator can control local and receiver-hosted
+runtimes through one lifecycle contract.
 
 ```swift
 struct RuntimeContext {
@@ -264,7 +266,7 @@ format.
 Implementations:
 
 - `LocalRuntimeEndpoint`: wraps `SurfaceRuntimeHost` and `DesktopRuntime`.
-  `WanixRuntimeAdapter` and `PuterRuntimeAdapter` remain implementation details.
+  `WanixRuntimeAdapter` remains an implementation detail; `PuterRuntimeAdapter` is removed.
 - `CastRuntimeEndpoint`: starts/resumes a receiver session, waits for the receiver's
   readiness handshake, sends input/control messages, and maps receiver state/errors into
   `RuntimeState`.

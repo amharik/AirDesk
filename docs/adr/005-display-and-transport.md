@@ -5,7 +5,8 @@
 - **Scope:** USB-C/AirPlay external displays, Cast receiver, controller mode, WebSocket/WebRTC transport, binary framing, latency targets
 - **Amends:** ADR-001 Cast-first MVP sequencing and transport details; Cast remains receiver-hosted
 - **Supersedes:** None
-- **Related:** ADR-001, ADR-003, ADR-004, ADR-008
+- **Amended by:** ADR-013 (transport sequencing), ADR-014 (browser endpoint topology)
+- **Related:** ADR-001, ADR-003, ADR-004, ADR-008, ADR-010, ADR-013, ADR-014
 
 ## Decision
 
@@ -17,6 +18,17 @@ Adopt four explicit display modes and prioritize the native external-display pat
 4. **Mode D — Controller/disconnected:** setup, diagnostics, and recovery when no display path is active.
 
 USB-C/AirPlay is the first production milestone. Cast remains receiver-hosted and supported, but follows the native external-display path rather than defining the MVP sequence.
+
+The modes are presentation outcomes, not a second profile model:
+
+| ADR-005 mode | ADR-001 profile | Note |
+| --- | --- | --- |
+| Mode A | iOS extended | Independent external scene |
+| Mode B | iOS mirrored | Mirrored scene only |
+| Mode C | Cast | Receiver owns runtime and workspace |
+| Mode D | None / preview or disconnected | Controller, setup or recovery |
+
+`ProfileResolver` remains the authority for the profile axes; the mode resolver reports the local presentation outcome.
 
 ## Display rules
 

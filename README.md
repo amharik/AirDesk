@@ -114,7 +114,7 @@ Remote SSH is opt-in and uses the native SSH stack, not the web shell.
 | --- | --- | --- |
 | **Wanix Desktop** | Default local desktop with the embedded Wanix namespace | Free |
 | **Wanix Kernel** | Standalone live Wanix kernel surface | Pro |
-| **Puter** | Remote Puter.js adapter | Present but not configured in this build |
+| **Puter** | Remote Puter.js adapter | Pending removal; not configured in this build |
 
 ## Current state and limitations
 
@@ -123,7 +123,7 @@ Remote SSH is opt-in and uses the native SSH stack, not the web shell.
 - Terminal resize currently updates `COLUMNS` and `LINES` for subsequent shell commands. A running full-screen program does not receive a true PTY resize yet; that remains blocked on an upstream Wanix/`rc` change. Rotating the device alone does not resize the floating terminal window.
 - Transcript replay restores terminal text after a reload, but the Wanix shell process restarts. Byte-exact PTY reconnect and live process resumption are not implemented.
 - The real OpenSSH smoke test is opt-in because it needs a reachable SSH host and throwaway credentials. The default UI suite uses an in-process fixture.
-- Puter is not configured in the current build.
+- Puter removal is tracked as `PUTER-01`; its adapter and assets are still present in this build but are not configured.
 
 ## Architecture at a glance
 
@@ -140,6 +140,8 @@ flowchart LR
 
 The phone sends normalized input through one bridge. The desktop shell owns the workspace and routes input to windows, fields, or the terminal. A native loopback asset server provides cross-origin isolation for the WebAssembly runtime. See [ADR-005](docs/adr/005-display-and-transport.md), [ADR-007](docs/adr/007-winbox-and-wterm.md), and [ADR-008](docs/adr/008-input-and-control-protocol.md) for the decisions behind the architecture.
 
+The planned browser-first workspace fabric is not shipped yet. It uses a local AirDesk agent on the display machine, a coordinator for pairing and presence, and direct data connections; see [ADR-014](docs/adr/014-browser-endpoint-topology.md) and the [Workspace Fabric plan](docs/planning/workspace-fabric-plan.md).
+
 ## Development
 
 ### Project layout
@@ -150,7 +152,7 @@ AirDesk/
   Features/            Welcome, pairing, remote, keyboard, settings
   Session/             Session state machine and coordinator
   Display/             WKWebView surface and external display scenes
-  Runtime/             Wanix and Puter runtime adapters
+  Runtime/             Wanix runtime adapter; Puter removal in progress
   Input/               Input schema, dispatcher, pointer ballistics
   Web/                 Swift-to-JavaScript bridge, loopback asset server
   Security/            Origin and navigation policy
@@ -212,6 +214,9 @@ scripts/real-ssh-smoke.sh
 ## Documentation
 
 - [ADR-001: Multi-runtime architecture](docs/adr/001-multi-runtime-architecture.md)
+- [ADR-002: Gesture libraries and TypeScript](docs/adr/002-gesture-libraries-and-typescript.md)
+- [ADR-003: Dependency admission and licensing](docs/adr/003-dependency-admission-and-licensing.md)
+- [ADR-004: Runtime and execution baseline](docs/adr/004-runtime-and-execution-baseline.md)
 - [ADR-005: Display and transport](docs/adr/005-display-and-transport.md)
 - [ADR-006: Remote windowing](docs/adr/006-remote-windowing.md)
 - [ADR-007: WinBox and WTerm](docs/adr/007-winbox-and-wterm.md)
@@ -221,6 +226,9 @@ scripts/real-ssh-smoke.sh
 - [ADR-011: Device identity, discovery and pairing](docs/adr/011-device-identity-discovery-pairing.md)
 - [ADR-012: Capability advertisement and authorization](docs/adr/012-capability-advertisement-and-authorization.md)
 - [ADR-013: Multi-transport and connectivity](docs/adr/013-multi-transport-and-connectivity.md)
+- [ADR-014: Browser endpoint topology](docs/adr/014-browser-endpoint-topology.md)
+- [ADR-015: Session ownership and multi-controller](docs/adr/015-session-ownership-and-multi-controller.md)
+- [ADR index](docs/adr/README.md)
 - [Workspace Fabric plan](docs/planning/workspace-fabric-plan.md)
 
 ## License

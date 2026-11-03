@@ -2,10 +2,11 @@
 
 - **Status:** Proposed — packaging and performance gates required
 - **Date:** 2026-10-29
+- **Updated:** 2026-11-03 — Puter removed entirely; wazero execution boundary clarified
 - **Scope:** Wanix execution, WASI engines, mobile/web FFI, runtime assets, Puter disposition
 - **Amends:** ADR-001 runtime implementation choice only; session, display, and protocol decisions remain
 - **Supersedes:** None
-- **Related:** ADR-001, ADR-003, ADR-006, ADR-007
+- **Related:** ADR-001, ADR-003, ADR-006, ADR-007, ADR-009, ADR-014
 
 ## Decision
 
@@ -13,12 +14,12 @@ Adopt **Wanix + wazero in a WKWebView/WASM runtime** as the only production desk
 
 - Wanix executes inside the web runtime on iOS, and later inside Android WebView and the Cast receiver. It does not run as an in-process native Go runtime in the baseline.
 - WASI Preview 1 is the supported execution target. WASI Preview 2 is demand-driven and requires a separate Wasmtime spike.
-- `wazero` is the only baseline WASM engine. WAMR, Wasmtime, and v86 are not shipped until a concrete workload requires them and passes a qualification spike.
+- `wazero` is the only baseline WASM engine. Wanix is the runtime; wazero executes WASI modules inside the Wanix Go runtime, not as a native iOS engine. WAMR, Wasmtime, and v86 are not shipped until a concrete workload requires them and passes a qualification spike.
 - Rust shared cores use UniFFI for Swift/Kotlin bindings. Gomobile is limited to Go/Wanix boundaries where no Rust boundary is appropriate.
 - All runtime and terminal assets are bundled locally. No production path depends on a runtime CDN.
-- Puter is retained only as a UI/reference implementation and demo fixture. It is not a production runtime adapter or fallback.
+- Puter is removed entirely. It is not a production runtime, fallback, reference implementation, demo fixture or bundled asset.
 
-This ADR narrows ADR-001’s “Wanix/Puter adapter” language: `DesktopRuntime` remains the boundary, but Wanix is the only production implementation.
+This ADR narrows ADR-001’s “Wanix/Puter adapter” language: `DesktopRuntime` remains the boundary, and Wanix is the only production implementation. The Puter adapter and its assets are deleted, not retained as legacy.
 
 ## Wanix packaging
 
@@ -66,12 +67,13 @@ The runtime must not fetch executable code from a CDN in production. Network use
 
 ## Puter disposition
 
-Puter is reference-only.
+Puter is removed.
 
-- Keep its UI and interaction patterns as design references.
-- Do not link Puter into the production runtime path.
-- Do not treat Puter as an automatic fallback when Wanix fails.
-- Existing Puter adapter code may remain temporarily as legacy, but it is outside the release qualification matrix and must not be extended.
+- Delete the Puter adapter, bundled assets and demo fixtures.
+- Do not link Puter into any runtime path.
+- Do not treat Puter as a fallback when Wanix fails.
+- Do not cite Puter behavior as a compatibility requirement.
+- Any UI pattern already adopted is documented in AirDesk design material, not carried as Puter code.
 
 Wanix parity is measured against the product requirements, not against Puter behavior.
 
@@ -83,7 +85,8 @@ Wanix parity is measured against the product requirements, not against Puter beh
 - Offline startup succeeds with no executable CDN dependency.
 - Runtime state transitions match ADR-001: idle, preparing, loading, ready, suspended, recovering, failed, stopped.
 - The runtime reports capabilities truthfully; absence is handled without UI or transport branching.
-- No Wanix/Wazero source is fetched at runtime, and SBOM entries match the shipped artifacts.
+- No Wanix/wazero source is fetched at runtime, and SBOM entries match the shipped artifacts.
+- No Puter code, assets or adapter remain in the shipped product.
 - Android WebView, when added, uses the same WASM runtime contract without a separate shell.
 
 ## Consequences
@@ -92,5 +95,5 @@ Wanix parity is measured against the product requirements, not against Puter beh
 - Native Go execution performance is forgone; if it becomes necessary, a new ADR must justify it.
 - Reproducible WASM builds and SBOM maintenance add release work.
 - Demand-driven engines keep the support matrix small but delay optional workloads until a real use case exists.
-- Puter remains useful for UI reference while no longer carrying production compatibility obligations.
+- Removing Puter reduces runtime surface and eliminates a competing implementation.
 - Bundling all assets increases app/Cast size but removes CDN availability, integrity, and offline risks.

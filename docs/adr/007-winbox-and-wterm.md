@@ -5,7 +5,8 @@
 - **Updated:** 2026-11-01 — Native SSH PTY transport and remote tmux integration
 - **Scope:** DesktopShell window management, window chrome integration, terminal emulation, WKWebView/Cast/native parity
 - **Supersedes:** ADR-002 decision to use `interact.js` for web window drag/resize/snapping and its rejection of `WinBox.js`. All other ADR-002 decisions remain in force.
-- **Related:** ADR-002, ADR-003, ADR-005
+- **Related:** ADR-002, ADR-003, ADR-005, ADR-008, ADR-009
+- **Effective note:** This ADR is still Proposed because WinBox parity and wterm qualification are incomplete. Splitting the decision, spike evidence and native SSH transport into separate records is deferred until those gates close.
 
 ## Context
 

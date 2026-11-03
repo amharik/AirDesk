@@ -1,9 +1,11 @@
 # DesktopShell TypeScript migration backlog
 
-- **Status:** Proposed — not started
+- **Status:** Partially implemented — Phases 0–2 begun; Phases 4 and 6 superseded by ADR-007
 - **Date:** 2026-10-29
-- **Related:** ADR-002
+- **Related:** ADR-002, ADR-007
 - **Goal:** Make DesktopShell modules typed, testable, and buildable without changing the native message contract or visual design.
+
+> ADR-007 is now the effective window-manager and terminal decision. Do not execute Phase 4's custom window-module split or Phase 6's `interact.js` integration as written; re-scope them against the WinBox/WTerm adapter.
 
 ## Current state
 
@@ -98,7 +100,7 @@ Implemented in `8a139d0`.
 
 **Exit:** drag math is unit-tested; no global snapping on every move.
 
-## Phase 4 — Shell/window modules
+## Phase 4 — Shell/window modules (superseded by ADR-007)
 
 - [ ] Split `desktop.js` into `shell`, `windows`, `menus`, `spotlight`, `keyboard`.
 - [ ] Keep CSS selectors and DOM structure stable.
@@ -117,7 +119,7 @@ Implemented in `8a139d0`.
 
 **Exit:** all DesktopShell JS is authored in TypeScript.
 
-## Phase 6 — Gesture library integration (after ADR decision)
+## Phase 6 — Gesture library integration (superseded by ADR-007)
 
 - [ ] Add the chosen trackpad gesture implementation (native recognizers first).
 - [ ] If Option 2: add `interact.js` adapter for window drag/resize only.

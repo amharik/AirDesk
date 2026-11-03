@@ -2,10 +2,11 @@
 
 - **Status:** Proposed — benchmark and qualification gates required
 - **Date:** 2026-11-03
+- **Deciders:** Engineering lead, transport owner
 - **Scope:** Transport adapters, channel semantics, browser and native transport sequencing, relay policy
 - **Supersedes:** None
 - **Amends:** ADR-005 transport sequencing only; display profiles and Cast messaging remain
-- **Related:** ADR-001, ADR-004, ADR-005, ADR-008, ADR-010, ADR-011, ADR-012
+- **Related:** ADR-001, ADR-004, ADR-005, ADR-008, ADR-010, ADR-011, ADR-012, ADR-014, ADR-015
 
 ## Context
 
@@ -39,15 +40,17 @@ The logical message model is independent of transport. Transport choice must not
 
 | Phase | Transport | Status |
 | --- | --- | --- |
-| MVP | WebSocket + TLS | Baseline |
+| MVP | Loopback HTTP/WS to local agent | Required browser bootstrap |
+| MVP | WebSocket + TLS | Control and coordinator baseline |
+| MVP | WebRTC data channels | Required direct browser data path where the endpoint supports it |
+| MVP | QUIC | Native direct candidate, qualified by benchmark |
 | MVP | Cast custom messaging | Development-only until hardware qualification |
 | MVP | Existing AirPlay/external-display path | Fallback endpoint |
-| After benchmark | WebRTC data channels | Candidate for browser/native direct sessions |
-| After browser support qualification | WebTransport | Candidate for browser-to-host |
-| After native benchmark | QUIC | Candidate for host-to-host |
+| Post-MVP | WebTransport | Candidate for browser-to-host after support qualification |
+| Post-MVP | WebRTC/QUIC relay | Encrypted fallback when direct connectivity fails |
 | Future | libp2p adapter | Optional, never mandatory |
 
-No transport beyond WebSocket/TLS is required for the browser MVP unless the feasibility spike proves it is necessary.
+The MVP requires a direct data path. It does not require relay. If a direct path cannot be established, the session fails closed with a diagnostic rather than silently using a control-plane relay.
 
 ### 3. WebRTC channel semantics
 
@@ -76,18 +79,18 @@ A browser endpoint must account for:
 - QR or authenticated rendezvous instead of mDNS;
 - browser permission prompts for camera, microphone and clipboard.
 
-If these cannot be satisfied, the external-display path remains the MVP fallback.
+In the MVP the local agent serves the receiver over loopback, as specified in ADR-014. A hosted receiver is not part of the MVP. Any future hosted receiver must use a first-party origin, pinned assets with SRI, a strict CSP, a documented update process and a pairing-key threat model. If these cannot be satisfied, the external-display path remains the MVP fallback.
 
 ### 6. Connectivity is direct-first, relay-second
 
-The future connectivity policy is:
+The connectivity policy is:
 
-1. Local direct connection.
-2. Direct peer-to-peer connection.
-3. Encrypted relay for control and data.
+1. Local loopback or local direct connection.
+2. Direct peer-to-peer connection over WebRTC or QUIC.
+3. Encrypted relay for control and data, post-MVP.
 4. Video relay only when necessary.
 
-No relay or TURN service is implemented in this cycle. Relay economics must be measured before a free-tier promise is made.
+No relay or TURN service is implemented in this cycle. The coordinator may provide signaling and connection hints but is not the data-plane relay. Relay economics and privacy must be measured before a free-tier promise is made.
 
 ### 7. No plaintext fallback and no stuck input
 
@@ -114,17 +117,18 @@ No relay or TURN service is implemented in this cycle. Relay economics must be m
 
 ## Acceptance gates
 
-- A WebSocket/TLS browser session meets the defined control and input budget for the supported matrix.
+- A direct browser session meets the defined control and input budget for the supported matrix.
 - The browser receiver proves or disproves COOP/COEP and secure-context viability.
-- A WebSocket versus WebRTC benchmark records p50/p95 latency, CPU, reconnect time and battery impact.
+- A direct WebRTC/QUIC versus WebSocket benchmark records p50/p95 latency, CPU, reconnect time and battery impact.
 - Concurrent bulk transfer does not create visible pointer latency.
 - Disconnect, focus loss and generation changes produce no stuck keys or buttons.
+- A failed direct path fails closed; no relay is silently used in the MVP.
 - Cast remains development-only until hardware qualification passes.
 - No plaintext LAN transport exists.
 
 ## Out of scope
 
-- Implementing WebRTC, WebTransport, QUIC or libp2p in this cycle.
-- TURN relay infrastructure and pricing.
+- Implementing relay, TURN, WebTransport or libp2p in this cycle.
+- Production WebRTC relay infrastructure and pricing.
 - Production Cast qualification without hardware.
 - Multi-user traffic routing or group media.

@@ -1,10 +1,11 @@
 # ADR-002: Replace custom gesture/input stack and migrate DesktopShell to TypeScript
 
-- **Status:** Accepted — TypeScript bridge migration in progress; web window-manager choice under review by ADR-007
+- **Status:** Accepted — TypeScript bridge migration in progress; web window-manager choice superseded by ADR-007
 - **Date:** 2026-10-29
 - **Scope:** iOS/iPadOS trackpad input, WKWebView desktop pointer/window interaction, DesktopShell build tooling
 - **Supersedes:** None
 - **Related:** ADR-001, ADR-003, ADR-007, `docs/backlog/desktop-shell-typescript.md`
+- **Effective note:** The `interact.js` web window-manager decision is superseded by ADR-007. Native trackpad and TypeScript decisions remain in force.
 
 ## Decision
 

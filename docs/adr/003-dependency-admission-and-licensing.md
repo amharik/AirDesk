@@ -97,6 +97,13 @@ An exception must be time-boxed and recorded in the adopting ADR or backlog item
 
 Expired exceptions block release.
 
+### Current recorded exceptions
+
+| Component | Unmet gate | Compensating control | Owner | Review trigger |
+| --- | --- | --- | --- | --- |
+| Wanix `0.4.0-rc2` rc shell resize patch | Uses a carried patch rather than unmodified upstream | Pinned hashes, source under `third_party/wanix/`, no network load, native rc tests | Engineering lead | Next Wanix upgrade or upstream winch support |
+| `'unsafe-eval'` in desktop CSP | Wanix constructs functions dynamically | Local assets only, no remote origins, exact runtime hashes, no broad `'unsafe-inline'` | Security owner | Wanix removes dynamic function construction |
+
 ## Consequences
 
 - Adoption is slower and requires evidence, but license contamination and platform surprises are caught before release.

@@ -2,9 +2,10 @@
 
 - **Status:** Proposed — specification and conformance gates required
 - **Date:** 2026-11-03
+- **Deciders:** Engineering lead, protocol owner
 - **Scope:** Protocol semantics, module boundaries, versioning, schema evolution, Cast projection
 - **Supersedes:** None
-- **Related:** ADR-001, ADR-004, ADR-005, ADR-008, ADR-009, ADR-011, ADR-012, ADR-013
+- **Related:** ADR-001, ADR-004, ADR-005, ADR-008, ADR-009, ADR-011, ADR-012, ADR-013, ADR-014, ADR-015
 
 ## Context
 
@@ -64,10 +65,25 @@ A device may implement AD-INPUT and AD-DISPLAY without implementing AD-APP or AD
 - ADR-008 owns the input event vocabulary, validation and coalescing.
 - ADR-009 owns workspace persistence.
 - ADR-013 owns transport sequencing and selection.
+- ADR-014 owns browser endpoint topology.
+- ADR-015 owns session ownership, cursors and keyboard focus.
+
+AD-CAP is active, not speculative. The browser applications are concrete consumers: files and camera use scoped grants, not device-wide permissions.
+
+`ProfileResolver` (ADR-001) chooses a display/runtime profile. `CapabilityResolver` (ADR-012) chooses a capability provider. They are separate resolvers; AD-CAP supplies the provider facts both consume.
 
 ADFP must not duplicate or contradict those decisions.
 
-### 4. FlatBuffers remains the canonical control schema
+### 4. Session ownership is explicit
+
+- AD-LINK is the canonical ADFP session-establishment vocabulary.
+- AD-ID supplies device identity and pairing.
+- ADR-011 supplies session credentials.
+- ADR-015 owns cursor, focus and multi-controller arbitration.
+- ADR-001's Cast v2 handshake is a transport-specific legacy handshake.
+- AD-LINK must state whether it wraps or subsumes Cast v2; it may not introduce a second incompatible session model.
+
+### 5. FlatBuffers remains the canonical control schema
 
 Do not switch to Protocol Buffers or CBOR now. The existing `protocol/airdesk.fbs` is the source of truth.
 
@@ -86,7 +102,7 @@ Evolve the schema in a backward-compatible protocol revision:
 
 Do not change the schema without conformance fixtures and a migration note.
 
-### 5. Version axes are independent
+### 6. Version axes are independent
 
 Track separately:
 
@@ -98,7 +114,7 @@ Track separately:
 
 A protocol version match is not sufficient. Peers negotiate supported capabilities and fail closed when a required capability or version is absent.
 
-### 6. Request semantics are explicit
+### 7. Request semantics are explicit
 
 Control messages support:
 
@@ -113,7 +129,7 @@ Control messages support:
 
 Pointer movement may be dropped when stale. Clicks, key releases, text commits and lifecycle transitions must not be silently lost.
 
-### 7. Conformance is a release gate
+### 8. Conformance is a release gate
 
 Maintain shared fixtures across Swift, TypeScript and Rust:
 
@@ -144,11 +160,12 @@ Maintain shared fixtures across Swift, TypeScript and Rust:
 ## Acceptance gates
 
 - ADFP 0.1 specification describes active modules and explicit non-goals.
-- The envelope and typed control payloads round-trip across Swift, TypeScript and Rust.
+- The envelope and typed control payloads round-trip across Swift and TypeScript; Rust round-trip is qualified only when a Rust host is in scope.
 - Malformed, oversized, duplicate and stale-generation messages are rejected.
 - Cast JSON and FlatBuffers carry equivalent control semantics for supported messages.
-- No active module duplicates ADR-005 or ADR-008 ownership.
+- No active module duplicates ADR-005, ADR-008, ADR-014 or ADR-015 ownership.
 - A device can participate with a subset of modules.
+- AD-LINK, ADR-001, ADR-011 and ADR-015 use one session vocabulary; the Cast v2 relationship is stated.
 
 ## Out of scope
 

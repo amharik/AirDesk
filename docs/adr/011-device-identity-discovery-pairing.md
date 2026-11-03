@@ -2,9 +2,10 @@
 
 - **Status:** Proposed — pairing and platform qualification gates required
 - **Date:** 2026-11-03
+- **Deciders:** Security owner, engineering lead
 - **Scope:** Device keys, identity lifecycle, local discovery, QR pairing, session authentication, revocation
 - **Supersedes:** None
-- **Related:** ADR-001, ADR-005, ADR-009, ADR-010, ADR-012, ADR-013
+- **Related:** ADR-001, ADR-005, ADR-009, ADR-010, ADR-012, ADR-013, ADR-014, ADR-015
 
 ## Context
 
@@ -16,10 +17,12 @@ The pairing design must also work with iOS background restrictions and browser p
 
 ### 1. Device identity is cryptographic and stable
 
-Each AirDesk device generates a persistent Ed25519 key pair.
+Each AirDesk device generates a persistent key pair.
 
+- Ed25519 is the default application identity algorithm.
+- P-256 is the fallback where Ed25519 is unavailable, including browser profiles without Ed25519 WebCrypto support and hardware-backed native keys where required.
 - The private key is stored in the Keychain with appropriate access control.
-- Ed25519 is the application identity algorithm. Secure Enclave does not provide Ed25519 signing keys; where hardware-backed protection is required, use a P-256 key or a hardware-backed wrapping key instead of claiming Ed25519 Secure Enclave support.
+- Secure Enclave does not provide Ed25519 signing keys; a hardware-backed P-256 key or a hardware-backed wrapping key is used rather than claiming Ed25519 Secure Enclave support.
 - The public key fingerprint is the device identity anchor.
 - The `deviceId` is a random identifier derived from or bound to the public key, not a device name, IP address or user-visible label.
 - Device display names are metadata and are not trusted for authorization.
@@ -77,12 +80,22 @@ Pairing sequence:
 
 1. The receiver displays a short-lived QR code.
 2. The controller scans it and verifies the protocol and expiry.
-3. Both sides perform an authenticated key exchange.
+3. Both sides perform an authenticated ephemeral key exchange.
 4. Both sides display or compare a short authentication fingerprint where practical.
 5. The device is added to the workspace with explicit capability grants.
 6. A short-lived session credential is issued.
 
-The flow rejects expired nonces, replayed QR codes and mismatched fingerprints.
+Pairing transcript:
+
+- Ephemeral key agreement uses P-256 ECDH for browser/native interoperability.
+- The transcript hash binds `protocol_version`, initiator and responder device IDs, both ephemeral public keys, nonces, expiry, endpoint hints and requested capabilities with SHA-256.
+- Each side signs the transcript with its long-term Ed25519 key, or its P-256 key when that is the device identity.
+- The short authentication string is a truncated hash of the completed transcript and is compared out of band where a display is available.
+- Session keys are derived from the ephemeral secret and the transcript hash; long-term private keys never leave their device.
+
+The flow rejects expired nonces, replayed QR codes, transcript mismatches, invalid signatures and mismatched fingerprints.
+
+The flow is named **AD-PAIR-1**. It is one construction, not a family of loosely specified pairing modes.
 
 ### 5. Transport security is not reimplemented
 
@@ -98,6 +111,10 @@ No plaintext LAN fallback is permitted.
 - Some APIs require HTTPS or a secure context.
 - A browser receiver may not be able to scan a QR code; the phone scans the receiver's code.
 - A browser cannot be assumed to be an always-on workspace server.
+- Browser private keys must be non-extractable where supported and are stored in IndexedDB or OPFS.
+- Browser storage may be evicted; eviction loses the browser identity and requires re-pairing.
+- The app must surface re-pairing explicitly and must not silently rotate the browser identity.
+- A browser identity is scoped to one browser profile on one device; it is not an account identity.
 
 If the browser endpoint cannot satisfy secure-context or hosting requirements, the external-display path remains the fallback MVP.
 
@@ -130,14 +147,16 @@ AirDesk must not promise persistent peer availability while the iOS app is suspe
 
 ## Acceptance gates
 
-- QR pairing succeeds between the supported controller and browser endpoint.
-- Expired or replayed QR codes are rejected.
+- AD-PAIR-1 succeeds between the supported controller and browser endpoint with Ed25519 identities, or P-256 where Ed25519 is unavailable.
+- Expired, replayed or transcript-mismatched QR codes are rejected.
 - A revoked device cannot establish a new session or use existing grants.
 - DNS-SD records contain no tokens, private paths or capability details.
 - Pairing works when mDNS is unavailable.
 - No plaintext LAN session path exists.
 - iOS suspension behavior is documented and tested.
 - Browser permission and secure-context limitations are reported truthfully.
+- Browser identity storage eviction produces an explicit re-pair flow and no silent key rotation.
+- Pairing transcript construction, signature inputs and session-key derivation are specified and have test vectors.
 
 ## Out of scope
 

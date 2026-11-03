@@ -2,9 +2,10 @@
 
 - **Status:** Proposed — implementation and recovery gates required
 - **Date:** 2026-11-03
+- **Deciders:** Product owner, engineering lead
 - **Scope:** Workspace manifest, local storage, recovery checkpoints, migration, window layout persistence
 - **Supersedes:** None
-- **Related:** ADR-001, ADR-004, ADR-005, ADR-007, ADR-011, ADR-013
+- **Related:** ADR-001, ADR-004, ADR-005, ADR-007, ADR-011, ADR-013, ADR-014, ADR-015
 
 ## Context
 
@@ -68,7 +69,36 @@ Browser implementations use OPFS or IndexedDB as local, origin-scoped storage. B
 - The UI must not claim that in-flight work was saved.
 - Recovery tests measure loss of committed state, not arbitrary filesystem writes.
 
-### 4. Recovery is explicit and truthful
+### 4. Durability has a concrete definition
+
+For the native store, a commit is durable only after:
+
+1. the complete new revision is written;
+2. the file is synchronized with `fsync` or `F_FULLFSYNC` where available;
+3. an atomic rename publishes the revision;
+4. the store records the commit result.
+
+The implementation records the iOS file-protection class. Writes may fail when the device is locked; the UI must report that state rather than claiming success. Browser OPFS/IndexedDB durability is explicitly weaker and is not included in the native zero-loss gate.
+
+### 5. Multiple writers are rejected, not merged
+
+- The native store accepts one writer per workspace revision.
+- A commit carries the expected revision.
+- A mismatched revision is rejected and the caller must reload.
+- Do not use last-writer-wins for window layout, preferences or application instance state.
+- Multi-device aggregate sessions are display/input views, not concurrent writers to the same manifest.
+- Coordinator-owned session metadata and conflict resolution are future work.
+
+### 6. Terminal transcripts are a separate, sensitive store
+
+- Terminal transcripts are not stored in the workspace manifest.
+- Transcript persistence is opt-in or clearly disclosed.
+- Transcripts are encrypted at rest and bounded by retention and size limits.
+- Remote SSH output may contain secrets and is treated as sensitive.
+- The `no raw terminal output in manifest` gate does not permit plaintext transcript storage elsewhere.
+- Transcript replay never implies live process restoration.
+
+### 7. Recovery is explicit and truthful
 
 Restore what can be restored and report the rest:
 
@@ -81,7 +111,7 @@ Restore what can be restored and report the rest:
 
 `SessionRecovery` restores from the latest verified checkpoint. `.default` is used only for first launch or explicit workspace reset.
 
-### 5. Window layout is logical, not DOM state
+### 8. Window layout is logical, not DOM state
 
 Persist:
 
@@ -92,7 +122,7 @@ Persist:
 
 Do not persist raw `zIndex`, DOM nodes, WinBox instances or transient pointer state. z-order is reconstructed from focus history. WinBox remains an adapter, not the source of truth.
 
-### 6. Schema evolution is mandatory
+### 9. Schema evolution is mandatory
 
 - Unknown fields are preserved where practical.
 - Missing optional fields receive documented defaults.
@@ -100,7 +130,7 @@ Do not persist raw `zIndex`, DOM nodes, WinBox instances or transient pointer st
 - A corrupt manifest falls back to the last valid checkpoint and shows a recovery warning.
 - Integrity hashes detect corruption; they do not authenticate the manifest.
 
-### 7. Browser and receiver durability are qualified, not assumed
+### 10. Browser and receiver durability are qualified, not assumed
 
 A Cast receiver or browser may report persistent storage while still losing it. `persistentStorage: true` is a capability observation, not a durability guarantee. Cross-device resume requires a later synchronization service and is out of scope for this ADR.
 
@@ -127,8 +157,10 @@ A Cast receiver or browser may report persistent storage while still losing it. 
 - Committed window layout and focus order restore without DOM or WinBox state.
 - Terminal transcript restore is labeled separately from process restoration.
 - No credentials or raw terminal output are written to the manifest or journal.
+- Transcript persistence, if enabled, is encrypted at rest, bounded and disclosed.
 - Browser OPFS eviction is documented as a limitation and does not corrupt native state.
-- Committed-state loss is zero in the defined test matrix.
+- Committed-state loss is zero for the native store under the defined test matrix; browser and in-flight state are excluded and reported truthfully.
+- Concurrent writers with a stale revision are rejected and cannot overwrite a newer revision.
 
 ## Out of scope
 

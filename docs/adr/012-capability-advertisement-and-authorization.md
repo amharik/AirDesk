@@ -2,9 +2,10 @@
 
 - **Status:** Proposed — capability and authorization gates required
 - **Date:** 2026-11-03
+- **Deciders:** Security owner, engineering lead
 - **Scope:** Capability descriptors, grants, invocation, resolution, audit, revocation
 - **Supersedes:** None
-- **Related:** ADR-001, ADR-005, ADR-008, ADR-010, ADR-011, ADR-013
+- **Related:** ADR-001, ADR-005, ADR-008, ADR-010, ADR-011, ADR-013, ADR-014, ADR-015
 
 ## Context
 
@@ -65,7 +66,19 @@ Do not grant `filesystem.access`. Grant scoped capabilities such as:
 
 High-impact capabilities require explicit user approval. Expired, revoked or out-of-scope grants are denied.
 
-### 4. Invocation is request/response with cancellation
+### 4. Grant issuance and revocation are explicit
+
+- A grant is issued by the authenticated user context on the granting device or by a local workspace authorization service acting for that user.
+- The issuer signs the grant with a grant-signing key bound to the device identity from ADR-011.
+- The verifier is the provider device or the provider's local policy engine.
+- The coordinator may distribute revocation records but must not mint grants.
+- A grant names its issuer, subject device, provider device, scope, expiry and revocation sequence.
+- Revocation records are signed and sequence-numbered.
+- A provider that cannot obtain a current-enough revocation record fails closed for high-impact capabilities.
+- Offline providers may accept a bounded-staleness revocation window; the window is explicit per capability.
+- Revocation invalidates new invocations; an in-flight invocation is cancelled unless the capability declares a safe completion path.
+
+### 5. Invocation is request/response with cancellation
 
 A capability invocation includes:
 
@@ -87,7 +100,7 @@ The response includes:
 
 Streaming capabilities use explicit open, data, close and cancel messages. Cancellation must not leave resources allocated.
 
-### 5. The resolver chooses providers; the caller asks for capabilities
+### 6. The resolver chooses providers; the caller asks for capabilities
 
 The caller requests a capability, not a device. A `CapabilityResolver` filters providers by:
 
@@ -100,13 +113,26 @@ The caller requests a capability, not a device. A `CapabilityResolver` filters p
 
 Provider selection must be deterministic for tests and explainable in diagnostics.
 
-### 6. Capability interfaces evolve independently
+### 7. Capability interfaces evolve independently
 
 Capability versions are negotiated separately from the transport and wire format. A device may support several versions of a capability. Unsupported required versions fail closed with a typed error.
 
-### 7. Device and workspace permissions are not implicit
+### 8. Device and workspace permissions are not implicit
 
 Connecting a phone does not grant access to its camera roll, microphone, clipboard or filesystem. Pairing establishes identity; it does not establish capability authorization.
+
+### 9. Browser applications are capability consumers
+
+The browser is a first-class consumer of the same model:
+
+- A browser application requesting files receives a scoped file grant.
+- A browser application requesting camera receives a scoped camera grant.
+- The browser does not receive device-wide filesystem or media authority.
+- A browser application cannot self-approve a grant.
+- User approval is mediated by the provider device or an explicit workspace prompt.
+- A browser application's origin, identity and session are part of the authorization context.
+
+AD-CAP is active in the MVP, not deferred. The initial consumer set is files and camera.
 
 ## Consequences
 
@@ -132,6 +158,10 @@ Connecting a phone does not grant access to its camera roll, microphone, clipboa
 - Invocation cancellation releases resources and is idempotent.
 - Resolver selection is deterministic and explained in diagnostics.
 - Pairing alone grants no optional capability.
+- Grant issuance names an authenticated issuer and is signed; the coordinator cannot mint grants.
+- Expired, revoked and stale-revocation grants are denied; bounded offline windows are explicit.
+- Browser files and camera consumers receive scoped grants, not device-wide access.
+- `CapabilityResolver` and `ProfileResolver` have separate, documented responsibilities.
 - Capability and workspace audit events are recorded locally without sensitive payloads.
 
 ## Out of scope
