@@ -17,12 +17,12 @@ This file is the implementation tracker. `docs/adr/README.md` remains authoritat
 ## Current focus
 
 - Milestone: `M1`
-- Work item: `HOST-01` single-device workspace host
-- Next: `ORCH-01` orchestration skeleton, `WS-03` desired/observed separation
+- Work item: `ORCH-01` minimal workspace orchestrator
+- Next: `WS-03` desired/observed separation, `WS-04` layout persistence
 
 ## Verification blocker
 
-Real iPad tests are currently blocked over SSH: the Mac login keychain is locked (`User interaction is not allowed`), so Xcode free provisioning cannot install the iOS Development certificate for team `4PL99B52DB`. The iOS simulator build compiles the app and test target, and the workspace core's 20 unit tests pass on macOS via SwiftPM (`swift test`). To run tests on `Hari's iPad`, unlock the login keychain in a GUI session or run the test from Xcode.
+Real iPad tests are currently blocked over SSH: the Mac login keychain is locked (`User interaction is not allowed`), so Xcode free provisioning cannot install the iOS Development certificate for team `4PL99B52DB`. The iOS simulator build compiles the app and test target, and the workspace core's 31 unit tests pass on macOS via SwiftPM (`swift test`). To run tests on `Hari's iPad`, unlock the login keychain in a GUI session or run the test from Xcode.
 
 ## M0 — Plan reset and guardrails
 
@@ -44,7 +44,7 @@ Real iPad tests are currently blocked over SSH: the Mac login keychain is locked
 | WS-04 | Layout persistence | Pending | WS-01 | Window identity, bounds, display and focus order restore without DOM state |
 | WS-05 | Recovery test suite | Pending | WS-02, WS-03, WS-04 | Relaunch, corruption, future schema, disk-full and interrupted-write tests |
 | WS-06 | Merge metadata enforcement | Pending | WS-01 | Every syncable field is `lww`, `append-log` or `manual`; unknown defaults to `manual` |
-| HOST-01 | Single-device `WorkspaceHost` | Pending | WS-02 | Only host commits; `workspaceSeq` contiguous; `hostEpoch` present; host-degraded typed error |
+| HOST-01 | Single-device `WorkspaceHost` | Done | WS-02 | Only host commits; `workspaceSeq` contiguous; `hostEpoch` present; host-degraded typed error |
 | ORCH-01 | Minimal `WorkspaceOrchestrator` | Pending | HOST-01 | Open, attach, place, reconcile above `SessionCoordinator`; no workspace mutation from sessions |
 | UX-01 | Truthful restore report | Pending | WS-03 | UI states restored, restarted, reconnected or lost |
 
@@ -146,3 +146,4 @@ Exit: endpoints present without authority; browser stays loopback-only in v1.
 | 2026-11-03 | M0-01 | Created `milestones.md` as the execution tracker | b122d3c |
 | 2026-11-03 | WS-01 | Added versioned `WorkspaceManifest` schema, validation and merge metadata | 76206c3 |
 | 2026-11-03 | WS-02 | Added atomic native store, journal recovery, integrity hashes and revision fencing | 306c7d0 |
+| 2026-11-03 | HOST-01 | Added single-device `WorkspaceHost` sequencer with epoch and degraded-mode fencing | 4e07274 |
