@@ -1,9 +1,10 @@
 # AirDesk Workspace Fabric Plan
 
-- **Status:** Proposed — implementation has not started
+- **Status:** Active — Release 1 workspace core implemented; real-device verification pending
 - **Date:** 2026-11-03
 - **Scope:** Workspace-centric product sequence, device fabric, runtime providers, protocol and capability foundation, release gates
-- **Related:** ADR-001 through ADR-019
+- **Tracker:** `milestones.md`
+- **Related:** ADR-001 through ADR-020
 
 ## 1. Decision summary
 
@@ -11,20 +12,25 @@
 | --- | --- |
 | Product | Distributed personal workspace, not a remote-desktop client or operating-system replacement |
 | Workspace | Persistent logical environment independent of devices, runtimes and display sessions |
-| Authority | Workspace model owns identity and desired state; coordinator, endpoints and providers are not workspace authority |
-| Orchestration | `WorkspaceOrchestrator` above `SessionCoordinator`; deterministic local reconciliation first |
+| Authority | `WorkspaceHost` is the single structural writer; the workspace model owns identity and desired state; coordinator, endpoints and providers are not workspace authority |
+| Orchestration | `WorkspaceOrchestrator` above `SessionCoordinator`; deterministic local reconciliation first; sessions never mutate the manifest |
 | Runtimes | Provider-neutral; native, Wanix and browser execution are first-class; Wanix is preferred, not mandatory |
-| Standards | WASI 0.2 worlds baseline; WASIX vendor extension; WASI 0.3 evaluation target |
+| Standards | WASI 0.2 worlds baseline with split `wasi-cli`, `wasi-http`, `wasi-filesystem` and `wasi-sockets` targets; Wanix `wasip1` and 0.2 drivers checked separately; WASIX vendor extension; WASI 0.3 evaluation target |
 | Devices | Native agents expose scoped capabilities; pairing grants trust, not workspace ownership |
 | Protocol | ADFP with AD-RUNTIME and AD-RESOURCE active for the MVP; AD-WS/DEV/CAP/INPUT/DISPLAY baseline |
-| Browser | Presentation endpoint in Release 3, not the first-release authority or MVP requirement |
+| Input | Movement-only pointer and key delivery baseline; no DOM key capture or workspace mutation from input sessions |
+| Browser | Loopback-only presentation endpoint in Release 3, never the first-release authority or MVP requirement |
 | Transport | WebSocket baseline; WebTransport Baseline 2026 candidate; `SharedArrayBuffer` optional |
 | Multi-controller | Multi-pointer default; one keyboard focus owner with explicit handoff |
 | Persistence | Device-local first; merge metadata now; encrypted synchronization in Release 4 |
 | Collaboration | Shared workspaces in Release 5; CRDTs only for shared documents |
 | License | Open business decision; required before SDK or ecosystem publication |
 
-These decisions are recorded in ADR-001 through ADR-019. Implementation must not promote an ADR or release gate ahead of evidence.
+These decisions are recorded in ADR-001 through ADR-020. Implementation must not promote an ADR or release gate ahead of evidence.
+
+### 1.1 Release 1 execution state
+
+`milestones.md` is authoritative for task status. As of 2026-11-03, the single-device workspace core is implemented: versioned manifest, atomic native store, journal recovery, `WorkspaceHost`, minimal `WorkspaceOrchestrator`, desired/observed separation, layout persistence, recovery tests, merge metadata, manifest boot and truthful restore reports. Real-device verification remains blocked on Mac code signing; simulator builds and macOS SwiftPM tests pass.
 
 ## 2. Release sequence
 
@@ -51,11 +57,13 @@ These decisions are recorded in ADR-001 through ADR-019. Implementation must not
 | WS-04 | Persist logical workspace layout | 3 | WS-02 | Window identity, bounds, display, state and focus order restored without DOM state |
 | WS-05 | Add recovery test suite | 3 | WS-03, WS-04 | Relaunch, disconnect, corruption, migration, disk-full and atomic-write tests |
 | WS-06 | Add per-field merge metadata | 2 | WS-02 | Every syncable field has `lww`, `append-log` or `manual`; unknown defaults to `manual` |
+| HOST-01 | Implement single-device `WorkspaceHost` | 4 | WS-02 | Only the host commits; `workspaceSeq` is contiguous; `hostEpoch` is present; degraded writes fail with typed errors |
+| ORCH-00 | Add minimal orchestration skeleton | 3 | HOST-01, WS-03 | Open, attach, place and reconcile above `SessionCoordinator`; sessions never mutate the manifest |
 | RT-01 | Approve ADR-004/017 provider model | 2 | GOV-03 | Runtime provider contract and placement boundaries approved |
 | RT-02 | Implement runtime provider registry | 4 | RT-01 | Provider advertisement, selection and typed unavailable states |
 | RT-03 | Wrap Wanix in a provider adapter | 6 | RT-02 | Wanix lifecycle is provider-managed; workspace does not depend on Wanix internals |
 | RT-04 | Preserve native execution path | 4 | RT-02 | Native applications remain first-class and do not require Wanix |
-| RT-05 | Define WASI 0.2 world profiles | 3 | RT-01 | `wasi-cli`, `wasi-http`, `wasi-filesystem`, `wasi-sockets` validate; Wanix `wasip1` and 0.2 drivers are checked separately; WASIX is not implicit |
+| RT-05 | Define split WASI 0.2 world profiles | 3 | RT-01 | `wasi-cli`, `wasi-http`, `wasi-filesystem`, `wasi-sockets` validate; Wanix `wasip1` and 0.2 drivers are checked separately; WASIX is not implicit |
 | RT-06 | Qualify single-threaded browser profile | 3 | RT-03 | Starts without `SharedArrayBuffer`; threaded mode is opt-in and detects isolation |
 | APP-01 | Approve ADR-019 application model | 2 | GOV-03 | Manifest, instance state and lifecycle approved |
 | APP-02 | Implement application manifest and lifecycle | 5 | APP-01, RT-02 | Install, start, suspend, stop and observed status work |
@@ -77,11 +85,11 @@ These decisions are recorded in ADR-001 through ADR-019. Implementation must not
 | AGENT-01 | Native device agent contract | 7 | ID-01, ADR-018 | Identity, capabilities, permissions, health and lifecycle exposed |
 | AGENT-02 | iOS device agent baseline | 8 | AGENT-01 | Camera, files, input and health capabilities work under iOS permission rules |
 | COORD-01 | Coordinator MVP | 8 | ID-01, ADR-014 | Registration, presence, pairing and signed revocation distribution; no content, keys or grants |
-| ORCH-01 | Implement WorkspaceOrchestrator | 8 | WS-03, RT-02, AGENT-01 | Open, attach, place, reconcile and recover workspace |
+| ORCH-01 | Complete fabric orchestration | 8 | ORCH-00, RT-02, AGENT-01 | Provider-aware open, attach, place, reconcile and recover across devices |
 | ORCH-02 | Integrate SessionCoordinator | 5 | ORCH-01, ADR-015 | Display and controller sessions are created and closed without workspace mutation |
 | CAP-01 | Capability registry | 4 | ADR-012 | Descriptor validation; availability and authorization are separate |
 | CAP-02 | Capability leases and revocation | 6 | CAP-01, ID-02 | Expiry, audit, signed revocation and lost-device flow work; coordinator cannot mint grants |
-| INPUT-01 | Multi-controller arbitration | 5 | ORCH-02 | Distinct cursors; one keyboard focus owner with explicit handoff; no stuck input |
+| INPUT-01 | Multi-controller arbitration | 5 | ORCH-02 | Distinct cursors; one keyboard focus owner with explicit handoff; movement-only delivery; no DOM key capture; no stuck input |
 | PROTO-01 | Implement ADFP baseline | 6 | ADR-010 | Envelope, versioning, AD-WS/DEV/CAP/RUNTIME/RESOURCE/INPUT/DISPLAY baseline |
 | XPORT-01 | Direct transport benchmark | 4 | AGENT-02 | WebRTC/QUIC versus WebSocket p50/p95 latency, CPU, reconnect and compatibility measured |
 | XPORT-02 | Qualify direct transport | 2 | XPORT-01 | ADR-013 updated with evidence; relay remains absent |
@@ -184,6 +192,9 @@ Targets are qualification hypotheses, not current measurements. Do not claim res
 | WebTransport is treated as universally available | Baseline 2026 candidate only; WebSocket fallback and per-transport versioning required |
 | A 9P mount becomes unrestricted host access | Remote namespaces are capability-scoped and cannot bypass leases |
 | Mixed remote application protocols fragment behavior | AD-CAP descriptors select RDP RAIL, Xpra or a native protocol; semantics stay in ADFP |
+| Host role is confused with session ownership | ADR-020 keeps `WorkspaceHost` as the structural writer; `SessionCoordinator` and input sessions cannot mutate the manifest |
+| Input sessions capture DOM keys or mutate workspace state | Movement-only input baseline; text entry uses scoped IME/terminal channels; only `WorkspaceOrchestrator` handles structural writes |
+| Browser endpoint is exposed beyond loopback | Browser hosting is loopback-only in Release 3; public origins or relays require a separate authorization decision |
 | Device pairing is confused with ownership | ADR-011/015/016 separate device trust, controller attachment and workspace ownership |
 | Capability model becomes device-wide access | ADR-012 requires scoped leases and typed operations |
 | Browser endpoint becomes authority | ADR-014/016 explicitly prohibit it; Release 3 follows Release 2 |
@@ -230,6 +241,7 @@ Every task must include:
 | ADR-017 | Workspace orchestration and runtime providers | Proposed |
 | ADR-018 | Native device agents and capability host ABI | Proposed |
 | ADR-019 | Application model and lifecycle | Proposed |
+| ADR-020 | Workspace host role and authority handoff | Proposed — host-role, handoff and degraded-mode gates required |
 
 The ADR index in `docs/adr/README.md` is authoritative for decision status, implementation status and amendments.
 
