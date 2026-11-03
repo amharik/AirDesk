@@ -58,6 +58,16 @@ ApplicationInstanceStatus
 
 Observed state is produced by orchestration and runtime providers. It is never merged into the manifest.
 
+## Sequencing and concurrency
+
+The workspace host is the single-writer sequencer for structural mutations. Each accepted transition gets a contiguous `workspaceSeq`.
+
+- A structural update carries the expected `workspaceSeq`; a stale value is rejected and the caller reloads.
+- Display sessions, runtimes, browser endpoints and devices never assign `workspaceSeq`.
+- Window drag/resize geometry is optimistic and reconciled with LWW tagged by `(leaseEpoch, clientSeq)`.
+- LWW applies only to geometry; identity, ownership, placement, resources and application definitions stay single-writer.
+- Reconciled geometry does not advance `workspaceSeq`.
+
 ## Resources
 
 ```text

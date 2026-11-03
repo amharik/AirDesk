@@ -4,6 +4,7 @@
 - **Date:** 2026-10-29
 - **Updated:** 2026-11-03 — remote windows are presentation/execution adapters
 - **Updated:** 2026-11-03 — research update: Xpra session persistence preferred; remote-app protocols negotiated via AD-CAP
+- **Updated:** 2026-11-03 — peer review: logical desktop coordinates and preview affine transforms
 - **Scope:** Windows/Linux/macOS application remoting, remote window integration, decode paths, remote-host security
 - **Supersedes:** None
 - **Related:** ADR-001, ADR-003, ADR-004, ADR-005, ADR-007, ADR-008, ADR-016, ADR-017, ADR-019
@@ -87,6 +88,14 @@ Patched `wslg` + FreeRDP remains a later spike:
 - On disconnect, remote windows are marked disconnected, inputs are released, and stale surfaces are discarded.
 - The compositor must distinguish local and remote window ownership for diagnostics.
 - A remote full-screen desktop is not a substitute for per-window remoting and must not be presented as seamless mode.
+
+### Coordinate space and preview scaling
+
+- Window geometry is stored in **logical desktop coordinates** derived from the active `DisplayProfile` (for example 1920×1080 or 2560×1440), never in phone or preview-sheet pixels.
+- Opening, dismissing or resizing `DesktopPreviewSheet` and `MirroredDesktopView` applies a pure CSS/Metal affine scale transform to the composited surface.
+- Preview presentation must not mutate stored window bounds, z-order, focus order or remote surface dimensions.
+- Pointer normalization converts preview coordinates to logical desktop coordinates exactly once, using the same inverse transform used for rendering, so a click lands at the same logical point in any preview scale.
+- Persisted geometry stays valid when the preview sheet is absent or the endpoint changes resolution within the same display profile.
 
 ## Security
 

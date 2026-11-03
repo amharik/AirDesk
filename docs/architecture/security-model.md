@@ -26,9 +26,13 @@ Pairing establishes device trust. It does not grant:
 
 Discovery is not trust. A discovered device is untrusted until pairing succeeds.
 
+PIN and QR pairing use RFC 9383 SPAKE2+ over P-256. The SPAKE2+ transcript is bound to the TLS 1.3 keying-material exporter with label `EXPORTER-AirDesk-Pairing-v1`, so an active relay that terminates two different TLS connections cannot complete pairing. The PIN is short-lived and rate-limited.
+
+LAN WebTransport listeners use ephemeral ECDSA P-256 certificates valid for at most 14 days, rotating every 5 days with a 48-hour dual-hash overlap. Clients accept only advertised `serverCertificateHashes`.
+
 ## Capability authorization
 
-Every sensitive operation requires an explicit capability lease. Authorization considers device trust, workspace, application, user consent, scope, expiry, platform permission and revocation state.
+Every sensitive operation requires an explicit capability lease. Authorization considers device trust, workspace, application, user consent, scope, expiry, platform permission and revocation state. Grants use compact `COSE_Sign1` tokens with attenuation claims and a delegation depth of at most 3.
 
 Revocation is separate from disconnect. Disconnecting a device does not necessarily revoke it; revoking a device invalidates its trust and outstanding leases.
 

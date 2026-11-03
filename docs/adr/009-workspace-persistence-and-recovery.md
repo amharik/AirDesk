@@ -4,6 +4,7 @@
 - **Date:** 2026-11-03
 - **Updated:** 2026-11-03 — major amendment for workspace desired/observed state and independent recovery domains
 - **Updated:** 2026-11-03 — research update: per-field merge metadata recorded now; CRDTs confined to Release 5 shared documents
+- **Updated:** 2026-11-03 — peer review: monotonic checkpoint sequencing and two-phase browser/native reconciliation
 - **Deciders:** Product owner, engineering lead
 - **Scope:** Workspace manifest, desired/observed state, merge metadata, local storage, resource references, recovery checkpoints, migration, layout persistence
 - **Supersedes:** None
@@ -146,6 +147,17 @@ For the native store, a commit is durable only after:
 
 The implementation records the iOS file-protection class. Writes may fail when the device is locked; the UI must report that state rather than claiming success. Browser OPFS/IndexedDB durability is explicitly weaker and is not included in the native zero-loss gate.
 
+### 5.1 Checkpoint sequencing and two-phase reconciliation
+
+A single counter orders durable state across the native store and the WebContent (OPFS/IndexedDB) store:
+
+- Each committed checkpoint carries a monotonic `checkpoint_seq: uint64`; sequence values are never reused across relaunch.
+- A checkpoint is acknowledged only after the native store has durably committed its metadata **and** the WebContent store has confirmed its OPFS/IndexedDB flush. The two stores form a two-phase commit: prepare, then acknowledge.
+- If the WebContent process terminates between prepare and acknowledge, the native store replays only the journal delta committed after the last acknowledged `checkpoint_seq`, so window creation, layout and terminal head are not duplicated or truncated.
+- A replay is idempotent: applying the same delta twice produces the same workspace revision.
+- If the WebContent store reports a lower `checkpoint_seq` than the native store expects, the recovery report marks browser state as degraded rather than silently discarding native state.
+- `checkpoint_seq` is independent of the workspace manifest revision and of the ADR-016 `workspace_seq`; it orders durable flushes only.
+
 ### 6. Multiple writers are rejected, not merged
 
 - The native store accepts one writer per workspace revision.
@@ -236,6 +248,7 @@ A Cast receiver or browser may report persistent storage while still losing it. 
 - Transcript persistence, if enabled, is encrypted at rest, bounded and disclosed.
 - Browser OPFS eviction is documented as a limitation and does not corrupt native state.
 - Committed-state loss is zero for the native store under the defined test matrix; browser and in-flight state are excluded and reported truthfully.
+- A WebContent relaunch replays only the delta after the last acknowledged `checkpoint_seq`, and replay is idempotent.
 - Concurrent writers with a stale revision are rejected and cannot overwrite a newer revision.
 - Every synchronizable field has `lww`, `append-log` or `manual` metadata; unclassified fields default to `manual` and are not auto-merged.
 - Recovery distinguishes workspace, runtime, display and device-attachment outcomes.

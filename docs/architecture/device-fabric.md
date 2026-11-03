@@ -16,6 +16,22 @@ A device may be:
 
 Roles are negotiated per session and per workspace. A role does not imply workspace ownership.
 
+## Fabric planes
+
+The fabric is partitioned into three planes so discovery, authority and data have independent failure modes.
+
+### Discovery and pairing plane
+
+Local peers advertise `_airdesk._udp.local.` (RFC 6762) with TXT records carrying `txtvers=1`, `dev_id`, `role_mask`, `adfp_ver=1.0`, `certhash_current=<sha256>` and `certhash_next=<sha256>` for rotated WebTransport ECDSA certificates. mDNS is optional; QR or authenticated rendezvous is the fallback. Pairing uses RFC 9383 SPAKE2+ bound to the TLS 1.3 exporter (`EXPORTER-AirDesk-Pairing-v1`), per ADR-011.
+
+### Control and authority plane
+
+A single workspace authority sequences structural workspace mutations (`workspace_seq:u64`, ADR-016), issues attenuated `COSE_Sign1` capability tokens (ADR-012), and arbitrates multi-controller input ownership (`lease_epoch:u64`, ADR-015). The coordinator is a control-plane service, not the workspace authority.
+
+### Data and execution plane
+
+High-frequency `PackedPointerFrame` datagrams (Channel 1) and AD-RUNTIME / AD-RESOURCE streams (Channels 2..K) route over direct peer-to-peer WebTransport (HTTP/3 QUIC) or WebSocket between the active controller, display sink and runtime provider. Direct LAN connectivity is preferred; an encrypted relay is never a hidden prerequisite.
+
 ## Native agents
 
 Each platform exposes functionality through a native agent. The agent owns platform permission prompts, hardware access, background rules and process integration. See `device-agent-architecture.md`.

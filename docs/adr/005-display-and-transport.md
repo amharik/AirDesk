@@ -3,6 +3,7 @@
 - **Status:** Proposed — hardware and latency qualification required
 - **Date:** 2026-10-29
 - **Updated:** 2026-11-03 — display endpoints separated from workspace authority
+- **Updated:** 2026-11-03 — peer review: Cast message pacing and payload fragmentation limits
 - **Scope:** USB-C/AirPlay external displays, Cast receiver, browser and TV endpoints, controller mode, transport, binary framing, latency targets
 - **Amends:** ADR-001 display sequencing and transport details; Cast remains receiver-hosted but not workspace-authoritative
 - **Supersedes:** None
@@ -57,6 +58,7 @@ Adopt **WebSocket + WebRTC data channel** as the transport baseline.
 - **WebSocket** carries control, capability negotiation, fallback input, remote sessions, and WebRTC signaling.
 - **WebRTC data channel** is used for direct LAN input when ICE succeeds. It is not used inside the Cast receiver because the Cast Chromium sandbox is reported to block local ICE host candidates.
 - **Cast custom messaging** is the primary Cast input path. It is text-only and uses a compact JSON profile with pointer coalescing.
+- **Cast pacing and fragmentation:** Cast messages are bounded to the receiver's documented payload size and rate. Larger payloads are fragmented with sequence and reassembly metadata; a slow or stalled receiver causes production to pause, not to drop input or grow an unbounded queue.
 - **QUIC** is deferred until a measured need justifies another transport.
 - All transports share one logical message model and session/generation/sequence rules; transport choice must not change input semantics.
 
@@ -104,6 +106,7 @@ Instrumentation must record the controller timestamp and the display-side applic
 - External-display input coordinates and disconnect cleanup pass the existing P0 regressions.
 - Cast hardware confirms whether custom messaging meets 50 ms p95; otherwise the authenticated wss fallback is used.
 - The Cast receiver never starts a second local runtime.
+- Cast payloads stay within the receiver's size and rate limits; oversized payloads fragment and reassemble, and a stalled receiver pauses production without dropping input.
 - WebRTC direct LAN succeeds where ICE is available and falls back cleanly to WebSocket when it is not.
 - WebRTC is not attempted inside the Cast receiver.
 - Packed pointer frames and FlatBuffers control messages round-trip across Swift, TypeScript, and Rust, with malformed-frame rejection.

@@ -3,6 +3,7 @@
 - **Status:** Proposed — WinBox parity and wterm qualification gates required
 - **Date:** 2026-10-29
 - **Updated:** 2026-11-03 — Shell and terminal boundaries made provider-neutral
+- **Updated:** 2026-11-03 — peer review: Ghostty WASM zero-initialization invariant and PTY flow-control contract
 - **Scope:** DesktopShell window management, window chrome integration, terminal emulation, WKWebView/Cast/native parity
 - **Supersedes:** ADR-002 decision to use `interact.js` for web window drag/resize/snapping and its rejection of `WinBox.js`. All other ADR-002 decisions remain in force.
 - **Related:** ADR-002, ADR-003, ADR-004, ADR-005, ADR-008, ADR-009, ADR-017, ADR-019
@@ -69,6 +70,30 @@ The wterm adapter maps terminal input to the Wanix PTY and PTY output back to `W
 The just-bash adapter runs against its own virtual filesystem and must be visibly identified as an offline sandbox. It must not masquerade as the Wanix workspace or silently receive writes intended for the live PTY. SSH is a separate authenticated transport; the renderer alone does not provide remote access.
 
 wterm and just-bash assets are bundled locally; no runtime CDN dependency is permitted inside WKWebView, Cast, or offline sessions.
+
+#### Ghostty WASM page zero-initialization
+
+Upstream `@wterm/ghostty` fixed an allocator defect where reused WASM linear-memory pages were not zero-initialized after terminal reset or scrollback reallocation, leaking stale glyphs and attributes across sessions (vercel-labs/wterm#207).
+
+- The production `terminal-core.wasm` must include that fix, pinned to a reviewed build.
+- `wterm-ghostty.test.ts` must reset and reallocate the terminal repeatedly and assert that new pages render blank with default attributes.
+- A committed WASM binary is a release artifact: CI rebuilds it from the pinned Zig 0.15.2 source and fails if the binary differs byte-for-byte.
+
+#### PTY flow control
+
+Terminal output must not stall the WebKit main thread or overrun the Cast channel. `TerminalBridge` and `wterm-engine` implement a token-bucket/credit contract:
+
+| Parameter | Value | Rule |
+| --- | --- | --- |
+| In-flight window | 256 KiB | Unacknowledged bytes per terminal stream |
+| Ack unit | `ack_bytes` control frame | Emitted after each committed `requestAnimationFrame` DOM update |
+| Pause threshold | 256 KiB unacknowledged | `SSHPTYSession` and Wanix PTY reads pause |
+| Resume threshold | 128 KiB unacknowledged | Reads resume with hysteresis |
+| Cast pacing | Bounded JSON message size and rate | Fragmented payloads never exceed the receiver's documented limit |
+
+- Output is delivered in bounded chunks; a single read cannot exceed the window.
+- Dropping terminal output is not permitted: the producer pauses instead.
+- A stalled or disconnected consumer releases the lease and the PTY is closed or suspended deterministically.
 
 ### Dependency evidence
 
@@ -174,6 +199,8 @@ Still pending before Trial: WKWebView/Cast 60 FPS measurement at 1080p, safe-are
 - Text selection, copy/paste, find, focus order, and VoiceOver behavior pass in WKWebView.
 - No runtime CDN is required for Wanix, wterm, just-bash, fonts, or cores.
 - The adopted `@wterm/ghostty` core passes the same conformance matrix and keeps its measured size within the agreed bundle/memory budget.
+- Terminal reset and scrollback reallocation render blank pages with default attributes; the zero-initialization regression test fails on the pre-fix WASM and passes on the pinned build.
+- PTY output pauses at the 256 KiB in-flight window and resumes with hysteresis; no terminal output is silently dropped, and a stalled consumer cannot block input.
 
 ## Consequences
 

@@ -2,6 +2,7 @@
 
 - **Status:** Proposed — platform agent and capability ABI gates required
 - **Date:** 2026-11-03
+- **Updated:** 2026-11-03 — peer review: WASI 0.2 Component Model WIT host ABI
 - **Deciders:** Engineering lead, security owner
 - **Scope:** DeviceAgent contract, native adapters, capability descriptors, leases, host ABI, platform permissions
 - **Supersedes:** None
@@ -88,6 +89,22 @@ Leases are time-bounded, scoped and revocable. Indefinite implicit access to dev
 - The ABI is versioned independently of the runtime, namespace layout and ADFP wire versions.
 - Unsupported host operations fail closed with a typed error.
 
+### 5.1 Host ABI uses the WASI 0.2 Component Model
+
+The host ABI is a **WASI 0.2 Component Model** contract expressed in WIT, not a custom C FFI or ad-hoc JSON plugin ABI. It builds on `wasi:io/streams@0.2.0`, `wasi:filesystem/types@0.2.0` and `wasi:cli/run@0.2.0`, plus the AirDesk package `airdesk:host-abi@0.1.0`. The same capability component can run in Wanix in the browser or natively inside the Rust/Swift agent.
+
+| WIT interface | Bound protocol | Capability URI | Host resources | Enforcement |
+| --- | --- | --- | --- | --- |
+| `airdesk:host-abi/vfs-service` | AD-RESOURCE | `airdesk://fs/<mount_id>/<mode>` | `node { stat, open-at, read-stream, write-stream, readdir }`, `mount-capability(token) -> result<node, abi-error>` | Path canonicalization (`O_NOFOLLOW`, no `..` escape) matching Wanix VFS bind semantics |
+| `airdesk:host-abi/pty-service` | AD-RUNTIME | `airdesk://pty/<profile_id>` | `pty-session { stdin, stdout, resize, kill, wait }`, `spawn(cmd, args, cols, rows)` | 256 KiB credit window bridging `SSHPTYSession` or local `forkpty()` |
+| `airdesk:host-abi/display-sink` | ADR-005 / ADR-014 | `airdesk://display/<sink_id>` | `submit-frame(profile, payload)`, `subscribe-input() -> input-stream` | `OriginPolicy` plus active `lease_epoch` (ADR-015) before input delivery |
+
+- The WIT world declares the WASI 0.2 world/version explicitly; an unsupported world fails closed at placement.
+- WASI 0.3 native async streams are a forward-compatible target, not the baseline.
+- Capability tokens are `COSE_Sign1` per ADR-012 and are validated at every host call, not only at mount.
+- The ABI never exposes unrestricted filesystem, process, socket or device access.
+- Traps, aborts and typed `abi-error` results are mapped to ADFP errors without leaking host paths or secrets.
+
 ### 6. Native execution remains first-class
 
 - A device can be useful without running Wanix.
@@ -134,8 +151,9 @@ Those are separate authorization decisions.
 
 - A device can expose and authorize a capability through a native agent.
 - A capability request can be leased, used, expired and revoked.
-- Wanix can access an approved host capability through the host ABI.
-- Wanix cannot bypass the host ABI to obtain unrestricted host access.
+- Wanix can access an approved host capability through the `airdesk:host-abi@0.1.0` WIT contract.
+- The same capability component runs in Wanix and in the native Rust/Swift agent from one WIT definition.
+- Wanix cannot bypass the host ABI to obtain unrestricted host access; every host call revalidates its lease.
 - A device can run native workloads without Wanix installed.
 - Platform permission denial is reported truthfully and cannot be overridden by an AirDesk grant.
 - Pairing alone does not grant workspace ownership or optional capabilities.

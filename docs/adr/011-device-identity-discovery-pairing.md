@@ -3,6 +3,7 @@
 - **Status:** Proposed — pairing and platform qualification gates required
 - **Date:** 2026-11-03
 - **Updated:** 2026-11-03 — device trust separated from workspace ownership and user identity
+- **Updated:** 2026-11-03 — peer review: RFC 9383 SPAKE2+ pairing bound to the TLS 1.3 exporter
 - **Deciders:** Security owner, engineering lead
 - **Scope:** Device keys, identity lifecycle, local discovery, QR pairing, session authentication, revocation, trust boundaries
 - **Supersedes:** None
@@ -111,15 +112,29 @@ Pairing sequence:
 
 Pairing transcript:
 
-- Ephemeral key agreement uses P-256 ECDH for browser/native interoperability.
-- The transcript hash binds `protocol_version`, initiator and responder device IDs, both ephemeral public keys, nonces, expiry, endpoint hints and requested capabilities with SHA-256.
+- The password-authenticated exchange is RFC 9383 SPAKE2+ over P-256 for browser/native interoperability (section 4.1).
+- The transcript hash binds `protocol_version`, initiator and responder device IDs, both SPAKE2+ shares and confirmation tags, nonces, expiry, endpoint hints and requested capabilities with SHA-256.
+- The transcript also binds the TLS exporter value `EXPORTER-AirDesk-Pairing-v1`, so it is tied to the actual connection.
 - Each side signs the transcript with its long-term Ed25519 key, or its P-256 key when that is the device identity.
 - The short authentication string is a truncated hash of the completed transcript and is compared out of band where a display is available.
-- Session keys are derived from the ephemeral secret and the transcript hash; long-term private keys never leave their device.
+- Session keys are derived from the SPAKE2+ secret, the TLS exporter value and the transcript hash; long-term private keys never leave their device.
 
 The flow rejects expired nonces, replayed QR codes, transcript mismatches, invalid signatures and mismatched fingerprints.
 
 The flow is named **AD-PAIR-1**. It is one construction, not a family of loosely specified pairing modes.
+
+### 4.1 PIN and QR pairing use SPAKE2+ (RFC 9383)
+
+AD-PAIR-1 uses RFC 9383 SPAKE2+ for the PIN/QR password-authenticated exchange. SPAKE2+ is augmented: only the host stores the verifier, so a compromised controller cannot impersonate the host without the PIN.
+
+- The password is the short-lived 6-digit PIN or the secret carried in the QR payload. It is never transmitted.
+- The group is P-256 for browser/native interoperability; the SPAKE2+ identity fields are `initiator` / `responder` domain-separated with the ADFP protocol version and both device IDs.
+- The exchange is bound to the established TLS 1.3 connection through the keying-material exporter with label `EXPORTER-AirDesk-Pairing-v1` and the pairing transcript as context. A relay that terminates TLS on a different connection cannot complete the exchange.
+- The exporter output and the SPAKE2+ confirmation keys are mixed into the session-key derivation; the short authentication string is derived from the combined transcript.
+- Failed attempts are rate-limited; the PIN expires after a short window and after a bounded number of attempts.
+- The transcript, confirmation tags and key schedule are specified with test vectors before implementation.
+
+An active MITM relay that forwards bytes between two TLS connections cannot produce the same exporter value on both legs, so binding the SPAKE2+ transcript to the exporter closes the relay attack that SPAKE2+ alone does not.
 
 ### 5. Transport security is not reimplemented
 
@@ -172,7 +187,8 @@ AirDesk must not promise persistent peer availability while the iOS app is suspe
 ## Acceptance gates
 
 - AD-PAIR-1 succeeds between a supported controller and a native agent or browser endpoint with Ed25519 identities, or P-256 where Ed25519 is unavailable.
-- Expired, replayed or transcript-mismatched QR codes are rejected.
+- AD-PAIR-1 uses RFC 9383 SPAKE2+ over P-256 and binds the transcript to `EXPORTER-AirDesk-Pairing-v1`; a relay that terminates two different TLS connections cannot complete pairing.
+- Expired, replayed or transcript-mismatched QR codes are rejected; failed PIN attempts are rate-limited and the PIN expires.
 - A revoked device cannot establish a new session or use existing grants.
 - Pairing alone does not grant workspace ownership, membership or optional capabilities.
 - Device trust, workspace ownership and controller attachment are represented by separate identifiers.

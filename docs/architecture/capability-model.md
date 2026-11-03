@@ -47,6 +47,16 @@ A capability lease contains:
 
 A lease cannot outlive its grant or workspace authorization. It is scoped to one application instance unless the capability contract permits sharing.
 
+## Grant tokens
+
+Grants and delegated chains are compact `COSE_Sign1` tokens signed with Ed25519. Claims include `iss`, `sub`, `aud`, `cap_uri`, `op`, `nbf`, `exp`, `epoch_id` and a parent hash.
+
+- A chain is at most 3 hops: controller root → workspace orchestrator → runtime task.
+- Each hop may only attenuate scope, operations and expiry.
+- Effective validity is the latest `nbf` to the earliest `exp` across the chain.
+- Chain length and token size are bounded before parsing.
+- Compact binary tokens are used instead of nested-JWT UCAN because token size grows quadratically with delegation hops.
+
 ## Revocation
 
 - Revocation records are signed and sequence-numbered.

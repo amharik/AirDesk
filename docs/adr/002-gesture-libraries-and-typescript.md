@@ -129,6 +129,15 @@ Adopt **Option 2 (hybrid)** as selected. Implementation order:
 
 `interact.js` is preferred over `@use-gesture/vanilla` for this specific use because it directly covers drag, resize, snapping, and restrictions, and it has a larger, longer-lived adoption base, despite its maintenance-only status.
 
+### Committed artifact integrity
+
+The repository commits both TypeScript sources under `web/src/` and compiled bundles under `AirDesk/Resources/DesktopShell/`. Without a gate, the two drift silently.
+
+- The desktop-shell CI workflow MUST run `node web/scripts/build.mjs` and then `git diff --exit-code AirDesk/Resources/DesktopShell/`. A non-empty diff fails the build.
+- The same gate covers bundled WASM (`terminal-core.wasm`, `wanix.wasm`, `rc.wasm`): rebuild from the pinned toolchain and compare checksums before release.
+- The five remaining JavaScript runtime files (`apps.js`, `desktop.js`, `wanix-live.js`, `wanix-shell.js`, `wanix-file-worker-fix.js`) migrate into `web/src/desktop/` and `web/src/wanix/`; `docs/backlog/desktop-shell-typescript.md` is retired when the migration completes.
+- A generated bundle is never hand-edited; fixes land in TypeScript and are rebuilt.
+
 ## Immediate stabilization backlog (P0, before library work)
 
 These are proposals for a separate fix PR, not part of the library migration.

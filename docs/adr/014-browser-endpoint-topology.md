@@ -3,6 +3,7 @@
 - **Status:** Proposed — endpoint and host-service qualification required
 - **Date:** 2026-11-03
 - **Updated:** 2026-11-03 — browser re-scoped as a presentation endpoint; local agent is not workspace authority
+- **Updated:** 2026-11-03 — peer review: client-only browser WebTransport, reverse-stream registration and Happy Eyeballs fallback
 - **Deciders:** Product owner, engineering lead, security owner
 - **Scope:** Browser endpoint, local host service, coordinator, certificates, browser identity storage, presentation authority
 - **Supersedes:** None
@@ -123,6 +124,17 @@ A coordinator compromise must not expose workspace files or device private keys.
 - A LAN-reachable browser asset server requires a separately documented certificate model and is not part of the MVP.
 - The agent's LAN controller listener is authenticated and encrypted; it is not a browser asset origin.
 
+### 7.1 Browser endpoints are WebTransport clients only
+
+WebTransport is client-initiated; a browser endpoint cannot accept an inbound WebTransport or QUIC connection. The browser therefore always dials out to a local host agent or a native/IOS host.
+
+- The browser attempts WebTransport over HTTP/3 (UDP) first when the host advertises a compatible `certhash`.
+- A **300 ms** fallback timer opens a WebSocket (`wss://`, or `ws://` on loopback with origin checks) when UDP is blocked or WebTransport fails.
+- If neither path succeeds, the endpoint fails closed with a typed diagnostic; it does not silently use a relay.
+- After connecting, the browser registers as a display sink by opening a persistent bidirectional control stream.
+- The host pushes window, runtime and surface updates over server-initiated streams on that established session; it never dials the browser directly.
+- The browser cannot become a listener, workspace authority or coordinator.
+
 ### 8. Threat boundaries are explicit
 
 The local agent, coordinator and browser endpoint add trust boundaries:
@@ -164,6 +176,7 @@ SEC-04 must cover these before the browser endpoint is qualified.
 - A host-agent failure leaves the workspace definition intact.
 - Controllers pair through the coordinator or QR bootstrap.
 - Direct data works when connectivity allows; no relay is silently used.
+- The browser endpoint dials WebTransport first and falls back to WebSocket within 300 ms when UDP is blocked; it never accepts inbound WebTransport or dials the browser.
 - Coordinator compromise cannot expose workspace content, terminal output or device private keys.
 - Browser identity eviction produces a re-pair flow, not a silent identity change.
 - Two controllers attach with distinct cursors and explicit keyboard focus.

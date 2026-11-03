@@ -4,6 +4,7 @@
 - **Date:** 2026-10-29
 - **Updated:** 2026-11-03 — Wanix re-scoped as preferred provider; native and browser providers first-class
 - **Updated:** 2026-11-03 — research update: Wanix task drivers and 9P namespaces, WASI 0.2 worlds, WASIX demoted, threading profiles
+- **Updated:** 2026-11-03 — peer review: execution-tier routing policy and mandatory COOP/COEP isolation headers
 - **Scope:** Runtime provider model, Wanix packaging, WASI targets, task drivers, 9P namespaces, threading profiles, mobile/web FFI, runtime assets, Puter disposition
 - **Amends:** ADR-001 runtime implementation choice only; workspace, display and protocol authority comes from ADR-016/017
 - **Supersedes:** None
@@ -48,6 +49,29 @@ ADRs 001 and 017 define the boundary: `DesktopRuntime` remains the local Wanix a
 - Remote namespace import uses 9P over WebSocket. Whether a remote namespace is a runtime provider, resource provider or both is an orchestration decision.
 - Wanix's host-exported devices and `#web` services provide the existing file-service boundary. The capability host ABI must map onto that boundary with scoped leases, not add an unrestricted host syscall surface.
 - A namespace import grants only the files or capabilities exposed by that namespace. It does not grant workspace ownership, device trust or capabilities outside the mounted namespace.
+
+### Execution tier routing
+
+AirDesk runs three execution tiers with different isolation and latency properties. The provider and the shell must choose a tier explicitly; a command must not silently fall back from one tier to another.
+
+| Tier | Engine | Isolation | Use when |
+| --- | --- | --- | --- |
+| Instant shell | just-bash (TypeScript AST interpreter) | In-process parser sandbox (`DefenseInDepthBox`, `AsyncLocalStorage`, parser depth/token limits); no VM | Stateless pipelines, text processing and built-ins with sub-millisecond cold start |
+| Portable runtime | Wanix task drivers (`gojs`, WASI, JavaScript workers, v86) | Web Worker per task, WASI/Wasm or x86 sandbox, Plan 9 namespace | Stateful WASI/Go/Zig binaries and workloads that need a namespaced filesystem |
+| Remote host | `SSHPTYSession` / native agent | Remote POSIX process isolation | Workloads that must run on a remote host or access host-only tooling |
+
+- just-bash is not a security boundary for untrusted code and must not be described as VM isolation.
+- A workload that requires filesystem persistence, native syscalls or an unsupported world must fail closed with a typed capability error rather than executing in just-bash.
+- Tier selection is recorded with the runtime instance so diagnostics explain where a command ran.
+
+### Cross-origin isolation and SharedArrayBuffer
+
+Threaded WebAssembly and synchronous WASI pipes require `SharedArrayBuffer`, which WebKit gates behind cross-origin isolation. The following are mandatory, not advisory:
+
+- `LocalAssetServer` and any Cast/browser receiver host MUST send `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` on every HTML, JavaScript and WASM response.
+- `LocalAssetServerTests` MUST assert that `window.crossOriginIsolated === true` inside the served WKWebView before the threaded profile is selectable.
+- When `SharedArrayBuffer` is unavailable, `wanix-file-worker-fix.js` MUST degrade file-worker RPCs to asynchronous `MessagePort` transferables (ArrayBuffer ownership transfer) and the runtime MUST select the single-threaded profile.
+- Cast receivers and restricted browser endpoints that cannot satisfy isolation MUST use the single-threaded profile; they must not throw `DataCloneError` by posting a `SharedArrayBuffer` across a non-isolated context.
 
 ## Runtime provider responsibilities
 
@@ -137,7 +161,9 @@ Wanix parity is measured against product requirements, not Puter behavior.
 - WASI Preview 1 adaptation, WASI 0.2 worlds and any claimed WASI 0.3 support are tested separately; none is inferred from another.
 - WASIX is absent unless admitted for a named workload.
 - The default single-threaded browser profile starts without `SharedArrayBuffer`; the threaded profile requires `crossOriginIsolated` and falls back explicitly.
-- `crossOriginIsolated` and required headers are verified in WKWebView and Cast where threaded Wanix runs.
+- `LocalAssetServer` responses carry `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`; `LocalAssetServerTests` asserts `window.crossOriginIsolated === true`.
+- File-worker RPCs fall back to `MessagePort` transferables and never post a `SharedArrayBuffer` outside an isolated context.
+- A workload is routed to just-bash, Wanix or a remote host by an explicit tier policy, and an unsupported tier fails closed rather than silently downgrading.
 - A 9P namespace import or export is scoped to its mount and cannot bypass capability leases or workspace authority.
 - Offline startup succeeds with no executable CDN dependency.
 - Runtime state transitions are provider-defined and exposed through the ADR-017 contract.

@@ -3,6 +3,7 @@
 - **Status:** Proposed — capability and authorization gates required
 - **Date:** 2026-11-03
 - **Updated:** 2026-11-03 — capability leases and application context added
+- **Updated:** 2026-11-03 — peer review: compact COSE_Sign1 capability tokens with bounded delegation depth
 - **Deciders:** Security owner, engineering lead
 - **Scope:** Capability descriptors, leases, grants, invocation, resolution, audit, revocation, application context
 - **Supersedes:** None
@@ -106,6 +107,33 @@ Rules:
 - The provider enforces the lease; the requester cannot self-extend it.
 - A lease does not grant workspace ownership or collaboration rights.
 
+### 4.2 Grant tokens are compact COSE_Sign1
+
+Grants and delegated capability chains use CBOR Object Signing and Encryption (`COSE_Sign1`) with Ed25519 signatures. Compact binary tokens are chosen over nested-JWT UCAN because token size grows quadratically with delegation hops and DID resolution adds a runtime dependency.
+
+Token claims:
+
+| Claim | Meaning |
+| --- | --- |
+| `iss` | Issuer device or user-authorized grant service (ADR-011 identity) |
+| `sub` | Subject device or workload identity |
+| `aud` | Provider device or capability resource |
+| `cap_uri` | Attenuated capability URI, for example `airdesk://fs/workspace/readwrite` or `airdesk://pty/spawn` |
+| `op` | Allowed operations within the capability |
+| `nbf` | Not-before time |
+| `exp` | Expiry time |
+| `epoch_id` | Workspace/session epoch the grant is valid for (ADR-015/016) |
+| `parent` | Hash of the parent token for delegation chains |
+
+Rules:
+
+- A delegated chain has a maximum depth of 3 hops: controller root → workspace orchestrator → runtime task.
+- Each hop may only narrow `cap_uri`, operations, resource scope and expiry; it cannot widen them.
+- Effective validity starts at the latest `nbf` and ends at the earliest `exp` across the chain.
+- Verification bounds the chain length and total token size before parsing to prevent denial of service.
+- Revocation is checked against the latest signed revocation record; stale records fail closed for high-impact capabilities.
+- A token does not grant workspace ownership, device trust or capabilities outside its `cap_uri`.
+
 ### 5. Invocation is request/response with cancellation
 
 A capability invocation includes:
@@ -192,6 +220,7 @@ AD-CAP is active in the MVP, not deferred. The initial consumer set is files and
 - Resolver selection is deterministic and explained in diagnostics.
 - Pairing alone grants no optional capability or workspace ownership.
 - Grant issuance names an authenticated issuer and is signed; the coordinator cannot mint grants.
+- Grants are `COSE_Sign1` tokens with `cap_uri`, `op`, `nbf`, `exp` and `epoch_id`; delegation depth is ≤3 and each hop only attenuates.
 - Expired, revoked and stale-revocation grants are denied; bounded offline windows are explicit.
 - Browser files and camera consumers receive scoped grants, not device-wide access.
 - `CapabilityResolver` and `ProfileResolver` have separate, documented responsibilities.

@@ -3,6 +3,7 @@
 - **Status:** Proposed — ownership and arbitration gates required
 - **Date:** 2026-11-03
 - **Updated:** 2026-11-03 — workspace, session and controller ownership separated
+- **Updated:** 2026-11-03 — peer review: epoch-fenced input leases and controller role taxonomy
 - **Deciders:** Product owner, engineering lead
 - **Scope:** Workspace ownership, display-session ownership, controller attachment, cursor identity, keyboard focus, input arbitration
 - **Supersedes:** None
@@ -68,6 +69,32 @@ These must not be conflated. A controller is not a collaborator. A display sessi
 - A controller may disconnect without cancelling another controller's cursor.
 - A device joining as a controller is not automatically a collaborator.
 
+### 4.1 Controller roles and epoch-fenced leases
+
+Every controller holds one runtime role per seat. The workspace authority maintains a monotonically increasing `lease_epoch: uint64` and an `active_controller_id`.
+
+| Role | Count | Authority |
+| --- | --- | --- |
+| `PRIMARY_DRIVER` | 1 per seat | Exclusive write lease for the shared cursor and active-window keyboard focus |
+| `PINNED_SURFACE_DRIVER` | 0..K per workspace | Input lease scoped to one window (`target_window_id`) or PTY (`target_pty_id`) |
+| `PASSIVE_OBSERVER` | 0..M per workspace | Receives state/preview frames; cannot emit input until it requests a lease |
+
+Lease state machine:
+
+| Current | Trigger | Guard | Action and broadcast | Next |
+| --- | --- | --- | --- | --- |
+| `LEASE_ACTIVE(C_A, E)` | `C_B` sends `RequestLease(PRIMARY)` | `C_A` idle >500 ms or `C_B.force_preempt` | `epoch = E+1`; inject `ReleaseAllButtonsAndModifiers()`; broadcast `LeaseChanged(C_B, E+1)` | `LEASE_ACTIVE(C_B, E+1)` |
+| `LEASE_ACTIVE(C_A, E)` | `C_B` sends frame with `epoch < E` | `frame.epoch != E` | Drop at ingress; increment `stale_epoch_drops` metric | `LEASE_ACTIVE(C_A, E)` |
+| `LEASE_ACTIVE(C_A, E)` | `C_A` disconnects or misses 3 × 1 s heartbeats | `now - C_A.last_seen > 3000 ms` | `epoch = E+1`; inject `ReleaseAllButtonsAndModifiers()`; promote the highest-priority standby or enter `LEASE_UNCLAIMED(E+1)` | `LEASE_UNCLAIMED(E+1)` |
+
+Rules:
+
+- Every input frame carries `lease_epoch`; frames with `frame.epoch < current_lease_epoch` are discarded before dispatch.
+- A leadership transition increments the epoch and synthesizes a full button/modifier release before the new lease is granted.
+- `PINNED_SURFACE_DRIVER` input is accepted only for its scoped target and does not move the primary cursor.
+- Cursor ownership remains multi-device in multi-input mode; the primary lease governs keyboard focus and shared-cursor authority.
+- A controller cannot grant itself a lease or reuse an epoch.
+
 ### 5. Keyboard and text focus are single-owner
 
 - Exactly one controller owns keyboard and text focus at a time.
@@ -89,8 +116,8 @@ Mode changes are session-scoped and visible. The mode must not silently change b
 
 ### 7. Input arbitration is ordered and source-tagged
 
-- Every input event carries `session_id`, `generation`, `sender_device_id`, `controller_id`, `input_source` and sequence.
-- Stale generations and duplicate sequences are rejected.
+- Every input event carries `session_id`, `generation`, `sender_device_id`, `controller_id`, `input_source`, sequence and `lease_epoch`.
+- Stale generations, stale `lease_epoch` values and duplicate sequences are rejected.
 - Pointer movement may be coalesced per controller.
 - Clicks, key releases, text commits and focus changes are never silently dropped.
 - Input from a revoked or expired controller is rejected.
@@ -125,6 +152,8 @@ The coordinator may coordinate membership, presence and handoff requests. A runt
 - Simultaneous pointer movement does not move or steal the other cursor.
 - Only one controller owns keyboard/text focus; handoff releases modifiers.
 - Disconnect and generation changes release pressed keys and buttons.
+- A leadership change increments `lease_epoch` and synthesizes a full button/modifier release before the new lease is active.
+- Input frames with a stale `lease_epoch` are dropped and counted; a `PINNED_SURFACE_DRIVER` cannot move the primary cursor.
 - Single-input mode can be entered and exited without stale cursors.
 - Revoked controllers cannot inject input.
 - Pairing and controller attachment do not grant workspace ownership or collaboration rights.

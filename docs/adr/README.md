@@ -38,6 +38,30 @@ This index is the authoritative map of which decision is in force. An ADR's orig
 - **Capabilities:** scoped, time-bounded, revocable leases; advertisement is not permission.
 - **Input:** multiple controllers may attach; one keyboard focus owner at a time; this is not multi-user collaboration.
 
+## Lifecycle tags and lineage
+
+Every record carries one lifecycle tag, separate from its decision and implementation status:
+
+| Tag | Meaning | Records |
+| --- | --- | --- |
+| `Accepted & Implemented (Phase 1 Baseline)` | Decision is in force and the local/Cast/SSH baseline implements it | ADR-001–ADR-009 |
+| `Accepted — Phase 2/3 Architecture Target` | Decision is in force for the device fabric; implementation and qualification gates are open | ADR-010–ADR-019 |
+
+Lineage is recorded explicitly so a fabric ADR cannot silently redefine a baseline decision:
+
+- ADR-010 (ADFP) extends ADR-008 (input/control wire protocol).
+- ADR-013 and ADR-014 extend ADR-005 (display and transport) and build on ADR-011/012.
+- ADR-015 and ADR-016 extend ADR-009 (workspace persistence and recovery).
+- ADR-017 and ADR-018 extend ADR-001 and ADR-004 (runtime and execution).
+- ADR-019 extends ADR-006 and ADR-007 (remote windowing and shell/terminal).
+
+CI verification gates referenced by the records:
+
+- `.github/workflows/ios.yml` — iOS build and unit tests.
+- `.github/workflows/desktop-shell.yml` — TypeScript build, artifact-diff gate, dependency/SBOM check, `flatc --conform` and generated-binding drift.
+- `AirDeskTests/`, `AirDeskUITests/`, `web/test/` — behavior suites cited by each Phase 1 record.
+- Phase 2/3 records remain `Proposed` until their protocol fixtures and qualification gates exist; the tag does not promote them to `Accepted & Implemented`.
+
 ## Status rules
 
 - **Decision status** records whether the architecture choice is accepted.

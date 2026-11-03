@@ -51,6 +51,23 @@ observedState: starting | running | suspended | stopped | failed | unavailable
 
 Status must distinguish provider failure from unavailability and from desired-state changes. A remote 9P namespace must report whether it is mounted, degraded or gone, and whether it is a runtime, resource or both.
 
+## Stream framing and flow control
+
+AD-RUNTIME instance streams run on ADFP Channels 2..N as reliable, bidirectional streams multiplexed per instance and per channel kind (`stdin`, `stdout`, `stderr`, `signal`, `resize`).
+
+| Field | Purpose |
+| --- | --- |
+| `stream_id` | Multiplexed stream identity within the instance |
+| `channel` | `stdin`, `stdout`, `stderr`, `signal`, `resize` |
+| `seq` | Monotonic per-stream byte or message sequence |
+| `credit` | Bytes the receiver is willing to accept |
+
+- Flow control is a 256 KiB in-flight credit window per stream, with a 128 KiB resume threshold (hysteresis).
+- A producer pauses when the window is exhausted; execution output is never silently dropped.
+- A slow build in Terminal A must not block interactive input in Terminal B or the input plane.
+- Control messages carry lifecycle, status and errors; bulk output stays on the data plane.
+- Stream teardown is explicit and idempotent; a disconnected consumer cancels or suspends the instance per policy.
+
 ## Placement
 
 The orchestrator chooses a provider. AD-RUNTIME reports compatibility and observed capacity; it does not choose placement.

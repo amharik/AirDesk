@@ -2,6 +2,7 @@
 
 - **Status:** Proposed — domain schema and recovery gates required
 - **Date:** 2026-11-03
+- **Updated:** 2026-11-03 — peer review: single-writer workspace sequencer and geometry LWW reconciliation
 - **Deciders:** Product owner, engineering lead
 - **Scope:** Workspace identity, desired state, observed state, resource references, ownership, recovery domains
 - **Supersedes:** None
@@ -117,6 +118,18 @@ A display reconnect must not recreate the workspace. A runtime crash must not er
 - The coordinator is not the workspace authority.
 - No runtime provider may claim authority over workspace identity or persistence.
 
+### 7.1 Structural mutations use a single-writer sequencer
+
+The workspace host is the **Single-Writer Sequencer** for structural mutations: creating or closing windows, attaching runtimes, changing `DisplayProfile`, and editing application definitions.
+
+- Each accepted structural transition receives a contiguous `workspace_seq: uint64`.
+- An update carries the expected `workspace_seq`; a stale sequence is rejected and the caller reloads.
+- Only the workspace host assigns `workspace_seq`; display sessions, runtimes and browser endpoints never do.
+- High-frequency window drag/resize geometry uses optimistic local rendering and Last-Writer-Wins reconciliation tagged with `(lease_epoch, client_seq)`.
+- LWW applies only to geometry fields; application definitions, ownership and resource bindings remain single-writer and are never LWW-merged.
+- A reconciled geometry update must not advance or reorder `workspace_seq`.
+- The sequencer is local in Release 1; a future synchronization service preserves the same invariant per workspace.
+
 ### 8. Schema and evolution are mandatory
 
 - Workspace, application, capability and resource schemas are versioned independently.
@@ -146,6 +159,7 @@ A display reconnect must not recreate the workspace. A runtime crash must not er
 
 - A workspace can be created and restored without a display session.
 - A workspace can be presented on a different endpoint without changing its identity.
+- Structural mutations receive contiguous `workspace_seq` values, and a stale sequence is rejected; geometry LWW never advances the sequencer.
 - A device disconnect marks observed state unavailable but leaves the desired state intact.
 - A runtime failure does not delete application definitions or workspace metadata.
 - A display session cannot write canonical workspace state.

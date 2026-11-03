@@ -6,14 +6,18 @@ Applications are first-class workspace entities. They are independent of the des
 
 ```text
 AirDeskApplicationManifest
+  schemaVersion
   id, version, name
   entrypoint
   runtimeTargets[]
   requiredCapabilities[]
   presentation
   permissions[]
+  quotas
   lifecycle
 ```
+
+`quotas` bounds workers, memory, CPU time, open handles, stream buffers and persisted bytes per application instance.
 
 ```text
 RuntimeTarget
@@ -56,6 +60,17 @@ installed -> available -> starting -> running -> suspended -> stopped
 - `unavailable` means no provider or device can realize the instance.
 - `failed` means a provider attempted realization and reported an error.
 - Failed and unavailable instances remain in the workspace with their definitions.
+
+Sandboxed applications additionally use an explicit sandbox lifecycle:
+
+```text
+RESOLVED -> MOUNTING_CAPABILITIES -> ACTIVE_FOREGROUND <-> ACTIVE_BACKGROUND
+         -> SUSPENDED_CHECKPOINTED -> TERMINATED
+```
+
+- A failure while mounting capabilities terminates the instance with a typed error and no partial mount.
+- `TERMINATED` revokes all capability handles and leases before releasing resources and is idempotent.
+- Quota exhaustion moves the instance to `failed`; it never silently degrades the workspace.
 
 ## Shell boundary
 

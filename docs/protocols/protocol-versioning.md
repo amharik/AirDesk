@@ -32,6 +32,17 @@ Peers advertise supported ADFP major versions, module versions, runtime contract
 
 ADFP semantic compatibility and transport compatibility are negotiated separately. A peer that supports WebTransport is not automatically compatible with the endpoint's HTTP/3 deployment, and a WASI 0.2 peer is not a WASI 0.3 peer.
 
+## FlatBuffers evolution rules
+
+`protocol/airdesk.fbs` declares `file_identifier "ADEN"`. Every FlatBuffers payload is validated with `EnvelopeBufferHasIdentifier()` before field access.
+
+- Every field in `Envelope`, `InputEvent` and `ControlMessage` carries a contiguous `(id: n)` attribute; a union member consumes two consecutive IDs.
+- Fields and union variants are appended or explicitly pinned; they are never removed or reordered.
+- Scalar defaults never change after release; obsolete fields are marked `(deprecated)`.
+- A committed `protocol/baseline/airdesk_vN.fbs` freezes each released schema.
+- CI runs `flatc --conform protocol/baseline/airdesk_vN.fbs protocol/airdesk.fbs` and fails on any breaking change.
+- Regenerated Swift, Rust and TypeScript bindings must show zero diff in the same change.
+
 ## Schema migration
 
 - Workspace documents carry `schemaVersion`.

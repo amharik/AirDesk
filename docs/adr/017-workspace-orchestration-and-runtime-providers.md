@@ -2,6 +2,7 @@
 
 - **Status:** Proposed — orchestration contracts and provider qualification required
 - **Date:** 2026-11-03
+- **Updated:** 2026-11-03 — peer review: provider health checks, circuit breaker and failover state machine
 - **Deciders:** Engineering lead, product owner
 - **Scope:** WorkspaceOrchestrator, SessionCoordinator boundary, RuntimeRegistry, RuntimeProvider, placement and reconciliation
 - **Supersedes:** None
@@ -140,6 +141,24 @@ The orchestrator loop:
 
 The first implementation is local and deterministic. A distributed scheduler is out of scope.
 
+### 6.1 Provider health, circuit breaking and failover
+
+Mid-session loss of an SSH or LAN provider must be handled by an explicit state machine, not by retry storms or silent reruns.
+
+| State | Enter when | Behavior |
+| --- | --- | --- |
+| `HEALTHY` | Health check succeeds | Serve requests; record latency |
+| `DEGRADED` | One failed check or heartbeat late | Continue serving, increase check frequency, surface a warning |
+| `OPEN` | Failure threshold reached (for example 3 consecutive failures) | Stop routing new work; fail fast with a typed error; do not restart the workload automatically |
+| `HALF_OPEN` | Cooldown elapsed | Allow a single probe request; success returns to `HEALTHY`, failure returns to `OPEN` |
+
+- Health checks are bounded, timed out and never block input or control traffic.
+- Retries are bounded with exponential backoff and jitter; there is no unbounded retry loop.
+- A workload whose provider is `OPEN` is marked `unavailable` or `failed`; the desired state is preserved.
+- Warm-standby providers may be promoted only when placement policy allows it and the application can resume without data loss.
+- Recovery is a reconciliation outcome and must not rewrite the workspace manifest.
+- Circuit-breaker transitions and provider loss are recorded in diagnostics and audit.
+
 ### 7. Session lifecycle cannot implicitly start execution
 
 - Creating a display session does not place or start an application.
@@ -172,6 +191,7 @@ The first implementation is local and deterministic. A distributed scheduler is 
 - The orchestrator selects a provider through `RuntimeRegistry`, not a Wanix-specific branch.
 - Native execution works without Wanix.
 - A runtime failure leaves desired application state intact and reports observed failure.
+- Provider loss follows the `HEALTHY → DEGRADED → OPEN → HALF_OPEN` circuit-breaker table with bounded backoff; no unbounded retry or silent rerun occurs.
 - Display reconnect does not restart unrelated runtimes.
 - Placement is deterministic for the supported modes and explained in diagnostics.
 - Provider version or capability mismatch fails closed.

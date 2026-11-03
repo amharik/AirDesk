@@ -12,6 +12,22 @@ ADFP is semantic and transport-neutral. This document maps its planes to transpo
 
 A single transport adapter may carry more than one plane, but plane separation must remain visible in policy, routing and diagnostics.
 
+## ADFP channel classes
+
+| Channel | Class | Transport semantics | Traffic |
+| --- | --- | --- | --- |
+| 0 | Control and handshake | Reliable, ordered bidirectional stream | Version negotiation, pairing, capability presentation, lease heartbeats |
+| 1 | Input hot path | Unreliable QUIC datagram / unordered WebSocket binary | 16-byte `PackedPointerFrame` with monotonic `seq`; stale frames dropped, not retransmitted |
+| 2..N | Runtime and PTY streams | Reliable bidirectional streams | Per-instance `stdin`/`stdout`/`stderr`/`resize`/`signal` with 256 KiB byte-credit flow control |
+| M..K | VFS resource mounts | Reliable bidirectional streams | Plan 9/Wanix resource RPCs (`Tattach`, `Twalk`, `Topen`, `Tread`, `Twrite`, `Tclunk`, `Tstat`, `Twstat`) |
+
+## WebTransport certificate rules
+
+- A LAN WebTransport listener uses an ephemeral ECDSA P-256 certificate valid for at most 14 days.
+- Certificates rotate every 5 days with a 48-hour dual-hash overlap; mDNS TXT and pairing payloads advertise `certhash_current` and `certhash_next`.
+- Clients accept only an advertised hash for that device; unknown, expired or non-ECDSA hashes fail closed.
+- Browser endpoints are WebTransport clients only and fall back to WebSocket within 300 ms when UDP is blocked (ADR-014).
+
 ## Mapping
 
 | Transport | Control | Data | Presentation | Notes |

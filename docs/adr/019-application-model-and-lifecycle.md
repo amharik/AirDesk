@@ -2,6 +2,7 @@
 
 - **Status:** Proposed — manifest and lifecycle gates required
 - **Date:** 2026-11-03
+- **Updated:** 2026-11-03 — peer review: manifest schema and sandboxed lifecycle transitions with quotas
 - **Deciders:** Product owner, engineering lead
 - **Scope:** Application manifests, instances, desired/observed state, runtime requirements, lifecycle, remote applications
 - **Supersedes:** None
@@ -85,6 +86,48 @@ installed -> available -> starting -> running -> suspended -> stopped
 - A failed or unavailable instance remains in the workspace with its definition.
 - Recovery is a reconciliation outcome, not a manifest rewrite.
 
+### 3.1 Sandbox lifecycle and quotas
+
+The orchestrator drives a deterministic lifecycle for sandboxed (Wanix/Worker/iframe) applications:
+
+```text
+RESOLVED
+  -> MOUNTING_CAPABILITIES
+  -> ACTIVE_FOREGROUND <-> ACTIVE_BACKGROUND
+  -> SUSPENDED_CHECKPOINTED
+  -> TERMINATED
+```
+
+- `RESOLVED`: manifest verified, runtime target and world resolved, no resources yet.
+- `MOUNTING_CAPABILITIES`: capability leases issued and validated; failure here returns to `TERMINATED` with a typed error and no partial mount.
+- `ACTIVE_FOREGROUND`: application holds presentation and input focus.
+- `ACTIVE_BACKGROUND`: running without focus; input is not delivered.
+- `SUSPENDED_CHECKPOINTED`: execution stopped and state checkpointed; resuming must not duplicate side effects.
+- `TERMINATED`: all capability handles, workers, streams and leases are revoked deterministically.
+
+Rules:
+
+- Every transition is explicit and observable; the shell never infers lifecycle from DOM or process state.
+- Per-application quotas bound worker count, memory, CPU time, open handles, stream buffers and persisted bytes.
+- Exceeding a quota moves the application to `failed` with a typed error; it does not silently degrade the workspace.
+- Termination revokes capability handles before releasing resources, and is idempotent.
+- A background application cannot request new capabilities without returning to the foreground authorization path.
+
+The manifest carries the quota and schema fields required by this machine:
+
+```text
+AirDeskApplicationManifest
+  schemaVersion
+  id, version, name
+  entrypoint
+  runtimeTargets[]        -> provider, world@version, architectures[]
+  requiredCapabilities[]  -> capabilityId@version, scope
+  presentation
+  permissions[]
+  quotas                  -> workers, memoryBytes, cpuMillis, handles, persistedBytes
+  lifecycle
+```
+
 ### 4. The shell uses a common application abstraction
 
 The AirDesk Shell presents applications through a provider-neutral interface:
@@ -148,6 +191,8 @@ Remote applications are provider adapters, not a separate workspace model.
 - The shell uses the provider-neutral application/window abstraction.
 - Required capabilities are authorized separately from runtime availability.
 - An incompatible provider fails closed rather than silently substituting.
+- Sandboxed applications traverse the explicit `RESOLVED → MOUNTING_CAPABILITIES → ACTIVE_FOREGROUND ↔ ACTIVE_BACKGROUND → SUSPENDED_CHECKPOINTED → TERMINATED` lifecycle.
+- Per-application quotas are enforced; exceeding one produces `failed` with a typed error and no silent degradation.
 - A WASI application declares a world and version; unsupported worlds or versions fail closed.
 - Remote application adapters do not change the workspace identity model.
 - Remote application protocol selection comes from AD-CAP facts, not a hard-coded workspace branch.

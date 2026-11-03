@@ -4,6 +4,7 @@
 - **Date:** 2026-11-03
 - **Updated:** 2026-11-03 — control, data, media and presentation separated
 - **Updated:** 2026-11-03 — research update: WebTransport Baseline 2026, transport evolution negotiation, SAB fallback
+- **Updated:** 2026-11-03 — peer review: ephemeral WebTransport certificate rotation and dual-hash advertisement
 - **Deciders:** Engineering lead, transport owner
 - **Scope:** Transport adapters, control/data/media planes, browser and native transport sequencing, WebTransport, relay policy
 - **Supersedes:** None
@@ -83,6 +84,17 @@ It is not a requirement:
 - The IETF wire protocol and browser API may still change; version negotiation must cover transport bindings, not only ADFP semantics.
 - WebTransport does not replace AD-RUNTIME, AD-RESOURCE or capability authorization semantics.
 
+### 2.2 Ephemeral certificate rotation for LAN WebTransport
+
+A LAN host has no publicly trusted CA certificate. WebTransport accepts a self-signed certificate through `serverCertificateHashes`, subject to the W3C rule that the certificate use ECDSA and have a validity period no longer than 14 days.
+
+- Every host running a WebTransport listener generates an ephemeral **ECDSA P-256** certificate with a **7-day** validity at startup.
+- The certificate rotates every **5 days** with a **48-hour dual-hash overlap**: mDNS TXT records and pairing payloads advertise both `certhash_current=<sha256>` and `certhash_next=<sha256>`.
+- The current SHA-256 fingerprint is also served over the authenticated bootstrap endpoint.
+- A client accepts only a hash advertised for that device and pins it for the session; an unknown hash fails closed.
+- Expired, more-than-14-day or non-ECDSA certificates are rejected before connection.
+- Rotation does not invalidate an established session; new sessions use the newest advertised hash.
+
 ### 3. WebRTC channel semantics
 
 When WebRTC is adopted:
@@ -156,6 +168,7 @@ No relay or TURN service is implemented in this cycle. The coordinator may provi
 - The browser endpoint starts in single-threaded mode without `SharedArrayBuffer` and only selects the threaded profile when isolation is confirmed.
 - A direct WebRTC/QUIC/WebTransport versus WebSocket benchmark records p50/p95 latency, CPU, reconnect time and battery impact.
 - WebTransport negotiation and fallback are tested on the supported browser matrix.
+- A WebTransport LAN endpoint presents an ECDSA P-256 certificate valid ≤14 days, rotates every 5 days and advertises current and next hashes during the 48-hour overlap; unknown or expired hashes are rejected.
 - Concurrent bulk transfer does not create visible pointer latency.
 - Disconnect, focus loss and generation changes produce no stuck keys or buttons.
 - A failed direct path fails closed; no relay is silently used in the MVP release.

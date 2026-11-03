@@ -58,6 +58,14 @@ CapabilityHostABI
 - It is versioned independently of ADFP wire versions and runtime versions.
 - Unsupported operations fail closed with a typed error.
 
+The normative ABI is the WASI 0.2 Component Model package `airdesk:host-abi@0.1.0`, expressed in WIT and layered on `wasi:io/streams@0.2.0`, `wasi:filesystem/types@0.2.0` and `wasi:cli/run@0.2.0`. It defines at least:
+
+- `vfs-service` for AD-RESOURCE mounts, with path canonicalization and no `..` escape;
+- `pty-service` for AD-RUNTIME PTY sessions with a 256 KiB credit window;
+- `display-sink` for AD-DISPLAY/ADR-014, guarded by `OriginPolicy` and the active `leaseEpoch`.
+
+The same WIT-defined capability component runs in Wanix in the browser and in the native Rust/Swift agent. Capability tokens are `COSE_Sign1` and are validated on every host call.
+
 ## Native execution
 
 Native execution is first-class. It covers native applications, platform APIs, hardware acceleration, background tasks and platform-specific integrations. A device is useful without Wanix.

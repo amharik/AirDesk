@@ -98,6 +98,16 @@ Each adopted dependency must have:
 - link to the qualification benchmark and tests;
 - known limitations and removal plan where relevant.
 
+For runtime, terminal and WASM artifacts the SBOM entry additionally records:
+
+- SHA-256 digest of the shipped binary, not only the package integrity hash;
+- upstream git commit or pseudo-version;
+- build toolchain and version (for example Zig 0.15.2 for `terminal-core.wasm`, pinned Go/TinyGo for `wanix.wasm` and `rc.wasm`);
+- build flags and the reproducibility recipe;
+- the CI check that rebuilds the artifact and rejects a byte-for-byte mismatch.
+
+`web/scripts/generate-sbom.mjs` and `web/dependency-policy.json` carry these fields so a shipped binary can be traced to source and compiler.
+
 ## Exceptions
 
 An exception must be time-boxed and recorded in the adopting ADR or backlog item. It must name:

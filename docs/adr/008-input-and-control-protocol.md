@@ -3,6 +3,7 @@
 - **Status:** Proposed — schema generation and contract tests required
 - **Date:** 2026-10-29
 - **Updated:** 2026-11-03 — Input source, focus owner and controller arbitration added
+- **Updated:** 2026-11-03 — peer review: dual-path wire discriminator, FlatBuffers evolution rules and conformance gate
 - **Scope:** Input event vocabulary, schema ownership, coordinates, coalescing, click semantics, session/generation/sequence rules, multi-controller arbitration
 - **Supersedes:** None
 - **Related:** ADR-001, ADR-002, ADR-005, ADR-007, ADR-010, ADR-015, ADR-017
@@ -74,6 +75,33 @@ No language owns a hand-edited copy of the schema. Generated files are committed
 
 Packed pointer frames are used on WebSocket and WebRTC. Cast uses its compact JSON profile over the text-only custom channel. JSON is not the production pointer format elsewhere.
 
+### Dual-path wire discriminator
+
+Packed pointer frames and FlatBuffers envelopes share transport channels. A receiver MUST distinguish them in O(1) time without trial deserialization. `PackedPointerFrame` v12 is a fixed 16-byte little-endian frame beginning with `frame_magic = 0xA5`. FlatBuffers root offsets begin in the `0x04...0x20` range, so the magic byte cannot collide with a valid root offset.
+
+| Offset | Field | Type | Endianness | Constraint |
+| --- | --- | --- | --- | --- |
+| 0 | `frame_magic` | `uint8` | — | `0xA5` for PackedPointerFrame v12 |
+| 1 | `event_flags` | `uint8` | — | bits 0–1 phase (move/down/up/scroll), bits 2–4 button mask, bits 5–7 modifier mask |
+| 2–3 | `lease_epoch_lo` | `uint16` | little | Low 16 bits of the active input lease epoch (ADR-015); mismatches are dropped |
+| 4–7 | `seq` | `uint32` | little | Per-controller monotonic sequence; `seq <= last_seq` is dropped |
+| 8–11 | `x_norm_or_dx` | `float32` | IEEE-754 little | Normalized X in `0...1`, or relative `dx` |
+| 12–15 | `y_norm_or_dy` | `float32` | IEEE-754 little | Normalized Y in `0...1`, or relative `dy` / scroll delta |
+
+A frame without `0xA5` is parsed as a FlatBuffers `Envelope` only after its root offset and `file_identifier` are validated. Unknown discriminators are rejected as a typed protocol error.
+
+### FlatBuffers schema evolution and conformance
+
+`protocol/airdesk.fbs` declares `file_identifier "ADEN"`. Every payload MUST be validated with `EnvelopeBufferHasIdentifier()` before table field access.
+
+Schema changes MUST obey these invariants:
+
+1. **Explicit IDs:** every field in `Envelope`, `InputEvent` and `ControlMessage` carries a contiguous `(id: n)` attribute. A union member consumes two slots: the hidden `payload_type` discriminant and the `payload` offset occupy consecutive IDs.
+2. **Append-only evolution:** fields and union variants are added at the end or pinned with explicit IDs. Existing fields are never removed or reordered.
+3. **Stable defaults:** scalar default values never change after release. Obsolete fields are marked `(deprecated)`, not deleted.
+4. **Conformance gate:** `protocol/generate.sh` and the desktop-shell CI workflow run `flatc --conform protocol/baseline/airdesk_v1.fbs protocol/airdesk.fbs` on every pull request. A baseline schema is committed once the first release schema is frozen.
+5. **Regeneration:** a schema change regenerates Swift, Rust and TypeScript bindings in the same change; CI fails on generated-output drift.
+
 ## Coordinates and viewport
 
 - Pointer `x`/`y` are normalized to `0...1` and validated as finite numbers.
@@ -119,6 +147,8 @@ Validation errors are diagnostic. They must not crash the shell or trigger a ret
 
 - All 11 events round-trip through Swift, TypeScript, and Rust generated bindings.
 - Packed pointer frames and FlatBuffers control messages decode identically across languages.
+- The `0xA5` discriminator routes pointer frames and `ADEN`-identified FlatBuffers envelopes without trial deserialization or ambiguity.
+- `flatc --conform` against the frozen baseline schema passes in CI, and generated bindings show zero diff after regeneration.
 - Fuzz tests reject malformed, oversized, stale-generation, and duplicate-sequence frames.
 - Coalescing preserves down/up ordering and keeps click/key/text delivery intact.
 - One tap produces exactly one activation, whether delivered by down/up or by a constrained-source click.

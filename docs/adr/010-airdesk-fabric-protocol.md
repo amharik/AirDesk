@@ -35,6 +35,19 @@ ADFP defines workspace and device meaning:
 
 ADFP does not define TCP, UDP, TLS, WebRTC, QUIC or a new cryptographic transport.
 
+### 1.1 Channel classes
+
+ADFP traffic is partitioned into four logical channel classes. The transport binding maps them to datagrams or streams without changing semantics (see `docs/protocols/transport-mapping.md`).
+
+| Channel | Class | Traffic | Delivery |
+| --- | --- | --- | --- |
+| 0 | Control and handshake | Version negotiation, pairing, capability presentation, lease heartbeats | Reliable bidirectional stream |
+| 1 | Input hot path | 16-byte `PackedPointerFrame`, monotonic `seq` | Unreliable datagrams or unordered binary; stale frames dropped |
+| 2..N | Runtime and PTY streams | `stdin`, `stdout`, `stderr`, `resize`, `signal` | Reliable bidirectional streams with per-stream byte credit |
+| M..K | VFS resource mounts | Plan 9/Wanix resource RPCs (`Tattach` … `Tclunk`) | Reliable bidirectional streams |
+
+A heavy build on a runtime stream cannot block interactive input on Channel 1 or resource mounts on another stream.
+
 ### 2. Module set is deliberately scoped
 
 MVP modules:
