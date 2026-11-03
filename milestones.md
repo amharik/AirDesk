@@ -1,7 +1,7 @@
 # AirDesk implementation milestones
 
 Status: active
-Last updated: 2026-11-03
+Last updated: 2026-11-04
 
 This file is the implementation tracker. `docs/adr/README.md` remains authoritative for decision status. This file tracks execution order, acceptance criteria and current progress. Update it whenever a work item changes state.
 
@@ -17,12 +17,12 @@ This file is the implementation tracker. `docs/adr/README.md` remains authoritat
 ## Current focus
 
 - Milestone: `M2` and `M3`
-- Work item: `RT-02` is complete; finish provider integration in `RT-03..06`, then wire the `APP-*` lifecycle and `IN-*` protocol paths into the running app
-- Next: replace the in-memory provider adapters with real Wanix/native execution, connect lifecycle actions to session/workspace UI, and finish protocol fixture/fuzz gates
+- Work item: `M0-03`, `RT-02`, `IN-01`, `IN-04` and `IN-06` are complete; finish provider integration in `RT-03..06` and the remaining transport/conformance work in `IN-02`/`IN-07`
+- Next: replace the in-memory provider adapters with real Wanix/native execution, connect lifecycle actions to session/workspace UI, and close the remaining channel-split/fuzz-corpus gates
 
 ## Verification status
 
-Real iPad testing is parked by request. `scripts/check-core.sh` now runs 101 workspace-core and input tests successfully on macOS via SwiftPM, and `xcodebuild` for the generic iOS Simulator destination succeeds with `CODE_SIGNING_ALLOWED=NO`. Device signing still fails with `Certificate installation failed ... Code=-61 "Write permissions error."` even after the login keychain exposes valid Apple Development identities, because Xcode cannot use the private-key ACL over SSH. Device verification will resume from a GUI Xcode session with a one-time "Always Allow" keychain prompt.
+Real iPad testing is parked by request. On 2026-11-04, `scripts/check-core.sh` runs 110 workspace-core and input tests successfully on macOS via SwiftPM; the full `AirDeskTests` target runs 223 tests with 0 failures on an iPhone 16 Pro simulator (iOS 18.6); `xcodebuild build-for-testing` for the generic iOS Simulator destination succeeds with `CODE_SIGNING_ALLOWED=NO`; `protocol/check.sh` passes; and the Rust protocol crate passes 9 tests. The web movement fixture was verified with Deno, while the full web Vitest suite remains CI-covered because Node is unavailable locally. Device signing still fails with `Certificate installation failed ... Code=-61 "Write permissions error."` even after the login keychain exposes valid Apple Development identities, because Xcode cannot use the private-key ACL over SSH. Device verification will resume from a GUI Xcode session with a one-time "Always Allow" keychain prompt.
 
 ## Release 1 scope freeze
 
@@ -34,7 +34,7 @@ Release 1 is a single-device workspace with one authoritative host, persisted de
 | --- | --- | --- | --- | --- |
 | M0-01 | Write `milestones.md` and make it the execution tracker | Done | — | Plan is committed and linked from this file |
 | M0-02 | Update `docs/planning/workspace-fabric-plan.md` for ADR-020 and round-3 decisions | Done | M0-01 | Plan references `WorkspaceHost`, split WASI targets, movement-only input and browser loopback-only |
-| M0-03 | Add protocol guardrails: `flatc --conform`, generated drift, cross-language fixtures | In progress | — | CI fails on schema drift; Swift/TS/Rust fixtures round-trip |
+| M0-03 | Add protocol guardrails: `flatc --conform`, generated drift, cross-language fixtures | Done | — | CI fails on schema drift; Swift/TS/Rust fixtures round-trip |
 | M0-04 | Decide protocol compatibility: negotiated v1 legacy + v12, or hard cutover | Done | — | Decision recorded in ADR-008/010 and milestones |
 | M0-05 | Freeze Release 1 scope | Done | — | Single-device workspace only; fabric deferred to Release 2 |
 
@@ -75,13 +75,13 @@ Exit: provider-neutral placement, explicit world support, no production just-bas
 
 | ID | Task | Status | Depends | Acceptance |
 | --- | --- | --- | --- | --- |
-| IN-01 | 16-byte movement frame (`0xA5`) | In progress | M0-04 | Movement only; no edges; negotiated version; fuzz-tested |
+| IN-01 | 16-byte movement frame (`0xA5`) | Done | M0-04 | Movement only; no edges; negotiated version; fuzz-tested |
 | IN-02 | Channel 1/1R split | In progress | IN-01 | Edges on reliable ordered channel; movement on datagram/ordered WebSocket with `seq` discard |
 | IN-03 | Connection-derived context | Done | IN-02 | Session/generation/controller never trusted from the packed frame |
-| IN-04 | Lease epoch at display sink | In progress | IN-02 | `SessionCoordinator` owns `leaseEpoch`; stale edge returns `EpochRejected`; resets with generation |
+| IN-04 | Lease epoch at display sink | Done | IN-02 | `SessionCoordinator` owns `leaseEpoch`; stale edge returns `EpochRejected`; resets with generation |
 | IN-05 | Shared cursor and pinned roles | Done | IN-04 | Pinned driver cannot move shared cursor or emit keyboard/text/focus |
-| IN-06 | Latency probe | In progress | IN-02 | Channel 0 probe measures latency; no fake per-frame timestamps |
-| IN-07 | Conformance and fuzz gates | In progress | IN-01, IN-02 | Swift/TS/Rust round-trip; `0xA5` collision test; malformed/stale rejection |
+| IN-06 | Latency probe | Done | IN-02 | Channel 0 probe measures latency; no fake per-frame timestamps |
+| IN-07 | Conformance and fuzz gates | In progress | IN-01, IN-02 | Swift/TS/Rust round-trip and fuzz gates added; FlatBuffers `0xA5` collision corpus remains |
 
 Exit: old and new paths negotiate cleanly; no input edge is ever sent on Channel 1.
 
@@ -161,3 +161,5 @@ Exit: endpoints present without authority; browser stays loopback-only in v1.
 | 2026-11-03 | M0-03 | Added protocol conformance/drift workflow, baseline schema and movement fixture; cross-language round-trip remains open | c484d18 |
 | 2026-11-03 | RT-02 / APP-03 / APP-04 / UX-02 | Added provider registry, world pinning, quota enforcement and restore/degraded status copy with core tests | c484d18 |
 | 2026-11-03 | IN-01..06 | Added packed movement frames, protocol negotiation, connection context, latency probe and lease arbitration with core tests | c484d18 |
+| 2026-11-04 | IN-01 / IN-04 / IN-06 | Wired lease ownership into `SessionCoordinator`, reset epochs per generation, added stale-epoch tests and outgoing validation | 15cff36 |
+| 2026-11-04 | M0-03 / IN-07 | Added Rust/TS movement fixture round-trips, Swift fuzz/bit-flip coverage and Rust/web CI jobs | 15cff36 |
