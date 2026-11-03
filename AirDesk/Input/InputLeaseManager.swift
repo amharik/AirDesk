@@ -124,6 +124,10 @@ final class InputLeaseManager {
         beginGeneration(generation, now: now)
     }
 
+    func endSession() {
+        beginSession(sessionId: "", generation: 0)
+    }
+
     func beginGeneration(_ generation: UInt64, now: Date = Date()) {
         self.generation = generation
         leaseEpoch = 0
@@ -304,14 +308,14 @@ final class InputLeaseManager {
         guard let attachment = attachments[context.controllerId] else {
             throw InputLeaseError.controllerMissing(context.controllerId)
         }
+        guard context.leaseEpoch == leaseEpoch else {
+            throw InputLeaseError.epochRejected(currentEpoch: leaseEpoch)
+        }
         if let last = lastSequences[context.controllerId], event.seq <= last {
             throw InputLeaseError.sequenceRejected(
                 controllerId: context.controllerId,
                 sequence: event.seq
             )
-        }
-        guard context.leaseEpoch == leaseEpoch else {
-            throw InputLeaseError.epochRejected(currentEpoch: leaseEpoch)
         }
 
         switch event.type {

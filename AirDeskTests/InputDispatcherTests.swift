@@ -60,6 +60,19 @@ final class InputDispatcherTests: XCTestCase {
         XCTAssertEqual(events[1].text?.count, 4096)
     }
 
+    func testValidationHookCanDropRejectedEdges() {
+        let dispatcher = InputDispatcher(autoFlush: false)
+        var events: [InputEvent] = []
+        dispatcher.transport = ClosureInputTransport { events.append($0) }
+        dispatcher.validateOutgoing = { $0.type != .keyDown }
+
+        dispatcher.startSession(id: "session")
+        dispatcher.click()
+        dispatcher.keyDown("a")
+
+        XCTAssertEqual(events.map(\.type), [.sessionStart, .pointerClick])
+    }
+
     func testEventIsNotSentWithoutTransport() {
         let dispatcher = InputDispatcher(autoFlush: false)
         dispatcher.startSession(id: "session")

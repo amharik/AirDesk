@@ -25,6 +25,7 @@ SOURCES=(
   "AirDesk/Runtime/RuntimeProvider.swift"
   "AirDesk/Runtime/RuntimeRegistry.swift"
   "AirDesk/Input/InputEvent.swift"
+  "AirDesk/Input/InputDispatcher.swift"
   "AirDesk/Input/InputProtocolV2.swift"
   "AirDesk/Input/InputLeaseManager.swift"
   "AirDesk/Protocol/PackedMovementFrame.swift"
@@ -41,6 +42,7 @@ TESTS=(
   "AirDeskTests/ApplicationLifecycleControllerTests.swift"
   "AirDeskTests/RuntimeRegistryTests.swift"
   "AirDeskTests/PackedMovementFrameTests.swift"
+  "AirDeskTests/InputDispatcherTests.swift"
   "AirDeskTests/InputLeaseManagerTests.swift"
 )
 

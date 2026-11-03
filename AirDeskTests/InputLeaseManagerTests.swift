@@ -154,6 +154,43 @@ final class InputLeaseManagerTests: XCTestCase {
         XCTAssertNil(manager.activeControllerId)
     }
 
+    func testStaleEpochWinsOverDuplicateSequence() throws {
+        let manager = makeManager()
+        try manager.attach(controllerId: "c1", deviceId: "d1", role: .primaryDriver, now: start)
+        _ = try manager.requestLease(controllerId: "c1", now: start)
+
+        let event = InputEvent.make(.pointerDown, sessionId: "s", generation: 1, seq: 4, x: 0.2, y: 0.2, button: 0)
+        _ = try manager.validateEdge(event, on: context("c1", epoch: 1), now: start)
+        XCTAssertThrowsError(try manager.validateEdge(event, on: context("c1", epoch: 0), now: start)) { error in
+            XCTAssertEqual(error as? InputLeaseError, .epochRejected(currentEpoch: 1))
+        }
+    }
+
+    func testEndSessionInvalidatesLeaseAndPressedState() throws {
+        let manager = makeManager()
+        try manager.attach(controllerId: "c1", deviceId: "d1", role: .primaryDriver, now: start)
+        _ = try manager.requestLease(controllerId: "c1", now: start)
+        let key = InputEvent.make(.keyDown, sessionId: "s", generation: 1, seq: 1, key: "a")
+        _ = try manager.validateEdge(key, on: context("c1", epoch: 1), now: start)
+
+        manager.endSession()
+
+        XCTAssertEqual(manager.sessionId, "")
+        XCTAssertEqual(manager.generation, 0)
+        XCTAssertEqual(manager.leaseEpoch, 0)
+        XCTAssertNil(manager.activeControllerId)
+        XCTAssertNil(manager.sharedCursor)
+        XCTAssertTrue(manager.pressedKeys(for: "c1").isEmpty)
+        let old = InputConnectionContext(
+            sessionId: "s",
+            generation: 1,
+            deviceId: "d",
+            controllerId: "c1",
+            leaseEpoch: 1
+        )
+        XCTAssertThrowsError(try manager.validateEdge(key, on: old, now: start))
+    }
+
     func testGenerationResetInvalidatesOldContext() throws {
         let manager = makeManager()
         try manager.attach(controllerId: "c1", deviceId: "d1", role: .primaryDriver, now: start)

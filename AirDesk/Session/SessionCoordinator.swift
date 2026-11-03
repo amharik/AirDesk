@@ -88,7 +88,37 @@ final class SessionCoordinator: ObservableObject {
     @Published private(set) var debugJSLog = ""
     @Published private(set) var remoteTerminalStatus = "Idle"
 
+    private(set) var negotiatedInputProtocol = NegotiatedInputProtocol(
+        version: .legacy,
+        packedVersion: nil,
+        usesReliableEdgeChannel: false
+    )
+
+    var leaseEpoch: UInt64 { inputLease.leaseEpoch }
+    var activeInputControllerId: String? { inputLease.activeControllerId }
     var recoveryMaximumAttempts: Int { recovery.maximumAttempts }
+
+    func validateIncomingEdge(
+        _ event: InputEvent,
+        controllerId: String,
+        leaseEpoch: UInt64
+    ) throws -> ValidatedInputEdge {
+        try inputLease.validateEdge(
+            event,
+            on: inputContext(controllerId: controllerId, leaseEpoch: leaseEpoch)
+        )
+    }
+
+    func acceptIncomingMovement(
+        _ frame: PackedMovementFrame,
+        controllerId: String,
+        leaseEpoch: UInt64
+    ) -> PackedMovementFrame? {
+        inputLease.acceptMovement(
+            frame,
+            on: inputContext(controllerId: controllerId, leaseEpoch: leaseEpoch)
+        )
+    }
 
     func adoptBootWorkspace(_ workspace: Workspace) {
         guard phase == .idle else { return }
@@ -106,7 +136,10 @@ final class SessionCoordinator: ObservableObject {
     private let cast: CastSessionCoordinator
     private let entitlements: EntitlementManager
     private let remoteTerminal = RemoteTerminalController()
+    private let inputLease = InputLeaseManager()
+    private var localInputValidationEnabled = false
     private let logger = Logger(subsystem: "com.airdesk.ios", category: "Session")
+    private static let localControllerId = "local"
 
     private var endpoint: (any RuntimeEndpoint)?
     private var runtime: (any DesktopRuntime)?
@@ -135,6 +168,7 @@ final class SessionCoordinator: ObservableObject {
         endpointFactory: (@MainActor (DisplayProfile) -> (any RuntimeEndpoint)?)? = nil
     ) {
         let surface = DesktopSurface()
+        let runtimeHost = SurfaceRuntimeHost(surface: surface)
         self.settings = settings
         self.diagnostics = diagnostics
         self.display = display
@@ -143,14 +177,14 @@ final class SessionCoordinator: ObservableObject {
         self.desktopSurface = surface
         self.dispatcher = InputDispatcher()
         self.inputTransport = SessionInputTransport()
-        self.host = SurfaceRuntimeHost(surface: surface)
+        self.host = runtimeHost
         self.endpointFactory = endpointFactory ?? { profile in
             switch profile.runtime {
             case .castReceiver:
                 return CastRuntimeEndpoint(cast: cast)
             case .phone:
                 return LocalRuntimeEndpoint(
-                    host: SurfaceRuntimeHost(surface: surface),
+                    host: runtimeHost,
                     runtimeFactory: {
                         RuntimeFactory.make(
                             choice: settings.runtimeChoice,
@@ -171,6 +205,9 @@ final class SessionCoordinator: ObservableObject {
         dispatcher.transport = inputTransport
         dispatcher.onEventSent = { [weak self] event in
             self?.diagnostics.recordSent(event)
+        }
+        dispatcher.validateOutgoing = { [weak self] event in
+            self?.shouldSendLocalInput(event) ?? false
         }
 
         desktopSurface.onMessage = { [weak self] message in
@@ -251,7 +288,16 @@ final class SessionCoordinator: ObservableObject {
         stage = .discovering
         sessionId = Self.makeSessionId()
         sessionGeneration += 1
-        workspace = .default
+        localInputValidationEnabled = false
+        inputLease.beginSession(
+            sessionId: sessionId,
+            generation: UInt64(sessionGeneration)
+        )
+        negotiatedInputProtocol = NegotiatedInputProtocol(
+            version: .legacy,
+            packedVersion: nil,
+            usesReliableEdgeChannel: false
+        )
 
         do {
             let resolved = try DisplayProfileResolver.resolve(
@@ -264,6 +310,7 @@ final class SessionCoordinator: ObservableObject {
             phase = .failed
             stage = .idle
             lastError = friendlyMessage(for: error)
+            invalidateInputLease()
             return
         }
 
@@ -288,6 +335,7 @@ final class SessionCoordinator: ObservableObject {
         connectTask?.cancel()
         connectTask = nil
         dispatcher.endSession()
+        invalidateInputLease()
         stopRuntime()
         desktopSurface.onStateChange = nil
         phase = .idle
@@ -312,6 +360,7 @@ final class SessionCoordinator: ObservableObject {
         connectTask?.cancel()
         connectTask = nil
         dispatcher.endSession()
+        invalidateInputLease()
         stopRuntime()
         desktopSurface.returnHome()
         display.detach(surface: desktopSurface)
@@ -682,6 +731,7 @@ final class SessionCoordinator: ObservableObject {
                 desktopSurface.attachHomeIfNeeded()
             }
 
+            try activateLocalInput()
             dispatcher.startSession(
                 id: activeSessionId,
                 generation: sessionGeneration,
@@ -713,6 +763,7 @@ final class SessionCoordinator: ObservableObject {
             diagnostics.mark("session.failed")
             if settings.hapticsEnabled { Haptics.shared.error() }
             stopRuntime()
+            invalidateInputLease()
             inputTransport.route = .endpoint
             desktopSurface.returnHome()
         }
@@ -773,6 +824,50 @@ final class SessionCoordinator: ObservableObject {
         runtimeState = .idle
         remoteTerminalStatus = "Idle"
         lastRemoteTerminalConfigurationKey = ""
+    }
+
+    private func inputContext(
+        controllerId: String,
+        leaseEpoch: UInt64
+    ) -> InputConnectionContext {
+        InputConnectionContext(
+            sessionId: sessionId,
+            generation: UInt64(max(sessionGeneration, 0)),
+            deviceId: UIDevice.current.identifierForVendor?.uuidString ?? "device.local",
+            controllerId: controllerId,
+            leaseEpoch: leaseEpoch
+        )
+    }
+
+    private func shouldSendLocalInput(_ event: InputEvent) -> Bool {
+        guard localInputValidationEnabled else { return true }
+        return (try? inputLease.validateEdge(
+            event,
+            on: inputContext(
+                controllerId: Self.localControllerId,
+                leaseEpoch: inputLease.leaseEpoch
+            )
+        )) != nil
+    }
+
+    private func activateLocalInput() throws {
+        try inputLease.attach(
+            controllerId: Self.localControllerId,
+            deviceId: UIDevice.current.identifierForVendor?.uuidString ?? "device.local",
+            role: .primaryDriver
+        )
+        _ = try inputLease.requestLease(controllerId: Self.localControllerId)
+        localInputValidationEnabled = true
+    }
+
+    private func invalidateInputLease() {
+        localInputValidationEnabled = false
+        inputLease.endSession()
+        negotiatedInputProtocol = NegotiatedInputProtocol(
+            version: .legacy,
+            packedVersion: nil,
+            usesReliableEdgeChannel: false
+        )
     }
 
     private func resolvedMode(for device: DisplayDevice) -> SessionMode {

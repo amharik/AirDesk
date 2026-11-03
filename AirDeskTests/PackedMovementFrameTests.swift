@@ -47,6 +47,24 @@ final class PackedMovementFrameTests: XCTestCase {
         ).encoded())
     }
 
+    func testRandomAndBitFlippedInputsNeverCrash() throws {
+        var generator = SeededGenerator(seed: 0xA1DE5C)
+        for _ in 0..<5_000 {
+            let length = Int.random(in: 0...32, using: &generator)
+            let data = Data((0..<length).map { _ in
+                UInt8.random(in: 0...UInt8.max, using: &generator)
+            })
+            _ = try? PackedMovementFrame.decode(data)
+        }
+
+        let valid = try bytes("a52407002a0000000000803e0000403f")
+        for bit in 0..<(valid.count * 8) {
+            var mutated = valid
+            mutated[bit / 8] ^= 1 << UInt8(bit % 8)
+            _ = try? PackedMovementFrame.decode(mutated)
+        }
+    }
+
     func testNegotiatesPackedV12AndFallsBackToLegacy() throws {
         let modern = try InputProtocolNegotiator.negotiate(local: .current, remote: .current)
         XCTAssertEqual(modern.version, .packedMovement)
@@ -110,6 +128,16 @@ final class PackedMovementFrameTests: XCTestCase {
 
         let wrongGeneration = InputEvent.make(.pointerMove, sessionId: "session-1", generation: 8, seq: 3, x: 0.5, y: 0.5)
         XCTAssertThrowsError(try InputContextResolver.resolve(wrongGeneration, on: context))
+
+        let validMovement = PackedMovementFrame(leaseEpochLow: 3, seq: 4, x: 0.5, y: 0.5)
+        XCTAssertEqual(try InputContextResolver.resolveMovement(validMovement, on: context), validMovement)
+        let staleMovement = PackedMovementFrame(leaseEpochLow: 2, seq: 5, x: 0.5, y: 0.5)
+        XCTAssertThrowsError(try InputContextResolver.resolveMovement(staleMovement, on: context)) { error in
+            XCTAssertEqual(
+                error as? InputProtocolError,
+                .epochRejected(currentEpoch: 3, received: 2)
+            )
+        }
     }
 
     func testLatencyProbeUsesControlExchange() throws {
@@ -141,5 +169,20 @@ final class PackedMovementFrameTests: XCTestCase {
 private extension UInt32 {
     var littleEndianBytes: [UInt8] {
         withUnsafeBytes(of: littleEndian) { Array($0) }
+    }
+}
+
+private struct SeededGenerator: RandomNumberGenerator {
+    private var state: UInt64
+
+    init(seed: UInt64) {
+        state = seed == 0 ? 0x9E37_79B9_7F4A_7C15 : seed
+    }
+
+    mutating func next() -> UInt64 {
+        state ^= state << 13
+        state ^= state >> 7
+        state ^= state << 17
+        return state
     }
 }

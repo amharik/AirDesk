@@ -39,6 +39,7 @@ enum InputProtocolError: Error, Equatable, LocalizedError {
     case unauthenticatedConnection
     case sessionMismatch
     case generationMismatch(expected: UInt64, received: UInt64)
+    case epochRejected(currentEpoch: UInt64, received: UInt64)
     case controllerMismatch
     case invalidCoordinates
 
@@ -62,6 +63,8 @@ enum InputProtocolError: Error, Equatable, LocalizedError {
             return "Input belongs to a different session."
         case .generationMismatch(let expected, let received):
             return "Input generation \(received) does not match session generation \(expected)."
+        case .epochRejected(let currentEpoch, let received):
+            return "Input lease epoch \(received) is stale; current epoch is \(currentEpoch)."
         case .controllerMismatch:
             return "Input belongs to a different controller."
         case .invalidCoordinates:
@@ -212,8 +215,8 @@ enum InputContextResolver {
             throw InputProtocolError.unauthenticatedConnection
         }
         guard UInt16(truncatingIfNeeded: context.leaseEpoch) == frame.leaseEpochLow else {
-            throw InputProtocolError.generationMismatch(
-                expected: context.leaseEpoch,
+            throw InputProtocolError.epochRejected(
+                currentEpoch: context.leaseEpoch,
                 received: UInt64(frame.leaseEpochLow)
             )
         }

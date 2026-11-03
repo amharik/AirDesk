@@ -30,6 +30,7 @@ final class InputDispatcher {
     private(set) var sequence: Int = 0
     var transport: (any InputTransport)?
     var onEventSent: ((InputEvent) -> Void)?
+    var validateOutgoing: ((InputEvent) -> Bool)?
 
     private var pendingPoint: CGPoint?
     private var flushTask: Task<Void, Never>?
@@ -284,6 +285,10 @@ final class InputDispatcher {
         event.generation = generation
         guard let validated = try? event.validated() else {
             print("[AirDeskDebug] dispatch drop \(event.type) invalid")
+            return
+        }
+        guard validateOutgoing?(validated) ?? true else {
+            print("[AirDeskDebug] dispatch drop \(event.type) rejected")
             return
         }
         print("[AirDeskDebug] dispatch \(validated.type)")
