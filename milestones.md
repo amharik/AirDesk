@@ -17,8 +17,8 @@ This file is the implementation tracker. `docs/adr/README.md` remains authoritat
 ## Current focus
 
 - Milestone: `M1`
-- Work item: `M0-02` refresh the workspace fabric plan
-- Next: `M1` real-device exit verification, `M2` runtime provider registry
+- Work item: `M1` real-device exit verification (blocked) and `RT-01` provider model review
+- Next: `RT-02` runtime provider registry, `UX-02` restore and degraded-mode UI copy
 
 ## Verification blocker
 
@@ -29,7 +29,7 @@ Real iPad tests are currently blocked over SSH: the Mac login keychain is locked
 | ID | Task | Status | Depends | Acceptance |
 | --- | --- | --- | --- | --- |
 | M0-01 | Write `milestones.md` and make it the execution tracker | Done | — | Plan is committed and linked from this file |
-| M0-02 | Update `docs/planning/workspace-fabric-plan.md` for ADR-020 and round-3 decisions | Pending | M0-01 | Plan references `WorkspaceHost`, split WASI targets, movement-only input and browser loopback-only |
+| M0-02 | Update `docs/planning/workspace-fabric-plan.md` for ADR-020 and round-3 decisions | Done | M0-01 | Plan references `WorkspaceHost`, split WASI targets, movement-only input and browser loopback-only |
 | M0-03 | Add protocol guardrails: `flatc --conform`, generated drift, cross-language fixtures | Pending | — | CI fails on schema drift; Swift/TS/Rust fixtures round-trip |
 | M0-04 | Decide protocol compatibility: negotiated v1 legacy + v12, or hard cutover | Pending | — | Decision recorded in ADR-008/010 and milestones |
 | M0-05 | Freeze Release 1 scope | Pending | — | Single-device workspace only; fabric deferred to Release 2 |
@@ -152,3 +152,4 @@ Exit: endpoints present without authority; browser stays loopback-only in v1.
 | 2026-11-03 | WS-05 | Hardened future-schema and torn-journal recovery; added relaunch/disk-failure tests | c9150ad |
 | 2026-11-03 | WS-06 | Covered all syncable fields with explicit merge classes; unknown paths remain manual | df6d43f |
 | 2026-11-03 | UX-01 | Bootstrapped app state from the manifest and added truthful restore reports | ff63293 |
+| 2026-11-03 | M0-02 | Refreshed the fabric plan for `WorkspaceHost`, split WASI targets, movement-only input and loopback-only browser hosting | 676617c |
