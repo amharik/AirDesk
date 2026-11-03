@@ -31,40 +31,40 @@ enum ControlType : ubyte {
 }
 
 table InputEvent {
-  version:uint = 1;
-  type:EventType;
-  session_id:string (required);
-  generation:uint = 0;
-  seq:uint;
-  timestamp:ulong;
-  x:float;
-  y:float;
-  dx:float;
-  dy:float;
-  button:ubyte;
-  click_count:ubyte = 1;
-  key:string;
-  code:string;
-  modifiers:[string];
-  text:string;
-  width:float;
-  height:float;
-  target:string;
+  version:uint = 1 (id: 0);
+  type:EventType (id: 1);
+  session_id:string (required, id: 2);
+  generation:uint = 0 (id: 3);
+  seq:uint (id: 4);
+  timestamp:ulong (id: 5);
+  x:float (id: 6);
+  y:float (id: 7);
+  dx:float (id: 8);
+  dy:float (id: 9);
+  button:ubyte (id: 10);
+  click_count:ubyte = 1 (id: 11);
+  key:string (id: 12);
+  code:string (id: 13);
+  modifiers:[string] (id: 14);
+  text:string (id: 15);
+  width:float (id: 16);
+  height:float (id: 17);
+  target:string (id: 18);
 }
 
 table ControlMessage {
-  version:uint = 1;
-  type:ControlType;
-  session_id:string (required);
-  generation:uint = 0;
-  seq:uint;
-  timestamp:ulong;
-  appearance:string;
-  message:string;
-  action:string;
-  width:float;
-  height:float;
-  code:string;
+  version:uint = 1 (id: 0);
+  type:ControlType (id: 1);
+  session_id:string (required, id: 2);
+  generation:uint = 0 (id: 3);
+  seq:uint (id: 4);
+  timestamp:ulong (id: 5);
+  appearance:string (id: 6);
+  message:string (id: 7);
+  action:string (id: 8);
+  width:float (id: 9);
+  height:float (id: 10);
+  code:string (id: 11);
 }
 
 union MessagePayload {
@@ -73,8 +73,8 @@ union MessagePayload {
 }
 
 table Envelope {
-  version:uint = 1;
-  payload:MessagePayload;
+  version:uint = 1 (id: 0);
+  payload:MessagePayload (id: 2);
 }
 
 root_type Envelope;

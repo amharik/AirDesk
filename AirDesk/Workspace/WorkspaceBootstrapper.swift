@@ -109,7 +109,7 @@ final class WorkspaceBootstrapper {
                 return .reconnected(instanceId: instance.id)
             case .starting:
                 return .restarted(instanceId: instance.id)
-            case .stopped, .suspended:
+            case .stopped, .suspended, .suspendedCheckpointed:
                 return .restored(instanceId: instance.id)
             case .failed:
                 return .lost(

@@ -16,13 +16,17 @@ This file is the implementation tracker. `docs/adr/README.md` remains authoritat
 
 ## Current focus
 
-- Milestone: `M1`
-- Work item: `M1` real-device exit verification (blocked) and `RT-01` provider model review
-- Next: `RT-02` runtime provider registry, `UX-02` restore and degraded-mode UI copy
+- Milestone: `M2` and `M3`
+- Work item: `RT-02` is complete; finish provider integration in `RT-03..06`, then wire the `APP-*` lifecycle and `IN-*` protocol paths into the running app
+- Next: replace the in-memory provider adapters with real Wanix/native execution, connect lifecycle actions to session/workspace UI, and finish protocol fixture/fuzz gates
 
-## Verification blocker
+## Verification status
 
-Real iPad tests are currently blocked over SSH: the Mac login keychain is locked (`User interaction is not allowed`), so Xcode free provisioning cannot install the iOS Development certificate for team `4PL99B52DB`. The iOS simulator build compiles the app and test target, and the workspace core's 71 unit tests pass on macOS via SwiftPM (`swift test`). To run tests on `Hari's iPad`, unlock the login keychain in a GUI session or run the test from Xcode.
+Real iPad testing is parked by request. `scripts/check-core.sh` now runs 101 workspace-core and input tests successfully on macOS via SwiftPM, and `xcodebuild` for the generic iOS Simulator destination succeeds with `CODE_SIGNING_ALLOWED=NO`. Device signing still fails with `Certificate installation failed ... Code=-61 "Write permissions error."` even after the login keychain exposes valid Apple Development identities, because Xcode cannot use the private-key ACL over SSH. Device verification will resume from a GUI Xcode session with a one-time "Always Allow" keychain prompt.
+
+## Release 1 scope freeze
+
+Release 1 is a single-device workspace with one authoritative host, persisted desired state, truthful recovery, local runtime providers, and the input protocol compatibility path. It includes no fabric membership, no multi-device synchronization, no capability grants between devices, no browser endpoint and no distributed placement. Those remain Release 2–5 work and must not be pulled into Release 1 acceptance.
 
 ## M0 — Plan reset and guardrails
 
@@ -30,9 +34,9 @@ Real iPad tests are currently blocked over SSH: the Mac login keychain is locked
 | --- | --- | --- | --- | --- |
 | M0-01 | Write `milestones.md` and make it the execution tracker | Done | — | Plan is committed and linked from this file |
 | M0-02 | Update `docs/planning/workspace-fabric-plan.md` for ADR-020 and round-3 decisions | Done | M0-01 | Plan references `WorkspaceHost`, split WASI targets, movement-only input and browser loopback-only |
-| M0-03 | Add protocol guardrails: `flatc --conform`, generated drift, cross-language fixtures | Pending | — | CI fails on schema drift; Swift/TS/Rust fixtures round-trip |
-| M0-04 | Decide protocol compatibility: negotiated v1 legacy + v12, or hard cutover | Pending | — | Decision recorded in ADR-008/010 and milestones |
-| M0-05 | Freeze Release 1 scope | Pending | — | Single-device workspace only; fabric deferred to Release 2 |
+| M0-03 | Add protocol guardrails: `flatc --conform`, generated drift, cross-language fixtures | In progress | — | CI fails on schema drift; Swift/TS/Rust fixtures round-trip |
+| M0-04 | Decide protocol compatibility: negotiated v1 legacy + v12, or hard cutover | Done | — | Decision recorded in ADR-008/010 and milestones |
+| M0-05 | Freeze Release 1 scope | Done | — | Single-device workspace only; fabric deferred to Release 2 |
 
 ## M1 — Workspace core (Release 1)
 
@@ -54,16 +58,16 @@ Exit: the app boots from a manifest instead of `Workspace.default`, survives rel
 
 | ID | Task | Status | Depends | Acceptance |
 | --- | --- | --- | --- | --- |
-| RT-02 | Runtime provider registry | Pending | M1 | Providers advertise worlds/capabilities; selection and unavailable states are typed |
-| RT-03 | Wanix provider adapter extraction | Pending | RT-02 | Wanix lifecycle is provider-managed; workspace does not read Wanix internals |
+| RT-02 | Runtime provider registry | Done | M1 | Providers advertise worlds/capabilities; selection and unavailable states are typed |
+| RT-03 | Wanix provider adapter extraction | In progress | RT-02 | Wanix lifecycle is provider-managed; workspace does not read Wanix internals |
 | RT-04 | Native provider path | Pending | RT-02 | Native execution works without Wanix |
-| RT-05 | Per-provider WASI worlds | Pending | RT-02 | Wanix runs `wasip1`; native runs `wasi-cli@0.2`; unsupported pairs fail closed |
+| RT-05 | Per-provider WASI worlds | In progress | RT-02 | Wanix runs `wasip1`; native runs `wasi-cli@0.2`; unsupported pairs fail closed |
 | RT-06 | Single-threaded profile | Pending | RT-03 | Starts without `SharedArrayBuffer`; sync WASI fails with `SynchronizationUnavailable` |
-| APP-02 | Application manifest and lifecycle | Pending | RT-02, WS-01 | Install, start, suspend, stop and observed status work |
-| APP-03 | World/version pinning | Pending | APP-02, RT-05 | Manifest pins the qualified `(provider, world)` pair |
-| APP-04 | Quota enforcement matrix | Pending | APP-02 | Unenforceable required quota fails placement with `QuotaUnenforceable` |
-| APP-05 | Cooperative checkpoint lifecycle | Pending | APP-02 | `SUSPENDED_CHECKPOINTED` only after app checkpoint; no process snapshot |
-| UX-02 | Restore and degraded-mode UI copy | Pending | UX-01, HOST-01 | Host-degraded and recovery outcomes are visible and truthful |
+| APP-02 | Application manifest and lifecycle | In progress | RT-02, WS-01 | Install, start, suspend, stop and observed status work |
+| APP-03 | World/version pinning | Done | APP-02, RT-05 | Manifest pins the qualified `(provider, world)` pair |
+| APP-04 | Quota enforcement matrix | Done | APP-02 | Unenforceable required quota fails placement with `QuotaUnenforceable` |
+| APP-05 | Cooperative checkpoint lifecycle | In progress | APP-02 | `SUSPENDED_CHECKPOINTED` only after app checkpoint; no process snapshot |
+| UX-02 | Restore and degraded-mode UI copy | Done | UX-01, HOST-01 | Host-degraded and recovery outcomes are visible and truthful |
 
 Exit: provider-neutral placement, explicit world support, no production just-bash path.
 
@@ -71,13 +75,13 @@ Exit: provider-neutral placement, explicit world support, no production just-bas
 
 | ID | Task | Status | Depends | Acceptance |
 | --- | --- | --- | --- | --- |
-| IN-01 | 16-byte movement frame (`0xA5`) | Pending | M0-04 | Movement only; no edges; negotiated version; fuzz-tested |
-| IN-02 | Channel 1/1R split | Pending | IN-01 | Edges on reliable ordered channel; movement on datagram/ordered WebSocket with `seq` discard |
-| IN-03 | Connection-derived context | Pending | IN-02 | Session/generation/controller never trusted from the packed frame |
-| IN-04 | Lease epoch at display sink | Pending | IN-02 | `SessionCoordinator` owns `leaseEpoch`; stale edge returns `EpochRejected`; resets with generation |
-| IN-05 | Shared cursor and pinned roles | Pending | IN-04 | Pinned driver cannot move shared cursor or emit keyboard/text/focus |
-| IN-06 | Latency probe | Pending | IN-02 | Channel 0 probe measures latency; no fake per-frame timestamps |
-| IN-07 | Conformance and fuzz gates | Pending | IN-01, IN-02 | Swift/TS/Rust round-trip; `0xA5` collision test; malformed/stale rejection |
+| IN-01 | 16-byte movement frame (`0xA5`) | In progress | M0-04 | Movement only; no edges; negotiated version; fuzz-tested |
+| IN-02 | Channel 1/1R split | In progress | IN-01 | Edges on reliable ordered channel; movement on datagram/ordered WebSocket with `seq` discard |
+| IN-03 | Connection-derived context | Done | IN-02 | Session/generation/controller never trusted from the packed frame |
+| IN-04 | Lease epoch at display sink | In progress | IN-02 | `SessionCoordinator` owns `leaseEpoch`; stale edge returns `EpochRejected`; resets with generation |
+| IN-05 | Shared cursor and pinned roles | Done | IN-04 | Pinned driver cannot move shared cursor or emit keyboard/text/focus |
+| IN-06 | Latency probe | In progress | IN-02 | Channel 0 probe measures latency; no fake per-frame timestamps |
+| IN-07 | Conformance and fuzz gates | In progress | IN-01, IN-02 | Swift/TS/Rust round-trip; `0xA5` collision test; malformed/stale rejection |
 
 Exit: old and new paths negotiate cleanly; no input edge is ever sent on Channel 1.
 
@@ -153,3 +157,7 @@ Exit: endpoints present without authority; browser stays loopback-only in v1.
 | 2026-11-03 | WS-06 | Covered all syncable fields with explicit merge classes; unknown paths remain manual | df6d43f |
 | 2026-11-03 | UX-01 | Bootstrapped app state from the manifest and added truthful restore reports | ff63293 |
 | 2026-11-03 | M0-02 | Refreshed the fabric plan for `WorkspaceHost`, split WASI targets, movement-only input and loopback-only browser hosting | 676617c |
+| 2026-11-03 | M0-04 / M0-05 | Recorded negotiated v1+v12 compatibility and froze Release 1 scope | — |
+| 2026-11-03 | M0-03 | Added protocol conformance/drift workflow, baseline schema and movement fixture; cross-language round-trip remains open | — |
+| 2026-11-03 | RT-02 / APP-03 / APP-04 / UX-02 | Added provider registry, world pinning, quota enforcement and restore/degraded status copy with core tests | — |
+| 2026-11-03 | IN-01..06 | Added packed movement frames, protocol negotiation, connection context, latency probe and lease arbitration with core tests | — |

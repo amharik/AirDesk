@@ -11,6 +11,10 @@
 - **Related:** ADR-001, ADR-002, ADR-005, ADR-007, ADR-010, ADR-015, ADR-017
 - **Counters:** `docs/architecture/identifiers-and-counters.md`
 
+## Compatibility decision (M0-04)
+
+Negotiate both the legacy v1 JSON envelope and PackedPointerFrame v12. A session uses v12 only when both peers advertise v12, both advertise packed movement version 12, and both support the reliable edge channel; every other session falls back to legacy v1. There is no hard cutover in Release 1. Legacy v1 remains read-only compatibility surface and must not grow new event types. The decision is implemented by `InputProtocolNegotiator`, `InputChannelRouter` and `PackedMovementFrame`.
+
 ## Decision
 
 Adopt one canonical input vocabulary shared by native gestures, the Air Cursor controller, hardware keyboards, the web shell, Cast, and future remote sessions.

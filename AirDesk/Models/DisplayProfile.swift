@@ -1,12 +1,5 @@
 import Foundation
 
-enum RuntimeLocation: String, Codable, CaseIterable, Sendable {
-    case phone
-    case castReceiver
-    case androidDevice
-    case remote
-}
-
 enum DisplayTarget: String, Codable, CaseIterable, Sendable {
     case phone
     case externalScene

@@ -27,6 +27,18 @@ final class AppEnvironment: ObservableObject {
     @Published var isProPresented = false
     @Published private(set) var workspaceRestoreReport: WorkspaceRestoreReport?
     @Published private(set) var workspaceRestoreError: String?
+    @Published private(set) var workspaceHostState: WorkspaceHostState = .active
+
+    var workspaceStatusPresentation: WorkspaceStatusPresentation? {
+        if let workspaceRestoreError {
+            return WorkspaceStatusPresentation(
+                title: "Workspace unavailable",
+                detail: workspaceRestoreError,
+                severity: .error
+            )
+        }
+        return workspaceRestoreReport?.presentation ?? workspaceHostState.presentation
+    }
 
     private var workspaceBootstrapper: WorkspaceBootstrapper?
     private var bootstrapped = false
@@ -164,6 +176,7 @@ final class AppEnvironment: ObservableObject {
             )
             workspaceBootstrapper = bootstrapper
             workspaceRestoreReport = report
+            workspaceHostState = bootstrapper.host.state
             session.adoptBootWorkspace(
                 Workspace(
                     id: report.workspaceId,

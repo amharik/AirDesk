@@ -1,0 +1,14 @@
+[
+  {
+    "name": "movement-v12",
+    "hex": "a52407002a0000000000803e0000403f",
+    "expected": {
+      "leaseEpochLow": 7,
+      "seq": 42,
+      "x": 0.25,
+      "y": 0.75,
+      "buttonMask": 1,
+      "modifiers": ["shift"]
+    }
+  }
+]

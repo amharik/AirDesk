@@ -42,6 +42,16 @@ struct RootView: View {
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
             }
+
+            VStack {
+                if let status = environment.workspaceStatusPresentation {
+                    WorkspaceStatusBanner(presentation: status)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                }
+                Spacer()
+            }
+            .allowsHitTesting(false)
         }
         .animation(.easeInOut(duration: 0.28), value: session.phase)
         .sheet(isPresented: $environment.isSettingsPresented) {
@@ -117,5 +127,54 @@ struct OnboardingView: View {
                 }
         }
         .tint(ADTheme.accent)
+    }
+}
+
+private struct WorkspaceStatusBanner: View {
+    let presentation: WorkspaceStatusPresentation
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(tint)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(presentation.title)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white)
+                Text(presentation.detail)
+                    .font(.system(size: 11))
+                    .foregroundStyle(ADTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.black.opacity(0.78))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .strokeBorder(tint.opacity(0.35), lineWidth: 0.8)
+                }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var tint: Color {
+        switch presentation.severity {
+        case .info: return ADTheme.accent
+        case .warning: return ADTheme.amber
+        case .error: return .red
+        }
+    }
+
+    private var icon: String {
+        switch presentation.severity {
+        case .info: return "info.circle.fill"
+        case .warning: return "exclamationmark.triangle.fill"
+        case .error: return "xmark.octagon.fill"
+        }
     }
 }

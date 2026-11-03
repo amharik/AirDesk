@@ -190,6 +190,19 @@ struct WorkspaceExecutionBinding: Codable, Equatable, Sendable {
     var instanceId: String
     var preferredProviderId: String
     var fallbackPolicy: WorkspaceFallbackPolicy
+    var pinnedWorld: String?
+
+    init(
+        instanceId: String,
+        preferredProviderId: String,
+        fallbackPolicy: WorkspaceFallbackPolicy,
+        pinnedWorld: String? = nil
+    ) {
+        self.instanceId = instanceId
+        self.preferredProviderId = preferredProviderId
+        self.fallbackPolicy = fallbackPolicy
+        self.pinnedWorld = pinnedWorld
+    }
 }
 
 enum WorkspaceFallbackPolicy: String, Codable, CaseIterable, Sendable {
@@ -405,6 +418,12 @@ extension WorkspaceManifest {
                 binding.preferredProviderId,
                 field: "executionBindings.\(binding.instanceId).preferredProviderId"
             )
+            if let pinnedWorld = binding.pinnedWorld {
+                try Self.requireNonEmpty(
+                    pinnedWorld,
+                    field: "executionBindings.\(binding.instanceId).pinnedWorld"
+                )
+            }
         }
 
         for resource in resources {

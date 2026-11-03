@@ -4,6 +4,7 @@ enum WorkspaceObservedState: String, Codable, CaseIterable, Sendable {
     case starting
     case running
     case suspended
+    case suspendedCheckpointed = "suspended-checkpointed"
     case stopped
     case failed
     case unavailable

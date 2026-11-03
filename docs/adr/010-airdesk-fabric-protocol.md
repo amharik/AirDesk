@@ -48,6 +48,8 @@ ADFP traffic is partitioned into five logical channel classes. The transport bin
 | 2..N | Runtime and PTY streams | `stdin`, `stdout`, `stderr`, `resize`, `signal` | Reliable bidirectional streams with per-stream byte credit |
 | M..K | VFS resource mounts | Plan 9-inspired ADFP `ResourceRpc` ops (`Attach` … `Clunk`), not 9P2000 tags | Reliable bidirectional streams |
 
+Version negotiation follows ADR-008's M0-04 decision: v1 legacy and v12 packed movement coexist during Release 1. Channel 1 is used only after both peers select v12 and advertise packed version 12; older peers use the legacy v1 envelope. Unknown or unnegotiated `0xA5` frames are rejected, never guessed.
+
 Receivers route by channel first: Channel 1 is packed movement only and Channel 1R is FlatBuffers edges only; neither channel is multiplexed. A heavy build on a runtime stream cannot block interactive input on Channel 1/1R or resource mounts on another stream.
 
 ### 2. Module set is deliberately scoped

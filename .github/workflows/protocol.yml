@@ -1,0 +1,28 @@
+name: Protocol
+
+on:
+  push:
+    paths:
+      - "protocol/**"
+      - "AirDesk/Protocol/Generated/**"
+      - "web/src/protocol/generated/**"
+      - ".github/workflows/protocol.yml"
+  pull_request:
+    paths:
+      - "protocol/**"
+      - "AirDesk/Protocol/Generated/**"
+      - "web/src/protocol/generated/**"
+      - ".github/workflows/protocol.yml"
+
+jobs:
+  schema:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build pinned flatc
+        run: |
+          git clone --depth 1 --branch v25.12.19 https://github.com/google/flatbuffers.git /tmp/flatbuffers
+          cmake -S /tmp/flatbuffers -B /tmp/flatbuffers/build -DCMAKE_BUILD_TYPE=Release -DFLATBUFFERS_BUILD_TESTS=OFF
+          cmake --build /tmp/flatbuffers/build --target flatc -j 2
+          echo "FLATC=/tmp/flatbuffers/build/flatc" >> "$GITHUB_ENV"
+      - run: ./protocol/check.sh
