@@ -216,6 +216,12 @@ scripts/real-ssh-smoke.sh
 - [ADR-006: Remote windowing](docs/adr/006-remote-windowing.md)
 - [ADR-007: WinBox and WTerm](docs/adr/007-winbox-and-wterm.md)
 - [ADR-008: Input and control protocol](docs/adr/008-input-and-control-protocol.md)
+- [ADR-009: Workspace persistence and recovery](docs/adr/009-workspace-persistence-and-recovery.md)
+- [ADR-010: AirDesk Fabric Protocol](docs/adr/010-airdesk-fabric-protocol.md)
+- [ADR-011: Device identity, discovery and pairing](docs/adr/011-device-identity-discovery-pairing.md)
+- [ADR-012: Capability advertisement and authorization](docs/adr/012-capability-advertisement-and-authorization.md)
+- [ADR-013: Multi-transport and connectivity](docs/adr/013-multi-transport-and-connectivity.md)
+- [Workspace Fabric plan](docs/planning/workspace-fabric-plan.md)
 
 ## License
 
