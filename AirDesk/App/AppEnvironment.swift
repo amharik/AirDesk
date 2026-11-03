@@ -25,7 +25,10 @@ final class AppEnvironment: ObservableObject {
     @Published var isSettingsPresented = false
     @Published var isDiagnosticsPresented = false
     @Published var isProPresented = false
+    @Published private(set) var workspaceRestoreReport: WorkspaceRestoreReport?
+    @Published private(set) var workspaceRestoreError: String?
 
+    private var workspaceBootstrapper: WorkspaceBootstrapper?
     private var bootstrapped = false
     private var cancellables = Set<AnyCancellable>()
     #if DEBUG
@@ -93,6 +96,7 @@ final class AppEnvironment: ObservableObject {
         entitlements.start()
         Haptics.shared.prepare()
         diagnostics.mark("app.launch")
+        bootstrapWorkspace()
 
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
@@ -148,6 +152,29 @@ final class AppEnvironment: ObservableObject {
         }
         NativeSmokeTest.runIfRequested(session: session)
         #endif
+    }
+
+    private func bootstrapWorkspace() {
+        let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? "device.local"
+        do {
+            let bootstrapper = try WorkspaceBootstrapper.applicationSupport(deviceId: deviceId)
+            let report = try bootstrapper.restore(
+                owner: WorkspaceOwner(identityId: "person.local", displayName: "Local User"),
+                name: "Wanix"
+            )
+            workspaceBootstrapper = bootstrapper
+            workspaceRestoreReport = report
+            session.adoptBootWorkspace(
+                Workspace(
+                    id: report.workspaceId,
+                    name: report.workspaceName,
+                    runtime: settings.runtimeChoice.title,
+                    createdAt: report.createdAt
+                )
+            )
+        } catch {
+            workspaceRestoreError = error.localizedDescription
+        }
     }
 
     #if DEBUG

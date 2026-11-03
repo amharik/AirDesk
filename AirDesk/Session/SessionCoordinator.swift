@@ -90,6 +90,11 @@ final class SessionCoordinator: ObservableObject {
 
     var recoveryMaximumAttempts: Int { recovery.maximumAttempts }
 
+    func adoptBootWorkspace(_ workspace: Workspace) {
+        guard phase == .idle else { return }
+        self.workspace = workspace
+    }
+
     let desktopSurface: DesktopSurface
     let dispatcher: InputDispatcher
     private let inputTransport: SessionInputTransport

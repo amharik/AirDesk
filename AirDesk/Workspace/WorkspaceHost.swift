@@ -38,6 +38,12 @@ final class WorkspaceHost {
         return currentState
     }
 
+    var currentManifest: WorkspaceManifest? {
+        lock.lock()
+        defer { lock.unlock() }
+        return cachedManifest
+    }
+
     var hostEpoch: UInt64? {
         lock.lock()
         defer { lock.unlock() }
