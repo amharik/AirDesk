@@ -164,4 +164,4 @@ Exit: endpoints present without authority; browser stays loopback-only in v1.
 | 2026-11-04 | IN-01 / IN-04 / IN-06 | Wired lease ownership into `SessionCoordinator`, reset epochs per generation, added stale-epoch tests and outgoing validation | 15cff36 |
 | 2026-11-04 | M0-03 / IN-07 | Added Rust/TS movement fixture round-trips, Swift fuzz/bit-flip coverage and Rust/web CI jobs | 15cff36 |
 | 2026-11-04 | INPUT-01 | Covered distinct primary/pinned cursors and single-keyboard-focus arbitration | 44f1945 |
-| 2026-11-04 | RT-03 | Routed sessions through async desktop runtime providers, removed direct `RuntimeFactory` use and added provider/lifecycle tests | pending |
+| 2026-11-04 | RT-03 | Routed sessions through async desktop runtime providers, removed direct `RuntimeFactory` use and added provider/lifecycle tests | f184bdf |
