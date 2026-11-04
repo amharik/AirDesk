@@ -12,6 +12,9 @@ struct SettingsView: View {
             Form {
                 proSection
                 sessionSection
+                if let workspaceLifecycle = environment.workspaceLifecycle {
+                    WorkspaceApplicationsSection(store: workspaceLifecycle)
+                }
                 remoteTerminalSection
                 displaySection
                 cursorSection
@@ -474,6 +477,173 @@ struct SettingsView: View {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
         return "\(version) (\(build))"
+    }
+}
+
+private struct WorkspaceApplicationsSection: View {
+    @ObservedObject var store: WorkspaceLifecycleStore
+
+    var body: some View {
+        Section {
+            if let error = store.errorMessage {
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(ADTheme.danger)
+                        .padding(.top, 2)
+                    Text(error)
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(ADTheme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.vertical, 2)
+            }
+
+            if store.instances.isEmpty {
+                Text("No workspace applications are installed.")
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(ADTheme.textTertiary)
+                    .padding(.vertical, 2)
+            } else {
+                ForEach(store.instances) { instance in
+                    row(instance)
+                }
+            }
+        } header: {
+            Text("WORKSPACE APPLICATIONS")
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .tracking(1.2)
+                .foregroundStyle(ADTheme.textTertiary)
+        } footer: {
+            Text("Observed state comes from the runtime provider. Checkpoint only succeeds when the application supports an app-cooperative checkpoint; AirDesk never snapshots a process or JavaScript heap.")
+        }
+        .listRowBackground(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.white.opacity(0.045))
+        )
+    }
+
+    private func row(_ instance: WorkspaceApplicationInstancePresentation) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(tint(instance.observedState).opacity(0.12))
+                    .frame(width: 34, height: 34)
+                Image(systemName: icon(instance.observedState))
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(tint(instance.observedState))
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(instance.applicationName)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.9))
+                        .lineLimit(1)
+                    Text(instance.applicationVersion)
+                        .font(.system(size: 9, weight: .medium, design: .monospaced))
+                        .foregroundStyle(ADTheme.textTertiary)
+                }
+                Text(detail(instance))
+                    .font(.system(size: 11))
+                    .foregroundStyle(ADTheme.textTertiary)
+                    .lineLimit(2)
+                if let lastError = instance.lastError {
+                    Text(lastError)
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(ADTheme.danger)
+                        .lineLimit(2)
+                }
+            }
+
+            Spacer(minLength: 6)
+
+            if store.busyInstanceId == instance.id {
+                ProgressView()
+                    .tint(ADTheme.accent)
+            } else {
+                Menu {
+                    Button {
+                        Task { await store.start(instance.id) }
+                    } label: {
+                        Label("Start", systemImage: "play.fill")
+                    }
+                    .disabled(!instance.canStart)
+
+                    Button {
+                        Task { await store.suspend(instance.id) }
+                    } label: {
+                        Label("Suspend", systemImage: "pause.fill")
+                    }
+                    .disabled(!instance.canSuspend)
+
+                    Button {
+                        Task { await store.checkpoint(instance.id) }
+                    } label: {
+                        Label("Checkpoint", systemImage: "checkmark.seal")
+                    }
+                    .disabled(!instance.canCheckpoint)
+
+                    Button {
+                        Task { await store.resume(instance.id) }
+                    } label: {
+                        Label("Resume", systemImage: "forward.fill")
+                    }
+                    .disabled(!instance.canResume)
+
+                    Button(role: .destructive) {
+                        Task { await store.stop(instance.id) }
+                    } label: {
+                        Label("Stop", systemImage: "stop.fill")
+                    }
+                    .disabled(!instance.canStop)
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundStyle(ADTheme.textSecondary)
+                }
+                .disabled(store.busyInstanceId != nil)
+            }
+
+            CapsuleBadge(
+                text: instance.observedState.title,
+                tint: tint(instance.observedState)
+            )
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func detail(_ instance: WorkspaceApplicationInstancePresentation) -> String {
+        var parts = ["Desired \(instance.desiredState.title)"]
+        if let provider = instance.runtimeProviderId {
+            parts.append(provider)
+        }
+        if instance.observedState == .suspendedCheckpointed {
+            parts.append("Cooperative checkpoint")
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    private func tint(_ state: WorkspaceObservedState) -> Color {
+        switch state {
+        case .starting: return ADTheme.amber
+        case .running: return ADTheme.accent
+        case .suspended, .suspendedCheckpointed: return ADTheme.violet
+        case .stopped: return ADTheme.textTertiary
+        case .failed, .unavailable: return ADTheme.danger
+        }
+    }
+
+    private func icon(_ state: WorkspaceObservedState) -> String {
+        switch state {
+        case .starting: return "hourglass"
+        case .running: return "play.fill"
+        case .suspended: return "pause.fill"
+        case .suspendedCheckpointed: return "checkmark.seal.fill"
+        case .stopped: return "stop.fill"
+        case .failed: return "exclamationmark.triangle.fill"
+        case .unavailable: return "questionmark.circle.fill"
+        }
     }
 }
 

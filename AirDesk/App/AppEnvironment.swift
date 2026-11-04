@@ -28,6 +28,7 @@ final class AppEnvironment: ObservableObject {
     @Published private(set) var workspaceRestoreReport: WorkspaceRestoreReport?
     @Published private(set) var workspaceRestoreError: String?
     @Published private(set) var workspaceHostState: WorkspaceHostState = .active
+    @Published private(set) var workspaceLifecycle: WorkspaceLifecycleStore?
 
     var workspaceStatusPresentation: WorkspaceStatusPresentation? {
         if let workspaceRestoreError {
@@ -177,6 +178,7 @@ final class AppEnvironment: ObservableObject {
             workspaceBootstrapper = bootstrapper
             workspaceRestoreReport = report
             workspaceHostState = bootstrapper.host.state
+            workspaceLifecycle = WorkspaceLifecycleStore(host: bootstrapper.host)
             session.adoptBootWorkspace(
                 Workspace(
                     id: report.workspaceId,

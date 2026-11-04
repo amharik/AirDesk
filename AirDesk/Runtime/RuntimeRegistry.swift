@@ -172,6 +172,13 @@ final class RuntimeRegistry {
         )
     }
 
+    static func standard() -> RuntimeRegistry {
+        let registry = RuntimeRegistry()
+        try? registry.register(WanixRuntimeProvider())
+        try? registry.register(NativeRuntimeProvider())
+        return registry
+    }
+
     private static func locationPriority(_ location: RuntimeLocation) -> Int {
         switch location {
         case .phone: return 0
