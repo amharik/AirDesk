@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "run_id": "2026-11-04T135720Z-webtransport-baseline-1024b",
+  "scenario": "T2",
+  "scenario_name": "webtransport-loopback-baseline",
+  "evidence_scope": "transport-baseline",
+  "candidate": "webtransport-over-http3",
+  "transport": "webtransport",
+  "commit": "1ea8d855e0ab",
+  "dirty": false,
+  "build": "research",
+  "date": "2026-11-04T13:57:25.381Z",
+  "environment": {
+    "controller": "deno 2.9.4",
+    "host": "macOS 15.5 x86_64",
+    "browser": "n/a",
+    "network": "loopback"
+  },
+  "samples": 30,
+  "metrics": {
+    "control_rtt_ms": {
+      "p50": 1.073,
+      "p95": 3.207,
+      "p99": 9.672,
+      "min": 0.794,
+      "max": 9.672
+    },
+    "messages_delivered": 30,
+    "reconnect_ms": 8.101
+  },
+  "diagnostics": {
+    "server_messages_received": 31,
+    "payload_bytes": 1024,
+    "timeout_ms": 5000
+  },
+  "failures": [],
+  "observations": "Research measurement; not a product commitment. Working tree was clean. Transport webtransport. Server received 31 messages.",
+  "license_notes": "Deno unstable WebTransport/QUIC runtime only; no added dependency.",
+  "decision": "trial",
+  "pass": true
+}

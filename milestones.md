@@ -18,8 +18,8 @@ This file is the implementation tracker. `docs/adr/README.md` remains authoritat
 
 - Milestone: `M8` — universal compute fabric research
 - Track: `100x research first`; product release sequencing is paused until the R6 architecture decision gate
-- Work item: `RF-00` and `RF-01` are in progress; R0 has the research plan, dependency pre-screen, threat-model delta, harness and qualified Mac runner; R1 has a clean loopback WebSocket baseline at 64 B, 1 KiB and 16 KiB
-- Next: pre-screen and spike the remaining R1 candidates (WebTransport, WebRTC, Iroh/QUIC and SSH/tmux), record physical-device/host gaps, and keep each run's hardware/network scope explicit; do not promote research spikes or dependencies
+- Work item: `RF-00`, `RF-01` and `RF-02` are in progress; R0 has the research plan, dependency pre-screen, threat-model delta, harness and qualified Mac runner; R1 has clean loopback WebSocket and WebTransport baselines at 64 B, 1 KiB and 16 KiB
+- Next: pre-screen WebRTC, Iroh/QUIC and SSH/tmux, record physical-device/host gaps, and keep each run's hardware/network scope explicit; WebTransport is held on iOS 18.6 because WKWebView support starts at iOS 26.4; do not promote research spikes or dependencies
 - Retained implementation state: `M0-03`, `RT-02`, `RT-03`, `RT-05`, `RT-06`, `APP-02`, `APP-05`, `IN-01`, `IN-04`, `IN-06`, `IN-07` and `INPUT-01` are complete; `RT-04` is blocked on a native execution engine/package decision; `IN-02` channel routing and validation are in place, with the production transport binding still open
 
 ## Verification status
@@ -153,7 +153,7 @@ The active execution track is `docs/planning/universal-compute-fabric-research.m
 | --- | --- | --- | --- | --- |
 | RF-00 | Write research plan and scenario corpus | In progress | User direction | Research questions, scenarios, kill criteria and R6 decision gate documented |
 | RF-01 | Define measurement protocol and baseline matrix | In progress | RF-00 | Device, network, build, cold/warm and p50/p95/p99 recording rules defined |
-| RF-02 | Pre-screen transport candidates | Pending | RF-01 | WebSocket, WebTransport, WebRTC, Iroh/QUIC and SSH/tmux compared with license and platform notes |
+| RF-02 | Pre-screen transport candidates | In progress | RF-01 | WebSocket, WebTransport, WebRTC, Iroh/QUIC and SSH/tmux compared with license and platform notes |
 | RF-03 | Pre-screen state candidates and conflict corpus | Pending | RF-01 | Manifest/host, operation log, Loro and hybrid models testable against offline/handoff corpus |
 | RF-04 | Build remote placement prototype | Pending | RF-01 | Remote Wanix/SSH placement shows explicit observed state and capability-scoped failure |
 | RF-05 | Run checkpoint and cross-ISA feasibility | Pending | RF-01 | Cooperative checkpoint, v86, elfconv and CheerpX results include fidelity, license and size |
@@ -194,3 +194,5 @@ Exit: Q1–Q8 answered with evidence; scenario corpus has pass/fail results; R6 
 | 2026-11-04 | M8 / RF-00 | Added research plan, dependency pre-screen, threat model, harness and first transport smoke runner | 8b8f02c |
 | 2026-11-04 | M8 / RF-00 / RF-01 | Added loopback transport baseline scenario and recorded the qualified Mac runner | c639550 |
 | 2026-11-04 | M8 / RF-01 | Recorded clean loopback WebSocket baseline at 64 B, 1 KiB and 16 KiB; fixed untracked-artifact provenance | 86e4839 |
+| 2026-11-04 | M8 / RF-02 | Added WebTransport scenario and runner support with ephemeral certificate generation | cb959d8 |
+| 2026-11-04 | M8 / RF-02 | Fixed length-framed stream echo and recorded T2 WebTransport loopback baseline; flagged the iOS 18.6 WKWebView support gap | 1ea8d85 |

@@ -1,6 +1,6 @@
 # Fabric Research Baseline and Measurement Protocol
 
-- **Status:** R0 baseline — no measurements recorded yet
+- **Status:** R0 baseline — T1 WebSocket and T2 WebTransport loopback measurements recorded
 - **Date:** 2026-11-04
 - **Parent:** `universal-compute-fabric-research.md`
 - **Scope:** Reproducible measurement rules, candidate matrix, scenario procedures and results template for the universal compute fabric research track
@@ -45,7 +45,7 @@ Hardware availability must be recorded per run. A missing device is reported as 
 | Candidate | Baseline role | License and platform questions | Exit strategy |
 | --- | --- | --- | --- |
 | Loopback WebSocket | Required reference | Existing local asset server and bridge | Keep as fallback |
-| WebTransport over HTTP/3 | Browser/native candidate | WKWebView support, `serverCertificateHashes`, ECDSA certificate handling | Fall back to WebSocket |
+| WebTransport over HTTP/3 | Browser/native candidate | Safari/WKWebView support starts at 26.4, so iOS 17–26.3 need a fallback; `serverCertificateHashes`, ECDSA certificate handling | Hold for the iOS 18.6 baseline; WebSocket fallback |
 | WebRTC data channels | Direct-peer candidate | ICE/TURN complexity, browser and native stack cost | Adapter behind transport interface |
 | Iroh/QUIC | Direct-peer research candidate | License, binary size, Rust/Swift bindings, App Store review | Spike only until R1 gate |
 | SSH/tmux | Remote execution reference | Existing native SSH path | Keep for remote host workflows |
@@ -236,7 +236,12 @@ Decision: adopt | trial | hold | reject
 What would change the decision:
 ```
 
-Reports live under `docs/research/` once the first spike begins. Until then this baseline remains the only research record.
+Reports live under `docs/research/runs/`. Recorded harness baselines:
+
+- T1: `docs/research/runs/2026-11-04-loopback-websocket-baseline.md`
+- T2: `docs/research/runs/2026-11-04-webtransport-baseline.md`
+
+Candidate comparisons remain open.
 
 ## 8. R0 exit checklist
 
