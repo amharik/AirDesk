@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "run_id": "2026-11-04T230810Z-webrtc-baseline-1024b",
+  "scenario": "T3",
+  "scenario_name": "webrtc-datachannel-loopback-baseline",
+  "evidence_scope": "transport-baseline",
+  "candidate": "webrtc-datachannel",
+  "transport": "webrtc",
+  "commit": "375951351389",
+  "dirty": false,
+  "build": "research",
+  "date": "2026-11-04T23:08:22.686Z",
+  "environment": {
+    "controller": "deno 2.9.4",
+    "host": "macOS 15.5 x86_64",
+    "browser": "n/a",
+    "network": "loopback"
+  },
+  "samples": 30,
+  "metrics": {
+    "control_rtt_ms": {
+      "p50": 1,
+      "p95": 2,
+      "p99": 2,
+      "min": 1,
+      "max": 2
+    },
+    "messages_delivered": 30,
+    "reconnect_ms": 237
+  },
+  "diagnostics": {
+    "server_messages_received": 30,
+    "payload_bytes": 1024,
+    "timeout_ms": 5000,
+    "transport_specific": {
+      "ice_gathering_state": "complete",
+      "local_candidate_types": [
+        "host",
+        "host",
+        "host",
+        "host"
+      ],
+      "remote_candidate_types": [
+        "host",
+        "host",
+        "host",
+        "host"
+      ],
+      "channel_open_ms": 187.0000000000001,
+      "reconnect_echo_ms": 1
+    }
+  },
+  "failures": [],
+  "observations": "Research measurement; not a product commitment. Working tree was clean. Transport webrtc. Receiver handled 30 messages.",
+  "license_notes": "WebKit WebRTC data channels only; no added dependency.",
+  "decision": "trial",
+  "pass": true
+}
