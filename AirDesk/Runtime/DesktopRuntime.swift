@@ -40,20 +40,6 @@ final class SurfaceRuntimeHost: RuntimeHost {
     }
 }
 
-enum RuntimeFactory {
-    @MainActor
-    static func make(choice: RuntimeChoice, appearance: String) -> any DesktopRuntime {
-        switch choice {
-        case .wanixDesktop:
-            return WanixRuntimeAdapter(choice: .wanixDesktop, appearance: appearance, capabilities: .wanixDesktop)
-        case .wanixKernel:
-            return WanixRuntimeAdapter(choice: .wanixKernel, appearance: appearance, capabilities: .wanixKernel)
-        case .puter:
-            return PuterRuntimeAdapter(appearance: appearance)
-        }
-    }
-}
-
 @MainActor
 final class PuterRuntimeAdapter: DesktopRuntime {
     let identifier = "Puter"

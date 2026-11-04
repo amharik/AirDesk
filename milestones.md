@@ -17,12 +17,12 @@ This file is the implementation tracker. `docs/adr/README.md` remains authoritat
 ## Current focus
 
 - Milestone: `M2` and `M3`
-- Work item: `M0-03`, `RT-02`, `IN-01`, `IN-04` and `IN-06` are complete; finish provider integration in `RT-03..06` and the remaining transport/conformance work in `IN-02`/`IN-07`
-- Next: replace the in-memory provider adapters with real Wanix/native execution, connect lifecycle actions to session/workspace UI, and close the remaining channel-split/fuzz-corpus gates
+- Work item: `M0-03`, `RT-02`, `RT-03`, `IN-01`, `IN-04`, `IN-06` and `INPUT-01` are complete; finish native/threaded provider work in `RT-04..06`, app lifecycle in `APP-02`/`APP-05`, and the remaining transport/conformance work in `IN-02`/`IN-07`
+- Next: add a real native provider path, close single-threaded/synchronization behavior, connect lifecycle actions to session/workspace UI, and close the remaining channel-split/fuzz-corpus gates
 
 ## Verification status
 
-Real iPad testing is parked by request. On 2026-11-04, `scripts/check-core.sh` runs 111 workspace-core and input tests successfully on macOS via SwiftPM; the full `AirDeskTests` target runs 223 tests with 0 failures on an iPhone 16 Pro simulator (iOS 18.6); `xcodebuild build-for-testing` for the generic iOS Simulator destination succeeds with `CODE_SIGNING_ALLOWED=NO`; `protocol/check.sh` passes; and the Rust protocol crate passes 9 tests. The web movement fixture was verified with Deno, while the full web Vitest suite remains CI-covered because Node is unavailable locally. Device signing still fails with `Certificate installation failed ... Code=-61 "Write permissions error."` even after the login keychain exposes valid Apple Development identities, because Xcode cannot use the private-key ACL over SSH. Device verification will resume from a GUI Xcode session with a one-time "Always Allow" keychain prompt.
+Real iPad testing is parked by request. On 2026-11-04, `scripts/check-core.sh` runs 111 workspace-core and input tests successfully on macOS via SwiftPM; the full `AirDeskTests` target runs 228 tests with 0 failures on an iPhone 16 Pro simulator (iOS 18.6); `xcodebuild build-for-testing` for the generic iOS Simulator destination succeeds with `CODE_SIGNING_ALLOWED=NO`; `protocol/check.sh` passes; and the Rust protocol crate passes 9 tests. The web movement fixture was verified with Deno, while the full web Vitest suite remains CI-covered because Node is unavailable locally. Device signing still fails with `Certificate installation failed ... Code=-61 "Write permissions error."` even after the login keychain exposes valid Apple Development identities, because Xcode cannot use the private-key ACL over SSH. Device verification will resume from a GUI Xcode session with a one-time "Always Allow" keychain prompt.
 
 ## Release 1 scope freeze
 
@@ -59,7 +59,7 @@ Exit: the app boots from a manifest instead of `Workspace.default`, survives rel
 | ID | Task | Status | Depends | Acceptance |
 | --- | --- | --- | --- | --- |
 | RT-02 | Runtime provider registry | Done | M1 | Providers advertise worlds/capabilities; selection and unavailable states are typed |
-| RT-03 | Wanix provider adapter extraction | In progress | RT-02 | Wanix lifecycle is provider-managed; workspace does not read Wanix internals |
+| RT-03 | Wanix provider adapter extraction | Done | RT-02 | Wanix lifecycle is provider-managed; workspace does not read Wanix internals |
 | RT-04 | Native provider path | Pending | RT-02 | Native execution works without Wanix |
 | RT-05 | Per-provider WASI worlds | In progress | RT-02 | Wanix runs `wasip1`; native runs `wasi-cli@0.2`; unsupported pairs fail closed |
 | RT-06 | Single-threaded profile | Pending | RT-03 | Starts without `SharedArrayBuffer`; sync WASI fails with `SynchronizationUnavailable` |
@@ -164,3 +164,4 @@ Exit: endpoints present without authority; browser stays loopback-only in v1.
 | 2026-11-04 | IN-01 / IN-04 / IN-06 | Wired lease ownership into `SessionCoordinator`, reset epochs per generation, added stale-epoch tests and outgoing validation | 15cff36 |
 | 2026-11-04 | M0-03 / IN-07 | Added Rust/TS movement fixture round-trips, Swift fuzz/bit-flip coverage and Rust/web CI jobs | 15cff36 |
 | 2026-11-04 | INPUT-01 | Covered distinct primary/pinned cursors and single-keyboard-focus arbitration | 44f1945 |
+| 2026-11-04 | RT-03 | Routed sessions through async desktop runtime providers, removed direct `RuntimeFactory` use and added provider/lifecycle tests | pending |

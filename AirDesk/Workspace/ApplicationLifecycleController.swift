@@ -45,7 +45,7 @@ final class ApplicationLifecycleController {
     func start(
         instanceId: String,
         threading: RuntimeThreadingProfile = .singleThreaded
-    ) throws -> ApplicationInstanceStatus {
+    ) async throws -> ApplicationInstanceStatus {
         guard let manifest = try loadManifest() else {
             throw ApplicationLifecycleError.workspaceMissing
         }
@@ -71,9 +71,9 @@ final class ApplicationLifecycleController {
             world: selection.world
         )
         if provider.status(instanceId: instanceId) == nil {
-            try provider.create(request)
+            try await provider.create(request)
         }
-        try provider.start(instanceId: instanceId)
+        try await provider.start(instanceId: instanceId)
 
         do {
             _ = try mutate { manifest in
@@ -100,7 +100,7 @@ final class ApplicationLifecycleController {
                 }
             }
         } catch {
-            try? provider.destroy(instanceId: instanceId)
+            try? await provider.destroy(instanceId: instanceId)
             throw error
         }
 
@@ -113,17 +113,17 @@ final class ApplicationLifecycleController {
     }
 
     @discardableResult
-    func suspend(instanceId: String) throws -> ApplicationInstanceStatus {
+    func suspend(instanceId: String) async throws -> ApplicationInstanceStatus {
         let provider = try providerForInstance(instanceId)
-        try provider.suspend(instanceId: instanceId)
+        try await provider.suspend(instanceId: instanceId)
         try setDesiredState(instanceId, .suspended)
         return record(try requireStatus(instanceId, provider: provider))
     }
 
     @discardableResult
-    func checkpoint(instanceId: String) throws -> ApplicationInstanceStatus {
+    func checkpoint(instanceId: String) async throws -> ApplicationInstanceStatus {
         let provider = try providerForInstance(instanceId)
-        try provider.checkpoint(instanceId: instanceId)
+        try await provider.checkpoint(instanceId: instanceId)
         try setDesiredState(instanceId, .suspended)
         return record(try requireStatus(instanceId, provider: provider))
     }
@@ -132,15 +132,15 @@ final class ApplicationLifecycleController {
     func resume(
         instanceId: String,
         threading: RuntimeThreadingProfile = .singleThreaded
-    ) throws -> ApplicationInstanceStatus {
+    ) async throws -> ApplicationInstanceStatus {
         let provider = try providerForInstance(instanceId)
-        try provider.resume(instanceId: instanceId)
+        try await provider.resume(instanceId: instanceId)
         try setDesiredState(instanceId, .running)
         return record(try requireStatus(instanceId, provider: provider))
     }
 
     @discardableResult
-    func stop(instanceId: String) throws -> ApplicationInstanceStatus {
+    func stop(instanceId: String) async throws -> ApplicationInstanceStatus {
         guard let manifest = try loadManifest() else {
             throw ApplicationLifecycleError.workspaceMissing
         }
@@ -150,7 +150,7 @@ final class ApplicationLifecycleController {
 
         if let provider = try? providerForInstance(instanceId),
            provider.status(instanceId: instanceId) != nil {
-            try provider.stop(instanceId: instanceId)
+            try await provider.stop(instanceId: instanceId)
             _ = record(try requireStatus(instanceId, provider: provider))
         } else {
             _ = record(ApplicationInstanceStatus(
@@ -169,13 +169,13 @@ final class ApplicationLifecycleController {
     }
 
     @discardableResult
-    func destroy(instanceId: String) throws -> WorkspaceManifest {
+    func destroy(instanceId: String) async throws -> WorkspaceManifest {
         if let provider = try? providerForInstance(instanceId) {
-            try? provider.destroy(instanceId: instanceId)
+            try? await provider.destroy(instanceId: instanceId)
         }
-        lock.lock()
-        observedByInstance.removeValue(forKey: instanceId)
-        lock.unlock()
+        lock.withLock {
+            _ = observedByInstance.removeValue(forKey: instanceId)
+        }
         return try mutate { manifest in
             guard manifest.instances.contains(where: { $0.id == instanceId }) else {
                 throw ApplicationLifecycleError.instanceMissing(instanceId)
@@ -193,9 +193,9 @@ final class ApplicationLifecycleController {
     }
 
     func status(for instanceId: String) -> ApplicationInstanceStatus? {
-        lock.lock()
-        defer { lock.unlock() }
-        return observedByInstance[instanceId]
+        lock.withLock {
+            observedByInstance[instanceId]
+        }
     }
 
     func reconcile() throws -> WorkspaceReconciliationReport {
@@ -218,9 +218,9 @@ final class ApplicationLifecycleController {
             }
         }
 
-        lock.lock()
-        observedByInstance = Dictionary(uniqueKeysWithValues: statuses.map { ($0.instanceId, $0) })
-        lock.unlock()
+        lock.withLock {
+            observedByInstance = Dictionary(uniqueKeysWithValues: statuses.map { ($0.instanceId, $0) })
+        }
 
         let observedIDs = Set(statuses.map(\.instanceId))
         return WorkspaceReconciliationReport(
@@ -299,9 +299,9 @@ final class ApplicationLifecycleController {
     }
 
     private func record(_ status: ApplicationInstanceStatus) -> ApplicationInstanceStatus {
-        lock.lock()
-        observedByInstance[status.instanceId] = status
-        lock.unlock()
+        lock.withLock {
+            observedByInstance[status.instanceId] = status
+        }
         return status
     }
 

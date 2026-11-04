@@ -129,7 +129,8 @@ final class SessionCoordinator: ObservableObject {
     let dispatcher: InputDispatcher
     private let inputTransport: SessionInputTransport
     private let host: SurfaceRuntimeHost
-    private let endpointFactory: @MainActor (DisplayProfile) -> (any RuntimeEndpoint)?
+    private let endpointFactory: @MainActor (DisplayProfile) throws -> (any RuntimeEndpoint)?
+    private let runtimeProviders: DesktopRuntimeProviderRegistry
     private let settings: AppSettings
     private let diagnostics: PerformanceMetrics
     private let display: DisplayCoordinator
@@ -165,10 +166,13 @@ final class SessionCoordinator: ObservableObject {
         display: DisplayCoordinator,
         cast: CastSessionCoordinator,
         entitlements: EntitlementManager,
-        endpointFactory: (@MainActor (DisplayProfile) -> (any RuntimeEndpoint)?)? = nil
+        runtimeProviders: DesktopRuntimeProviderRegistry? = nil,
+        endpointFactory: (@MainActor (DisplayProfile) throws -> (any RuntimeEndpoint)?)? = nil
     ) {
         let surface = DesktopSurface()
         let runtimeHost = SurfaceRuntimeHost(surface: surface)
+        let providerRegistry = runtimeProviders ?? .standard()
+        self.runtimeProviders = providerRegistry
         self.settings = settings
         self.diagnostics = diagnostics
         self.display = display
@@ -183,14 +187,12 @@ final class SessionCoordinator: ObservableObject {
             case .castReceiver:
                 return CastRuntimeEndpoint(cast: cast)
             case .phone:
+                let provider = try providerRegistry.provider(for: settings.runtimeChoice)
                 return LocalRuntimeEndpoint(
                     host: runtimeHost,
-                    runtimeFactory: {
-                        RuntimeFactory.make(
-                            choice: settings.runtimeChoice,
-                            appearance: settings.desktopAppearance
-                        )
-                    }
+                    provider: provider,
+                    choice: settings.runtimeChoice,
+                    appearance: settings.desktopAppearance
                 )
             case .androidDevice, .remote:
                 return nil
@@ -679,47 +681,29 @@ final class SessionCoordinator: ObservableObject {
             )
             desktopSurface.remoteTerminalBootstrap = remoteTerminalControlPayload()
 
-            if let endpoint = endpointFactory(activeProfile) {
-                self.endpoint = endpoint
-                inputTransport.endpoint = endpoint
-                endpoint.onStateChange = { [weak self] state in
-                    guard let self, self.sessionId == activeSessionId else { return }
-                    self.runtimeState = state
-                }
-                runtimeName = endpoint.identifier
-                capabilities = endpoint.capabilities
-
-                try await endpoint.start(context: context)
-                try Task.checkCancellation()
-                guard self.sessionId == activeSessionId, self.phase == .connecting else {
-                    throw CancellationError()
-                }
-
-                runtimeName = endpoint.identifier
-                capabilities = endpoint.capabilities
-                runtimeState = endpoint.state
-            } else {
-                host.workspace = workspace
-                host.sessionId = activeSessionId
-                host.generation = sessionGeneration
-                let runtime = RuntimeFactory.make(
-                    choice: settings.runtimeChoice,
-                    appearance: settings.desktopAppearance
+            guard let endpoint = try endpointFactory(activeProfile) else {
+                throw RuntimeProviderError.noQualifiedProvider(
+                    applicationId: settings.runtimeChoice.rawValue
                 )
-                runtime.onStateChange = { [weak self] state in
-                    guard let self, self.sessionId == activeSessionId else { return }
-                    self.runtimeState = state
-                }
-                self.runtime = runtime
-                capabilities = runtime.capabilities
-                runtimeName = runtime.identifier
-
-                try await runtime.prepare(in: host)
-                try Task.checkCancellation()
-                try await runtime.loadWorkspace(workspace)
-                try Task.checkCancellation()
-                runtimeState = runtime.state
             }
+            self.endpoint = endpoint
+            inputTransport.endpoint = endpoint
+            endpoint.onStateChange = { [weak self] state in
+                guard let self, self.sessionId == activeSessionId else { return }
+                self.runtimeState = state
+            }
+            runtimeName = endpoint.identifier
+            capabilities = endpoint.capabilities
+
+            try await endpoint.start(context: context)
+            try Task.checkCancellation()
+            guard self.sessionId == activeSessionId, self.phase == .connecting else {
+                throw CancellationError()
+            }
+
+            runtimeName = endpoint.identifier
+            capabilities = endpoint.capabilities
+            runtimeState = endpoint.state
 
             stage = .verifying
             try await pause(0.35)

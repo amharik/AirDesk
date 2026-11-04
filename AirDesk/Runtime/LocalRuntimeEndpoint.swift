@@ -4,7 +4,9 @@ import Foundation
 final class LocalRuntimeEndpoint: RuntimeEndpoint {
     let location: RuntimeLocation
     private let host: RuntimeHost
-    private let runtimeFactory: () -> any DesktopRuntime
+    private let provider: any DesktopRuntimeProvider
+    private let choice: RuntimeChoice
+    private let appearance: String
     private var runtime: (any DesktopRuntime)?
 
     private(set) var identifier = "Wanix"
@@ -20,11 +22,15 @@ final class LocalRuntimeEndpoint: RuntimeEndpoint {
     init(
         location: RuntimeLocation = .phone,
         host: RuntimeHost,
-        runtimeFactory: @escaping () -> any DesktopRuntime
+        provider: any DesktopRuntimeProvider,
+        choice: RuntimeChoice,
+        appearance: String
     ) {
         self.location = location
         self.host = host
-        self.runtimeFactory = runtimeFactory
+        self.provider = provider
+        self.choice = choice
+        self.appearance = appearance
     }
 
     func start(context: RuntimeContext) async throws {
@@ -36,7 +42,7 @@ final class LocalRuntimeEndpoint: RuntimeEndpoint {
         host.sessionId = context.sessionId
         host.generation = context.generation
 
-        let runtime = runtimeFactory()
+        let runtime = try provider.makeRuntime(choice: choice, appearance: appearance)
         self.runtime = runtime
         identifier = runtime.identifier
         capabilities = runtime.capabilities
@@ -46,8 +52,8 @@ final class LocalRuntimeEndpoint: RuntimeEndpoint {
         }
 
         do {
-            try await runtime.prepare(in: host)
-            try await runtime.loadWorkspace(context.workspace)
+            try await provider.prepare(runtime, in: host)
+            try await provider.loadWorkspace(context.workspace, into: runtime)
             state = runtime.state
         } catch {
             state = .failed
@@ -56,7 +62,6 @@ final class LocalRuntimeEndpoint: RuntimeEndpoint {
     }
 
     func send(_ event: InputEvent) {
-        print("[AirDeskDebug] endpoint send \(event.type) accepts=\(acceptsInput) runtime=\(runtime != nil)")
         guard acceptsInput else { return }
         runtime?.dispatch(event)
     }
@@ -75,11 +80,13 @@ final class LocalRuntimeEndpoint: RuntimeEndpoint {
             )
         case .suspend:
             Task { [weak self] in
-                await self?.runtime?.suspend()
+                guard let self, let runtime = self.runtime else { return }
+                await self.provider.suspend(runtime)
             }
         case .resume:
             Task { [weak self] in
-                try? await self?.runtime?.resume()
+                guard let self, let runtime = self.runtime else { return }
+                try? await self.provider.resume(runtime)
             }
         case .shutdown:
             Task { [weak self] in
@@ -95,7 +102,7 @@ final class LocalRuntimeEndpoint: RuntimeEndpoint {
         }
         runtime.onStateChange = nil
         self.runtime = nil
-        await runtime.shutdown()
+        await provider.shutdown(runtime)
         state = .stopped
     }
 }

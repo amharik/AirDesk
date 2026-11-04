@@ -81,13 +81,13 @@ struct RuntimeCreateRequest: Equatable, Sendable {
 protocol RuntimeProvider: AnyObject {
     var descriptor: RuntimeProviderDescriptor { get }
 
-    func create(_ request: RuntimeCreateRequest) throws
-    func start(instanceId: String) throws
-    func suspend(instanceId: String) throws
-    func checkpoint(instanceId: String) throws
-    func resume(instanceId: String) throws
-    func stop(instanceId: String) throws
-    func destroy(instanceId: String) throws
+    func create(_ request: RuntimeCreateRequest) async throws
+    func start(instanceId: String) async throws
+    func suspend(instanceId: String) async throws
+    func checkpoint(instanceId: String) async throws
+    func resume(instanceId: String) async throws
+    func stop(instanceId: String) async throws
+    func destroy(instanceId: String) async throws
     func status(instanceId: String) -> ApplicationInstanceStatus?
 }
 
@@ -185,30 +185,29 @@ class ManagedRuntimeProvider: RuntimeProvider {
         lock.unlock()
     }
 
-    func create(_ request: RuntimeCreateRequest) throws {
-        lock.lock()
-        defer { lock.unlock() }
-
-        guard descriptor.supportedWorlds.contains(request.world) else {
-            throw RuntimeProviderError.unsupportedWorld(providerId: descriptor.id, world: request.world)
+    func create(_ request: RuntimeCreateRequest) async throws {
+        try lock.withLock {
+            guard descriptor.supportedWorlds.contains(request.world) else {
+                throw RuntimeProviderError.unsupportedWorld(providerId: descriptor.id, world: request.world)
+            }
+            guard !instances.keys.contains(request.instanceId) else {
+                throw RuntimeProviderError.instanceAlreadyExists(request.instanceId)
+            }
+            guard request.application.runtimeTargets.contains(where: {
+                $0.provider == descriptor.id && $0.world == request.world.rawValue
+            }) else {
+                throw RuntimeProviderError.unsupportedWorld(providerId: descriptor.id, world: request.world)
+            }
+            instances[request.instanceId] = Instance(
+                request: request,
+                state: .stopped,
+                lastError: nil,
+                checkpointed: false
+            )
         }
-        guard !instances.keys.contains(request.instanceId) else {
-            throw RuntimeProviderError.instanceAlreadyExists(request.instanceId)
-        }
-        guard request.application.runtimeTargets.contains(where: {
-            $0.provider == descriptor.id && $0.world == request.world.rawValue
-        }) else {
-            throw RuntimeProviderError.unsupportedWorld(providerId: descriptor.id, world: request.world)
-        }
-        instances[request.instanceId] = Instance(
-            request: request,
-            state: .stopped,
-            lastError: nil,
-            checkpointed: false
-        )
     }
 
-    func start(instanceId: String) throws {
+    func start(instanceId: String) async throws {
         try transition(instanceId, to: .running) { instance in
             guard instance.state == .stopped || instance.state == .suspended
                     || instance.state == .suspendedCheckpointed || instance.state == .failed else {
@@ -223,7 +222,7 @@ class ManagedRuntimeProvider: RuntimeProvider {
         }
     }
 
-    func suspend(instanceId: String) throws {
+    func suspend(instanceId: String) async throws {
         try transition(instanceId, to: .suspended) { instance in
             guard instance.state == .running else {
                 throw RuntimeProviderError.invalidTransition(
@@ -237,7 +236,7 @@ class ManagedRuntimeProvider: RuntimeProvider {
         }
     }
 
-    func checkpoint(instanceId: String) throws {
+    func checkpoint(instanceId: String) async throws {
         try transition(instanceId, to: .suspendedCheckpointed) { instance in
             guard instance.state == .running || instance.state == .suspended else {
                 throw RuntimeProviderError.invalidTransition(
@@ -251,7 +250,7 @@ class ManagedRuntimeProvider: RuntimeProvider {
         }
     }
 
-    func resume(instanceId: String) throws {
+    func resume(instanceId: String) async throws {
         try transition(instanceId, to: .running) { instance in
             guard instance.state == .suspended || instance.state == .suspendedCheckpointed else {
                 throw RuntimeProviderError.invalidTransition(
@@ -265,7 +264,7 @@ class ManagedRuntimeProvider: RuntimeProvider {
         }
     }
 
-    func stop(instanceId: String) throws {
+    func stop(instanceId: String) async throws {
         try transition(instanceId, to: .stopped) { instance in
             if instance.state != .stopped {
                 instance.state = .stopped
@@ -274,26 +273,26 @@ class ManagedRuntimeProvider: RuntimeProvider {
         }
     }
 
-    func destroy(instanceId: String) throws {
-        lock.lock()
-        defer { lock.unlock() }
-        guard instances.removeValue(forKey: instanceId) != nil else {
-            throw RuntimeProviderError.instanceMissing(instanceId)
+    func destroy(instanceId: String) async throws {
+        try lock.withLock {
+            guard instances.removeValue(forKey: instanceId) != nil else {
+                throw RuntimeProviderError.instanceMissing(instanceId)
+            }
         }
     }
 
     func status(instanceId: String) -> ApplicationInstanceStatus? {
-        lock.lock()
-        defer { lock.unlock() }
-        guard let instance = instances[instanceId] else { return nil }
-        return ApplicationInstanceStatus(
-            instanceId: instanceId,
-            observedState: instance.state,
-            runtimeProviderId: descriptor.id,
-            deviceId: nil,
-            lastHeartbeat: Date(),
-            lastError: instance.lastError
-        )
+        lock.withLock {
+            guard let instance = instances[instanceId] else { return nil }
+            return ApplicationInstanceStatus(
+                instanceId: instanceId,
+                observedState: instance.state,
+                runtimeProviderId: descriptor.id,
+                deviceId: nil,
+                lastHeartbeat: Date(),
+                lastError: instance.lastError
+            )
+        }
     }
 
     func markFailed(instanceId: String, reason: String) throws {
@@ -308,13 +307,13 @@ class ManagedRuntimeProvider: RuntimeProvider {
         to: WorkspaceObservedState,
         _ body: (inout Instance) throws -> Void
     ) throws {
-        lock.lock()
-        defer { lock.unlock() }
-        guard var instance = instances[instanceId] else {
-            throw RuntimeProviderError.instanceMissing(instanceId)
+        try lock.withLock {
+            guard var instance = instances[instanceId] else {
+                throw RuntimeProviderError.instanceMissing(instanceId)
+            }
+            try body(&instance)
+            instances[instanceId] = instance
         }
-        try body(&instance)
-        instances[instanceId] = instance
     }
 }
 

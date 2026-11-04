@@ -4,40 +4,40 @@ import XCTest
 final class ApplicationLifecycleControllerTests: XCTestCase {
     private let now = Date(timeIntervalSince1970: 1_700_000_000)
 
-    func testInstallStartPinsProviderAndWorldThenSuspendsCheckpointsAndStops() throws {
+    func testInstallStartPinsProviderAndWorldThenSuspendsCheckpointsAndStops() async throws {
         let (lifecycle, registry, host) = try makeLifecycle()
         let application = makeApplication()
         let instance = makeInstance(desiredState: .stopped)
         try install(application, instance, in: host)
         _ = registry
 
-        let started = try lifecycle.start(instanceId: instance.id)
+        let started = try await lifecycle.start(instanceId: instance.id)
         XCTAssertEqual(started.observedState, .running)
         var manifest = try XCTUnwrap(try host.load())
         XCTAssertEqual(manifest.instances[0].desiredState, .running)
         XCTAssertEqual(manifest.instances[0].placement?.providerId, "wanix")
         XCTAssertEqual(manifest.executionBindings.first?.pinnedWorld, "wasip1")
 
-        let suspended = try lifecycle.suspend(instanceId: instance.id)
+        let suspended = try await lifecycle.suspend(instanceId: instance.id)
         XCTAssertEqual(suspended.observedState, .suspended)
         manifest = try XCTUnwrap(try host.load())
         XCTAssertEqual(manifest.instances[0].desiredState, .suspended)
 
-        let resumed = try lifecycle.resume(instanceId: instance.id)
+        let resumed = try await lifecycle.resume(instanceId: instance.id)
         XCTAssertEqual(resumed.observedState, .running)
 
-        let checkpointed = try lifecycle.checkpoint(instanceId: instance.id)
+        let checkpointed = try await lifecycle.checkpoint(instanceId: instance.id)
         XCTAssertEqual(checkpointed.observedState, .suspendedCheckpointed)
         manifest = try XCTUnwrap(try host.load())
         XCTAssertEqual(manifest.instances[0].desiredState, .suspended)
 
-        let stopped = try lifecycle.stop(instanceId: instance.id)
+        let stopped = try await lifecycle.stop(instanceId: instance.id)
         XCTAssertEqual(stopped.observedState, .stopped)
         manifest = try XCTUnwrap(try host.load())
         XCTAssertEqual(manifest.instances[0].desiredState, .stopped)
     }
 
-    func testQuotaFailureDoesNotChangeDesiredState() throws {
+    func testQuotaFailureDoesNotChangeDesiredState() async throws {
         let (lifecycle, registry, host) = try makeLifecycle(useWanix: false)
         try registry.register(ManagedRuntimeProvider(descriptor: RuntimeProviderDescriptor(
             id: "limited",
@@ -56,7 +56,10 @@ final class ApplicationLifecycleControllerTests: XCTestCase {
         let instance = makeInstance(desiredState: .stopped)
         try install(application, instance, in: host)
 
-        XCTAssertThrowsError(try lifecycle.start(instanceId: instance.id)) { error in
+        do {
+            _ = try await lifecycle.start(instanceId: instance.id)
+            XCTFail("Expected quota failure")
+        } catch {
             XCTAssertEqual(error as? ApplicationLifecycleError, .provider(
                 .quotaUnenforceable(providerId: "limited", quota: .workers)
             ))
@@ -66,23 +69,26 @@ final class ApplicationLifecycleControllerTests: XCTestCase {
         XCTAssertNil(manifest.instances[0].placement)
     }
 
-    func testUnsupportedWorldFailsClosed() throws {
+    func testUnsupportedWorldFailsClosed() async throws {
         let (lifecycle, _, host) = try makeLifecycle()
         let application = makeApplication(world: "wasi-cli@0.2")
         let instance = makeInstance(desiredState: .stopped)
         try install(application, instance, in: host)
 
-        XCTAssertThrowsError(try lifecycle.start(instanceId: instance.id))
+        do {
+            _ = try await lifecycle.start(instanceId: instance.id)
+            XCTFail("Expected unsupported world failure")
+        } catch {}
         let manifest = try XCTUnwrap(try host.load())
         XCTAssertEqual(manifest.instances[0].desiredState, .stopped)
     }
 
-    func testReconcileReportsProviderStateWithoutRewritingDesiredState() throws {
+    func testReconcileReportsProviderStateWithoutRewritingDesiredState() async throws {
         let (lifecycle, _, host) = try makeLifecycle()
         let application = makeApplication()
         let instance = makeInstance(desiredState: .stopped)
         try install(application, instance, in: host)
-        _ = try lifecycle.start(instanceId: instance.id)
+        _ = try await lifecycle.start(instanceId: instance.id)
 
         let report = try lifecycle.reconcile()
         XCTAssertEqual(report.observed.first?.observedState, .running)
