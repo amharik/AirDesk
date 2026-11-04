@@ -26,7 +26,7 @@ The matrix is filled as hardware and candidate builds become available. “Requi
 
 | Environment | Role | Current baseline | Required for |
 | --- | --- | --- | --- |
-| iPhone 16 Pro, iOS 18.6 | Controller and workspace host | SwiftPM and simulator tests pass; real-device signing blocked | S1, S2, S3, S5, S8 |
+| iPhone 16 Pro, iOS 18.6 | Controller and workspace host | Simulator tests pass; T3 WebRTC probe passes in the simulator; real-device signing blocked | S1, S2, S3, S5, S8 |
 | iPad simulator | Second controller/display | UI suite exists | S1, S3, S11 |
 | Mac, macOS + Xcode | Native host, SSH host, browser endpoint | Swift/Xcode/cargo/Deno available on the Mac | S1, S2, S4, S5, S7 |
 | Mac browser | Presentation endpoint | Loopback asset server exists | S1, S8 |

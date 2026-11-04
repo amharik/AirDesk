@@ -152,6 +152,8 @@ On the current Linux environment these toolchains are absent. The research runne
 
 ### Recorded runner
 
+The iOS T3 repeat runner was recorded on 2026-11-04: iPhone 16 Pro simulator, iOS 18.6, Xcode 16.4 and Swift 6.1.2 on the Mac mini host.
+
 The first qualified runner was recorded on 2026-11-04:
 
 | Field | Value |
