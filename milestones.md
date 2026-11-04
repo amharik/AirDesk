@@ -17,12 +17,12 @@ This file is the implementation tracker. `docs/adr/README.md` remains authoritat
 ## Current focus
 
 - Milestone: `M2` and `M3`
-- Work item: `M0-03`, `RT-02`, `RT-03`, `RT-05`, `RT-06`, `APP-02`, `APP-05`, `IN-01`, `IN-04`, `IN-06` and `INPUT-01` are complete; `RT-04` is blocked on a native execution engine/package decision; close the remaining transport/conformance work in `IN-02`/`IN-07`
-- Next: close the Channel 1/1R split and FlatBuffers `0xA5` collision/fuzz-corpus gates
+- Work item: `M0-03`, `RT-02`, `RT-03`, `RT-05`, `RT-06`, `APP-02`, `APP-05`, `IN-01`, `IN-04`, `IN-06`, `IN-07` and `INPUT-01` are complete; `RT-04` is blocked on a native execution engine/package decision; `IN-02` channel routing and validation are in place, with the production transport binding still open
+- Next: bind the Channel 1/1R split to the production datagram/ordered-WebSocket transport when that path lands, then continue the next unblocked milestone item
 
 ## Verification status
 
-Real iPad testing is parked by request. On 2026-11-04, `scripts/check-core.sh` runs 119 workspace-core and input tests successfully on macOS via SwiftPM; the full `AirDeskTests` target runs 239 tests with 0 failures on an iPhone 16 Pro simulator (iOS 18.6); `xcodebuild build-for-testing` for the generic iOS Simulator destination succeeds with `CODE_SIGNING_ALLOWED=NO`; `protocol/check.sh` passes; and the Rust protocol crate passes 9 tests. The full web Vitest suite passes 51 tests when invoked through Deno against the installed Node modules, while a native Node executable remains unavailable locally. Device signing still fails with `Certificate installation failed ... Code=-61 "Write permissions error."` even after the login keychain exposes valid Apple Development identities, because Xcode cannot use the private-key ACL over SSH. Device verification will resume from a GUI Xcode session with a one-time "Always Allow" keychain prompt.
+Real iPad testing is parked by request. On 2026-11-04, `scripts/check-core.sh` runs 121 workspace-core and input tests successfully on macOS via SwiftPM; the full `AirDeskTests` target runs 243 tests with 0 failures on an iPhone 16 Pro simulator (iOS 18.6); `xcodebuild build-for-testing` for the generic iOS Simulator destination succeeds with `CODE_SIGNING_ALLOWED=NO`; `protocol/check.sh` passes; and the Rust protocol crate passes 10 tests. The full web Vitest suite passes 56 tests when invoked through Deno against the installed Node modules, while a native Node executable remains unavailable locally. Device signing still fails with `Certificate installation failed ... Code=-61 "Write permissions error."` even after the login keychain exposes valid Apple Development identities, because Xcode cannot use the private-key ACL over SSH. Device verification will resume from a GUI Xcode session with a one-time "Always Allow" keychain prompt.
 
 ## Release 1 scope freeze
 
@@ -81,7 +81,7 @@ Exit: provider-neutral placement, explicit world support, no production just-bas
 | IN-04 | Lease epoch at display sink | Done | IN-02 | `SessionCoordinator` owns `leaseEpoch`; stale edge returns `EpochRejected`; resets with generation |
 | IN-05 | Shared cursor and pinned roles | Done | IN-04 | Pinned driver cannot move shared cursor or emit keyboard/text/focus |
 | IN-06 | Latency probe | Done | IN-02 | Channel 0 probe measures latency; no fake per-frame timestamps |
-| IN-07 | Conformance and fuzz gates | In progress | IN-01, IN-02 | Swift/TS/Rust round-trip and fuzz gates added; FlatBuffers `0xA5` collision corpus remains |
+| IN-07 | Conformance and fuzz gates | Done | IN-01, IN-02 | Swift/TS/Rust round-trip/fuzz gates and valid-envelope FlatBuffers `0xA5` collision corpus pass |
 
 Exit: old and new paths negotiate cleanly; no input edge is ever sent on Channel 1.
 
@@ -169,3 +169,5 @@ Exit: endpoints present without authority; browser stays loopback-only in v1.
 | 2026-11-04 | RT-06 | Added fail-closed threading detection, single-threaded shell startup without `SharedArrayBuffer` and typed `SynchronizationUnavailable` enforcement at provider create | d2cdc23 |
 | 2026-11-04 | APP-05 | Required explicit app-cooperative checkpoint capability before providers or the controller can report `SUSPENDED_CHECKPOINTED`; added rejection coverage | 9e11655 |
 | 2026-11-04 | APP-02 | Added workspace lifecycle store and Settings actions for start, suspend, checkpoint, resume and stop with observed/desired state reporting | 6c13336 |
+| 2026-11-04 | IN-02 / IN-07 | Added channel-aware input dispatch/transport validation, envelope-first classification and FlatBuffers `0xA5` collision corpora across Swift, Rust and web | a50476f |
+| 2026-11-04 | IN-02 / IN-07 | Corrected channel fixtures and Rust magic import; verified core 121, app 243, web 56, Rust 10 and `protocol/check.sh` | 8950960 |
