@@ -215,6 +215,7 @@ fn read_u64(data: &[u8], offset: usize) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::movement::MAGIC;
     use crate::fb::{
         envelope_buffer_has_identifier, root_as_envelope, ControlMessage, ControlMessageArgs,
         ControlType, Envelope, EnvelopeArgs, InputEvent, InputEventArgs, MessagePayload,

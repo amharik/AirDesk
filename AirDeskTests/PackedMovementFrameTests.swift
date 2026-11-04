@@ -109,7 +109,7 @@ final class PackedMovementFrameTests: XCTestCase {
         let negotiated = try InputProtocolNegotiator.negotiate(local: .current, remote: .current)
         let legacy = try InputProtocolNegotiator.negotiate(local: .legacyOnly, remote: .legacyOnly)
         let movement = try PackedMovementFrame(leaseEpochLow: 1, seq: 1, x: 0.5, y: 0.5).encoded()
-        let envelope = Data([12, 0, 0, 0, 0x41, 0x44, 0x45, 0x4E, 0, 0, 0, 0])
+        let envelope = Data([8, 0, 0, 0, 0x41, 0x44, 0x45, 0x4E, 0, 0, 0, 0])
 
         XCTAssertEqual(
             try InputChannelRouter.classify(movement, on: .movement, negotiated: negotiated),
@@ -153,7 +153,7 @@ final class PackedMovementFrameTests: XCTestCase {
             .packedMovement
         )
         XCTAssertEqual(
-            try InputChannelRouter.classifyMultiplexed(Data([12, 0, 0, 0, 0x41, 0x44, 0x45, 0x4E, 0, 0, 0, 0]), negotiated: negotiated),
+            try InputChannelRouter.classifyMultiplexed(Data([8, 0, 0, 0, 0x41, 0x44, 0x45, 0x4E, 0, 0, 0, 0]), negotiated: negotiated),
             .flatBufferEnvelope
         )
         XCTAssertThrowsError(try InputChannelRouter.classifyMultiplexed(Data([1, 2, 3]), negotiated: negotiated))
