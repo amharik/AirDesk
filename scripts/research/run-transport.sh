@@ -100,7 +100,7 @@ mkdir -p "$RUN_DIR"
 
 COMMIT="$(git -C "$ROOT" rev-parse --short=12 HEAD)"
 DIRTY="false"
-if [[ -n "$(git -C "$ROOT" status --porcelain)" ]]; then
+if [[ -n "$(git -C "$ROOT" status --porcelain --untracked-files=no)" ]]; then
   DIRTY="true"
 fi
 HOST_OS="$(sw_vers -productVersion 2>/dev/null || uname -r)"
