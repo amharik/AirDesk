@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "id": "S0",
+  "name": "transport-harness-smoke",
+  "purpose": "R0 self-test of the transport runner; not evidence for candidate selection",
+  "candidate": "loopback-websocket-baseline",
+  "requires": [
+    "mac-host",
+    "deno",
+    "git",
+    "loopback-network"
+  ],
+  "network": "loopback",
+  "samples": 30,
+  "steps": [
+    "Start a loopback WebSocket echo endpoint",
+    "Exchange bounded binary control messages",
+    "Disconnect the client and establish a fresh connection",
+    "Write the raw result before generating the report"
+  ],
+  "metrics": [
+    "control_rtt_ms",
+    "messages_delivered",
+    "reconnect_ms"
+  ],
+  "failure_injection": [
+    "client-disconnect-and-reconnect"
+  ],
+  "pass": {
+    "messages_delivered": "equals samples",
+    "failures": "empty",
+    "reconnect_ms": "present"
+  }
+}

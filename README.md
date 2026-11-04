@@ -10,7 +10,7 @@ The architecture is workspace-centric: the workspace is a persistent logical env
 
 AirDesk is in active development. It builds and runs on iOS and iPadOS 17+, and the current input, desktop, terminal, and display paths are implemented. It is **not yet App Store-ready**: ADR-007 is still Proposed and the remaining Cast, external-display, performance, and distribution gates must pass first.
 
-The revised architecture moves from a browser-first MVP to a five-release sequence: stable personal workspace, personal device fabric, universal display endpoints, distributed execution, and intent/collaboration. See the [release roadmap](docs/planning/release-roadmap.md).
+The active execution track is **research-first**: validate or reject the universal compute fabric before resuming product release sequencing. See the [universal compute fabric research plan](docs/planning/universal-compute-fabric-research.md). The prior five-release sequence is paused until that program's R6 decision; it remains documented in the [release roadmap](docs/planning/release-roadmap.md).
 
 The target runtime baseline is WASI 0.2 worlds; WASI 0.3 is an evaluation target and WASIX is a vendor extension. WebTransport is a qualified optional browser transport, not a requirement. Browser endpoints use a single-threaded Wanix profile unless `SharedArrayBuffer` isolation is available.
 
@@ -259,6 +259,8 @@ scripts/real-ssh-smoke.sh
 - [ADR-017: Workspace orchestration and runtime providers](docs/adr/017-workspace-orchestration-and-runtime-providers.md)
 - [ADR-018: Native device agents and capability host ABI](docs/adr/018-native-device-agents-and-capability-host-abi.md)
 - [ADR-019: Application model and lifecycle](docs/adr/019-application-model-and-lifecycle.md)
+- [ADR-020: Workspace host role and authority handoff](docs/adr/020-workspace-host-role-and-authority-handoff.md)
+- [Universal compute fabric research plan](docs/planning/universal-compute-fabric-research.md)
 - [ADR index](docs/adr/README.md)
 - [Product vision](docs/product/product-vision.md)
 - [Product principles](docs/product/product-principles.md)

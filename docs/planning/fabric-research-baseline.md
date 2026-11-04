@@ -1,0 +1,233 @@
+# Fabric Research Baseline and Measurement Protocol
+
+- **Status:** R0 baseline — no measurements recorded yet
+- **Date:** 2026-11-04
+- **Parent:** `universal-compute-fabric-research.md`
+- **Scope:** Reproducible measurement rules, candidate matrix, scenario procedures and results template for the universal compute fabric research track
+
+## 1. Purpose
+
+This document keeps the 100x research program honest. It defines how a candidate becomes evidence rather than a demo.
+
+A valid result must identify:
+
+- the exact change set and build;
+- the device, OS, runtime and browser/WebView versions;
+- the network path and failure injection;
+- the scenario being exercised;
+- the measured metric and sample count;
+- what failed, what recovered and what was lost.
+
+No result may be generalized across simulator, physical device, LAN, relay or different hardware without a separate run.
+
+## 2. Baseline matrix
+
+The matrix is filled as hardware and candidate builds become available. “Required” means the scenario must run before a candidate can advance. “Optional” means it informs the decision but does not block R0/R1.
+
+| Environment | Role | Current baseline | Required for |
+| --- | --- | --- | --- |
+| iPhone 16 Pro, iOS 18.6 | Controller and workspace host | SwiftPM and simulator tests pass; real-device signing blocked | S1, S2, S3, S5, S8 |
+| iPad simulator | Second controller/display | UI suite exists | S1, S3, S11 |
+| Mac, macOS + Xcode | Native host, SSH host, browser endpoint | Swift/Xcode/cargo/Deno available on the Mac | S1, S2, S4, S5, S7 |
+| Mac browser | Presentation endpoint | Loopback asset server exists | S1, S8 |
+| Linux devbox | Remote execution | SSH/tmux path exists | S2, S4 |
+| Windows host | Remote application window | No implementation | S7 |
+| Linux Xpra host | Remote application window | No implementation | S7 |
+| Android device | Browser/native agent | No implementation | Optional |
+| Chromium/Firefox browser | Threaded browser candidate | Not baseline | Optional |
+
+Hardware availability must be recorded per run. A missing device is reported as missing, not replaced by a simulator result.
+
+## 3. Baseline candidates
+
+### 3.1 Transport
+
+| Candidate | Baseline role | License and platform questions | Exit strategy |
+| --- | --- | --- | --- |
+| Loopback WebSocket | Required reference | Existing local asset server and bridge | Keep as fallback |
+| WebTransport over HTTP/3 | Browser/native candidate | WKWebView support, `serverCertificateHashes`, ECDSA certificate handling | Fall back to WebSocket |
+| WebRTC data channels | Direct-peer candidate | ICE/TURN complexity, browser and native stack cost | Adapter behind transport interface |
+| Iroh/QUIC | Direct-peer research candidate | License, binary size, Rust/Swift bindings, App Store review | Spike only until R1 gate |
+| SSH/tmux | Remote execution reference | Existing native SSH path | Keep for remote host workflows |
+
+### 3.2 State and authority
+
+| Candidate | Baseline role | Questions | Exit strategy |
+| --- | --- | --- | --- |
+| Manifest + `WorkspaceHost` | Required reference | Single-writer availability, handoff, degraded mode | Keep local authority |
+| Operation log over host sequencer | Synchronization candidate | Ordering, replay, compaction and recovery cost | Adapter behind store/sync boundary |
+| Loro or equivalent CRDT | Selected-domain candidate | Merge semantics, binary size, Swift/WASM support, schema migration | Confine to documents or geometry; do not replace identity/placement |
+| Hybrid | Likely candidate | Which domains can merge automatically, which stay manual | Explicit merge-class policy |
+
+### 3.3 Execution and migration
+
+| Candidate | Baseline role | Questions | Exit strategy |
+| --- | --- | --- | --- |
+| Local Wanix provider | Required reference | Existing runtime provider path | Keep local provider |
+| Remote Wanix over 9P/WebSocket | Remote placement candidate | Namespace scoping, latency, leases, failure modes | Provider adapter |
+| SSH-backed terminal/application | Remote placement reference | Existing SSH PTY; no application model yet | Keep terminal baseline |
+| Cooperative checkpoint | First migration candidate | App support, fidelity reporting, provider differences | Keep existing checkpoint lifecycle |
+| WALI/MVVM-style snapshot | Research candidate | Kernel/runtime dependency, security, source availability | Hold unless a named workload requires it |
+| v86 | Legacy x86 baseline | Startup, throughput, memory, security | Keep as fallback for named workloads |
+| elfconv | Cross-ISA research candidate | Build reproducibility, syscall fidelity, license | Reject if not reproducible |
+| CheerpX | Cross-ISA research candidate | Commercial license, App Store terms, performance | Reject if distribution or cost is unacceptable |
+
+### 3.4 Remote presentation
+
+| Candidate | Baseline role | Questions | Exit strategy |
+| --- | --- | --- | --- |
+| No remote window | Required fallback | Remote terminal already works | Keep terminal-only mode |
+| Xpra seamless | Linux candidate | GPL server-side boundary, HTML5 adapter, reattach | Server-only; no GPL in client |
+| IronRDP RAIL/EGFX | Windows candidate | Rust/UniFFI, WASM client, codec, NLA proxy | Isolated adapter |
+| macOS ScreenCaptureKit host | macOS candidate | Screen-recording/accessibility permissions, per-window capture | Separate host agent |
+
+### 3.5 Agent and browser dependencies
+
+| Candidate | Baseline role | Questions | Exit strategy |
+| --- | --- | --- | --- |
+| PTY/tmux observation | Agent baseline | Session discovery, notifications, approval capture | Keep as default |
+| Optional remote hook | Agent enhancement | Authentication, prompt injection, data exposure | Feature-flagged |
+| WebMCP | Browser/agent research only | WebKit support, security boundary, actual need | Defer or reject if unsupported |
+| Loopback browser endpoint | Presentation candidate | COOP/COEP, origin, pairing, evictable storage | Local-only unless separately authorized |
+
+## 4. Metric definitions
+
+| Metric | Definition | Unit |
+| --- | --- | --- |
+| Control latency | Message dispatch to authenticated peer acknowledgement | ms, p50/p95/p99 |
+| Input-to-frame latency | Controller dispatch to display-side frame application | ms, p50/p95/p99 |
+| Reconnect time | Disconnect detection to restored usable session | ms, p50/p95 |
+| Cold start | Process launch to first interactive workspace | ms |
+| Warm restore | Process launch to a restored workspace with truthful report | ms |
+| Remote placement time | Placement request to running observed state | ms |
+| Checkpoint time | Checkpoint request to confirmed checkpoint | ms |
+| Restore time | Restore request to usable application state | ms |
+| Restore fidelity | Explicit restored/restarted/lost fields | categorical |
+| Remote window latency | Input dispatch to decoded frame presentation | ms, p50/p95 |
+| Terminal throughput | Bytes parsed and rendered per second under a recorded workload | MB/s |
+| Drop/discard rate | Movement frames discarded as stale | percent |
+| Recovery failure | Runs that cannot reach a truthful usable state | count |
+| Binary size delta | Incremental install size attributable to the candidate | MB |
+| Memory delta | Steady-state and peak memory attributable to the candidate | MB |
+| Energy delta | Battery drain over a fixed scenario | percent/hour, if measurable |
+| Dependency risk | License, maintainer, pin, SBOM and exit-strategy status | categorical |
+
+## 5. Scenario procedures
+
+### S1 — Cross-endpoint presentation
+
+1. Create or open a workspace on the host.
+2. Connect a Mac browser endpoint over the documented path.
+3. Verify workspace identity, layout, desired state, focus ownership and input release on disconnect.
+4. Record cold/warm start and reconnect time.
+5. Fail if the endpoint becomes authority, rewrites identity or silently loses layout.
+
+### S2 — Remote agent or terminal reattach
+
+1. Start a remote SSH/tmux session from the phone.
+2. Generate output while detaching the controller or suspending the app.
+3. Reattach from the same or a second device.
+4. Verify the remote process survived, the transcript is truthful and no keys remain pressed.
+5. Record reattach time and failure classification.
+
+### S3 — Offline multi-device state
+
+1. Open the same workspace on two eligible devices.
+2. Disconnect one device.
+3. Apply non-conflicting changes, then conflicting changes.
+4. Reconnect and reconcile.
+5. Verify declared merge behavior and manual escalation; fail on silent divergence.
+
+### S4 — Remote placement
+
+1. Start a qualified workload locally.
+2. Request explicit remote placement on an eligible provider.
+3. Verify provider identity, capability lease, observed state and resource references.
+4. Lose the remote provider and verify typed failure and desired-state preservation.
+5. Record placement and failure timings.
+
+### S5 — Host loss and degraded mode
+
+1. Open a workspace with a live display and a running workload.
+2. Suspend or kill the host.
+3. Verify running workloads and input leases continue; structural writes fail typed.
+4. Reconnect the host and reconcile.
+5. Verify no second writer or silent queue exists.
+
+### S6 — Cross-ISA workload
+
+1. Select a named CLI workload with known inputs and output.
+2. Run it in v86, elfconv and CheerpX where available.
+3. Record cold start, runtime, memory, output fidelity, failure modes and license constraints.
+4. Fail any candidate that cannot reproduce output or cannot be distributed lawfully.
+
+### S7 — Remote application window
+
+1. Launch a supported remote application on a Windows, Linux or macOS host.
+2. Map it to an AirDesk window identity.
+3. Exercise focus, move, resize, minimize, restore, close and reconnect.
+4. Disconnect, blur and revoke input; verify no stuck keys or buttons.
+5. Record input-to-frame latency and reattach fidelity.
+
+### S8 — Capability revocation
+
+1. Pair a device and issue a scoped capability lease.
+2. Revoke the device during active use.
+3. Verify new requests fail, existing leases expire or are revoked and the workspace remains.
+4. Verify no stale credential survives reconnect or host handoff.
+
+## 6. Failure injection
+
+At minimum, record results under:
+
+- clean LAN;
+- added latency;
+- packet loss;
+- abrupt disconnect;
+- network change;
+- app background/suspend;
+- host unavailable;
+- provider unavailable;
+- clock/skew and replay attempts;
+- revoked capability;
+- corrupted or future-schema state.
+
+Failure injection must be documented. A happy-path run is not a qualification.
+
+## 7. Results file template
+
+Each spike report should use this structure:
+
+```text
+Title:
+Date:
+Candidate and version:
+Commit:
+Owner:
+Scenario:
+Environment:
+Network:
+Build configuration:
+Hypothesis:
+Method:
+Raw measurements:
+Observed failures:
+Recovery behavior:
+Security notes:
+License/SBOM notes:
+Comparison to baseline:
+Decision: adopt | trial | hold | reject
+What would change the decision:
+```
+
+Reports live under `docs/research/` once the first spike begins. Until then this baseline remains the only research record.
+
+## 8. R0 exit checklist
+
+- [x] Research plan and scenario corpus written.
+- [x] Measurement definitions and baseline matrix written.
+- [x] Candidate dependency pre-screen drafted in `docs/research/dependency-prescreen.md`; formal ADR-003 review pending.
+- [x] Threat-model delta drafted in `docs/research/fabric-threat-model-delta.md`; security review pending.
+- [x] Harness location, artifact schema and automation approach selected in `docs/research/harness.md`.
+- [ ] First scenario and runner script committed and smoke-tested.
+- [ ] Owners and hardware availability recorded.

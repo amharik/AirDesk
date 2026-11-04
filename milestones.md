@@ -16,9 +16,11 @@ This file is the implementation tracker. `docs/adr/README.md` remains authoritat
 
 ## Current focus
 
-- Milestone: `M2` and `M3`
-- Work item: `M0-03`, `RT-02`, `RT-03`, `RT-05`, `RT-06`, `APP-02`, `APP-05`, `IN-01`, `IN-04`, `IN-06`, `IN-07` and `INPUT-01` are complete; `RT-04` is blocked on a native execution engine/package decision; `IN-02` channel routing and validation are in place, with the production transport binding still open
-- Next: bind the Channel 1/1R split to the production datagram/ordered-WebSocket transport when that path lands, then continue the next unblocked milestone item
+- Milestone: `M8` — universal compute fabric research
+- Track: `100x research first`; product release sequencing is paused until the R6 architecture decision gate
+- Work item: `RF-00` and `RF-01` are in progress; R0 has the research plan, dependency pre-screen, threat-model delta, harness design, first transport scenario and smoke-tested runner
+- Next: record the qualified hardware/owner matrix, then start the R1 transport bake-off; do not promote research spikes or dependencies
+- Retained implementation state: `M0-03`, `RT-02`, `RT-03`, `RT-05`, `RT-06`, `APP-02`, `APP-05`, `IN-01`, `IN-04`, `IN-06`, `IN-07` and `INPUT-01` are complete; `RT-04` is blocked on a native execution engine/package decision; `IN-02` channel routing and validation are in place, with the production transport binding still open
 
 ## Verification status
 
@@ -142,6 +144,24 @@ Exit: endpoints present without authority; browser stays loopback-only in v1.
 | GROUP-01 | Membership and user identity | Pending | SYNC-01 | WebAuthn/FIDO2 separate from device identity |
 | GROUP-02 | Collaboration permissions | Pending | GROUP-01 | Auditable and revocable |
 | GROUP-03 | Shared documents | Pending | GROUP-02 | CRDTs confined to shared documents |
+
+## M8 — Universal compute fabric research (research-first track)
+
+The active execution track is `docs/planning/universal-compute-fabric-research.md`. These tasks are research spikes, not product commitments; dependencies remain `Spike` under ADR-003 until the R6 decision.
+
+| ID | Task | Status | Depends | Acceptance |
+| --- | --- | --- | --- | --- |
+| RF-00 | Write research plan and scenario corpus | In progress | User direction | Research questions, scenarios, kill criteria and R6 decision gate documented |
+| RF-01 | Define measurement protocol and baseline matrix | In progress | RF-00 | Device, network, build, cold/warm and p50/p95/p99 recording rules defined |
+| RF-02 | Pre-screen transport candidates | Pending | RF-01 | WebSocket, WebTransport, WebRTC, Iroh/QUIC and SSH/tmux compared with license and platform notes |
+| RF-03 | Pre-screen state candidates and conflict corpus | Pending | RF-01 | Manifest/host, operation log, Loro and hybrid models testable against offline/handoff corpus |
+| RF-04 | Build remote placement prototype | Pending | RF-01 | Remote Wanix/SSH placement shows explicit observed state and capability-scoped failure |
+| RF-05 | Run checkpoint and cross-ISA feasibility | Pending | RF-01 | Cooperative checkpoint, v86, elfconv and CheerpX results include fidelity, license and size |
+| RF-06 | Run remote-presentation feasibility | Pending | RF-01 | Xpra, IronRDP RAIL and macOS host results include latency, reattach and input-release behavior |
+| RF-07 | Build integrated walking skeleton | Pending | RF-02..RF-06 | Two devices, one workspace, one remote placement, one handoff/reconnect and one revoked capability demonstrated |
+| RF-08 | Record R6 architecture decision | Pending | RF-07 | Adopt, hybrid or stop decision updates ADRs and roadmap before product implementation resumes |
+
+Exit: Q1–Q8 answered with evidence; scenario corpus has pass/fail results; R6 decision is recorded.
 
 ## Session log
 

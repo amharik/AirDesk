@@ -6,6 +6,8 @@
 - **Tracker:** `milestones.md`
 - **Related:** ADR-001 through ADR-020
 
+> **Research-first amendment (2026-11-04):** The active execution track is the universal compute fabric research program in `universal-compute-fabric-research.md`. This document remains the product architecture baseline, but Release 1–5 sequencing is paused until the R6 architecture decision gate. Research spikes do not promote ADRs or production dependencies.
+
 ## 1. Decision summary
 
 | Area | Decision |

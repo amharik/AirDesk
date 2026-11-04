@@ -2,6 +2,8 @@
 
 This roadmap follows the revised architecture blueprint. Dates are intentionally omitted until the preceding release gates pass.
 
+> **Research-first amendment (2026-11-04):** The product release sequence is paused while the universal compute fabric is evaluated. The active track is `docs/planning/universal-compute-fabric-research.md`; this roadmap resumes only after the R6 architecture decision.
+
 ## Release 1 — Stable personal workspace
 
 **Objective:** Make AirDesk useful as a coherent workspace on one device.

@@ -2,6 +2,8 @@
 
 This is the implementation roadmap. Product scope is summarized in `docs/product/product-roadmap.md`.
 
+> **Research-first amendment (2026-11-04):** Release sequencing below is paused while the universal compute fabric is evaluated. The active track is `universal-compute-fabric-research.md`; implementation resumes only after the R6 adopt/hybrid/stop decision.
+
 ## Release 1 — Stable personal workspace
 
 **Goal:** A coherent, recoverable workspace on one device.

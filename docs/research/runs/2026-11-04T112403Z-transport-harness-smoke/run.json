@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "run_id": "2026-11-04T112403Z-transport-harness-smoke",
+  "scenario": "S0",
+  "scenario_name": "transport-harness-smoke",
+  "evidence_scope": "harness-smoke",
+  "candidate": "loopback-websocket-baseline",
+  "commit": "dc46125c3687",
+  "dirty": true,
+  "build": "research",
+  "date": "2026-11-04T11:24:07.792Z",
+  "environment": {
+    "controller": "deno 2.9.4",
+    "host": "macOS 15.5 x86_64",
+    "browser": "n/a",
+    "network": "loopback"
+  },
+  "samples": 30,
+  "metrics": {
+    "control_rtt_ms": {
+      "p50": 0.224,
+      "p95": 1.066,
+      "p99": 2.011,
+      "min": 0.116,
+      "max": 2.011
+    },
+    "messages_delivered": 30,
+    "reconnect_ms": 1.941
+  },
+  "diagnostics": {
+    "server_messages_received": 31,
+    "payload_bytes": 64,
+    "timeout_ms": 5000
+  },
+  "failures": [],
+  "observations": "R0 harness smoke; not candidate evidence. Working tree was dirty; preserve the diff with this run. Server received 31 messages.",
+  "license_notes": "Deno runtime and WebSocket standard only; no added dependency.",
+  "decision": "trial",
+  "pass": true
+}

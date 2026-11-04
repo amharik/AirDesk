@@ -2,6 +2,8 @@
 
 This index is the authoritative map of which decision is in force. An ADR's original text is historical; amendments and supersessions are recorded here and in the ADR header.
 
+> **Execution note (2026-11-04):** Decision status is unchanged. The active implementation track is the universal compute fabric research program in `docs/planning/universal-compute-fabric-research.md`; product release sequencing is paused until its R6 decision. Research spikes may implement proposed ADRs behind flags but do not promote them.
+
 | ADR | Decision | Decision status | Implementation status | Effective note |
 | --- | --- | --- | --- | --- |
 | [001](001-multi-runtime-architecture.md) | Multi-runtime architecture | Accepted | Phases 1–2 implemented | Amended by ADR-005, ADR-007, ADR-013, ADR-014, ADR-016, ADR-017, ADR-018 and ADR-019 |
