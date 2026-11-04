@@ -34,6 +34,7 @@ scripts/
   research/
     run-transport.sh
     transport_bench.ts
+    run-webrtc-ios.sh
     webrtc_probe.swift
     run-state.sh
     run-placement.sh
@@ -140,7 +141,10 @@ scripts/research/run-transport.sh
 scripts/research/run-transport.sh --scenario research/scenarios/loopback-websocket-baseline.json --payload-bytes 1024
 scripts/research/run-transport.sh --scenario research/scenarios/webtransport-baseline.json --payload-bytes 1024
 scripts/research/run-transport.sh --scenario research/scenarios/webrtc-baseline.json --payload-bytes 1024
+scripts/research/run-webrtc-ios.sh
 ```
+
+`run-webrtc-ios.sh` runs the opt-in `WebRTCLoopbackProbeTests` in the iOS 18.6 simulator and writes raw probe JSON. The test skips in normal CI unless the simulator probe defaults are enabled.
 
 T3 runs a Swift/WebKit probe on the Mac and records macOS WKWebView behavior, not iOS 18.6 behavior. The iOS repeat requires the device runner.
 
