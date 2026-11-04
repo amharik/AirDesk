@@ -18,8 +18,8 @@ This file is the implementation tracker. `docs/adr/README.md` remains authoritat
 
 - Milestone: `M8` — universal compute fabric research
 - Track: `100x research first`; product release sequencing is paused until the R6 architecture decision gate
-- Work item: `RF-00` and `RF-01` are in progress; R0 has the research plan, dependency pre-screen, threat-model delta, harness design, first transport scenario and smoke-tested runner
-- Next: record the qualified hardware/owner matrix, then start the R1 transport bake-off; do not promote research spikes or dependencies
+- Work item: `RF-00` and `RF-01` are in progress; R0 has the research plan, dependency pre-screen, threat-model delta, harness and qualified Mac runner; R1 has a clean loopback WebSocket baseline at 64 B, 1 KiB and 16 KiB
+- Next: pre-screen and spike the remaining R1 candidates (WebTransport, WebRTC, Iroh/QUIC and SSH/tmux), record physical-device/host gaps, and keep each run's hardware/network scope explicit; do not promote research spikes or dependencies
 - Retained implementation state: `M0-03`, `RT-02`, `RT-03`, `RT-05`, `RT-06`, `APP-02`, `APP-05`, `IN-01`, `IN-04`, `IN-06`, `IN-07` and `INPUT-01` are complete; `RT-04` is blocked on a native execution engine/package decision; `IN-02` channel routing and validation are in place, with the production transport binding still open
 
 ## Verification status
@@ -191,3 +191,6 @@ Exit: Q1–Q8 answered with evidence; scenario corpus has pass/fail results; R6 
 | 2026-11-04 | APP-02 | Added workspace lifecycle store and Settings actions for start, suspend, checkpoint, resume and stop with observed/desired state reporting | 6c13336 |
 | 2026-11-04 | IN-02 / IN-07 | Added channel-aware input dispatch/transport validation, envelope-first classification and FlatBuffers `0xA5` collision corpora across Swift, Rust and web | a50476f |
 | 2026-11-04 | IN-02 / IN-07 | Corrected channel fixtures and Rust magic import; verified core 121, app 243, web 56, Rust 10 and `protocol/check.sh` | 8950960 |
+| 2026-11-04 | M8 / RF-00 | Added research plan, dependency pre-screen, threat model, harness and first transport smoke runner | 8b8f02c |
+| 2026-11-04 | M8 / RF-00 / RF-01 | Added loopback transport baseline scenario and recorded the qualified Mac runner | c639550 |
+| 2026-11-04 | M8 / RF-01 | Recorded clean loopback WebSocket baseline at 64 B, 1 KiB and 16 KiB; fixed untracked-artifact provenance | 86e4839 |
