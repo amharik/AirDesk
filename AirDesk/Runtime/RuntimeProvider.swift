@@ -107,6 +107,7 @@ enum RuntimeProviderError: Error, Equatable, LocalizedError {
     case versionMismatch(providerId: String, expected: String)
     case quotaUnenforceable(providerId: String, quota: WorkspaceQuotaKind)
     case synchronizationUnavailable(providerId: String)
+    case cooperativeCheckpointUnsupported(instanceId: String)
     case instanceMissing(String)
     case instanceAlreadyExists(String)
     case invalidTransition(instanceId: String, from: WorkspaceObservedState, to: WorkspaceObservedState)
@@ -136,6 +137,8 @@ enum RuntimeProviderError: Error, Equatable, LocalizedError {
             return "Runtime provider \(providerId) cannot enforce the required \(quota.rawValue) quota."
         case .synchronizationUnavailable(let providerId):
             return "Runtime provider \(providerId) cannot provide the requested synchronization profile."
+        case .cooperativeCheckpointUnsupported(let id):
+            return "Runtime instance \(id) does not support app-cooperative checkpoints."
         case .instanceMissing(let id):
             return "Runtime instance \(id) does not exist."
         case .instanceAlreadyExists(let id):
@@ -248,6 +251,9 @@ class ManagedRuntimeProvider: RuntimeProvider {
 
     func checkpoint(instanceId: String) async throws {
         try transition(instanceId, to: .suspendedCheckpointed) { instance in
+            guard instance.request.application.supportsCooperativeCheckpoint else {
+                throw RuntimeProviderError.cooperativeCheckpointUnsupported(instanceId: instanceId)
+            }
             guard instance.state == .running || instance.state == .suspended else {
                 throw RuntimeProviderError.invalidTransition(
                     instanceId: instanceId,

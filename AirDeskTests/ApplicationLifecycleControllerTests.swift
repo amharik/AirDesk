@@ -37,6 +37,51 @@ final class ApplicationLifecycleControllerTests: XCTestCase {
         XCTAssertEqual(manifest.instances[0].desiredState, .stopped)
     }
 
+    func testCheckpointRequiresCooperativeApplicationSupport() async throws {
+        let (lifecycle, _, host) = try makeLifecycle()
+        let application = makeApplication(cooperativeCheckpoint: false)
+        let instance = makeInstance(desiredState: .stopped)
+        try install(application, instance, in: host)
+        _ = try await lifecycle.start(instanceId: instance.id)
+
+        do {
+            _ = try await lifecycle.checkpoint(instanceId: instance.id)
+            XCTFail("Expected checkpoint rejection")
+        } catch {
+            XCTAssertEqual(
+                error as? ApplicationLifecycleError,
+                .checkpointUnsupported(application.id)
+            )
+        }
+
+        XCTAssertEqual(lifecycle.status(for: instance.id)?.observedState, .running)
+        let manifest = try XCTUnwrap(try host.load())
+        XCTAssertEqual(manifest.instances[0].desiredState, .running)
+    }
+
+    func testManagedProviderRejectsCheckpointWithoutCooperativeSupport() async throws {
+        let provider = WanixRuntimeProvider()
+        let application = makeApplication(cooperativeCheckpoint: false)
+        let request = RuntimeCreateRequest(
+            instanceId: "instance.terminal",
+            application: application,
+            world: .wasip1
+        )
+        try await provider.create(request)
+        try await provider.start(instanceId: request.instanceId)
+
+        do {
+            try await provider.checkpoint(instanceId: request.instanceId)
+            XCTFail("Expected checkpoint rejection")
+        } catch {
+            XCTAssertEqual(
+                error as? RuntimeProviderError,
+                .cooperativeCheckpointUnsupported(instanceId: request.instanceId)
+            )
+        }
+        XCTAssertEqual(provider.status(instanceId: request.instanceId)?.observedState, .running)
+    }
+
     func testQuotaFailureDoesNotChangeDesiredState() async throws {
         let (lifecycle, registry, host) = try makeLifecycle(useWanix: false)
         try registry.register(ManagedRuntimeProvider(descriptor: RuntimeProviderDescriptor(
@@ -172,7 +217,8 @@ final class ApplicationLifecycleControllerTests: XCTestCase {
         provider: String = "wanix",
         world: String = "wasip1",
         architectures: [String] = ["wasm32"],
-        quotas: WorkspaceQuotas? = nil
+        quotas: WorkspaceQuotas? = nil,
+        cooperativeCheckpoint: Bool = true
     ) -> WorkspaceApplication {
         WorkspaceApplication(
             id: "app.terminal",
@@ -189,7 +235,10 @@ final class ApplicationLifecycleControllerTests: XCTestCase {
             requiredCapabilities: [],
             presentation: .foreground,
             permissions: [],
-            quotas: quotas
+            quotas: quotas,
+            lifecycle: WorkspaceApplicationLifecycle(
+                cooperativeCheckpoint: cooperativeCheckpoint
+            )
         )
     }
 

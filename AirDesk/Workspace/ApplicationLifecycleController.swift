@@ -123,6 +123,19 @@ final class ApplicationLifecycleController {
 
     @discardableResult
     func checkpoint(instanceId: String) async throws -> ApplicationInstanceStatus {
+        guard let manifest = try loadManifest() else {
+            throw ApplicationLifecycleError.workspaceMissing
+        }
+        guard let instance = manifest.instances.first(where: { $0.id == instanceId }) else {
+            throw ApplicationLifecycleError.instanceMissing(instanceId)
+        }
+        guard let application = manifest.applications.first(where: { $0.id == instance.applicationId }) else {
+            throw ApplicationLifecycleError.applicationMissing(instance.applicationId)
+        }
+        guard application.supportsCooperativeCheckpoint else {
+            throw ApplicationLifecycleError.checkpointUnsupported(application.id)
+        }
+
         let provider = try providerForInstance(instanceId)
         try await provider.checkpoint(instanceId: instanceId)
         try setDesiredState(instanceId, .suspended)
@@ -334,6 +347,7 @@ enum ApplicationLifecycleError: Error, Equatable, LocalizedError {
     case applicationAlreadyExists(String)
     case applicationInUse(String)
     case instanceMissing(String)
+    case checkpointUnsupported(String)
     case noProvider(String)
     case host(WorkspaceHostError)
     case provider(RuntimeProviderError)
@@ -350,6 +364,8 @@ enum ApplicationLifecycleError: Error, Equatable, LocalizedError {
             return "Application \(id) still has instances."
         case .instanceMissing(let id):
             return "Application instance \(id) does not exist."
+        case .checkpointUnsupported(let id):
+            return "Application \(id) does not support app-cooperative checkpoints."
         case .noProvider(let id):
             return "Application instance \(id) has no runtime provider."
         case .host(let error):

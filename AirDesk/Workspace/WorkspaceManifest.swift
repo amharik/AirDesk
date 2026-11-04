@@ -146,6 +146,19 @@ struct WorkspaceApplication: Codable, Equatable, Sendable {
     var presentation: WorkspacePresentation
     var permissions: [String]
     var quotas: WorkspaceQuotas?
+    var lifecycle: WorkspaceApplicationLifecycle? = nil
+
+    var supportsCooperativeCheckpoint: Bool {
+        lifecycle?.cooperativeCheckpoint == true
+    }
+}
+
+struct WorkspaceApplicationLifecycle: Codable, Equatable, Sendable {
+    var cooperativeCheckpoint: Bool
+
+    init(cooperativeCheckpoint: Bool = false) {
+        self.cooperativeCheckpoint = cooperativeCheckpoint
+    }
 }
 
 struct WorkspaceRuntimeTarget: Codable, Equatable, Sendable {
