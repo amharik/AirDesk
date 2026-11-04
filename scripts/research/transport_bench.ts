@@ -249,18 +249,60 @@ async function runWebSocket(
   }
 }
 
+const FRAME_HEADER_BYTES = 4;
+
+function framePayload(payload: Uint8Array): Uint8Array {
+  const frame = new Uint8Array(FRAME_HEADER_BYTES + payload.length);
+  new DataView(frame.buffer).setUint32(0, payload.length, true);
+  frame.set(payload, FRAME_HEADER_BYTES);
+  return frame;
+}
+
+class StreamFrameReader {
+  readonly #reader: ReadableStreamDefaultReader<Uint8Array>;
+  #buffer = new Uint8Array(0);
+
+  constructor(reader: ReadableStreamDefaultReader<Uint8Array>) {
+    this.#reader = reader;
+  }
+
+  async readExactly(length: number): Promise<Uint8Array> {
+    while (this.#buffer.length < length) {
+      const { value, done } = await this.#reader.read();
+      if (done) {
+        throw new Error(
+          `stream ended after ${this.#buffer.length} of ${length} bytes`,
+        );
+      }
+      if (!value) {
+        continue;
+      }
+      const next = new Uint8Array(this.#buffer.length + value.byteLength);
+      next.set(this.#buffer);
+      next.set(value, this.#buffer.length);
+      this.#buffer = next;
+    }
+    const result = this.#buffer.slice(0, length);
+    this.#buffer = this.#buffer.slice(length);
+    return result;
+  }
+}
+
 async function echoWebTransportStream(
   stream: WebTransportBidirectionalStream,
 ): Promise<void> {
   const reader = stream.readable.getReader();
+  const framed = new StreamFrameReader(reader);
   try {
-    const { value } = await reader.read();
-    if (!value) {
-      return;
+    const header = await framed.readExactly(FRAME_HEADER_BYTES);
+    const length = new DataView(header.buffer).getUint32(0, true);
+    if (length > 1048576) {
+      throw new Error(`stream frame too large: ${length}`);
     }
+    const payload = await framed.readExactly(length);
     const writer = stream.writable.getWriter();
     try {
-      await writer.write(value);
+      await writer.write(framePayload(payload));
       await writer.close();
     } finally {
       writer.releaseLock();
@@ -283,18 +325,32 @@ async function webTransportRoundTrip(
   );
   const writer = stream.writable.getWriter();
   try {
-    await withTimeout(writer.write(payload), timeoutMs, "stream write");
+    await withTimeout(
+      writer.write(framePayload(payload)),
+      timeoutMs,
+      "stream write",
+    );
     await withTimeout(writer.close(), timeoutMs, "stream close");
   } finally {
     writer.releaseLock();
   }
   const reader = stream.readable.getReader();
+  const framed = new StreamFrameReader(reader);
   try {
-    const { value } = await withTimeout(reader.read(), timeoutMs, "stream read");
-    if (!value) {
-      throw new Error("empty echo");
+    const header = await withTimeout(
+      framed.readExactly(FRAME_HEADER_BYTES),
+      timeoutMs,
+      "stream read header",
+    );
+    const length = new DataView(header.buffer).getUint32(0, true);
+    if (length !== payload.length) {
+      throw new Error(`echo length mismatch: ${length} != ${payload.length}`);
     }
-    const bytes = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+    const bytes = await withTimeout(
+      framed.readExactly(length),
+      timeoutMs,
+      "stream read body",
+    );
     if (!matchesPayload(bytes, payload)) {
       throw new Error("echo mismatch");
     }
