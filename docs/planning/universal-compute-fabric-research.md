@@ -74,6 +74,7 @@ Every spike is evaluated against the same scenarios. A candidate that only works
 | ID | Scenario | Pass condition |
 | --- | --- | --- |
 | T1 | Measure the loopback WebSocket reference transport across payload sizes | Runner records p50/p95/p99 RTT, delivery and reconnect without losing samples |
+| T2 | Measure loopback WebTransport over HTTP/3 with the same procedure | Runner records the same metrics and exposes QUIC/TLS setup or reconnect failures |
 | S1 | Start on iPhone; present the same workspace in a Mac browser endpoint | Workspace identity, layout and desired state survive session creation |
 | S2 | Start a terminal or agent on a remote devbox; detach and reattach from an iPad | Remote work survives controller disconnect; reconnect reports truthfully |
 | S3 | Edit workspace layout on two devices while one is offline | Conflict rules converge or fail manually; no silent corruption |

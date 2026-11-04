@@ -122,6 +122,14 @@ Hardware availability must be recorded per run. A missing device is reported as 
 4. Record p50/p95/p99 RTT, delivery count, reconnect time and the exact payload size.
 5. Treat this as a reference measurement, not a comparison with an unimplemented candidate.
 
+### T2 — WebTransport over HTTP/3 baseline
+
+1. Select `research/scenarios/webtransport-baseline.json`.
+2. The runner generates an ephemeral local certificate, DER hash and QUIC endpoint.
+3. Run the same payload sizes as T1 and verify stream echo plus session reconnect.
+4. Record p50/p95/p99 RTT, delivery count, reconnect time and any TLS/QUIC setup failure.
+5. Compare with T1 only when host, network and payload sizes match.
+
 ### S1 — Cross-endpoint presentation
 
 1. Create or open a workspace on the host.

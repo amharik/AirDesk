@@ -8,6 +8,14 @@ PAYLOAD_BYTES=0
 RUN_ROOT="$ROOT/docs/research/runs"
 ALLOW_NON_MAC="${AIRDESK_RESEARCH_ALLOW_NON_MAC:-0}"
 BENCH="$ROOT/scripts/research/transport_bench.ts"
+CERT_DIR=""
+
+cleanup() {
+  if [[ -n "$CERT_DIR" ]]; then
+    rm -rf "$CERT_DIR"
+  fi
+}
+trap cleanup EXIT
 
 usage() {
   cat <<'USAGE'
@@ -57,7 +65,7 @@ if [[ "$(uname -s)" != "Darwin" && "$ALLOW_NON_MAC" != "1" ]]; then
   exit 1
 fi
 
-for tool in deno git; do
+for tool in deno git openssl; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     echo "Missing required tool: $tool" >&2
     exit 1
@@ -106,11 +114,21 @@ fi
 HOST_OS="$(sw_vers -productVersion 2>/dev/null || uname -r)"
 HOST_ARCH="$(uname -m)"
 DENO_VERSION="$(deno --version | sed -n '1s/^deno \([^ ]*\).*/\1/p')"
+CERT_DIR="$(mktemp -d "${TMPDIR:-/tmp}/airdesk-research-cert.XXXXXX")"
+chmod 700 "$CERT_DIR"
+openssl req -x509 -newkey rsa:2048 -keyout "$CERT_DIR/server.key" -out "$CERT_DIR/server.crt" \
+  -days 14 -nodes -subj "/CN=localhost" \
+  -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" \
+  -addext "basicConstraints=critical,CA:FALSE" >/dev/null 2>&1
+openssl x509 -in "$CERT_DIR/server.crt" -outform der -out "$CERT_DIR/server.der"
+chmod 600 "$CERT_DIR/server.key"
 
 set +e
 deno run \
+  --unstable-net \
   --allow-net=127.0.0.1 \
   --allow-read="$SCENARIO" \
+  --allow-read="$CERT_DIR" \
   --allow-write="$RUN_DIR" \
   "$BENCH" \
   --scenario "$SCENARIO" \
@@ -122,7 +140,10 @@ deno run \
   --dirty "$DIRTY" \
   --host-os "$HOST_OS" \
   --host-arch "$HOST_ARCH" \
-  --deno-version "$DENO_VERSION"
+  --deno-version "$DENO_VERSION" \
+  --cert "$CERT_DIR/server.crt" \
+  --key "$CERT_DIR/server.key" \
+  --der "$CERT_DIR/server.der"
 OUTCOME=$?
 set -e
 

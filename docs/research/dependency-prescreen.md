@@ -27,6 +27,18 @@ No candidate may enter the shipping client, the default build, or a production p
 | IronRDP | MIT OR Apache-2.0; optional OpenH264 integration has separate notices and Cisco binary conditions | Modular Rust RDP with EGFX/RAIL; native, WASM and FFI surfaces | **Hold for a Windows remote-window spike.** Resolve H.264/OpenH264 distribution and patent terms before any shipping path |
 | WebMCP | W3C Community Group draft, not a standard; Chromium early preview/origin trial; WebKit position is oppose | No cross-browser support; no iOS WKWebView path; requires a secure context | **Defer and reject as a Phase 1 dependency.** Use PTY/terminal observation and explicit approvals |
 
+### R1 transport pre-screen
+
+| Candidate | Platform signal | Harness signal | Disposition |
+| --- | --- | --- | --- |
+| WebSocket | Existing browser and WKWebView baseline; ordered TCP stream only | T1 loopback baseline runs on the Mac harness | Keep as the required fallback |
+| WebTransport over HTTP/3 | Safari and iOS Safari support arrive in 26.4; WKWebView compatibility data lists iOS 26.4, so iOS 17–26.3 need a fallback; secure context required | Deno 2.9.4 exposes client and server APIs only with `--unstable-net`; T2 loopback harness is feasible | Spike for the direct-path candidate; treat the unstable server API as harness-only |
+| WebRTC data channels | RTCDataChannel is supported in Safari, but WKWebView compatibility tables do not establish it as baseline; ICE/STUN and often TURN are required | No harness yet; browser/native peer stack and relay policy need a separate spike | Hold until a direct-path or explicitly labeled relay experiment is designed |
+| Iroh/QUIC | MIT OR Apache-2.0 Rust candidate; default path can use a public relay | No harness yet; Rust spike can reuse the T1/T2 metric shape | Hold for a relay-free or explicitly authorized direct-path spike |
+| SSH/tmux | Existing native remote-terminal path | Existing smoke tooling; represents remote execution, not a browser transport | Keep as the remote-execution reference |
+
+Matching T1 and T2 numbers across payload sizes is the first R1 comparison. Do not compare loopback, LAN, tailnet or relay runs without separate labels.
+
 ## 3. Consequences for the research plan
 
 ### Iroh is not a drop-in “direct” transport
@@ -71,6 +83,11 @@ Before promotion from Spike:
 
 ## 5. Sources
 
+- WebTransport compatibility: <https://caniuse.com/webtransport>
+- WKWebView WebTransport compatibility: <https://caniwebview.com/features/mdn-webtransport/>
+- WebKit Safari 26.4 release: <https://webkit.org/blog/17862/webkit-features-for-safari-26-4/>
+- WKWebView WebRTC compatibility: <https://caniwebview.com/features/web-feature-webrtc/>
+- Deno WebTransport example: <https://docs.deno.com/examples/web_transport/>
 - Iroh crate: <https://crates.io/crates/iroh>
 - Iroh documentation: <https://docs.rs/iroh/latest/iroh/>
 - Loro repository: <https://github.com/loro-dev/loro>

@@ -24,6 +24,7 @@ research/
   scenarios/
     transport.json
     loopback-websocket-baseline.json
+    webtransport-baseline.json
     state.json
     remote-placement.json
     remote-window.json
@@ -56,6 +57,7 @@ Each scenario file describes a reproducible procedure, not a claim:
   "id": "S2",
   "name": "remote-agent-reattach",
   "candidate": "ssh-tmux-baseline",
+  "transport": "ssh",
   "requires": ["iphone", "mac-host", "ssh-host"],
   "network": "lan-or-tailnet",
   "payload_bytes": 64,
@@ -84,6 +86,7 @@ Every run records at least:
 {
   "scenario": "S2",
   "candidate": "ssh-tmux-baseline",
+  "transport": "ssh",
   "commit": "dc46125",
   "build": "debug",
   "date": "2026-11-04T12:00:00Z",
@@ -132,6 +135,7 @@ cd web && deno run --allow-all node_modules/vitest/vitest.mjs run
 cargo test --manifest-path protocol/rust/Cargo.toml
 scripts/research/run-transport.sh
 scripts/research/run-transport.sh --scenario research/scenarios/loopback-websocket-baseline.json --payload-bytes 1024
+scripts/research/run-transport.sh --scenario research/scenarios/webtransport-baseline.json --payload-bytes 1024
 ```
 
 On the current Linux environment these toolchains are absent. The research runner must execute on the Mac or another qualified host.

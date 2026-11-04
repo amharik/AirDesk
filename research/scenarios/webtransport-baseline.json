@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "id": "T2",
+  "name": "webtransport-loopback-baseline",
+  "purpose": "Measure loopback WebTransport over HTTP/3 as a direct-path candidate reference",
+  "evidence_scope": "transport-baseline",
+  "candidate": "webtransport-over-http3",
+  "transport": "webtransport",
+  "requires": [
+    "mac-host",
+    "deno-unstable-net",
+    "openssl",
+    "git",
+    "loopback-network"
+  ],
+  "network": "loopback",
+  "samples": 30,
+  "payload_bytes": 64,
+  "steps": [
+    "Generate an ephemeral local TLS certificate and DER hash",
+    "Start a loopback QUIC endpoint and accept WebTransport sessions",
+    "Exchange bounded binary control messages on bidirectional streams",
+    "Disconnect the client and establish a fresh WebTransport session",
+    "Write the raw result before generating the report"
+  ],
+  "metrics": [
+    "control_rtt_ms",
+    "messages_delivered",
+    "reconnect_ms"
+  ],
+  "failure_injection": [
+    "client-disconnect-and-reconnect"
+  ],
+  "pass": {
+    "messages_delivered": "equals samples",
+    "failures": "empty",
+    "reconnect_ms": "present"
+  }
+}
