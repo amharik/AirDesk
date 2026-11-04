@@ -70,7 +70,7 @@ RESOLVED -> MOUNTING_CAPABILITIES -> ACTIVE -> SUSPENDED_CHECKPOINTED -> TERMINA
 `ACTIVE` maps to `observedState: running`. Foreground/background is a `presentation` attribute owned by the display session, not a lifecycle state; changing it does not change `observedState`, and background input is withheld.
 
 - A failure while mounting capabilities terminates the instance with a typed error and no partial mount.
-- `SUSPENDED_CHECKPOINTED` requires an app-cooperative checkpoint; the orchestrator does not snapshot a process or JS heap. An application that cannot checkpoint is terminated or left active, never labeled checkpointed.
+- `SUSPENDED_CHECKPOINTED` requires an app-cooperative checkpoint; the orchestrator does not snapshot a process or JS heap. An application that cannot checkpoint is terminated or left active, never labeled checkpointed. The manifest opts in with `lifecycle.cooperativeCheckpoint`; without it, a checkpoint request fails with `checkpointUnsupported` and observed state is unchanged.
 - `TERMINATED` revokes all capability handles and leases before releasing resources and is idempotent.
 - Quota exhaustion moves the instance to `failed`; it never silently degrades the workspace.
 - Quotas are enforced only on providers whose enforcement matrix covers the required dimensions; an unenforceable required quota fails placement closed with `QuotaUnenforceable`.
