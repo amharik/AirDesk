@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SCENARIO="$ROOT/research/scenarios/transport.json"
 SAMPLES=0
+PAYLOAD_BYTES=0
 RUN_ROOT="$ROOT/docs/research/runs"
 ALLOW_NON_MAC="${AIRDESK_RESEARCH_ALLOW_NON_MAC:-0}"
 BENCH="$ROOT/scripts/research/transport_bench.ts"
@@ -13,10 +14,11 @@ usage() {
 Usage: scripts/research/run-transport.sh [options]
 
 Options:
-  --scenario PATH   Transport scenario JSON (default: research/scenarios/transport.json)
-  --samples N       Override the scenario sample count
-  --out-dir PATH    Run artifact root (default: docs/research/runs)
-  -h, --help        Show this help
+  --scenario PATH      Transport scenario JSON (default: research/scenarios/transport.json)
+  --samples N          Override the scenario sample count
+  --payload-bytes N    Override the scenario payload size
+  --out-dir PATH       Run artifact root (default: docs/research/runs)
+  -h, --help           Show this help
 USAGE
 }
 
@@ -28,6 +30,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --samples)
       SAMPLES="${2:-}"
+      shift 2
+      ;;
+    --payload-bytes)
+      PAYLOAD_BYTES="${2:-}"
       shift 2
       ;;
     --out-dir)
@@ -73,8 +79,18 @@ if [[ ! "$SAMPLES" =~ ^[0-9]+$ ]]; then
   exit 1
 fi
 
+if [[ ! "$PAYLOAD_BYTES" =~ ^[0-9]+$ ]]; then
+  echo "Payload bytes must be a non-negative integer." >&2
+  exit 1
+fi
+
 DATE_STAMP="$(date -u +%Y-%m-%dT%H%M%SZ)"
-RUN_ID="$DATE_STAMP-transport-harness-smoke"
+SCENARIO_SLUG="$(basename "$SCENARIO" .json)"
+PAYLOAD_LABEL=""
+if [[ "$PAYLOAD_BYTES" -gt 0 ]]; then
+  PAYLOAD_LABEL="-${PAYLOAD_BYTES}b"
+fi
+RUN_ID="$DATE_STAMP-$SCENARIO_SLUG$PAYLOAD_LABEL"
 RUN_DIR="$RUN_ROOT/$RUN_ID"
 if [[ -e "$RUN_DIR" ]]; then
   RUN_ID="$RUN_ID-$$"
@@ -99,6 +115,7 @@ deno run \
   "$BENCH" \
   --scenario "$SCENARIO" \
   --samples "$SAMPLES" \
+  --payload-bytes "$PAYLOAD_BYTES" \
   --run-dir "$RUN_DIR" \
   --run-id "$RUN_ID" \
   --commit "$COMMIT" \
@@ -114,9 +131,9 @@ if [[ ! -s "$RUN_DIR/run.json" ]]; then
 {
   "schema_version": 1,
   "run_id": "$RUN_ID",
-  "scenario": "S0",
-  "scenario_name": "transport-harness-smoke",
-  "candidate": "loopback-websocket-baseline",
+  "scenario": "unknown",
+  "scenario_name": "$SCENARIO_SLUG",
+  "candidate": "unknown",
   "commit": "$COMMIT",
   "dirty": $DIRTY,
   "date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
@@ -133,7 +150,7 @@ fi
 
 if [[ ! -s "$RUN_DIR/report.md" ]]; then
   cat > "$RUN_DIR/report.md" <<EOF
-# Transport Harness Smoke
+# Transport Run
 
 - Run: \`$RUN_ID\`
 - Commit: \`$COMMIT\`$([[ "$DIRTY" == "true" ]] && printf ' (dirty)')

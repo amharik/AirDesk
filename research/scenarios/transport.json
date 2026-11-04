@@ -3,6 +3,7 @@
   "id": "S0",
   "name": "transport-harness-smoke",
   "purpose": "R0 self-test of the transport runner; not evidence for candidate selection",
+  "evidence_scope": "harness-smoke",
   "candidate": "loopback-websocket-baseline",
   "requires": [
     "mac-host",
@@ -12,6 +13,7 @@
   ],
   "network": "loopback",
   "samples": 30,
+  "payload_bytes": 64,
   "steps": [
     "Start a loopback WebSocket echo endpoint",
     "Exchange bounded binary control messages",

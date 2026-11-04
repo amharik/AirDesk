@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "id": "T1",
+  "name": "loopback-websocket-baseline",
+  "purpose": "Measure the loopback WebSocket reference transport under the transport metric protocol",
+  "evidence_scope": "transport-baseline",
+  "candidate": "loopback-websocket-baseline",
+  "requires": [
+    "mac-host",
+    "deno",
+    "git",
+    "loopback-network"
+  ],
+  "network": "loopback",
+  "samples": 30,
+  "payload_bytes": 64,
+  "steps": [
+    "Start a loopback WebSocket echo endpoint",
+    "Exchange bounded binary control messages at the recorded payload size",
+    "Disconnect the client and establish a fresh connection",
+    "Write the raw result before generating the report"
+  ],
+  "metrics": [
+    "control_rtt_ms",
+    "messages_delivered",
+    "reconnect_ms"
+  ],
+  "failure_injection": [
+    "client-disconnect-and-reconnect"
+  ],
+  "pass": {
+    "messages_delivered": "equals samples",
+    "failures": "empty",
+    "reconnect_ms": "present"
+  }
+}

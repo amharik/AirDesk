@@ -114,6 +114,14 @@ Hardware availability must be recorded per run. A missing device is reported as 
 
 ## 5. Scenario procedures
 
+### T1 — Loopback WebSocket transport baseline
+
+1. Select `research/scenarios/loopback-websocket-baseline.json`.
+2. Run `scripts/research/run-transport.sh --payload-bytes 64`, then repeat for `1024` and `16384`.
+3. Verify every sample is echoed byte-for-byte and the client reconnects.
+4. Record p50/p95/p99 RTT, delivery count, reconnect time and the exact payload size.
+5. Treat this as a reference measurement, not a comparison with an unimplemented candidate.
+
 ### S1 — Cross-endpoint presentation
 
 1. Create or open a workspace on the host.

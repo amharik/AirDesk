@@ -23,6 +23,7 @@ No new test framework, dashboard or telemetry service is introduced for R0/R1.
 research/
   scenarios/
     transport.json
+    loopback-websocket-baseline.json
     state.json
     remote-placement.json
     remote-window.json
@@ -57,6 +58,7 @@ Each scenario file describes a reproducible procedure, not a claim:
   "candidate": "ssh-tmux-baseline",
   "requires": ["iphone", "mac-host", "ssh-host"],
   "network": "lan-or-tailnet",
+  "payload_bytes": 64,
   "steps": [
     "start remote terminal",
     "generate bounded output",
@@ -128,9 +130,28 @@ scripts/ci-ios.sh
 protocol/check.sh
 cd web && deno run --allow-all node_modules/vitest/vitest.mjs run
 cargo test --manifest-path protocol/rust/Cargo.toml
+scripts/research/run-transport.sh
+scripts/research/run-transport.sh --scenario research/scenarios/loopback-websocket-baseline.json --payload-bytes 1024
 ```
 
 On the current Linux environment these toolchains are absent. The research runner must execute on the Mac or another qualified host.
+
+### Recorded runner
+
+The first qualified runner was recorded on 2026-11-04:
+
+| Field | Value |
+| --- | --- |
+| Model | Mac mini (Macmini8,1) |
+| CPU | Intel Core i5-4278U, 2.60 GHz |
+| Memory | 8 GB |
+| OS | macOS 15.5 (24F74) |
+| Xcode | 16.4 (16F6) |
+| Swift | 6.1.2 |
+| Cargo | 1.98.1 |
+| Deno | 2.9.4 |
+
+Scope: loopback harness smoke and local Swift/Cargo/Deno checks only. Physical iPhone/iPad, Windows, Linux Xpra and Android runners remain unrecorded. Security review ownership remains unassigned.
 
 ## 7. Privacy and security
 
@@ -146,8 +167,9 @@ On the current Linux environment these toolchains are absent. The research runne
 - [x] Runner rules and baseline commands documented.
 - [x] First scenario file created: `research/scenarios/transport.json`.
 - [x] First runner script created and smoke-tested: `scripts/research/run-transport.sh`.
-- [ ] First scenario and runner committed.
-- [ ] Qualified Mac/hardware runner recorded across the required matrix.
+- [x] First scenario and runner committed.
+- [x] Qualified Mac runner recorded.
+- [ ] Physical-device and additional-host runners recorded.
 - [ ] Security owner reviews log redaction and fixture handling.
 
 The loopback smoke run was recorded on macOS 15.5 x86_64 with Deno 2.9.4. It validates the runner only; it is not transport-candidate evidence.

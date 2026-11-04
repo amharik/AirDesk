@@ -1,9 +1,12 @@
 interface Scenario {
   id: string;
   name: string;
+  purpose?: string;
+  evidence_scope?: string;
   candidate: string;
   network: string;
   samples?: number;
+  payload_bytes?: number;
   steps: string[];
   metrics: string[];
   failure_injection: string[];
@@ -36,8 +39,8 @@ function percentile(values: number[], rank: number): number | null {
   return round(sorted[Math.max(0, Math.min(index, sorted.length - 1))]);
 }
 
-function makePayload(sequence: number): Uint8Array {
-  const payload = new Uint8Array(64);
+function makePayload(sequence: number, size: number): Uint8Array {
+  const payload = new Uint8Array(size);
   payload.set([0x41, 0x44, 0x46, 0x50], 0);
   const view = new DataView(payload.buffer);
   view.setUint32(4, sequence, true);
@@ -152,6 +155,7 @@ const hostOs = requiredArgument("--host-os");
 const hostArch = requiredArgument("--host-arch");
 const denoVersion = requiredArgument("--deno-version");
 const requestedSamples = Number(argument("--samples") ?? "0");
+const requestedPayloadBytes = Number(argument("--payload-bytes") ?? "0");
 const scenario = JSON.parse(await Deno.readTextFile(scenarioPath)) as Scenario;
 
 if (!scenario.id || !scenario.name || !scenario.candidate || !scenario.network) {
@@ -164,6 +168,14 @@ const sampleCount = Number.isInteger(requestedSamples) && requestedSamples > 0
 
 if (!Number.isInteger(sampleCount) || sampleCount < 1 || sampleCount > 10000) {
   throw new Error("samples must be an integer between 1 and 10000");
+}
+
+const payloadBytes = Number.isInteger(requestedPayloadBytes) && requestedPayloadBytes > 0
+  ? requestedPayloadBytes
+  : scenario.payload_bytes ?? 64;
+
+if (!Number.isInteger(payloadBytes) || payloadBytes < 8 || payloadBytes > 1048576) {
+  throw new Error("payload bytes must be an integer between 8 and 1048576");
 }
 
 const failures: string[] = [];
@@ -203,7 +215,7 @@ try {
   await waitForOpen(socket, 5000);
   for (let index = 0; index < sampleCount; index += 1) {
     try {
-      const rtt = await echoRoundTrip(socket, makePayload(index), 5000);
+      const rtt = await echoRoundTrip(socket, makePayload(index, payloadBytes), 5000);
       rtts.push(rtt);
       delivered += 1;
     } catch (error) {
@@ -220,7 +232,7 @@ try {
   await waitForOpen(replacement, 5000);
   reconnectMs = performance.now() - reconnectStarted;
   try {
-    await echoRoundTrip(replacement, makePayload(sampleCount), 5000);
+    await echoRoundTrip(replacement, makePayload(sampleCount, payloadBytes), 5000);
   } catch (error) {
     failures.push(`reconnect echo: ${(error as Error).message}`);
   }
@@ -253,7 +265,7 @@ const result = {
   run_id: runId,
   scenario: scenario.id,
   scenario_name: scenario.name,
-  evidence_scope: "harness-smoke",
+  evidence_scope: scenario.evidence_scope ?? "harness-smoke",
   candidate: scenario.candidate,
   commit,
   dirty,
@@ -279,7 +291,7 @@ const result = {
   },
   diagnostics: {
     server_messages_received: serverReceived,
-    payload_bytes: 64,
+    payload_bytes: payloadBytes,
     timeout_ms: 5000,
   },
   failures,
@@ -290,7 +302,7 @@ const result = {
 };
 
 const report = [
-  "# Transport Harness Smoke",
+  `# ${scenario.id} — ${scenario.name}`,
   "",
   `- Date: ${result.date}`,
   `- Scenario: \`${scenario.id}\` ${scenario.name}`,
