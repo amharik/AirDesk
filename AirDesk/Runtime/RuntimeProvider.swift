@@ -3,6 +3,9 @@ import Foundation
 enum RuntimeWorld: String, Codable, CaseIterable, Sendable {
     case wasip1
     case wasiCLI02 = "wasi-cli@0.2"
+    case wasiHTTP02 = "wasi-http@0.2"
+    case wasiFilesystem02 = "wasi-filesystem@0.2"
+    case wasiSockets02 = "wasi-sockets@0.2"
     case native
     case browser
 }
@@ -97,6 +100,7 @@ enum RuntimeProviderError: Error, Equatable, LocalizedError {
     case noQualifiedProvider(applicationId: String)
     case providerUnavailable(String)
     case unsupportedWorld(providerId: String, world: RuntimeWorld)
+    case unknownWorld(providerId: String, world: String)
     case unsupportedArchitecture(providerId: String, architecture: String)
     case capabilityUnsupported(String)
     case versionMismatch(providerId: String, expected: String)
@@ -119,6 +123,8 @@ enum RuntimeProviderError: Error, Equatable, LocalizedError {
             return "Runtime provider \(id) is unavailable."
         case .unsupportedWorld(let providerId, let world):
             return "Runtime provider \(providerId) does not support world \(world.rawValue)."
+        case .unknownWorld(let providerId, let world):
+            return "Runtime provider \(providerId) does not recognize world \(world)."
         case .unsupportedArchitecture(let providerId, let architecture):
             return "Runtime provider \(providerId) does not support architecture \(architecture)."
         case .capabilityUnsupported(let capability):
@@ -348,7 +354,13 @@ final class NativeRuntimeProvider: ManagedRuntimeProvider {
             displayName: "Native",
             location: .phone,
             version: "1.0",
-            supportedWorlds: [.wasiCLI02, .native],
+            supportedWorlds: [
+                .wasiCLI02,
+                .wasiHTTP02,
+                .wasiFilesystem02,
+                .wasiSockets02,
+                .native
+            ],
             architectures: ["arm64"],
             capabilities: RuntimeCapabilities(
                 desktopWindows: true,

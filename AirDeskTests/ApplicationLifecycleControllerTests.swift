@@ -69,6 +69,25 @@ final class ApplicationLifecycleControllerTests: XCTestCase {
         XCTAssertNil(manifest.instances[0].placement)
     }
 
+    func testNativeApplicationStartsWithoutWanix() async throws {
+        let (lifecycle, _, host) = try makeLifecycle(useWanix: false)
+        let application = makeApplication(
+            provider: "native",
+            world: "wasi-cli@0.2",
+            architectures: ["arm64"]
+        )
+        let instance = makeInstance(desiredState: .stopped)
+        try install(application, instance, in: host)
+
+        let started = try await lifecycle.start(instanceId: instance.id)
+        XCTAssertEqual(started.observedState, .running)
+        XCTAssertEqual(started.runtimeProviderId, "native")
+
+        let manifest = try XCTUnwrap(try host.load())
+        XCTAssertEqual(manifest.instances[0].placement?.providerId, "native")
+        XCTAssertEqual(manifest.executionBindings.first?.pinnedWorld, "wasi-cli@0.2")
+    }
+
     func testUnsupportedWorldFailsClosed() async throws {
         let (lifecycle, _, host) = try makeLifecycle()
         let application = makeApplication(world: "wasi-cli@0.2")
@@ -152,6 +171,7 @@ final class ApplicationLifecycleControllerTests: XCTestCase {
     private func makeApplication(
         provider: String = "wanix",
         world: String = "wasip1",
+        architectures: [String] = ["wasm32"],
         quotas: WorkspaceQuotas? = nil
     ) -> WorkspaceApplication {
         WorkspaceApplication(
@@ -160,7 +180,11 @@ final class ApplicationLifecycleControllerTests: XCTestCase {
             name: "Terminal",
             entrypoint: "terminal.wasm",
             runtimeTargets: [
-                WorkspaceRuntimeTarget(provider: provider, world: world, architectures: ["wasm32"])
+                WorkspaceRuntimeTarget(
+                    provider: provider,
+                    world: world,
+                    architectures: architectures
+                )
             ],
             requiredCapabilities: [],
             presentation: .foreground,

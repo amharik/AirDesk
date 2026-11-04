@@ -23,6 +23,106 @@ final class RuntimeRegistryTests: XCTestCase {
         XCTAssertEqual(native.world, .wasiCLI02)
     }
 
+    func testNativeProviderQualifiesEachSplitWASIWorld() throws {
+        let registry = try makeRegistry()
+        let worlds = [
+            "wasi-cli@0.2",
+            "wasi-http@0.2",
+            "wasi-filesystem@0.2",
+            "wasi-sockets@0.2"
+        ]
+
+        for world in worlds {
+            let app = makeApplication(
+                id: "app.\(world)",
+                targets: [
+                    WorkspaceRuntimeTarget(
+                        provider: "native",
+                        world: world,
+                        architectures: ["arm64"]
+                    )
+                ]
+            )
+            let selection = try registry.select(application: app)
+            XCTAssertEqual(selection.providerId, "native")
+            XCTAssertEqual(selection.world.rawValue, world)
+        }
+    }
+
+    func testWanixDoesNotClaimWASI02Worlds() throws {
+        let registry = try makeRegistry()
+        let app = makeApplication(
+            id: "app.wanix-02",
+            targets: [
+                WorkspaceRuntimeTarget(
+                    provider: "wanix",
+                    world: "wasi-cli@0.2",
+                    architectures: ["wasm32"]
+                )
+            ]
+        )
+        let binding = WorkspaceExecutionBinding(
+            instanceId: "i",
+            preferredProviderId: "wanix",
+            fallbackPolicy: .deny
+        )
+
+        XCTAssertThrowsError(try registry.select(application: app, binding: binding)) { error in
+            XCTAssertEqual(
+                error as? RuntimeProviderError,
+                .unsupportedWorld(providerId: "wanix", world: .wasiCLI02)
+            )
+        }
+    }
+
+    func testUnknownWorldFailsClosed() throws {
+        let registry = try makeRegistry()
+        let app = makeApplication(
+            id: "app.wasix",
+            targets: [
+                WorkspaceRuntimeTarget(
+                    provider: "native",
+                    world: "wasix@0.1",
+                    architectures: ["arm64"]
+                )
+            ]
+        )
+
+        XCTAssertThrowsError(try registry.select(application: app)) { error in
+            XCTAssertEqual(
+                error as? RuntimeProviderError,
+                .unknownWorld(providerId: "native", world: "wasix@0.1")
+            )
+        }
+    }
+
+    func testUnknownPinnedWorldFailsClosed() throws {
+        let registry = try makeRegistry()
+        let app = makeApplication(
+            id: "app.pinned",
+            targets: [
+                WorkspaceRuntimeTarget(
+                    provider: "native",
+                    world: "wasi-cli@0.2",
+                    architectures: ["arm64"]
+                )
+            ]
+        )
+        let binding = WorkspaceExecutionBinding(
+            instanceId: "i",
+            preferredProviderId: "native",
+            fallbackPolicy: .deny,
+            pinnedWorld: "wasi-cli@0.3"
+        )
+
+        XCTAssertThrowsError(try registry.select(application: app, binding: binding)) { error in
+            XCTAssertEqual(
+                error as? RuntimeProviderError,
+                .unknownWorld(providerId: "native", world: "wasi-cli@0.3")
+            )
+        }
+    }
+
     func testUnsupportedWorldAndCapabilityFailClosed() throws {
         let registry = try makeRegistry()
         let wrongWorld = makeApplication(

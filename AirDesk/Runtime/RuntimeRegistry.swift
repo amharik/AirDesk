@@ -53,12 +53,17 @@ final class RuntimeRegistry {
         let providers = Array(providersByID.values)
         lock.unlock()
 
-        let pinnedWorld = binding?.pinnedWorld.flatMap(RuntimeWorld.init(rawValue:))
-        if binding?.pinnedWorld != nil && pinnedWorld == nil {
-            throw RuntimeProviderError.unsupportedWorld(
-                providerId: binding?.preferredProviderId ?? "unknown",
-                world: .wasip1
-            )
+        let pinnedWorld: RuntimeWorld?
+        if let pinned = binding?.pinnedWorld {
+            guard let parsed = RuntimeWorld(rawValue: pinned) else {
+                throw RuntimeProviderError.unknownWorld(
+                    providerId: binding?.preferredProviderId ?? "unknown",
+                    world: pinned
+                )
+            }
+            pinnedWorld = parsed
+        } else {
+            pinnedWorld = nil
         }
 
         var candidates: [Candidate] = []
@@ -94,7 +99,7 @@ final class RuntimeRegistry {
 
             for target in application.runtimeTargets where target.provider == descriptor.id {
                 guard let world = RuntimeWorld(rawValue: target.world) else {
-                    firstError = .unsupportedWorld(providerId: descriptor.id, world: .wasip1)
+                    firstError = .unknownWorld(providerId: descriptor.id, world: target.world)
                     continue
                 }
                 if let pinnedWorld, world != pinnedWorld { continue }
