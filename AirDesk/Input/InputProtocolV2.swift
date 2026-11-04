@@ -34,6 +34,8 @@ enum InputProtocolError: Error, Equatable, LocalizedError {
     case noCommonPackedVersion
     case reliableEdgeChannelRequired
     case edgeOnMovementChannel
+    case movementOnReliableChannel
+    case unexpectedInputChannel(expected: InputTransportChannel, actual: InputTransportChannel)
     case unknownMultiplexedFrame
     case packedFormatNotNegotiated
     case unauthenticatedConnection
@@ -53,6 +55,10 @@ enum InputProtocolError: Error, Equatable, LocalizedError {
             return "The peer does not support the reliable input edge channel."
         case .edgeOnMovementChannel:
             return "Input edges cannot be sent on the movement channel."
+        case .movementOnReliableChannel:
+            return "Packed movement frames can only be sent on the movement channel."
+        case .unexpectedInputChannel(let expected, let actual):
+            return "Input was routed to \(actual.rawValue); expected \(expected.rawValue)."
         case .unknownMultiplexedFrame:
             return "The multiplexed input frame is not a recognized movement frame or ADFP envelope."
         case .packedFormatNotNegotiated:
@@ -130,27 +136,76 @@ enum InputChannelRouter {
     }
 
     static func validate(_ event: InputEvent, on channel: InputTransportChannel) throws {
-        if channel == .movement, try route(event) != .movement {
-            throw InputProtocolError.edgeOnMovementChannel
+        let expected = try route(event)
+        guard expected == channel else {
+            if channel == .movement {
+                throw InputProtocolError.edgeOnMovementChannel
+            }
+            if expected == .movement {
+                throw InputProtocolError.movementOnReliableChannel
+            }
+            throw InputProtocolError.unexpectedInputChannel(expected: expected, actual: channel)
         }
+    }
+
+    static func validate(_ frame: PackedMovementFrame, on channel: InputTransportChannel) throws {
+        guard channel == .movement else {
+            throw InputProtocolError.movementOnReliableChannel
+        }
+    }
+
+    static func classify(
+        _ data: Data,
+        on channel: InputTransportChannel,
+        negotiated: NegotiatedInputProtocol
+    ) throws -> MultiplexedInputFrame {
+        if channel == .movement {
+            guard negotiated.packedVersion == PackedMovementFrame.version else {
+                throw InputProtocolError.packedFormatNotNegotiated
+            }
+            guard data.count == PackedMovementFrame.byteCount,
+                  data.first == PackedMovementFrame.magic else {
+                throw InputProtocolError.unknownMultiplexedFrame
+            }
+            return .packedMovement
+        }
+
+        guard isFlatBufferEnvelope(data) else {
+            if data.first == PackedMovementFrame.magic {
+                throw InputProtocolError.movementOnReliableChannel
+            }
+            throw InputProtocolError.unknownMultiplexedFrame
+        }
+        return .flatBufferEnvelope
     }
 
     static func classifyMultiplexed(
         _ data: Data,
         negotiated: NegotiatedInputProtocol
     ) throws -> MultiplexedInputFrame {
-        guard !data.isEmpty else { throw InputProtocolError.unknownMultiplexedFrame }
-        if data[0] == PackedMovementFrame.magic {
+        if isFlatBufferEnvelope(data) {
+            return .flatBufferEnvelope
+        }
+        if data.first == PackedMovementFrame.magic {
             guard negotiated.packedVersion == PackedMovementFrame.version else {
                 throw InputProtocolError.packedFormatNotNegotiated
             }
             return .packedMovement
         }
-        guard data.count >= 8,
-              data[4] == 0x41, data[5] == 0x44, data[6] == 0x45, data[7] == 0x4E else {
-            throw InputProtocolError.unknownMultiplexedFrame
+        throw InputProtocolError.unknownMultiplexedFrame
+    }
+
+    private static func isFlatBufferEnvelope(_ data: Data) -> Bool {
+        guard data.count >= 8 else { return false }
+        let bytes = [UInt8](data)
+        guard bytes[4] == 0x41, bytes[5] == 0x44, bytes[6] == 0x45, bytes[7] == 0x4E else {
+            return false
         }
-        return .flatBufferEnvelope
+        let root = Int(bytes[0])
+            | (Int(bytes[1]) << 8)
+            | (Int(bytes[2]) << 16)
+            | (Int(bytes[3]) << 24)
+        return root >= 8 && root + 4 <= bytes.count
     }
 }
 

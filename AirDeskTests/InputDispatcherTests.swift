@@ -73,6 +73,23 @@ final class InputDispatcherTests: XCTestCase {
         XCTAssertEqual(events.map(\.type), [.sessionStart, .pointerClick])
     }
 
+    func testDispatcherSeparatesMovementEdgesAndControlChannels() {
+        let dispatcher = InputDispatcher(autoFlush: false)
+        var routed: [(InputEvent, InputTransportChannel)] = []
+        dispatcher.transport = ClosureInputTransport { event, channel in
+            routed.append((event, channel))
+        }
+
+        dispatcher.startSession(id: "session", viewport: CGSize(width: 100, height: 100))
+        dispatcher.move(to: CGPoint(x: 0.25, y: 0.75))
+        dispatcher.flushPendingMove()
+        dispatcher.click()
+        dispatcher.updateViewport(CGSize(width: 200, height: 200))
+
+        XCTAssertEqual(routed.map(\.1), [.control, .movement, .reliableEdges, .control])
+        XCTAssertEqual(routed.map(\.0.type), [.sessionStart, .pointerMove, .pointerClick, .viewportChanged])
+    }
+
     func testEventIsNotSentWithoutTransport() {
         let dispatcher = InputDispatcher(autoFlush: false)
         dispatcher.startSession(id: "session")

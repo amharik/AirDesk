@@ -23,9 +23,13 @@ final class SessionInputTransport: InputTransport {
         }
     }
 
-    func send(_ event: InputEvent) {
-        print("[AirDeskDebug] transport send \(event.type) route=\(route) available=\(isAvailable) endpoint=\(endpoint != nil)")
+    func send(_ event: InputEvent, on channel: InputTransportChannel) {
+        print("[AirDeskDebug] transport send \(event.type) channel=\(channel.rawValue) route=\(route) available=\(isAvailable) endpoint=\(endpoint != nil)")
         guard isAvailable else { return }
+        guard (try? InputChannelRouter.validate(event, on: channel)) != nil else {
+            print("[AirDeskDebug] transport drop \(event.type) wrong channel \(channel.rawValue)")
+            return
+        }
         switch route {
         case .endpoint:
             endpoint?.send(event)

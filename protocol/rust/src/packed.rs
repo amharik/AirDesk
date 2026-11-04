@@ -216,7 +216,8 @@ fn read_u64(data: &[u8], offset: usize) -> u64 {
 mod tests {
     use super::*;
     use crate::fb::{
-        ControlMessage, ControlMessageArgs, ControlType, Envelope, EnvelopeArgs, MessagePayload,
+        envelope_buffer_has_identifier, root_as_envelope, ControlMessage, ControlMessageArgs,
+        ControlType, Envelope, EnvelopeArgs, InputEvent, InputEventArgs, MessagePayload,
     };
     use flatbuffers::FlatBufferBuilder;
 
@@ -338,5 +339,131 @@ mod tests {
         assert_eq!(message.generation(), 7);
         assert_eq!(message.seq(), 2);
         assert_eq!(message.appearance(), Some("light"));
+    }
+
+    #[test]
+    fn flatbuffer_corpus_never_starts_with_movement_magic() {
+        let event_types = [
+            EventType::pointer_move,
+            EventType::pointer_down,
+            EventType::pointer_up,
+            EventType::pointer_click,
+            EventType::pointer_cancel,
+            EventType::scroll,
+            EventType::key_down,
+            EventType::key_up,
+            EventType::text_input,
+            EventType::focus_changed,
+            EventType::viewport_changed,
+        ];
+        let control_types = [
+            ControlType::ready,
+            ControlType::ack,
+            ControlType::viewport,
+            ControlType::notice,
+            ControlType::state,
+            ControlType::error,
+            ControlType::appearance,
+            ControlType::action,
+            ControlType::session_start,
+            ControlType::session_end,
+            ControlType::ping,
+            ControlType::pong,
+            ControlType::log,
+        ];
+
+        let mut corpus = Vec::new();
+        for payload_length in [1, 64, 4096] {
+            for event_type in event_types {
+                corpus.push(input_envelope(event_type, payload_length));
+            }
+            for control_type in control_types {
+                corpus.push(control_envelope(control_type, payload_length));
+            }
+        }
+
+        for envelope in corpus {
+            assert_ne!(envelope[0], MAGIC);
+            assert!(envelope_buffer_has_identifier(&envelope));
+            assert!(root_as_envelope(&envelope).is_ok());
+        }
+    }
+
+    fn input_envelope(event_type: EventType, payload_length: usize) -> Vec<u8> {
+        let mut builder = FlatBufferBuilder::new();
+        let session = builder.create_string(&"s".repeat(64));
+        let key = builder.create_string(&"k".repeat(64));
+        let code = builder.create_string(&"c".repeat(64));
+        let text = builder.create_string(&"x".repeat(payload_length));
+        let target = builder.create_string(&"t".repeat(128));
+        let input = InputEvent::create(
+            &mut builder,
+            &InputEventArgs {
+                type_: event_type,
+                session_id: Some(session),
+                generation: u32::MAX,
+                seq: u32::MAX,
+                timestamp: u64::MAX,
+                x: 0.5,
+                y: 0.5,
+                dx: 20_000.0,
+                dy: -20_000.0,
+                button: 4,
+                click_count: 3,
+                key: Some(key),
+                code: Some(code),
+                text: Some(text),
+                width: 20_000.0,
+                height: 20_000.0,
+                target: Some(target),
+                ..Default::default()
+            },
+        );
+        let envelope = Envelope::create(
+            &mut builder,
+            &EnvelopeArgs {
+                payload_type: MessagePayload::InputEvent,
+                payload: Some(input.as_union_value()),
+                ..Default::default()
+            },
+        );
+        builder.finish(envelope, Some("ADEN"));
+        builder.finished_data().to_vec()
+    }
+
+    fn control_envelope(control_type: ControlType, payload_length: usize) -> Vec<u8> {
+        let mut builder = FlatBufferBuilder::new();
+        let session = builder.create_string(&"s".repeat(64));
+        let appearance = builder.create_string("light");
+        let message = builder.create_string(&"m".repeat(payload_length));
+        let action = builder.create_string(&"a".repeat(64));
+        let code = builder.create_string(&"c".repeat(64));
+        let control = ControlMessage::create(
+            &mut builder,
+            &ControlMessageArgs {
+                type_: control_type,
+                session_id: Some(session),
+                generation: u32::MAX,
+                seq: u32::MAX,
+                timestamp: u64::MAX,
+                appearance: Some(appearance),
+                message: Some(message),
+                action: Some(action),
+                width: 20_000.0,
+                height: 20_000.0,
+                code: Some(code),
+                ..Default::default()
+            },
+        );
+        let envelope = Envelope::create(
+            &mut builder,
+            &EnvelopeArgs {
+                payload_type: MessagePayload::ControlMessage,
+                payload: Some(control.as_union_value()),
+                ..Default::default()
+            },
+        );
+        builder.finish(envelope, Some("ADEN"));
+        builder.finished_data().to_vec()
     }
 }

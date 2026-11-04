@@ -90,8 +90,59 @@ final class PackedMovementFrameTests: XCTestCase {
         XCTAssertEqual(try InputChannelRouter.route(move), .movement)
         XCTAssertEqual(try InputChannelRouter.route(click), .reliableEdges)
         XCTAssertEqual(try InputChannelRouter.route(viewport), .control)
+        XCTAssertNoThrow(try InputChannelRouter.validate(move, on: .movement))
         XCTAssertThrowsError(try InputChannelRouter.validate(click, on: .movement)) { error in
             XCTAssertEqual(error as? InputProtocolError, .edgeOnMovementChannel)
+        }
+        XCTAssertThrowsError(try InputChannelRouter.validate(move, on: .reliableEdges)) { error in
+            XCTAssertEqual(error as? InputProtocolError, .movementOnReliableChannel)
+        }
+        XCTAssertThrowsError(try InputChannelRouter.validate(
+            PackedMovementFrame(leaseEpochLow: 1, seq: 1, x: 0.5, y: 0.5),
+            on: .reliableEdges
+        )) { error in
+            XCTAssertEqual(error as? InputProtocolError, .movementOnReliableChannel)
+        }
+    }
+
+    func testChannelFirstClassifierUsesTheChannelBeforeThePayload() throws {
+        let negotiated = try InputProtocolNegotiator.negotiate(local: .current, remote: .current)
+        let legacy = try InputProtocolNegotiator.negotiate(local: .legacyOnly, remote: .legacyOnly)
+        let movement = try PackedMovementFrame(leaseEpochLow: 1, seq: 1, x: 0.5, y: 0.5).encoded()
+        let envelope = Data([12, 0, 0, 0, 0x41, 0x44, 0x45, 0x4E, 0, 0, 0, 0])
+
+        XCTAssertEqual(
+            try InputChannelRouter.classify(movement, on: .movement, negotiated: negotiated),
+            .packedMovement
+        )
+        XCTAssertEqual(
+            try InputChannelRouter.classify(envelope, on: .reliableEdges, negotiated: negotiated),
+            .flatBufferEnvelope
+        )
+        XCTAssertEqual(
+            try InputChannelRouter.classify(envelope, on: .control, negotiated: legacy),
+            .flatBufferEnvelope
+        )
+        XCTAssertThrowsError(try InputChannelRouter.classify(
+            movement,
+            on: .reliableEdges,
+            negotiated: negotiated
+        )) { error in
+            XCTAssertEqual(error as? InputProtocolError, .movementOnReliableChannel)
+        }
+        XCTAssertThrowsError(try InputChannelRouter.classify(
+            movement,
+            on: .movement,
+            negotiated: legacy
+        )) { error in
+            XCTAssertEqual(error as? InputProtocolError, .packedFormatNotNegotiated)
+        }
+        XCTAssertThrowsError(try InputChannelRouter.classify(
+            envelope,
+            on: .movement,
+            negotiated: negotiated
+        )) { error in
+            XCTAssertEqual(error as? InputProtocolError, .unknownMultiplexedFrame)
         }
     }
 
@@ -102,7 +153,7 @@ final class PackedMovementFrameTests: XCTestCase {
             .packedMovement
         )
         XCTAssertEqual(
-            try InputChannelRouter.classifyMultiplexed(Data([0, 0, 0, 0, 0x41, 0x44, 0x45, 0x4E]), negotiated: negotiated),
+            try InputChannelRouter.classifyMultiplexed(Data([12, 0, 0, 0, 0x41, 0x44, 0x45, 0x4E, 0, 0, 0, 0]), negotiated: negotiated),
             .flatBufferEnvelope
         )
         XCTAssertThrowsError(try InputChannelRouter.classifyMultiplexed(Data([1, 2, 3]), negotiated: negotiated))

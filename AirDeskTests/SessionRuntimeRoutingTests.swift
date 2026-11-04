@@ -11,7 +11,7 @@ final class SessionRuntimeRoutingTests: XCTestCase {
         let event = InputEvent.make(.keyDown, sessionId: "ads-test", seq: 1, key: "a")
 
         XCTAssertTrue(transport.isAvailable)
-        transport.send(event)
+        transport.send(event, on: .reliableEdges)
 
         XCTAssertEqual(endpoint.sentEvents, [event])
     }
@@ -24,7 +24,7 @@ final class SessionRuntimeRoutingTests: XCTestCase {
         let event = InputEvent.make(.keyDown, sessionId: "ads-test", seq: 1, key: "a")
 
         XCTAssertFalse(transport.isAvailable)
-        transport.send(event)
+        transport.send(event, on: .reliableEdges)
 
         XCTAssertTrue(endpoint.sentEvents.isEmpty)
     }
@@ -42,9 +42,27 @@ final class SessionRuntimeRoutingTests: XCTestCase {
         adapter.emitReady(sessionId: "ads-test", generation: 0)
 
         XCTAssertTrue(transport.isAvailable)
-        transport.send(event)
+        transport.send(event, on: .movement)
 
         XCTAssertEqual(adapter.sentEvents, [event])
+    }
+
+    func testTransportRejectsInputOnTheWrongChannel() {
+        let endpoint = StubRuntimeEndpoint(state: .ready)
+        let transport = SessionInputTransport()
+        transport.route = .endpoint
+        transport.endpoint = endpoint
+
+        transport.send(
+            InputEvent.make(.pointerMove, sessionId: "ads-test", seq: 1, x: 0.5, y: 0.5),
+            on: .reliableEdges
+        )
+        transport.send(
+            InputEvent.make(.keyDown, sessionId: "ads-test", seq: 2, key: "a"),
+            on: .movement
+        )
+
+        XCTAssertTrue(endpoint.sentEvents.isEmpty)
     }
 }
 

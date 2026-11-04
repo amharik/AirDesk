@@ -4,21 +4,25 @@ import Foundation
 @MainActor
 protocol InputTransport: AnyObject {
     var isAvailable: Bool { get }
-    func send(_ event: InputEvent)
+    func send(_ event: InputEvent, on channel: InputTransportChannel)
 }
 
 @MainActor
 final class ClosureInputTransport: InputTransport {
     var isAvailable = true
-    private let handler: (InputEvent) -> Void
+    private let handler: (InputEvent, InputTransportChannel) -> Void
 
-    init(handler: @escaping (InputEvent) -> Void) {
+    init(handler: @escaping (InputEvent, InputTransportChannel) -> Void) {
         self.handler = handler
     }
 
-    func send(_ event: InputEvent) {
+    convenience init(handler: @escaping (InputEvent) -> Void) {
+        self.init { event, _ in handler(event) }
+    }
+
+    func send(_ event: InputEvent, on channel: InputTransportChannel) {
         guard isAvailable else { return }
-        handler(event)
+        handler(event, channel)
     }
 }
 
@@ -291,8 +295,12 @@ final class InputDispatcher {
             print("[AirDeskDebug] dispatch drop \(event.type) rejected")
             return
         }
-        print("[AirDeskDebug] dispatch \(validated.type)")
-        transport.send(validated)
+        guard let channel = try? InputChannelRouter.route(validated) else {
+            print("[AirDeskDebug] dispatch drop \(event.type) no channel")
+            return
+        }
+        print("[AirDeskDebug] dispatch \(validated.type) channel=\(channel.rawValue)")
+        transport.send(validated, on: channel)
         onEventSent?(validated)
     }
 }

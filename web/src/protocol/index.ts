@@ -1,3 +1,4 @@
+export * from './channels';
 export * from './control';
 export * from './input';
 export * from './movement';

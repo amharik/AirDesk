@@ -86,6 +86,112 @@ final class PackedPointerFrameTests: XCTestCase {
         XCTAssertEqual(message.appearance, "light")
     }
 
+    func testFlatBufferEnvelopeCorpusNeverCollidesWithMovementMagic() throws {
+        let negotiated = try InputProtocolNegotiator.negotiate(local: .current, remote: .current)
+        let eventTypes: [AirDesk_Protocol__EventType] = [
+            .pointerMove, .pointerDown, .pointerUp, .pointerClick, .pointerCancel, .scroll,
+            .keyDown, .keyUp, .textInput, .focusChanged, .viewportChanged
+        ]
+        let controlTypes: [AirDesk_Protocol__ControlType] = [
+            .ready, .ack, .viewport, .notice, .state, .error, .appearance, .action,
+            .sessionStart, .sessionEnd, .ping, .pong, .log
+        ]
+
+        var corpus: [Data] = []
+        for length in [1, 64, 4096] {
+            for type in eventTypes {
+                corpus.append(inputEnvelope(type: type, payloadLength: length))
+            }
+            for type in controlTypes {
+                corpus.append(controlEnvelope(type: type, payloadLength: length))
+            }
+        }
+
+        for envelope in corpus {
+            XCTAssertNotEqual(envelope.first, PackedMovementFrame.magic)
+            XCTAssertEqual(envelope[4], 0x41)
+            XCTAssertEqual(envelope[5], 0x44)
+            XCTAssertEqual(envelope[6], 0x45)
+            XCTAssertEqual(envelope[7], 0x4E)
+            XCTAssertEqual(
+                try InputChannelRouter.classify(envelope, on: .reliableEdges, negotiated: negotiated),
+                .flatBufferEnvelope
+            )
+        }
+    }
+
+    private func inputEnvelope(
+        type: AirDesk_Protocol__EventType,
+        payloadLength: Int
+    ) -> Data {
+        var builder = FlatBufferBuilder(initialSize: 8192)
+        let session = builder.create(string: String(repeating: "s", count: 64))
+        let key = builder.create(string: String(repeating: "k", count: 64))
+        let code = builder.create(string: String(repeating: "c", count: 64))
+        let text = builder.create(string: String(repeating: "x", count: payloadLength))
+        let target = builder.create(string: String(repeating: "t", count: 128))
+        let input = AirDesk_Protocol__InputEvent.createInputEvent(
+            &builder,
+            type: type,
+            sessionIdOffset: session,
+            generation: .max,
+            seq: .max,
+            timestamp: .max,
+            x: 0.5,
+            y: 0.5,
+            dx: 20_000,
+            dy: -20_000,
+            button: 4,
+            clickCount: 3,
+            keyOffset: key,
+            codeOffset: code,
+            textOffset: text,
+            width: 20_000,
+            height: 20_000,
+            targetOffset: target
+        )
+        let envelope = AirDesk_Protocol__Envelope.createEnvelope(
+            &builder,
+            payloadType: .inputevent,
+            payloadOffset: input
+        )
+        AirDesk_Protocol__Envelope.finish(&builder, end: envelope)
+        return Data(builder.data)
+    }
+
+    private func controlEnvelope(
+        type: AirDesk_Protocol__ControlType,
+        payloadLength: Int
+    ) -> Data {
+        var builder = FlatBufferBuilder(initialSize: 8192)
+        let session = builder.create(string: String(repeating: "s", count: 64))
+        let appearance = builder.create(string: "light")
+        let message = builder.create(string: String(repeating: "m", count: payloadLength))
+        let action = builder.create(string: String(repeating: "a", count: 64))
+        let code = builder.create(string: String(repeating: "c", count: 64))
+        let control = AirDesk_Protocol__ControlMessage.createControlMessage(
+            &builder,
+            type: type,
+            sessionIdOffset: session,
+            generation: .max,
+            seq: .max,
+            timestamp: .max,
+            appearanceOffset: appearance,
+            messageOffset: message,
+            actionOffset: action,
+            width: 20_000,
+            height: 20_000,
+            codeOffset: code
+        )
+        let envelope = AirDesk_Protocol__Envelope.createEnvelope(
+            &builder,
+            payloadType: .controlmessage,
+            payloadOffset: control
+        )
+        AirDesk_Protocol__Envelope.finish(&builder, end: envelope)
+        return Data(builder.data)
+    }
+
     private func data(hex: String) throws -> Data {
         var result = Data()
         var index = hex.startIndex
