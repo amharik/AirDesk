@@ -32,9 +32,9 @@ No candidate may enter the shipping client, the default build, or a production p
 | Candidate | Platform signal | Harness signal | Disposition |
 | --- | --- | --- | --- |
 | WebSocket | Existing browser and WKWebView baseline; ordered TCP stream only | T1 loopback baseline runs on the Mac harness | Keep as the required fallback |
-| WebTransport over HTTP/3 | Safari and iOS Safari support arrive in 26.4; WKWebView compatibility data lists iOS 26.4, so iOS 17–26.3 need a fallback; secure context required | Deno 2.9.4 exposes client and server APIs only with `--unstable-net`; T2 loopback baseline recorded and is slower than T1 at every payload size | Hold for the iOS 18.6 baseline; revisit only for iOS 26.4+ or a native controller; unstable server API is harness-only |
-| WebRTC data channels | RTCDataChannel is supported in Safari, but WKWebView compatibility tables do not establish it as baseline; ICE/STUN and often TURN are required | No harness yet; browser/native peer stack and relay policy need a separate spike | Hold until a direct-path or explicitly labeled relay experiment is designed |
-| Iroh/QUIC | MIT OR Apache-2.0 Rust candidate; default path can use a public relay | No harness yet; Rust spike can reuse the T1/T2 metric shape | Hold for a relay-free or explicitly authorized direct-path spike |
+| WebTransport over HTTP/3 | Safari and iOS Safari support arrive in 26.4; caniuse lists iOS 26.4+, so iOS 17–26.3 need a fallback; caniwebview lists WKWebView iOS 26.4 but in-app behavior still needs a device check; secure context required | Deno 2.9.4 exposes client and server APIs only with `--unstable-net`; T2 loopback baseline recorded and is slower than T1 at every payload size | Hold for the iOS 18.6 baseline; revisit only for iOS 26.4+ or a native controller; unstable server API is harness-only |
+| WebRTC data channels | RTCDataChannel is available in WKWebView since iOS 11; WebKit restricts host ICE candidates, so mDNS, server-reflexive candidates or TURN may be required; Safari can drop data channels silently under loss and needs heartbeats | No harness yet; a two-peer WKWebView fixture can exercise reliable and unreliable channels without a third-party runtime | Advance to T3 after the SSH/tmux reference is scoped; test direct, TURN and silent-drop recovery separately |
+| Iroh/QUIC | Latest crate is 1.4.1, MIT OR Apache-2.0, MSRV 1.91.0; QUIC peer connections use public-key identity, hole punching and relay fallback; relay servers forward encrypted packets | No harness yet; a Rust spike can reuse the T1/T2 metric shape and report direct versus relayed paths | Hold until relay policy and distribution cost are accepted; do not make a public relay the hidden default |
 | SSH/tmux | Existing native remote-terminal path | Existing smoke tooling; represents remote execution, not a browser transport | Keep as the remote-execution reference |
 
 Matching T1 and T2 numbers across payload sizes is the first R1 comparison. Do not compare loopback, LAN, tailnet or relay runs without separate labels.
@@ -86,10 +86,12 @@ Before promotion from Spike:
 - WebTransport compatibility: <https://caniuse.com/webtransport>
 - WKWebView WebTransport compatibility: <https://caniwebview.com/features/mdn-webtransport/>
 - WebKit Safari 26.4 release: <https://webkit.org/blog/17862/webkit-features-for-safari-26-4/>
-- WKWebView WebRTC compatibility: <https://caniwebview.com/features/web-feature-webrtc/>
+- RTCDataChannel compatibility: <https://caniwebview.com/features/mdn-rtcdatachannel/>
+- WebKit RTCDataChannel host-candidate note: <https://bugs.webkit.org/show_bug.cgi?id=189503>
 - Deno WebTransport example: <https://docs.deno.com/examples/web_transport/>
 - Iroh crate: <https://crates.io/crates/iroh>
 - Iroh documentation: <https://docs.rs/iroh/latest/iroh/>
+- Iroh QUIC design: <https://docs.iroh.computer/protocols/using-quic>
 - Loro repository: <https://github.com/loro-dev/loro>
 - Loro Swift bindings: <https://github.com/loro-dev/loro-swift>
 - Loro FFI: <https://github.com/loro-dev/loro-ffi>
