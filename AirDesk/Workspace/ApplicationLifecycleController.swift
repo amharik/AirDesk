@@ -68,7 +68,8 @@ final class ApplicationLifecycleController {
         let request = RuntimeCreateRequest(
             instanceId: instanceId,
             application: application,
-            world: selection.world
+            world: selection.world,
+            threading: threading
         )
         if provider.status(instanceId: instanceId) == nil {
             try await provider.create(request)

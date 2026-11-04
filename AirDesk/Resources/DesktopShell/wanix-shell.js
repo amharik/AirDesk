@@ -94,6 +94,24 @@
     return window.AD || null;
   }
 
+  function threading() {
+    return window.AirDeskThreading || null;
+  }
+
+  function ensureThreading() {
+    var profile = threading();
+    if (!profile) return true;
+    try {
+      profile.require(profile.requestedProfile);
+    } catch (error) {
+      fail(error && error.message ? error.message : 'SynchronizationUnavailable');
+      return false;
+    }
+    var api = bridge();
+    if (api) api.state('wanix.threading.' + profile.profile);
+    return true;
+  }
+
   function fail(message) {
     if (failed) return;
     failed = true;
@@ -327,6 +345,7 @@
       fail('The Wanix namespace element is missing from the desktop shell.');
       return;
     }
+    if (!ensureThreading()) return;
 
     host.addEventListener('ready', function () {
       if (failed) return;
@@ -377,6 +396,10 @@
   window.AirDeskKernel = {
     ready: ready,
     terminalPath: terminalPath,
+    threading: function () {
+      var profile = threading();
+      return profile ? profile.profile : 'single-threaded';
+    },
     persistent: function () { return persistent; },
     persistence: function () {
       if (persistent) return 'opfs';

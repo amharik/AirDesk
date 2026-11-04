@@ -52,7 +52,8 @@ describe('bridge', () => {
       sessionId: 'live',
       generation: 7,
       runtime: 'test-runtime',
-      persistence: 'opfs'
+      persistence: 'opfs',
+      threading: 'single-threaded'
     });
     expect(posted[1]).toMatchObject({
       type: 'viewport',

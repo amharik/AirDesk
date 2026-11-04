@@ -1,3 +1,4 @@
+import { installThreading } from '../runtime/threading';
 import type {
   AirDeskAPI,
   AirDeskBridge,
@@ -25,6 +26,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function installBridge(win: Window): AirDeskBridge {
+  const threading = installThreading(win);
   const handler = (win as WebKitWindow).webkit?.messageHandlers?.airdesk ?? null;
   let query: Record<string, string> = {};
 
@@ -83,6 +85,7 @@ export function installBridge(win: Window): AirDeskBridge {
       persistence: win.AirDeskKernel?.persistence
         ? String(win.AirDeskKernel.persistence())
         : 'unknown',
+      threading: threading.profile,
       timestamp: Date.now()
     });
   }

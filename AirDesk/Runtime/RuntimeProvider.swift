@@ -79,6 +79,7 @@ struct RuntimeCreateRequest: Equatable, Sendable {
     var instanceId: String
     var application: WorkspaceApplication
     var world: RuntimeWorld
+    var threading: RuntimeThreadingProfile = .singleThreaded
 }
 
 protocol RuntimeProvider: AnyObject {
@@ -195,6 +196,9 @@ class ManagedRuntimeProvider: RuntimeProvider {
         try lock.withLock {
             guard descriptor.supportedWorlds.contains(request.world) else {
                 throw RuntimeProviderError.unsupportedWorld(providerId: descriptor.id, world: request.world)
+            }
+            guard descriptor.threadingProfiles.contains(request.threading) else {
+                throw RuntimeProviderError.synchronizationUnavailable(providerId: descriptor.id)
             }
             guard !instances.keys.contains(request.instanceId) else {
                 throw RuntimeProviderError.instanceAlreadyExists(request.instanceId)

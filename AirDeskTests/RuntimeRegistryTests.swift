@@ -178,6 +178,67 @@ final class RuntimeRegistryTests: XCTestCase {
         }
     }
 
+    func testProviderRejectsUnadvertisedThreadingAtCreate() async throws {
+        let singleThreaded = ManagedRuntimeProvider(descriptor: RuntimeProviderDescriptor(
+            id: "single",
+            displayName: "Single",
+            location: .phone,
+            version: "1",
+            supportedWorlds: [.wasip1],
+            architectures: ["wasm32"],
+            capabilities: .wanixDesktop,
+            threadingProfiles: [.singleThreaded]
+        ))
+        let app = makeApplication(
+            id: "app.sync-create",
+            targets: [WorkspaceRuntimeTarget(
+                provider: "single",
+                world: "wasip1",
+                architectures: ["wasm32"]
+            )]
+        )
+
+        do {
+            try await singleThreaded.create(RuntimeCreateRequest(
+                instanceId: "sync",
+                application: app,
+                world: .wasip1,
+                threading: .sharedMemory
+            ))
+            XCTFail("single-threaded provider accepted a synchronized runtime")
+        } catch {
+            XCTAssertEqual(
+                error as? RuntimeProviderError,
+                .synchronizationUnavailable(providerId: "single")
+            )
+        }
+
+        let threaded = ManagedRuntimeProvider(descriptor: RuntimeProviderDescriptor(
+            id: "threaded",
+            displayName: "Threaded",
+            location: .phone,
+            version: "1",
+            supportedWorlds: [.wasip1],
+            architectures: ["wasm32"],
+            capabilities: .wanixDesktop,
+            threadingProfiles: [.singleThreaded, .sharedMemory]
+        ))
+        let threadedApp = makeApplication(
+            id: "app.sync-threaded",
+            targets: [WorkspaceRuntimeTarget(
+                provider: "threaded",
+                world: "wasip1",
+                architectures: ["wasm32"]
+            )]
+        )
+        try await threaded.create(RuntimeCreateRequest(
+            instanceId: "sync",
+            application: threadedApp,
+            world: .wasip1,
+            threading: .sharedMemory
+        ))
+    }
+
     func testPreferredProviderFallbackAndLocalOnly() throws {
         let registry = RuntimeRegistry()
         let local = WanixRuntimeProvider()

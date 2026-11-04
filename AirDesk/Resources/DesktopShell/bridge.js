@@ -1,10 +1,64 @@
 "use strict";
 (() => {
+  // src/runtime/threading.ts
+  var synchronizationUnavailable = "SynchronizationUnavailable";
+  var SynchronizationUnavailableError = class extends Error {
+    constructor() {
+      super(
+        "SynchronizationUnavailable: shared-memory threading requires SharedArrayBuffer, Atomics, and cross-origin isolation."
+      );
+      this.code = synchronizationUnavailable;
+      this.name = "SynchronizationUnavailableError";
+    }
+  };
+  function detectThreading(scope) {
+    const sharedArrayBuffer = typeof scope.SharedArrayBuffer === "function";
+    const atomics = typeof scope.Atomics === "object" && scope.Atomics !== null;
+    const crossOriginIsolated = scope.crossOriginIsolated === true;
+    return {
+      sharedArrayBuffer,
+      atomics,
+      crossOriginIsolated,
+      sharedMemoryAvailable: sharedArrayBuffer && atomics && crossOriginIsolated
+    };
+  }
+  function createThreading(scope, requestedProfile = "single-threaded") {
+    const capabilities = detectThreading(scope);
+    const profile = requestedProfile === "shared-memory" && capabilities.sharedMemoryAvailable ? "shared-memory" : "single-threaded";
+    return {
+      ...capabilities,
+      requestedProfile,
+      profile,
+      supports(candidate) {
+        return candidate === "single-threaded" || capabilities.sharedMemoryAvailable;
+      },
+      require(candidate) {
+        if (candidate === "shared-memory" && !capabilities.sharedMemoryAvailable) {
+          throw new SynchronizationUnavailableError();
+        }
+      }
+    };
+  }
+  function requestedThreadingProfile(win) {
+    let requested = String(win.AIRDESK_THREADING || "");
+    try {
+      requested = String(new URLSearchParams(win.location.search).get("threading") || requested);
+    } catch {
+    }
+    return requested === "shared-memory" || requested === "shared" ? "shared-memory" : "single-threaded";
+  }
+  function installThreading(win) {
+    const threading = createThreading(win, requestedThreadingProfile(win));
+    win.AirDeskThreading = threading;
+    return threading;
+  }
+
   // src/bridge/bridge.ts
   function isRecord(value) {
     return typeof value === "object" && value !== null;
   }
   function installBridge(win) {
+    const threading = installThreading(win);
     const handler = win.webkit?.messageHandlers?.airdesk ?? null;
     let query = {};
     try {
@@ -57,6 +111,7 @@
         width: win.innerWidth,
         height: win.innerHeight,
         persistence: win.AirDeskKernel?.persistence ? String(win.AirDeskKernel.persistence()) : "unknown",
+        threading: threading.profile,
         timestamp: Date.now()
       });
     }

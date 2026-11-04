@@ -151,9 +151,60 @@ final class DesktopShellIntegrationTests: XCTestCase {
         XCTAssertEqual(payload["transformAfterMissing"] as? String, after, "click without coordinates moved the cursor: \(payload)")
     }
 
-    private func loadShell() async throws {
+    func testShellStartsWithoutSharedArrayBufferAndRejectsSynchronizedWASI() async throws {
+        try await loadShell(removeSharedArrayBuffer: true)
+
+        let result = try await evaluate("""
+        (function () {
+          var threading = window.AirDeskThreading;
+          var synchronization = 'unavailable';
+          try {
+            threading.require('shared-memory');
+          } catch (error) {
+            synchronization = error && error.code ? error.code : String(error);
+          }
+          return JSON.stringify({
+            sharedArrayBuffer: typeof SharedArrayBuffer,
+            requestedProfile: threading && threading.requestedProfile,
+            profile: threading && threading.profile,
+            kernelProfile: window.AirDeskKernel ? window.AirDeskKernel.threading() : null,
+            synchronization: synchronization,
+            persistence: window.AirDeskKernel ? window.AirDeskKernel.persistence() : null
+          });
+        })();
+        """)
+
+        let data = try XCTUnwrap(result as? String).data(using: .utf8)
+        let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(data)) as? [String: Any])
+        XCTAssertEqual(payload["sharedArrayBuffer"] as? String, "undefined")
+        XCTAssertEqual(payload["requestedProfile"] as? String, "single-threaded")
+        XCTAssertEqual(payload["profile"] as? String, "single-threaded")
+        XCTAssertEqual(payload["kernelProfile"] as? String, "single-threaded")
+        XCTAssertEqual(payload["synchronization"] as? String, "SynchronizationUnavailable")
+        XCTAssertNotNil(payload["persistence"] as? String)
+    }
+
+    private func loadShell(removeSharedArrayBuffer: Bool = false) async throws {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
+        if removeSharedArrayBuffer {
+            configuration.userContentController.addUserScript(WKUserScript(
+                source: """
+                (function () {
+                  try {
+                    Object.defineProperty(globalThis, 'SharedArrayBuffer', {
+                      configurable: true,
+                      value: undefined
+                    });
+                  } catch (_) {
+                    globalThis.SharedArrayBuffer = undefined;
+                  }
+                })();
+                """,
+                injectionTime: .atDocumentStart,
+                forMainFrameOnly: true
+            ))
+        }
         let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 1024, height: 768), configuration: configuration)
         let window = UIWindow(frame: webView.frame)
         window.rootViewController = UIViewController()

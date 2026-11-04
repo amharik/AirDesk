@@ -1,8 +1,11 @@
+import type { AirDeskThreadingAPI } from '../runtime/threading';
+
 export interface BridgeMessage extends Record<string, unknown> {
   version?: number;
   type?: string;
   sessionId?: string;
   generation?: number;
+  threading?: string;
 }
 
 export interface BridgeInputEvent extends BridgeMessage {
@@ -44,7 +47,9 @@ declare global {
     AirDeskBridge?: AirDeskBridge;
     AD?: AirDeskAPI;
     AirDeskKernel?: { persistence?: () => string };
+    AirDeskThreading?: AirDeskThreadingAPI;
     AIRDESK_SESSION_ID?: string;
+    AIRDESK_THREADING?: string;
     AIRDESK_GENERATION?: string | number;
     AIRDESK_HOST?: string;
     AIRDESK_PARENT_ORIGIN?: string;
