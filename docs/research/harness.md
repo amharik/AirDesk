@@ -25,6 +25,7 @@ research/
     transport.json
     loopback-websocket-baseline.json
     webtransport-baseline.json
+    webrtc-baseline.json
     state.json
     remote-placement.json
     remote-window.json
@@ -32,6 +33,8 @@ research/
 scripts/
   research/
     run-transport.sh
+    transport_bench.ts
+    webrtc_probe.swift
     run-state.sh
     run-placement.sh
     run-remote-window.sh
@@ -136,7 +139,10 @@ cargo test --manifest-path protocol/rust/Cargo.toml
 scripts/research/run-transport.sh
 scripts/research/run-transport.sh --scenario research/scenarios/loopback-websocket-baseline.json --payload-bytes 1024
 scripts/research/run-transport.sh --scenario research/scenarios/webtransport-baseline.json --payload-bytes 1024
+scripts/research/run-transport.sh --scenario research/scenarios/webrtc-baseline.json --payload-bytes 1024
 ```
+
+T3 runs a Swift/WebKit probe on the Mac and records macOS WKWebView behavior, not iOS 18.6 behavior. The iOS repeat requires the device runner.
 
 On the current Linux environment these toolchains are absent. The research runner must execute on the Mac or another qualified host.
 

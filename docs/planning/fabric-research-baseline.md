@@ -130,6 +130,14 @@ Hardware availability must be recorded per run. A missing device is reported as 
 4. Record p50/p95/p99 RTT, delivery count, reconnect time and any TLS/QUIC setup failure.
 5. Compare with T1 only when host, network and payload sizes match.
 
+### T3 — WebRTC data channel baseline
+
+1. Select `research/scenarios/webrtc-baseline.json`.
+2. Create two local peer connections inside one WKWebView and negotiate a reliable ordered data channel.
+3. Run the same payload sizes as T1 and verify binary echo plus peer reconnect.
+4. Record p50/p95/p99 RTT, delivery count, channel open time, reconnect time and ICE candidate types.
+5. Report the controller runtime; macOS WKWebView and iOS WKWebView are separate scopes.
+
 ### S1 — Cross-endpoint presentation
 
 1. Create or open a workspace on the host.

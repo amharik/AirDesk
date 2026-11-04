@@ -21,6 +21,7 @@ interface RunState {
   reconnectMs: number | null;
   serverReceived: number;
   serverErrors: string[];
+  transportDiagnostics?: Record<string, unknown>;
 }
 
 function argument(name: string): string | undefined {
@@ -451,6 +452,65 @@ async function runWebTransport(
   }
 }
 
+async function runWebRTC(
+  state: RunState,
+  sampleCount: number,
+  payloadBytes: number,
+): Promise<void> {
+  const scriptPath = new URL("./webrtc_probe.swift", import.meta.url).pathname;
+  const output = await new Deno.Command("swift", {
+    args: [
+      scriptPath,
+      "--payload-bytes",
+      String(payloadBytes),
+      "--samples",
+      String(sampleCount),
+    ],
+    stdout: "piped",
+    stderr: "piped",
+  }).output();
+  const stdout = new TextDecoder().decode(output.stdout).trim();
+  const stderr = new TextDecoder().decode(output.stderr).trim();
+  if (!output.success) {
+    state.failures.push(
+      `webrtc probe: ${stderr || `exit ${output.code}`}`,
+    );
+    return;
+  }
+  const probe = JSON.parse(stdout.split("\n").at(-1) ?? "{}") as {
+    rtts?: unknown;
+    reconnectMs?: unknown;
+    reconnectEchoMs?: unknown;
+    failures?: unknown;
+    iceGatheringState?: unknown;
+    localCandidateTypes?: unknown;
+    remoteCandidateTypes?: unknown;
+    openMs?: unknown;
+  };
+  if (Array.isArray(probe.rtts)) {
+    state.rtts = probe.rtts.filter((value): value is number =>
+      typeof value === "number" && Number.isFinite(value)
+    );
+  }
+  state.delivered = state.rtts.length;
+  state.serverReceived = state.rtts.length;
+  state.reconnectMs = typeof probe.reconnectMs === "number"
+    ? probe.reconnectMs
+    : null;
+  state.transportDiagnostics = {
+    ice_gathering_state: probe.iceGatheringState ?? null,
+    local_candidate_types: probe.localCandidateTypes ?? [],
+    remote_candidate_types: probe.remoteCandidateTypes ?? [],
+    channel_open_ms: probe.openMs ?? null,
+    reconnect_echo_ms: probe.reconnectEchoMs ?? null,
+  };
+  if (Array.isArray(probe.failures)) {
+    for (const failure of probe.failures) {
+      state.failures.push(`probe: ${String(failure)}`);
+    }
+  }
+}
+
 const scenarioPath = requiredArgument("--scenario");
 const runDir = requiredArgument("--run-dir");
 const runId = requiredArgument("--run-id");
@@ -504,6 +564,8 @@ if (transport === "websocket") {
     requiredArgument("--key"),
     requiredArgument("--der"),
   );
+} else if (transport === "webrtc") {
+  await runWebRTC(state, sampleCount, payloadBytes);
 } else {
   throw new Error(`unsupported transport ${transport}`);
 }
@@ -522,7 +584,7 @@ const observations = [
     ? "Working tree was dirty; preserve the diff with this run."
     : "Working tree was clean.",
   `Transport ${transport}.`,
-  `Server received ${state.serverReceived} messages.`,
+  `Receiver handled ${state.serverReceived} messages.`,
 ].join(" ");
 
 const result = {
@@ -559,11 +621,16 @@ const result = {
     server_messages_received: state.serverReceived,
     payload_bytes: payloadBytes,
     timeout_ms: 5000,
+    ...(state.transportDiagnostics
+      ? { transport_specific: state.transportDiagnostics }
+      : {}),
   },
   failures: state.failures,
   observations,
   license_notes: transport === "webtransport"
     ? "Deno unstable WebTransport/QUIC runtime only; no added dependency."
+    : transport === "webrtc"
+    ? "WebKit WebRTC data channels only; no added dependency."
     : "Deno runtime and WebSocket standard only; no added dependency.",
   decision: pass ? "trial" : "hold",
   pass,
@@ -623,6 +690,8 @@ const report = [
   "",
   transport === "websocket"
     ? "Reference baseline only; this run is not a candidate comparison."
+    : transport === "webrtc"
+    ? "Compare with T1/T2 only when host, network, payload and controller runtime are matched; this run uses macOS WKWebView."
     : "Compare with T1 only when host, network and payload are matched.",
   "",
   "## Decision",

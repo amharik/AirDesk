@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "id": "T3",
+  "name": "webrtc-datachannel-loopback-baseline",
+  "purpose": "Measure a WKWebView WebRTC data channel as a direct peer transport without TURN",
+  "evidence_scope": "transport-baseline",
+  "candidate": "webrtc-datachannel",
+  "transport": "webrtc",
+  "requires": [
+    "mac-host",
+    "swift",
+    "wkwebview",
+    "git",
+    "loopback-network"
+  ],
+  "network": "loopback",
+  "samples": 30,
+  "payload_bytes": 64,
+  "steps": [
+    "Create two local RTCPeerConnections inside one WKWebView",
+    "Create a reliable ordered data channel before the initial offer",
+    "Exchange host ICE candidates with non-trickle negotiation",
+    "Echo bounded binary messages and record round-trip time",
+    "Close both peers and repeat negotiation to measure reconnect"
+  ],
+  "metrics": [
+    "control_rtt_ms",
+    "messages_delivered",
+    "reconnect_ms",
+    "channel_open_ms"
+  ],
+  "failure_injection": [
+    "peer-close-and-reconnect"
+  ],
+  "pass": {
+    "messages_delivered": "equals samples",
+    "failures": "empty",
+    "reconnect_ms": "present"
+  }
+}

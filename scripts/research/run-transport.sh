@@ -65,7 +65,7 @@ if [[ "$(uname -s)" != "Darwin" && "$ALLOW_NON_MAC" != "1" ]]; then
   exit 1
 fi
 
-for tool in deno git openssl; do
+for tool in deno git openssl swift; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     echo "Missing required tool: $tool" >&2
     exit 1
@@ -127,6 +127,7 @@ set +e
 deno run \
   --unstable-net \
   --allow-net=127.0.0.1 \
+  --allow-run=swift \
   --allow-read="$SCENARIO" \
   --allow-read="$CERT_DIR" \
   --allow-write="$RUN_DIR" \
