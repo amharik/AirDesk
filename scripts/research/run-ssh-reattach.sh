@@ -142,6 +142,7 @@ xcodebuild build-for-testing \
     -scheme AirDeskUITests \
     -destination "$DESTINATION" \
     CODE_SIGNING_ALLOWED=NO \
+    ENABLE_ON_DEMAND_RESOURCES=NO \
     >"$BUILD_LOG" 2>&1 || {
         tail -n 120 "$BUILD_LOG" >&2
         exit 1
