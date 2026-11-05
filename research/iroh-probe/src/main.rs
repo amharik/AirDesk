@@ -1,6 +1,7 @@
 use std::{
     env,
     error::Error,
+    net::SocketAddr,
     sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
@@ -9,20 +10,43 @@ use std::{
 };
 
 use iroh::{
-    Endpoint, RelayMode,
+    Endpoint, EndpointAddr, EndpointId, RelayMode, TransportAddr,
     endpoint::{Connection, presets},
     protocol::{AcceptError, ProtocolHandler, Router},
 };
-use serde_json::json;
+use serde_json::{Value, json};
 
 const ALPN: &[u8] = b"airdesk/iroh-probe/0";
 const MAX_PAYLOAD_BYTES: usize = 1_048_576;
 const TIMEOUT: Duration = Duration::from_secs(5);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Mode {
+    Loopback,
+    Server,
+    Client,
+}
+
+impl Mode {
+    fn parse(value: &str) -> Result<Self, Box<dyn Error>> {
+        match value {
+            "loopback" => Ok(Self::Loopback),
+            "server" => Ok(Self::Server),
+            "client" => Ok(Self::Client),
+            _ => Err(format!("unknown mode: {value}").into()),
+        }
+    }
+}
+
 #[derive(Debug)]
 struct Args {
+    mode: Mode,
     samples: usize,
     payload_bytes: usize,
+    bind_addr: String,
+    peer_id: String,
+    peer_addr: String,
+    network: String,
     run_id: String,
     commit: String,
     dirty: bool,
@@ -35,8 +59,13 @@ struct Args {
 impl Default for Args {
     fn default() -> Self {
         Self {
+            mode: Mode::Loopback,
             samples: 30,
             payload_bytes: 64,
+            bind_addr: "127.0.0.1:0".to_string(),
+            peer_id: String::new(),
+            peer_addr: String::new(),
+            network: "loopback".to_string(),
             run_id: "unknown".to_string(),
             commit: "unknown".to_string(),
             dirty: false,
@@ -83,14 +112,56 @@ impl ProtocolHandler for Echo {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let args = parse_args()?;
-    if args.payload_bytes < 8 || args.payload_bytes > MAX_PAYLOAD_BYTES {
-        return Err(format!("payload bytes must be between 8 and {MAX_PAYLOAD_BYTES}").into());
+    match args.mode {
+        Mode::Server => run_server(&args).await,
+        Mode::Loopback => run_loopback(args).await,
+        Mode::Client => run_client(args).await,
     }
-    if args.samples == 0 || args.samples > 10_000 {
-        return Err("samples must be between 1 and 10000".into());
+}
+
+async fn run_server(args: &Args) -> Result<(), Box<dyn Error>> {
+    if args.bind_addr.is_empty() {
+        return Err("server mode requires --bind-addr".into());
     }
 
-    let payload = make_payload(args.payload_bytes);
+    let received = Arc::new(AtomicUsize::new(0));
+    let endpoint = bind_network_endpoint(&args.bind_addr).await?;
+    let addr = endpoint.addr();
+    if addr.relay_urls().next().is_some() {
+        return Err("relay address present despite RelayMode::Disabled".into());
+    }
+    let direct_addrs: Vec<String> = addr.ip_addrs().map(ToString::to_string).collect();
+    if direct_addrs.is_empty() {
+        return Err("server endpoint has no direct IP address".into());
+    }
+
+    let router = Router::builder(endpoint)
+        .accept(
+            ALPN,
+            Echo {
+                received: received.clone(),
+            },
+        )
+        .spawn();
+
+    let ready = json!({
+        "event": "ready",
+        "endpoint_id": addr.id.to_string(),
+        "direct_addrs": direct_addrs,
+        "relay_addrs": addr.relay_urls().count(),
+    });
+    println!("{}", serde_json::to_string(&ready)?);
+    use std::io::Write;
+    std::io::stdout().flush()?;
+
+    tokio::signal::ctrl_c().await?;
+    router.shutdown().await?;
+    Ok(())
+}
+
+async fn run_loopback(args: Args) -> Result<(), Box<dyn Error>> {
+    validate_measurement_args(&args)?;
+
     let received = Arc::new(AtomicUsize::new(0));
     let server_endpoint = bind_loopback_endpoint().await?;
     let server_addr = server_endpoint.addr();
@@ -111,8 +182,49 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .spawn();
     let client_endpoint = bind_loopback_endpoint().await?;
 
+    let result = measure(&args, &client_endpoint, server_addr, Some(received), false).await?;
+
+    client_endpoint.close().await;
+    router.shutdown().await?;
+    println!("{}", serde_json::to_string_pretty(&result)?);
+    Ok(())
+}
+
+async fn run_client(args: Args) -> Result<(), Box<dyn Error>> {
+    validate_measurement_args(&args)?;
+    if args.peer_id.is_empty() {
+        return Err("client mode requires --peer-id".into());
+    }
+    if args.peer_addr.is_empty() {
+        return Err("client mode requires --peer-addr".into());
+    }
+
+    let peer_id: EndpointId = args.peer_id.parse()?;
+    let peer_socket: SocketAddr = args.peer_addr.parse()?;
+    let peer_addr = EndpointAddr::from_parts(peer_id, [TransportAddr::Ip(peer_socket)]);
+
+    let client_endpoint = bind_network_endpoint("0.0.0.0:0").await?;
+    if client_endpoint.addr().relay_urls().next().is_some() {
+        return Err("relay address present despite RelayMode::Disabled".into());
+    }
+
+    let result = measure(&args, &client_endpoint, peer_addr, None, true).await?;
+    client_endpoint.close().await;
+    println!("{}", serde_json::to_string_pretty(&result)?);
+    Ok(())
+}
+
+async fn measure(
+    args: &Args,
+    client_endpoint: &Endpoint,
+    peer_addr: EndpointAddr,
+    server_messages: Option<Arc<AtomicUsize>>,
+    redact_addrs: bool,
+) -> Result<Value, Box<dyn Error>> {
+    let payload = make_payload(args.payload_bytes);
+
     let connect_started = Instant::now();
-    let connection = client_endpoint.connect(server_addr.clone(), ALPN).await?;
+    let connection = client_endpoint.connect(peer_addr.clone(), ALPN).await?;
     let connect_ms = elapsed_ms(connect_started);
 
     let mut rtts = Vec::with_capacity(args.samples);
@@ -128,9 +240,28 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
+    let paths = connection.paths();
+    let path_count = paths.len();
+    let direct_paths = paths.iter().filter(|path| path.is_ip()).count();
+    let relay_paths = paths.iter().filter(|path| path.is_relay()).count();
+    let selected_path = paths
+        .iter()
+        .find(|path| path.is_selected())
+        .map(|path| {
+            if path.is_ip() {
+                "direct"
+            } else if path.is_relay() {
+                "relay"
+            } else {
+                "other"
+            }
+        })
+        .unwrap_or("unknown");
+    drop(paths);
+
     connection.close(0u32.into(), b"reconnect");
     let reconnect_started = Instant::now();
-    let reconnect_connection = client_endpoint.connect(server_addr.clone(), ALPN).await?;
+    let reconnect_connection = client_endpoint.connect(peer_addr.clone(), ALPN).await?;
     let reconnect_connect_ms = elapsed_ms(reconnect_started);
     let reconnect_echo_started = Instant::now();
     let reconnect_result = echo_once(&reconnect_connection, &payload).await;
@@ -141,16 +272,38 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
     reconnect_connection.close(0u32.into(), b"done");
 
-    let server_messages = received.load(Ordering::Relaxed);
-    let direct_addrs: Vec<String> = server_addr.ip_addrs().map(ToString::to_string).collect();
-    let relay_addrs = server_addr.relay_urls().count();
-    let pass = failures.is_empty() && rtts.len() == args.samples && relay_addrs == 0;
+    let relay_addrs = peer_addr.relay_urls().count();
+    let peer_addrs_count = peer_addr.addrs.len();
+    let direct_addrs: Vec<String> = if redact_addrs {
+        Vec::new()
+    } else {
+        peer_addr.ip_addrs().map(ToString::to_string).collect()
+    };
+    let pass = failures.is_empty()
+        && rtts.len() == args.samples
+        && relay_addrs == 0
+        && selected_path == "direct";
+    let server_messages = server_messages.map(|count| count.load(Ordering::Relaxed));
+    let scenario_name = format!("iroh-quic-{}-baseline", args.network);
+    let observations = if args.network == "loopback" {
+        format!(
+            "Research measurement; not a product commitment. Relay-free loopback endpoint pair. Transport iroh. Server handled {} messages.",
+            server_messages
+                .map(|count| count.to_string())
+                .unwrap_or_else(|| "n/a".to_string())
+        )
+    } else {
+        format!(
+            "Research measurement; not a product commitment. Relay-free direct IP endpoint pair over {}. No relay addresses configured. Transport iroh.",
+            args.network
+        )
+    };
 
-    let result = json!({
+    Ok(json!({
         "schema_version": 1,
         "run_id": args.run_id,
         "scenario": "T4",
-        "scenario_name": "iroh-quic-loopback-baseline",
+        "scenario_name": scenario_name,
         "evidence_scope": "transport-baseline",
         "candidate": "iroh-quic",
         "transport": "iroh",
@@ -162,7 +315,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             "controller": format!("cargo {}", args.cargo_version),
             "host": format!("macOS {} {}", args.host_os, args.host_arch),
             "browser": "n/a",
-            "network": "loopback"
+            "network": args.network
         },
         "samples": args.samples,
         "metrics": {
@@ -186,22 +339,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
             "relay_mode": "disabled",
             "relay_addrs": relay_addrs,
             "direct_addrs": direct_addrs,
-            "peer_id": server_addr.id.to_string(),
-            "alpn": String::from_utf8_lossy(ALPN)
+            "peer_addrs_count": peer_addrs_count,
+            "peer_id": peer_addr.id.to_string(),
+            "alpn": String::from_utf8_lossy(ALPN),
+            "path_count": path_count,
+            "direct_paths": direct_paths,
+            "relay_paths": relay_paths,
+            "selected_path": selected_path
         },
         "failures": failures,
-        "observations": format!(
-            "Research measurement; not a product commitment. Relay-free loopback endpoint pair. Transport iroh. Server handled {server_messages} messages."
-        ),
+        "observations": observations,
         "license_notes": "Iroh crate 1.4.1, MIT OR Apache-2.0; research-only pinned dependency outside the product graph.",
         "decision": if pass { "trial" } else { "hold" },
         "pass": pass
-    });
-
-    client_endpoint.close().await;
-    router.shutdown().await?;
-    println!("{}", serde_json::to_string_pretty(&result)?);
-    Ok(())
+    }))
 }
 
 async fn bind_loopback_endpoint() -> Result<Endpoint, Box<dyn Error>> {
@@ -209,6 +360,15 @@ async fn bind_loopback_endpoint() -> Result<Endpoint, Box<dyn Error>> {
         .relay_mode(RelayMode::Disabled)
         .clear_ip_transports()
         .bind_addr("127.0.0.1:0")?
+        .bind()
+        .await?;
+    Ok(endpoint)
+}
+
+async fn bind_network_endpoint(bind_addr: &str) -> Result<Endpoint, Box<dyn Error>> {
+    let endpoint = Endpoint::builder(presets::Minimal)
+        .relay_mode(RelayMode::Disabled)
+        .bind_addr(bind_addr)?
         .bind()
         .await?;
     Ok(endpoint)
@@ -263,6 +423,16 @@ fn percentile(values: &[f64], rank: usize) -> Option<f64> {
     Some(round_ms(sorted[index]))
 }
 
+fn validate_measurement_args(args: &Args) -> Result<(), Box<dyn Error>> {
+    if args.payload_bytes < 8 || args.payload_bytes > MAX_PAYLOAD_BYTES {
+        return Err(format!("payload bytes must be between 8 and {MAX_PAYLOAD_BYTES}").into());
+    }
+    if args.samples == 0 || args.samples > 10_000 {
+        return Err("samples must be between 1 and 10000".into());
+    }
+    Ok(())
+}
+
 fn parse_args() -> Result<Args, Box<dyn Error>> {
     let mut args = Args::default();
     let mut iter = env::args().skip(1);
@@ -271,8 +441,13 @@ fn parse_args() -> Result<Args, Box<dyn Error>> {
             .next()
             .ok_or_else(|| format!("missing value for {flag}"))?;
         match flag.as_str() {
+            "--mode" => args.mode = Mode::parse(&value)?,
             "--samples" => args.samples = value.parse()?,
             "--payload-bytes" => args.payload_bytes = value.parse()?,
+            "--bind-addr" => args.bind_addr = value,
+            "--peer-id" => args.peer_id = value,
+            "--peer-addr" => args.peer_addr = value,
+            "--network" => args.network = value,
             "--run-id" => args.run_id = value,
             "--commit" => args.commit = value,
             "--dirty" => args.dirty = value == "true",
