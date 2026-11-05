@@ -42,16 +42,14 @@ final class RemoteSSHReattachTests: XCTestCase {
         )
     }
 
-    private func makeApp(_ configuration: Configuration, autoOpenPreview: Bool = false) -> XCUIApplication {
+    private func makeApp(_ configuration: Configuration) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "-AirDeskAutoDemo",
             "-AirDeskUITestProbe",
-            "-AirDeskRemoteSSHExternal"
+            "-AirDeskRemoteSSHExternal",
+            "-AirDeskUITestOpenPreview"
         ]
-        if autoOpenPreview {
-            app.launchArguments.append("-AirDeskUITestOpenPreview")
-        }
         app.launchEnvironment["AIRDESK_SSH_HOST"] = configuration.host
         app.launchEnvironment["AIRDESK_SSH_PORT"] = configuration.port
         app.launchEnvironment["AIRDESK_SSH_USERNAME"] = configuration.username
@@ -61,46 +59,11 @@ final class RemoteSSHReattachTests: XCTestCase {
         return app
     }
 
-    private func openPreview(_ app: XCUIApplication, autoOpen: Bool = false) {
-        if autoOpen {
-            XCTAssertTrue(
-                app.staticTexts["Desktop Preview"].waitForExistence(timeout: 120),
-                app.debugDescription
-            )
-            return
-        }
-
-        for _ in 1...3 {
-            if app.staticTexts["Desktop Preview"].waitForExistence(timeout: 2) { return }
-
-            var sessionMenu = app.buttons["Session menu"]
-            if !sessionMenu.waitForExistence(timeout: 60) {
-                if app.staticTexts["Desktop Preview"].waitForExistence(timeout: 2) { return }
-                app.terminate()
-                app.launch()
-                continue
-            }
-            sessionMenu.tap()
-
-            let previewDesktop = app.buttons["Preview Desktop"]
-            guard previewDesktop.waitForExistence(timeout: 15) else {
-                if app.staticTexts["Desktop Preview"].waitForExistence(timeout: 2) { return }
-                continue
-            }
-
-            let hitDeadline = Date().addingTimeInterval(20)
-            while Date() < hitDeadline && !previewDesktop.isHittable {
-                RunLoop.current.run(until: Date().addingTimeInterval(0.2))
-            }
-            if previewDesktop.isHittable {
-                previewDesktop.tap()
-                if app.staticTexts["Desktop Preview"].waitForExistence(timeout: 15) { return }
-            }
-            if app.staticTexts["Desktop Preview"].waitForExistence(timeout: 2) { return }
-            if sessionMenu.exists && sessionMenu.isHittable { sessionMenu.tap() }
-            sleep(1)
-        }
-        XCTFail("Could not open Desktop Preview: \(app.debugDescription)")
+    private func openPreview(_ app: XCUIApplication) {
+        XCTAssertTrue(
+            app.staticTexts["Desktop Preview"].waitForExistence(timeout: 120),
+            app.debugDescription
+        )
     }
 
     private func probeLabel(_ app: XCUIApplication) -> String {
@@ -202,11 +165,11 @@ final class RemoteSSHReattachTests: XCTestCase {
 
     func testRemoteSSHReattachesAfterTermination() throws {
         let configuration = try loadConfiguration()
-        let app = makeApp(configuration, autoOpenPreview: true)
+        let app = makeApp(configuration)
         app.launch()
         defer { app.terminate() }
 
-        openPreview(app, autoOpen: true)
+        openPreview(app)
         XCTAssertTrue(
             waitForProbe(app, containing: "terminal.ssh.ready", timeout: 60),
             "probe=\(probeLabel(app))"
@@ -224,7 +187,7 @@ final class RemoteSSHReattachTests: XCTestCase {
 
             let reattachStart = Date()
             app.launch()
-            openPreview(app, autoOpen: true)
+            openPreview(app)
             let reattached = waitForProbeCount(
                 app,
                 containing: "terminal.ssh.ready",
