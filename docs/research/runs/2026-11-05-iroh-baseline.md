@@ -55,4 +55,6 @@ Raw results:
 - `2026-11-05T081359Z-iroh-loopback-baseline/` — run A
 - `2026-11-05T081449Z-iroh-loopback-baseline/` — run B
 
-Next: run a labeled LAN/tailnet comparison between two hosts, test direct hole punching and relay fallback as separate scenarios, and measure Rust/Swift integration size before the R1 transport decision.
+The labeled two-host tailnet comparison is recorded in `docs/research/runs/2026-11-05-iroh-tailnet-baseline.md`. That run used a direct tailnet IPv4 address with Iroh relays disabled, but the Tailscale underlay reported DERP and no direct connection, so it is not a direct-underlay result.
+
+Next: establish a direct Tailscale or LAN underlay, test relay fallback as a separate scenario, and measure Rust/Swift integration size before the R1 transport decision.

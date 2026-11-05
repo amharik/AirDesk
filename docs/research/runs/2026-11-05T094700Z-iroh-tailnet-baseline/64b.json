@@ -1,0 +1,54 @@
+{
+  "build": "release",
+  "candidate": "iroh-quic",
+  "commit": "2beb77a37cdd",
+  "date": "2026-11-05T09:47:11Z",
+  "decision": "trial",
+  "diagnostics": {
+    "alpn": "airdesk/iroh-probe/0",
+    "direct_addrs": [],
+    "direct_paths": 1,
+    "path_count": 1,
+    "payload_bytes": 64,
+    "peer_addrs_count": 1,
+    "peer_id": "afe88af89041226cdc763dbfb3b4dec1d96d274a2d7bd4c63eb4c7b11dbbad16",
+    "relay_addrs": 0,
+    "relay_mode": "disabled",
+    "relay_paths": 0,
+    "selected_path": "direct",
+    "server_messages_received": null,
+    "timeout_ms": 5000
+  },
+  "dirty": false,
+  "environment": {
+    "browser": "n/a",
+    "controller": "cargo 1.98.1",
+    "host": "macOS 15.5 x86_64",
+    "network": "tailnet"
+  },
+  "evidence_scope": "transport-baseline",
+  "failures": [],
+  "license_notes": "Iroh crate 1.4.1, MIT OR Apache-2.0; research-only pinned dependency outside the product graph.",
+  "metrics": {
+    "connect_ms": 78.679,
+    "control_rtt_ms": {
+      "max": 207.724,
+      "min": 33.438,
+      "p50": 60.641,
+      "p95": 143.688,
+      "p99": 207.724
+    },
+    "messages_delivered": 30,
+    "reconnect_connect_ms": 141.444,
+    "reconnect_echo_ms": 78.8,
+    "reconnect_ms": 220.245
+  },
+  "observations": "Research measurement; not a product commitment. Relay-free direct IP endpoint pair over tailnet. No relay addresses configured. Transport iroh.",
+  "pass": true,
+  "run_id": "2026-11-05T094700Z-iroh-tailnet-baseline-64b",
+  "samples": 30,
+  "scenario": "T4",
+  "scenario_name": "iroh-quic-tailnet-baseline",
+  "schema_version": 1,
+  "transport": "iroh"
+}

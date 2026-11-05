@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "run_id": "2026-11-05T094700Z-iroh-tailnet-baseline",
+  "scenario": "T4",
+  "scenario_name": "iroh-quic-tailnet-baseline",
+  "candidate": "iroh-quic",
+  "transport": "iroh",
+  "commit": "2beb77a37cdd",
+  "dirty": false,
+  "samples": 30,
+  "payloads": [64, 1024, 16384],
+  "environment": {
+    "host": "macOS 15.5 x86_64",
+    "controller": "cargo 1.98.1",
+    "network": "tailnet",
+    "underlay": "tailscale-derp",
+    "relay_mode": "disabled",
+    "server": {
+      "role": "remote-linux",
+      "os": "Linux 6.12.101+deb13-amd64 x86_64",
+      "controller": "cargo 1.99.1"
+    },
+    "tailnet_ping_ms": 70.505
+  }
+}

@@ -1,7 +1,7 @@
 # Fabric Research Harness
 
-- **Status:** R0 implementation — loopback transport smoke runner active
-- **Date:** 2026-11-04
+- **Status:** R0 implementation — loopback and two-host transport runners active
+- **Date:** 2026-11-05
 - **Parent:** `docs/planning/universal-compute-fabric-research.md`
 - **Baseline:** `docs/planning/fabric-research-baseline.md`
 
@@ -27,6 +27,7 @@ research/
     webtransport-baseline.json
     webrtc-baseline.json
     iroh-baseline.json
+    iroh-tailnet-baseline.json
     state.json
     remote-placement.json
     remote-window.json
@@ -41,6 +42,7 @@ scripts/
     run-webrtc-ios.sh
     webrtc_probe.swift
     run-iroh.sh
+    run-iroh-net.sh
     run-state.sh
     run-placement.sh
     run-remote-window.sh
@@ -148,6 +150,7 @@ scripts/research/run-transport.sh --scenario research/scenarios/webtransport-bas
 scripts/research/run-transport.sh --scenario research/scenarios/webrtc-baseline.json --payload-bytes 1024
 scripts/research/run-webrtc-ios.sh
 scripts/research/run-iroh.sh
+AIRDESK_IROH_SERVER_SSH=user@tailnet-host AIRDESK_IROH_SERVER_IP=<tailnet-ipv4> scripts/research/run-iroh-net.sh
 ```
 
 `run-webrtc-ios.sh` runs the opt-in `WebRTCLoopbackProbeTests` in the iOS 18.6 simulator and writes raw probe JSON. The test skips in normal CI unless the simulator probe defaults are enabled.
@@ -156,13 +159,15 @@ T3 runs a Swift/WebKit probe on the Mac and records macOS WKWebView behavior, no
 
 `run-iroh.sh` builds the separate `research/iroh-probe` Rust crate with its pinned `Cargo.lock`, runs the T4 relay-free loopback scenario at 64 B, 1 KiB and 16 KiB, and writes one JSON result per payload. The probe is research-only and is not part of the product dependency graph.
 
-On the current Linux environment these toolchains are absent. The research runner must execute on the Mac or another qualified host.
+`run-iroh-net.sh` runs the same probe across two hosts. It copies the crate to the remote SSH target, builds it there, binds the server to the remote tailnet IPv4 address with Iroh relays disabled, and runs the Mac client against the explicit endpoint ID plus direct address. It records the Tailscale underlay path (`tailscale-direct` or `tailscale-derp`) in `run-index.json` because a Tailscale DERP hop is outside Iroh but still a relay dependency. The local Linux workspace container lacks the Rust toolchain; the Mac is the client and the remote Linux runner is the server. Neither is a product dependency.
 
 ### Recorded runner
 
 The iOS T3 repeat runner was recorded on 2026-11-04: iPhone 16 Pro simulator, iOS 18.6, Xcode 16.4 and Swift 6.1.2 on the Mac mini host.
 
-The T4 transport runner was recorded on 2026-11-05: relay-free Iroh 1.4.1 on the same Mac mini host, Cargo 1.98.1, Rust release build, commit `46e9341727b3`, two clean runs at 30 samples per payload.
+The T4 loopback runner was recorded on 2026-11-05: relay-free Iroh 1.4.1 on the same Mac mini host, Cargo 1.98.1, Rust release build, commit `46e9341727b3`, two clean runs at 30 samples per payload.
+
+The T4 two-host tailnet runner was recorded on 2026-11-05: macOS client at `2beb77a37cdd`, Debian 13 x86_64 server with Cargo 1.99.1, two clean runs at 30 samples per payload. The Tailscale underlay was DERP-relayed in both runs; the additional-host runner is recorded, but a direct-underlay path is not.
 
 The first qualified runner was recorded on 2026-11-04:
 
@@ -195,7 +200,8 @@ Scope: loopback harness smoke and local Swift/Cargo/Deno checks only. Physical i
 - [x] First runner script created and smoke-tested: `scripts/research/run-transport.sh`.
 - [x] First scenario and runner committed.
 - [x] Qualified Mac runner recorded.
-- [ ] Physical-device and additional-host runners recorded.
+- [x] Additional-host runner recorded for the T4 tailnet spike.
+- [ ] Physical-device runner recorded.
 - [ ] Security owner reviews log redaction and fixture handling.
 
 The loopback smoke run was recorded on macOS 15.5 x86_64 with Deno 2.9.4. It validates the runner only; it is not transport-candidate evidence.

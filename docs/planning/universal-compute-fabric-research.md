@@ -76,7 +76,7 @@ Every spike is evaluated against the same scenarios. A candidate that only works
 | T1 | Measure the loopback WebSocket reference transport across payload sizes | Runner records p50/p95/p99 RTT, delivery and reconnect without losing samples |
 | T2 | Measure loopback WebTransport over HTTP/3 with the same procedure | Runner records the same metrics and exposes QUIC/TLS setup or reconnect failures |
 | T3 | Measure a loopback WKWebView WebRTC data channel without TURN | Runner records RTT, delivery, channel open and reconnect; host candidates only |
-| T4 | Measure a relay-free Iroh/QUIC endpoint pair on loopback | Runner records RTT, delivery, direct/relay address counts and reconnect; no public relay or NAT claim |
+| T4 | Measure a relay-free Iroh/QUIC endpoint pair on loopback and across two labeled hosts | Runner records RTT, delivery, direct/relay address and path counts, reconnect and underlay path; no public Iroh relay or NAT claim; a Tailscale DERP underlay is labeled, not treated as direct |
 | S1 | Start on iPhone; present the same workspace in a Mac browser endpoint | Workspace identity, layout and desired state survive session creation |
 | S2 | Start a terminal or agent on a remote devbox; detach and reattach from an iPad | Remote work survives controller disconnect; reconnect reports truthfully |
 | S3 | Edit workspace layout on two devices while one is offline | Conflict rules converge or fail manually; no silent corruption |
@@ -116,7 +116,7 @@ Candidates:
 - WebRTC data channels;
 - Iroh/QUIC;
 - SSH/tmux for remote execution comparison;
-- no relay, except as an explicitly labeled control experiment.
+- no relay, except as an explicitly labeled control experiment. Treat a Tailscale DERP underlay as relayed even when the Iroh transport itself has relays disabled.
 
 Measure:
 
