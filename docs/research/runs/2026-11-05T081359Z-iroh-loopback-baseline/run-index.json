@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "run_id": "2026-11-05T081359Z-iroh-loopback-baseline",
+  "scenario": "T4",
+  "scenario_name": "iroh-quic-loopback-baseline",
+  "candidate": "iroh-quic",
+  "transport": "iroh",
+  "commit": "46e9341727b3",
+  "dirty": false,
+  "samples": 30,
+  "payloads": [64, 1024, 16384],
+  "environment": {
+    "host": "macOS 15.5 x86_64",
+    "controller": "cargo 1.98.1",
+    "network": "loopback",
+    "relay_mode": "disabled"
+  }
+}

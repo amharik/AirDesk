@@ -1,0 +1,51 @@
+{
+  "build": "release",
+  "candidate": "iroh-quic",
+  "commit": "46e9341727b3",
+  "date": "2026-11-05T08:14:52Z",
+  "decision": "trial",
+  "diagnostics": {
+    "alpn": "airdesk/iroh-probe/0",
+    "direct_addrs": [
+      "127.0.0.1:52918"
+    ],
+    "payload_bytes": 64,
+    "peer_id": "81081df7557ff8ca8342a687b8833431696f5b141287105481df274a2d6bf438",
+    "relay_addrs": 0,
+    "relay_mode": "disabled",
+    "server_messages_received": 31,
+    "timeout_ms": 5000
+  },
+  "dirty": false,
+  "environment": {
+    "browser": "n/a",
+    "controller": "cargo 1.98.1",
+    "host": "macOS 15.5 x86_64",
+    "network": "loopback"
+  },
+  "evidence_scope": "transport-baseline",
+  "failures": [],
+  "license_notes": "Iroh crate 1.4.1, MIT OR Apache-2.0; research-only pinned dependency outside the product graph.",
+  "metrics": {
+    "connect_ms": 11.353,
+    "control_rtt_ms": {
+      "max": 1.415,
+      "min": 0.214,
+      "p50": 0.293,
+      "p95": 0.358,
+      "p99": 1.415
+    },
+    "messages_delivered": 30,
+    "reconnect_connect_ms": 7.804,
+    "reconnect_echo_ms": 0.57,
+    "reconnect_ms": 8.374
+  },
+  "observations": "Research measurement; not a product commitment. Relay-free loopback endpoint pair. Transport iroh. Server handled 31 messages.",
+  "pass": true,
+  "run_id": "2026-11-05T081449Z-iroh-loopback-baseline-64b",
+  "samples": 30,
+  "scenario": "T4",
+  "scenario_name": "iroh-quic-loopback-baseline",
+  "schema_version": 1,
+  "transport": "iroh"
+}

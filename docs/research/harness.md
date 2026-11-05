@@ -26,16 +26,21 @@ research/
     loopback-websocket-baseline.json
     webtransport-baseline.json
     webrtc-baseline.json
+    iroh-baseline.json
     state.json
     remote-placement.json
     remote-window.json
-  README.md
+  iroh-probe/
+    Cargo.toml
+    Cargo.lock
+    src/main.rs
 scripts/
   research/
     run-transport.sh
     transport_bench.ts
     run-webrtc-ios.sh
     webrtc_probe.swift
+    run-iroh.sh
     run-state.sh
     run-placement.sh
     run-remote-window.sh
@@ -142,17 +147,22 @@ scripts/research/run-transport.sh --scenario research/scenarios/loopback-websock
 scripts/research/run-transport.sh --scenario research/scenarios/webtransport-baseline.json --payload-bytes 1024
 scripts/research/run-transport.sh --scenario research/scenarios/webrtc-baseline.json --payload-bytes 1024
 scripts/research/run-webrtc-ios.sh
+scripts/research/run-iroh.sh
 ```
 
 `run-webrtc-ios.sh` runs the opt-in `WebRTCLoopbackProbeTests` in the iOS 18.6 simulator and writes raw probe JSON. The test skips in normal CI unless the simulator probe defaults are enabled.
 
 T3 runs a Swift/WebKit probe on the Mac and records macOS WKWebView behavior, not iOS 18.6 behavior. The iOS repeat requires the device runner.
 
+`run-iroh.sh` builds the separate `research/iroh-probe` Rust crate with its pinned `Cargo.lock`, runs the T4 relay-free loopback scenario at 64 B, 1 KiB and 16 KiB, and writes one JSON result per payload. The probe is research-only and is not part of the product dependency graph.
+
 On the current Linux environment these toolchains are absent. The research runner must execute on the Mac or another qualified host.
 
 ### Recorded runner
 
 The iOS T3 repeat runner was recorded on 2026-11-04: iPhone 16 Pro simulator, iOS 18.6, Xcode 16.4 and Swift 6.1.2 on the Mac mini host.
+
+The T4 transport runner was recorded on 2026-11-05: relay-free Iroh 1.4.1 on the same Mac mini host, Cargo 1.98.1, Rust release build, commit `46e9341727b3`, two clean runs at 30 samples per payload.
 
 The first qualified runner was recorded on 2026-11-04:
 

@@ -1,7 +1,7 @@
 # Fabric Research Baseline and Measurement Protocol
 
-- **Status:** R0 baseline — T1 WebSocket, T2 WebTransport and T3 WebRTC loopback measurements recorded; T3 repeated in the iOS 18.6 simulator
-- **Date:** 2026-11-04
+- **Status:** R0 baseline — T1 WebSocket, T2 WebTransport, T3 WebRTC and T4 Iroh/QUIC loopback measurements recorded; T3 repeated in the iOS 18.6 simulator
+- **Date:** 2026-11-05
 - **Parent:** `universal-compute-fabric-research.md`
 - **Scope:** Reproducible measurement rules, candidate matrix, scenario procedures and results template for the universal compute fabric research track
 
@@ -47,7 +47,7 @@ Hardware availability must be recorded per run. A missing device is reported as 
 | Loopback WebSocket | Required reference | Existing local asset server and bridge | Keep as fallback |
 | WebTransport over HTTP/3 | Browser/native candidate | Safari/WKWebView support starts at 26.4, so iOS 17–26.3 need a fallback; `serverCertificateHashes`, ECDSA certificate handling | Hold for the iOS 18.6 baseline; WebSocket fallback |
 | WebRTC data channels | Direct-peer candidate | macOS WKWebView and iOS 18.6 simulator loopback work with host candidates; physical device, TURN fallback and silent-loss behavior remain open | Adapter behind transport interface; trial only |
-| Iroh/QUIC | Direct-peer research candidate | License, binary size, Rust/Swift bindings, App Store review | Spike only until R1 gate |
+| Iroh/QUIC | Direct-peer research candidate | Relay-free loopback passes in Rust; NAT traversal, relay fallback, binary size, Rust/Swift bindings and App Store review remain open | Spike only until R1 gate |
 | SSH/tmux | Remote execution reference | Existing native SSH path | Keep for remote host workflows |
 
 ### 3.2 State and authority
@@ -137,6 +137,15 @@ Hardware availability must be recorded per run. A missing device is reported as 
 3. Run the same payload sizes as T1 and verify binary echo plus peer reconnect.
 4. Record p50/p95/p99 RTT, delivery count, channel open time, reconnect time and ICE candidate types.
 5. Report the controller runtime; macOS WKWebView and iOS WKWebView are separate scopes.
+
+### T4 — Iroh/QUIC relay-free loopback baseline
+
+1. Select `research/scenarios/iroh-baseline.json`.
+2. Build the pinned `research/iroh-probe` crate with Cargo release mode.
+3. Bind two endpoints to `127.0.0.1` with `RelayMode::Disabled`, then connect by endpoint ID plus direct address.
+4. Run the same payload sizes as T1 and verify bidirectional stream echo plus connection reconnect.
+5. Record p50/p95/p99 RTT, direct/relay address counts, first connect, reconnect time and delivery failures.
+6. Treat this as a Rust API and direct-addressing baseline; do not generalize to WKWebView, NAT traversal or relay fallback.
 
 ### S1 — Cross-endpoint presentation
 
@@ -250,6 +259,7 @@ Reports live under `docs/research/runs/`. Recorded harness baselines:
 - T2: `docs/research/runs/2026-11-04-webtransport-baseline.md`
 - T3: `docs/research/runs/2026-11-04-webrtc-baseline.md`
 - T3 iOS simulator: `docs/research/runs/2026-11-04-webrtc-ios-baseline.md`
+- T4 transport: `docs/research/runs/2026-11-05-iroh-baseline.md`
 
 Candidate comparisons across recorded networks remain open.
 

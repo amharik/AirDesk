@@ -1,7 +1,7 @@
 # AirDesk implementation milestones
 
 Status: active
-Last updated: 2026-11-04
+Last updated: 2026-11-05
 
 This file is the implementation tracker. `docs/adr/README.md` remains authoritative for decision status. This file tracks execution order, acceptance criteria and current progress. Update it whenever a work item changes state.
 
@@ -18,8 +18,8 @@ This file is the implementation tracker. `docs/adr/README.md` remains authoritat
 
 - Milestone: `M8` — universal compute fabric research
 - Track: `100x research first`; product release sequencing is paused until the R6 architecture decision gate
-- Work item: `RF-00`, `RF-01` and `RF-02` are in progress; R0 has the research plan, dependency pre-screen, threat-model delta, harness and qualified Mac runner; R1 has clean loopback WebSocket, WebTransport and WebRTC baselines at 64 B, 1 KiB and 16 KiB; T3 also passes in the iOS 18.6 simulator
-- Next: repeat T3 on the physical iPhone when signing is available, add a labeled Wi-Fi/tailnet path with and without TURN, and pre-screen SSH/tmux and Iroh/QUIC before the R1 decision; WebTransport is held on iOS 18.6 because WKWebView support starts at iOS 26.4; do not promote research spikes or dependencies
+- Work item: `RF-00`, `RF-01` and `RF-02` are in progress; R0 has the research plan, dependency pre-screen, threat-model delta, harness and qualified Mac runner; R1 has loopback WebSocket, WebTransport and WebRTC baselines at 64 B, 1 KiB and 16 KiB; T3 also passes in the iOS 18.6 simulator; T4 relay-free Iroh/QUIC loopback passes in Rust with two clean runs
+- Next: repeat T3 on the physical iPhone when signing is available, add a labeled Wi-Fi/tailnet path with and without TURN, run Iroh across two hosts with and without its relay as separate scenarios, and pre-screen SSH/tmux before the R1 decision; WebTransport is held on iOS 18.6 because WKWebView support starts at iOS 26.4; do not promote research spikes or dependencies
 - Retained implementation state: `M0-03`, `RT-02`, `RT-03`, `RT-05`, `RT-06`, `APP-02`, `APP-05`, `IN-01`, `IN-04`, `IN-06`, `IN-07` and `INPUT-01` are complete; `RT-04` is blocked on a native execution engine/package decision; `IN-02` channel routing and validation are in place, with the production transport binding still open
 
 ## Verification status
