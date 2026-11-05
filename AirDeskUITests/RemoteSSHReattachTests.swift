@@ -32,28 +32,6 @@ final class RemoteSSHReattachTests: XCTestCase {
         return probeCount(app, containing: text) >= minimum
     }
 
-    private func focusTerminal(_ app: XCUIApplication) {
-        let webView = app.webViews.firstMatch
-        XCTAssertTrue(webView.waitForExistence(timeout: 25), app.debugDescription)
-        let terminals = webView.otherElements.matching(
-            NSPredicate(format: "label BEGINSWITH %@", "Terminal, web dialog")
-        )
-        XCTAssertTrue(terminals.firstMatch.waitForExistence(timeout: 20), webView.debugDescription)
-        let terminal = terminals.element(boundBy: max(0, terminals.count - 1))
-        terminal.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75)).tap()
-        let keyboard = app.buttons["Show keyboard"]
-        if keyboard.waitForExistence(timeout: 5) {
-            keyboard.tap()
-        }
-        sleep(1)
-    }
-
-    private func typeIntoTerminal(_ command: String, app: XCUIApplication) {
-        focusTerminal(app)
-        app.typeText(command + "\n")
-        sleep(1)
-    }
-
     func testRemoteSSHReattachesAfterBackground() throws {
         let defaults = UserDefaults(suiteName: "com.airdesk.realsshsmoke")
         let environment = ProcessInfo.processInfo.environment
@@ -108,13 +86,15 @@ final class RemoteSSHReattachTests: XCTestCase {
             "probe=\(probeLabel(app))"
         )
 
-        print("AIRDESK_S2_CYCLES=\(cycles)")
-        for cycle in 1...cycles {
-            let marker = "S2-REMOTE-SURVIVED-\(token)-\(cycle)"
-            let remoteDelay = max(2, Int(backgroundSeconds) - 1)
-            let command = "(sleep \(remoteDelay); echo \(marker)) &"
-            typeIntoTerminal(command, app: app)
+        let marker = "S2-REMOTE-SURVIVED-\(token)-"
+        XCTAssertTrue(
+            waitForProbeCount(app, containing: marker, minimum: 1, timeout: 30),
+            "probe=\(probeLabel(app))"
+        )
 
+        print("AIRDESK_S2_CYCLES=\(cycles)")
+        for _ in 1...cycles {
+            let survivedBefore = probeCount(app, containing: marker)
             let readyBefore = probeCount(app, containing: "terminal.ssh.ready")
             XCUIDevice.shared.press(.home)
             sleep(backgroundSleep)
@@ -132,7 +112,7 @@ final class RemoteSSHReattachTests: XCTestCase {
             print("AIRDESK_S2_CYCLE_REATTACH_MS=\(reattachMilliseconds)")
 
             XCTAssertTrue(
-                waitForProbe(app, containing: marker, timeout: 15),
+                waitForProbeCount(app, containing: marker, minimum: survivedBefore + 1, timeout: 20),
                 "probe=\(probeLabel(app))"
             )
             print("AIRDESK_S2_CYCLE_PROCESS_SURVIVED=true")

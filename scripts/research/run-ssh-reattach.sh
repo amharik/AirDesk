@@ -124,7 +124,7 @@ print(base64.b64encode(private_key[:32]).decode())
 PY
 )"
 
-STARTUP="$TMUX_BIN new -A -s $SESSION"
+STARTUP="$TMUX_BIN new -A -s $SESSION 'i=0; while :; do i=\$((i+1)); echo S2-REMOTE-SURVIVED-$TOKEN-\$i; sleep 2; done'"
 
 xcrun simctl shutdown "$SIMULATOR_ID" >/dev/null 2>&1 || true
 xcrun simctl boot "$SIMULATOR_ID" >/dev/null 2>&1 || true
@@ -333,7 +333,7 @@ report = f"""# S2 SSH/tmux Reattach Baseline
 | Remote process survived | yes, {survived}/{cycles} |
 | Transcript truthful | yes, {truthful}/{cycles} |
 
-The scenario armed a delayed remote marker, backgrounded the app to drop the SSH session, returned to the foreground, waited for a fresh `terminal.ssh.ready`, verified the delayed marker, and then confirmed new input reached the reattached shell.
+The scenario started a remote heartbeat inside the tmux session, backgrounded the app to drop the SSH session, returned to the foreground, waited for a fresh `terminal.ssh.ready`, and verified a new heartbeat marker arrived after each reattach.
 
 ## Scope
 

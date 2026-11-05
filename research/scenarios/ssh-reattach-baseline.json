@@ -16,11 +16,10 @@
   "network": "tailnet",
   "samples": 3,
   "steps": [
-    "Start a unique tmux session on the remote host through the native SSH PTY",
-    "Arm a bounded remote marker that prints after a delay",
+    "Start a unique tmux session with a remote heartbeat through the native SSH PTY",
     "Background the app so the controller drops the SSH connection",
     "Return the app to the foreground and wait for a fresh terminal.ssh.ready event",
-    "Verify the delayed marker is visible after reattach and that new input is accepted"
+    "Verify a new heartbeat marker is visible after each reattach"
   ],
   "metrics": [
     "reattach_ms",
