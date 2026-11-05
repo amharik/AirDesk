@@ -42,13 +42,16 @@ final class RemoteSSHReattachTests: XCTestCase {
         )
     }
 
-    private func makeApp(_ configuration: Configuration) -> XCUIApplication {
+    private func makeApp(_ configuration: Configuration, autoOpenPreview: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "-AirDeskAutoDemo",
             "-AirDeskUITestProbe",
             "-AirDeskRemoteSSHExternal"
         ]
+        if autoOpenPreview {
+            app.launchArguments.append("-AirDeskUITestOpenPreview")
+        }
         app.launchEnvironment["AIRDESK_SSH_HOST"] = configuration.host
         app.launchEnvironment["AIRDESK_SSH_PORT"] = configuration.port
         app.launchEnvironment["AIRDESK_SSH_USERNAME"] = configuration.username
@@ -58,7 +61,15 @@ final class RemoteSSHReattachTests: XCTestCase {
         return app
     }
 
-    private func openPreview(_ app: XCUIApplication) {
+    private func openPreview(_ app: XCUIApplication, autoOpen: Bool = false) {
+        if autoOpen {
+            XCTAssertTrue(
+                app.staticTexts["Desktop Preview"].waitForExistence(timeout: 120),
+                app.debugDescription
+            )
+            return
+        }
+
         for _ in 1...3 {
             if app.staticTexts["Desktop Preview"].waitForExistence(timeout: 2) { return }
 
@@ -191,11 +202,11 @@ final class RemoteSSHReattachTests: XCTestCase {
 
     func testRemoteSSHReattachesAfterTermination() throws {
         let configuration = try loadConfiguration()
-        let app = makeApp(configuration)
+        let app = makeApp(configuration, autoOpenPreview: true)
         app.launch()
         defer { app.terminate() }
 
-        openPreview(app)
+        openPreview(app, autoOpen: true)
         XCTAssertTrue(
             waitForProbe(app, containing: "terminal.ssh.ready", timeout: 60),
             "probe=\(probeLabel(app))"
@@ -213,7 +224,7 @@ final class RemoteSSHReattachTests: XCTestCase {
 
             let reattachStart = Date()
             app.launch()
-            openPreview(app)
+            openPreview(app, autoOpen: true)
             let reattached = waitForProbeCount(
                 app,
                 containing: "terminal.ssh.ready",
