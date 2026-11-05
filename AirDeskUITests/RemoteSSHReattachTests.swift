@@ -59,19 +59,37 @@ final class RemoteSSHReattachTests: XCTestCase {
     }
 
     private func openPreview(_ app: XCUIApplication) {
-        var sessionMenu = app.buttons["Session menu"]
-        if !sessionMenu.waitForExistence(timeout: 90) {
-            app.terminate()
-            app.launch()
-            sessionMenu = app.buttons["Session menu"]
-        }
-        XCTAssertTrue(sessionMenu.waitForExistence(timeout: 60), app.debugDescription)
-        sessionMenu.tap()
+        for _ in 1...3 {
+            if app.staticTexts["Desktop Preview"].waitForExistence(timeout: 2) { return }
 
-        let previewDesktop = app.buttons["Preview Desktop"]
-        XCTAssertTrue(previewDesktop.waitForExistence(timeout: 15), app.debugDescription)
-        previewDesktop.tap()
-        XCTAssertTrue(app.staticTexts["Desktop Preview"].waitForExistence(timeout: 15), app.debugDescription)
+            var sessionMenu = app.buttons["Session menu"]
+            if !sessionMenu.waitForExistence(timeout: 60) {
+                if app.staticTexts["Desktop Preview"].waitForExistence(timeout: 2) { return }
+                app.terminate()
+                app.launch()
+                continue
+            }
+            sessionMenu.tap()
+
+            let previewDesktop = app.buttons["Preview Desktop"]
+            guard previewDesktop.waitForExistence(timeout: 15) else {
+                if app.staticTexts["Desktop Preview"].waitForExistence(timeout: 2) { return }
+                continue
+            }
+
+            let hitDeadline = Date().addingTimeInterval(20)
+            while Date() < hitDeadline && !previewDesktop.isHittable {
+                RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+            }
+            if previewDesktop.isHittable {
+                previewDesktop.tap()
+                if app.staticTexts["Desktop Preview"].waitForExistence(timeout: 15) { return }
+            }
+            if app.staticTexts["Desktop Preview"].waitForExistence(timeout: 2) { return }
+            if sessionMenu.exists && sessionMenu.isHittable { sessionMenu.tap() }
+            sleep(1)
+        }
+        XCTFail("Could not open Desktop Preview: \(app.debugDescription)")
     }
 
     private func probeLabel(_ app: XCUIApplication) -> String {
