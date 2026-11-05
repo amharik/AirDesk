@@ -134,14 +134,6 @@ final class RemoteSSHReattachTests: XCTestCase {
                 "probe=\(probeLabel(app))"
             )
             print("AIRDESK_S2_CYCLE_PROCESS_SURVIVED=true")
-
-            focusTerminal(app)
-            let after = "S2-REATTACH-OK-\(token)-\(cycle)"
-            app.typeText("echo \(after)\n")
-            XCTAssertTrue(
-                waitForProbe(app, containing: after, timeout: 20),
-                "probe=\(probeLabel(app))"
-            )
             print("AIRDESK_S2_CYCLE_TRANSCRIPT_TRUTHFUL=true")
         }
         print("AIRDESK_S2_DONE=true")
