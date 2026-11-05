@@ -10,7 +10,7 @@ use std::{
 };
 
 use iroh::{
-    Endpoint, EndpointAddr, EndpointId, RelayMode, TransportAddr,
+    Endpoint, EndpointAddr, EndpointId, RelayMode, RelayUrl, TransportAddr,
     endpoint::{Connection, presets},
     protocol::{AcceptError, ProtocolHandler, Router},
 };
@@ -46,6 +46,8 @@ struct Args {
     bind_addr: String,
     peer_id: String,
     peer_addr: String,
+    peer_relay: String,
+    relay: bool,
     network: String,
     run_id: String,
     commit: String,
@@ -65,6 +67,8 @@ impl Default for Args {
             bind_addr: "127.0.0.1:0".to_string(),
             peer_id: String::new(),
             peer_addr: String::new(),
+            peer_relay: String::new(),
+            relay: false,
             network: "loopback".to_string(),
             run_id: "unknown".to_string(),
             commit: "unknown".to_string(),
@@ -125,13 +129,17 @@ async fn run_server(args: &Args) -> Result<(), Box<dyn Error>> {
     }
 
     let received = Arc::new(AtomicUsize::new(0));
-    let endpoint = bind_network_endpoint(&args.bind_addr).await?;
+    let endpoint = bind_network_endpoint(&args.bind_addr, args.relay).await?;
     let addr = endpoint.addr();
-    if addr.relay_urls().next().is_some() {
+    let relay_urls: Vec<String> = addr.relay_urls().map(ToString::to_string).collect();
+    if args.relay && relay_urls.is_empty() {
+        return Err("relay mode requested but no relay address was assigned".into());
+    }
+    if !args.relay && !relay_urls.is_empty() {
         return Err("relay address present despite RelayMode::Disabled".into());
     }
     let direct_addrs: Vec<String> = addr.ip_addrs().map(ToString::to_string).collect();
-    if direct_addrs.is_empty() {
+    if !args.relay && direct_addrs.is_empty() {
         return Err("server endpoint has no direct IP address".into());
     }
 
@@ -148,7 +156,9 @@ async fn run_server(args: &Args) -> Result<(), Box<dyn Error>> {
         "event": "ready",
         "endpoint_id": addr.id.to_string(),
         "direct_addrs": direct_addrs,
-        "relay_addrs": addr.relay_urls().count(),
+        "relay_addrs": relay_urls.len(),
+        "relay_url": relay_urls.first(),
+        "relay_urls": relay_urls,
     });
     println!("{}", serde_json::to_string(&ready)?);
     use std::io::Write;
@@ -195,16 +205,24 @@ async fn run_client(args: Args) -> Result<(), Box<dyn Error>> {
     if args.peer_id.is_empty() {
         return Err("client mode requires --peer-id".into());
     }
-    if args.peer_addr.is_empty() {
+    if args.relay && args.peer_relay.is_empty() {
+        return Err("relay client mode requires --peer-relay".into());
+    }
+    if !args.relay && args.peer_addr.is_empty() {
         return Err("client mode requires --peer-addr".into());
     }
 
     let peer_id: EndpointId = args.peer_id.parse()?;
-    let peer_socket: SocketAddr = args.peer_addr.parse()?;
-    let peer_addr = EndpointAddr::from_parts(peer_id, [TransportAddr::Ip(peer_socket)]);
+    let peer_addr = if args.relay {
+        let relay_url: RelayUrl = args.peer_relay.parse()?;
+        EndpointAddr::from_parts(peer_id, [TransportAddr::Relay(relay_url)])
+    } else {
+        let peer_socket: SocketAddr = args.peer_addr.parse()?;
+        EndpointAddr::from_parts(peer_id, [TransportAddr::Ip(peer_socket)])
+    };
 
-    let client_endpoint = bind_network_endpoint("0.0.0.0:0").await?;
-    if client_endpoint.addr().relay_urls().next().is_some() {
+    let client_endpoint = bind_network_endpoint("0.0.0.0:0", args.relay).await?;
+    if !args.relay && client_endpoint.addr().relay_urls().next().is_some() {
         return Err("relay address present despite RelayMode::Disabled".into());
     }
 
@@ -279,12 +297,22 @@ async fn measure(
     } else {
         peer_addr.ip_addrs().map(ToString::to_string).collect()
     };
+    let expected_path = if args.relay { "relay" } else { "direct" };
+    let relay_ok = if args.relay {
+        relay_addrs > 0
+    } else {
+        relay_addrs == 0
+    };
     let pass = failures.is_empty()
         && rtts.len() == args.samples
-        && relay_addrs == 0
-        && selected_path == "direct";
+        && relay_ok
+        && selected_path == expected_path;
     let server_messages = server_messages.map(|count| count.load(Ordering::Relaxed));
-    let scenario_name = format!("iroh-quic-{}-baseline", args.network);
+    let scenario_name = if args.relay {
+        "iroh-quic-relay-fallback".to_string()
+    } else {
+        format!("iroh-quic-{}-baseline", args.network)
+    };
     let observations = if args.network == "loopback" {
         format!(
             "Research measurement; not a product commitment. Relay-free loopback endpoint pair. Transport iroh. Server handled {} messages.",
@@ -292,6 +320,8 @@ async fn measure(
                 .map(|count| count.to_string())
                 .unwrap_or_else(|| "n/a".to_string())
         )
+    } else if args.relay {
+        "Research measurement; not a product commitment. Iroh default relay path with IP transports disabled. This uses the public n0 relay map and is not an Adopt signal.".to_string()
     } else {
         format!(
             "Research measurement; not a product commitment. Relay-free direct IP endpoint pair over {}. No relay addresses configured. Transport iroh.",
@@ -336,7 +366,7 @@ async fn measure(
             "server_messages_received": server_messages,
             "payload_bytes": args.payload_bytes,
             "timeout_ms": TIMEOUT.as_millis(),
-            "relay_mode": "disabled",
+            "relay_mode": if args.relay { "default" } else { "disabled" },
             "relay_addrs": relay_addrs,
             "direct_addrs": direct_addrs,
             "peer_addrs_count": peer_addrs_count,
@@ -365,8 +395,12 @@ async fn bind_loopback_endpoint() -> Result<Endpoint, Box<dyn Error>> {
     Ok(endpoint)
 }
 
-async fn bind_network_endpoint(bind_addr: &str) -> Result<Endpoint, Box<dyn Error>> {
-    let endpoint = Endpoint::builder(presets::Minimal)
+async fn bind_network_endpoint(bind_addr: &str, relay: bool) -> Result<Endpoint, Box<dyn Error>> {
+    let builder = Endpoint::builder(presets::Minimal).relay_mode(RelayMode::Default);
+    if relay {
+        return Ok(builder.clear_ip_transports().bind().await?);
+    }
+    let endpoint = builder
         .relay_mode(RelayMode::Disabled)
         .bind_addr(bind_addr)?
         .bind()
@@ -447,6 +481,8 @@ fn parse_args() -> Result<Args, Box<dyn Error>> {
             "--bind-addr" => args.bind_addr = value,
             "--peer-id" => args.peer_id = value,
             "--peer-addr" => args.peer_addr = value,
+            "--peer-relay" => args.peer_relay = value,
+            "--relay" => args.relay = value == "true",
             "--network" => args.network = value,
             "--run-id" => args.run_id = value,
             "--commit" => args.commit = value,

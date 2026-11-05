@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "T4",
+  "name": "iroh-quic-relay-fallback",
+  "purpose": "Measure an Iroh/QUIC endpoint pair with IP transports disabled, using the public relay map and an explicit relay URL",
+  "evidence_scope": "transport-baseline",
+  "candidate": "iroh-quic",
+  "transport": "iroh",
+  "requires": [
+    "mac-host",
+    "cargo",
+    "git",
+    "tailnet-network",
+    "remote-ssh-host",
+    "public-relay"
+  ],
+  "network": "relay",
+  "samples": 30,
+  "payload_bytes": 64,
+  "steps": [
+    "Build the pinned iroh 1.4.1 probe from research/iroh-probe on both hosts",
+    "Bind the server endpoint with RelayMode::Default and IP transports cleared",
+    "Record the assigned public relay URL and endpoint ID",
+    "Connect the macOS client by EndpointId plus that relay URL, with IP transports cleared",
+    "Echo bounded binary payloads on bidirectional QUIC streams",
+    "Close the connection and reconnect to measure setup cost",
+    "Fail if the selected path is not relay or if no relay address is present"
+  ],
+  "metrics": [
+    "control_rtt_ms",
+    "messages_delivered",
+    "connect_ms",
+    "reconnect_ms",
+    "relay_addrs",
+    "selected_path"
+  ],
+  "failure_injection": [
+    "connection-close-and-reconnect"
+  ],
+  "pass": {
+    "messages_delivered": "equals samples",
+    "relay_addrs": "at least 1",
+    "selected_path": "relay",
+    "failures": "empty",
+    "reconnect_ms": "present"
+  }
+}
