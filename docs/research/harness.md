@@ -28,6 +28,7 @@ research/
     webrtc-baseline.json
     iroh-baseline.json
     iroh-tailnet-baseline.json
+    iroh-relay-fallback.json
     ssh-reattach-baseline.json
     state.json
     remote-placement.json
@@ -44,6 +45,7 @@ scripts/
     webrtc_probe.swift
     run-iroh.sh
     run-iroh-net.sh
+    run-iroh-relay.sh
     run-ssh-reattach.sh
     run-state.sh
     run-placement.sh
@@ -156,6 +158,7 @@ scripts/research/run-transport.sh --scenario research/scenarios/webrtc-baseline.
 scripts/research/run-webrtc-ios.sh
 scripts/research/run-iroh.sh
 AIRDESK_IROH_SERVER_SSH=user@tailnet-host AIRDESK_IROH_SERVER_IP=<tailnet-ipv4> scripts/research/run-iroh-net.sh
+AIRDESK_IROH_SERVER_SSH=user@tailnet-host scripts/research/run-iroh-relay.sh
 AIRDESK_S2_REMOTE_SSH=user@tailnet-host AIRDESK_SIMULATOR_ID=<simulator-udid> scripts/research/run-ssh-reattach.sh
 scripts/real-ssh-smoke.sh
 ```
@@ -168,6 +171,8 @@ T3 runs a Swift/WebKit probe on the Mac and records macOS WKWebView behavior, no
 
 `run-iroh-net.sh` runs the same probe across two hosts. It copies the crate to the remote SSH target, builds it there, binds the server to the remote tailnet IPv4 address with Iroh relays disabled, and runs the Mac client against the explicit endpoint ID plus direct address. It records the Tailscale underlay path (`tailscale-direct` or `tailscale-derp`) in `run-index.json` because a Tailscale DERP hop is outside Iroh but still a relay dependency. The local Linux workspace container lacks the Rust toolchain; the Mac is the client and the remote Linux runner is the server. Neither is a product dependency.
 
+`run-iroh-relay.sh` copies the same probe to the remote host and runs the forced relay-only scenario. It binds both ends with `RelayMode::Default`, clears IP transports, waits for the server's home relay, and connects the Mac client by endpoint ID plus the assigned relay URL. It writes `iroh-relay-fallback` JSON with relay/direct path counts and fails unless the selected path is relay. The 2026-11-05 run passed 90/90 through the public n0 relay `aps1-1.relay.n0.iroh.link` at p50 108.8/106.1/183.9 ms for 64 B/1 KiB/16 KiB. This is not automatic direct-to-relay fallback and the public relay map is not accepted for the product.
+
 `real-ssh-smoke.sh` is the SSH/tmux interop smoke, not an S2 result. It starts a temporary local Mac OpenSSH server on `127.0.0.1:22222` with generated Ed25519 keys, optionally uses `tmux new -A -s <smoke-session>` as the startup command, and runs the opt-in `RealSSHTerminalTests` in the iOS 18.6 simulator. It does not exercise app suspension, a second device, a remote network or transcript truthfulness.
 
 `run-ssh-reattach.sh` is the S2 runner. It requires a Mac controller, a remote Linux/macOS SSH host with tmux, a booted iOS simulator and a tailnet path. It generates a throwaway Ed25519 key, appends it to the remote `authorized_keys`, pins the remote host key, starts a unique tmux session with a remote heartbeat, writes the test defaults, runs the 3-cycle background/reattach test and writes a run directory with `run.json`, `report.md` and `test-summary.log`. It records whether the Tailscale underlay is direct or DERP-relayed. The 2026-11-05 run completed 3/3 reattaches with process survival and truthful transcripts; physical-device and second-device coverage remain open.
@@ -179,6 +184,8 @@ The iOS T3 repeat runner was recorded on 2026-11-04: iPhone 16 Pro simulator, iO
 The T4 loopback runner was recorded on 2026-11-05: relay-free Iroh 1.4.1 on the same Mac mini host, Cargo 1.98.1, Rust release build, commit `46e9341727b3`, two clean runs at 30 samples per payload.
 
 The T4 two-host tailnet runner was recorded on 2026-11-05: macOS client at `2beb77a37cdd`, Debian 13 x86_64 server with Cargo 1.99.1, two clean runs at 30 samples per payload. The Tailscale underlay was DERP-relayed in both runs; the additional-host runner is recorded, but a direct-underlay path is not.
+
+The T4 relay-only runner was recorded on 2026-11-05: macOS client at `e4f9eeeb6b09`, Debian 13 x86_64 server with Cargo 1.99.1, 30 samples per payload and three clean runs. The public n0 home relay was `https://aps1-1.relay.n0.iroh.link./`; all 90 deliveries selected the relay path. The Tailscale SSH control underlay was DERP-relayed.
 
 The S2 runner was recorded on 2026-11-05: iPhone 16 Pro simulator `3B46FDF8-1482-4517-99F3-D6EF46A85133` on iOS 18.6, Xcode 16.4, macOS 15.5 x86_64, remote Debian 13 x86_64 host `sillygirl` with tmux 3.5a, commit `0bacc6c7f222`, 3 cycles and a 5-second background. The Tailscale underlay was DERP-relayed.
 

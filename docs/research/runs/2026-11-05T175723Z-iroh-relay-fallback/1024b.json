@@ -1,0 +1,54 @@
+{
+  "build": "release",
+  "candidate": "iroh-quic",
+  "commit": "e4f9eeeb6b09",
+  "date": "2026-11-05T17:57:40Z",
+  "decision": "trial",
+  "diagnostics": {
+    "alpn": "airdesk/iroh-probe/0",
+    "direct_addrs": [],
+    "direct_paths": 0,
+    "path_count": 1,
+    "payload_bytes": 1024,
+    "peer_addrs_count": 1,
+    "peer_id": "93dca2cbe2a51b38b8e94e4c1b19584b4723b392d6a5b52f4154d6db0b7c1db5",
+    "relay_addrs": 1,
+    "relay_mode": "default",
+    "relay_paths": 1,
+    "selected_path": "relay",
+    "server_messages_received": null,
+    "timeout_ms": 5000
+  },
+  "dirty": false,
+  "environment": {
+    "browser": "n/a",
+    "controller": "cargo 1.98.1",
+    "host": "macOS 15.5 x86_64",
+    "network": "relay"
+  },
+  "evidence_scope": "transport-baseline",
+  "failures": [],
+  "license_notes": "Iroh crate 1.4.1, MIT OR Apache-2.0; research-only pinned dependency outside the product graph.",
+  "metrics": {
+    "connect_ms": 111.782,
+    "control_rtt_ms": {
+      "max": 193.07,
+      "min": 104.228,
+      "p50": 106.112,
+      "p95": 178.652,
+      "p99": 193.07
+    },
+    "messages_delivered": 30,
+    "reconnect_connect_ms": 108.143,
+    "reconnect_echo_ms": 153.906,
+    "reconnect_ms": 262.049
+  },
+  "observations": "Research measurement; not a product commitment. Iroh default relay path with IP transports disabled. This uses the public n0 relay map and is not an Adopt signal.",
+  "pass": true,
+  "run_id": "2026-11-05T175723Z-iroh-relay-fallback-1024b",
+  "samples": 30,
+  "scenario": "T4",
+  "scenario_name": "iroh-quic-relay-fallback",
+  "schema_version": 1,
+  "transport": "iroh"
+}
