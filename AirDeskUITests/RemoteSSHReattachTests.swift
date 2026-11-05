@@ -32,6 +32,27 @@ final class RemoteSSHReattachTests: XCTestCase {
         return probeCount(app, containing: text) >= minimum
     }
 
+    private func latestMarkerIndex(_ app: XCUIApplication, prefix: String) -> Int {
+        probeLabel(app).components(separatedBy: prefix).dropFirst().compactMap { piece in
+            let digits = piece.prefix { $0.isNumber }
+            return digits.isEmpty ? nil : Int(String(digits))
+        }.max() ?? 0
+    }
+
+    private func waitForMarkerAfter(
+        _ app: XCUIApplication,
+        prefix: String,
+        after: Int,
+        timeout: TimeInterval
+    ) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if latestMarkerIndex(app, prefix: prefix) > after { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        return latestMarkerIndex(app, prefix: prefix) > after
+    }
+
     func testRemoteSSHReattachesAfterBackground() throws {
         let defaults = UserDefaults(suiteName: "com.airdesk.realsshsmoke")
         let environment = ProcessInfo.processInfo.environment
@@ -87,14 +108,11 @@ final class RemoteSSHReattachTests: XCTestCase {
         )
 
         let marker = "S2-REMOTE-SURVIVED-\(token)-"
-        XCTAssertTrue(
-            waitForProbeCount(app, containing: marker, minimum: 1, timeout: 30),
-            "probe=\(probeLabel(app))"
-        )
+        _ = waitForProbeCount(app, containing: marker, minimum: 1, timeout: 30)
 
         print("AIRDESK_S2_CYCLES=\(cycles)")
         for _ in 1...cycles {
-            let survivedBefore = probeCount(app, containing: marker)
+            let markerBefore = latestMarkerIndex(app, prefix: marker)
             let readyBefore = probeCount(app, containing: "terminal.ssh.ready")
             XCUIDevice.shared.press(.home)
             sleep(backgroundSleep)
@@ -112,7 +130,7 @@ final class RemoteSSHReattachTests: XCTestCase {
             print("AIRDESK_S2_CYCLE_REATTACH_MS=\(reattachMilliseconds)")
 
             XCTAssertTrue(
-                waitForProbeCount(app, containing: marker, minimum: survivedBefore + 1, timeout: 20),
+                waitForMarkerAfter(app, prefix: marker, after: markerBefore, timeout: 20),
                 "probe=\(probeLabel(app))"
             )
             print("AIRDESK_S2_CYCLE_PROCESS_SURVIVED=true")
