@@ -130,6 +130,13 @@ async fn run_server(args: &Args) -> Result<(), Box<dyn Error>> {
 
     let received = Arc::new(AtomicUsize::new(0));
     let endpoint = bind_network_endpoint(&args.bind_addr, args.relay).await?;
+    if args.relay
+        && tokio::time::timeout(Duration::from_secs(20), endpoint.online())
+            .await
+            .is_err()
+    {
+        return Err("relay connection timed out".into());
+    }
     let addr = endpoint.addr();
     let relay_urls: Vec<String> = addr.relay_urls().map(ToString::to_string).collect();
     if args.relay && relay_urls.is_empty() {
@@ -222,7 +229,14 @@ async fn run_client(args: Args) -> Result<(), Box<dyn Error>> {
     };
 
     let client_endpoint = bind_network_endpoint("0.0.0.0:0", args.relay).await?;
-    if !args.relay && client_endpoint.addr().relay_urls().next().is_some() {
+    if args.relay {
+        if tokio::time::timeout(Duration::from_secs(20), client_endpoint.online())
+            .await
+            .is_err()
+        {
+            return Err("client relay connection timed out".into());
+        }
+    } else if client_endpoint.addr().relay_urls().next().is_some() {
         return Err("relay address present despite RelayMode::Disabled".into());
     }
 
