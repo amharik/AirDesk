@@ -76,7 +76,7 @@ if [[ -z "$TMUX_BIN" ]]; then
 fi
 
 HOST_KEY="$(ssh-keyscan -p "$REMOTE_PORT" -t ed25519 "$REMOTE_HOST" 2>/dev/null \
-    | awk 'NF >= 2 { print $1, $2; exit }')"
+    | awk '$2 == "ssh-ed25519" { print $2, $3; exit }')"
 if [[ -z "$HOST_KEY" ]]; then
     echo "Could not read the remote ed25519 host key." >&2
     exit 1
