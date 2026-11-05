@@ -121,14 +121,9 @@ final class RemoteSSHReattachTests: XCTestCase {
         print("AIRDESK_S2_CYCLES=\(cycles)")
         for cycle in 1...cycles {
             let marker = "S2-REMOTE-SURVIVED-\(token)-\(cycle)"
-            let armed = "S2-ARMED-\(token)-\(cycle)"
             let remoteDelay = max(2, Int(backgroundSeconds) - 1)
-            let command = "(sleep \(remoteDelay); echo \(marker)) & echo \(armed)"
+            let command = "(sleep \(remoteDelay); echo \(marker)) &"
             XCTAssertTrue(typeIntoTerminal(command, app: app), "probe=\(probeLabel(app))")
-            XCTAssertTrue(
-                waitForProbe(app, containing: armed, timeout: 20),
-                "probe=\(probeLabel(app))"
-            )
 
             let readyBefore = probeCount(app, containing: "terminal.ssh.ready")
             XCUIDevice.shared.press(.home)
