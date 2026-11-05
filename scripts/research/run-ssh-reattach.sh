@@ -8,7 +8,9 @@ REMOTE_HOST="${AIRDESK_S2_REMOTE_HOST:-${REMOTE#*@}}"
 REMOTE_USER="${REMOTE%@*}"
 REMOTE_PORT="${AIRDESK_S2_REMOTE_PORT:-22}"
 SIMULATOR_ID="${AIRDESK_SIMULATOR_ID:-3B46FDF8-1482-4517-99F3-D6EF46A85133}"
+MODE="${AIRDESK_S2_MODE:-background}"
 BACKGROUND_SECONDS="${AIRDESK_S2_BACKGROUND_SECONDS:-5}"
+TERMINATION_SECONDS="${AIRDESK_S2_TERMINATION_SECONDS:-2}"
 CYCLES="${AIRDESK_S2_CYCLES:-3}"
 ALLOW_NON_MAC="${AIRDESK_RESEARCH_ALLOW_NON_MAC:-0}"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/airdesk-s2.XXXXXX")"
@@ -61,6 +63,27 @@ if [[ ! "$CYCLES" =~ ^[1-9][0-9]{0,2}$ ]]; then
     echo "AIRDESK_S2_CYCLES must be an integer between 1 and 999." >&2
     exit 1
 fi
+if [[ ! "$TERMINATION_SECONDS" =~ ^[1-9][0-9]{0,2}$ ]]; then
+    echo "AIRDESK_S2_TERMINATION_SECONDS must be an integer between 1 and 999." >&2
+    exit 1
+fi
+
+case "$MODE" in
+    background)
+        TEST_METHOD="testRemoteSSHReattachesAfterBackground"
+        RUN_SUFFIX="ssh-reattach-baseline"
+        SCENARIO_NAME="ssh-tmux-reattach-baseline"
+        ;;
+    termination)
+        TEST_METHOD="testRemoteSSHReattachesAfterTermination"
+        RUN_SUFFIX="ssh-termination-baseline"
+        SCENARIO_NAME="ssh-tmux-termination-baseline"
+        ;;
+    *)
+        echo "AIRDESK_S2_MODE must be 'background' or 'termination'." >&2
+        exit 1
+        ;;
+esac
 
 for tool in ssh ssh-keygen ssh-keyscan xcrun xcodebuild python3 git; do
     if ! command -v "$tool" >/dev/null 2>&1; then
@@ -155,6 +178,7 @@ xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke hostK
 xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke privateKey "$PRIVATE_KEY_B64"
 xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke startup -string "$STARTUP"
 xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke backgroundSeconds "$BACKGROUND_SECONDS"
+xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke terminationSeconds "$TERMINATION_SECONDS"
 xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke cycles "$CYCLES"
 xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke token "$TOKEN"
 
@@ -164,7 +188,7 @@ xcodebuild test-without-building \
     -project AirDesk.xcodeproj \
     -scheme AirDeskUITests \
     -destination "$DESTINATION" \
-    -only-testing:AirDeskUITests/RemoteSSHReattachTests/testRemoteSSHReattachesAfterBackground \
+    -only-testing:AirDeskUITests/RemoteSSHReattachTests/$TEST_METHOD \
     -parallel-testing-enabled NO \
     CODE_SIGNING_ALLOWED=NO \
     >"$TEST_LOG" 2>&1
@@ -177,7 +201,7 @@ if [[ "$STATUS" -ne 0 ]]; then
 fi
 
 DATE_STAMP="$(date -u +%Y-%m-%dT%H%M%SZ)"
-RUN_ID="$DATE_STAMP-ssh-reattach-baseline"
+RUN_ID="$DATE_STAMP-$RUN_SUFFIX"
 RUN_DIR="$OUT_ROOT/$RUN_ID"
 if [[ -e "$RUN_DIR" ]]; then
     RUN_ID="$RUN_ID-$$"
@@ -233,7 +257,10 @@ export S2_REMOTE_HOST="$REMOTE_HOST"
 export S2_PING_AVG="$PING_AVG"
 export S2_TAILNET_PATH="$TAILNET_PATH"
 export S2_TAILNET_PING="$TAILNET_PING"
+export S2_MODE="$MODE"
+export S2_SCENARIO_NAME="$SCENARIO_NAME"
 export S2_BACKGROUND_SECONDS="$BACKGROUND_SECONDS"
+export S2_TERMINATION_SECONDS="$TERMINATION_SECONDS"
 export S2_CYCLES="$CYCLES"
 export S2_TOKEN="$TOKEN"
 
@@ -259,8 +286,10 @@ def percentile(sorted_values, p):
     return sorted_values[index]
 
 ordered = sorted(values)
+mode = os.environ["S2_MODE"]
+metric_key = "relaunch_ms" if mode == "termination" else "reattach_ms"
 metrics = {
-    "reattach_ms": {
+    metric_key: {
         "p50": percentile(ordered, 50),
         "p95": percentile(ordered, 95),
         "p99": percentile(ordered, 99),
@@ -284,12 +313,15 @@ environment = {
     "underlay": os.environ["S2_TAILNET_PATH"],
     "underlay_probe": os.environ["S2_TAILNET_PING"],
     "ping_avg_ms": None if os.environ["S2_PING_AVG"] == "null" else float(os.environ["S2_PING_AVG"]),
-    "background_seconds": int(os.environ["S2_BACKGROUND_SECONDS"]),
+    "mode": mode,
+    "background_seconds": int(os.environ["S2_BACKGROUND_SECONDS"]) if mode == "background" else None,
+    "termination_seconds": int(os.environ["S2_TERMINATION_SECONDS"]) if mode == "termination" else None,
 }
 
 result = {
     "schema_version": 1,
     "scenario": "S2",
+    "scenario_name": os.environ["S2_SCENARIO_NAME"],
     "candidate": "ssh-tmux-baseline",
     "transport": "ssh",
     "run_id": os.environ["S2_RUN_ID"],
@@ -297,13 +329,14 @@ result = {
     "dirty": os.environ["S2_DIRTY"] == "true",
     "date": os.environ["S2_DATE"],
     "samples": cycles,
+    "failure_injection": ["app-termination"] if mode == "termination" else ["app-background-and-ssh-drop"],
     "environment": environment,
     "metrics": metrics,
     "failures": [],
     "pass": {
         "process_survived": True,
         "transcript_truthful": True,
-        "reattach_ms": True,
+        metric_key: True,
     },
 }
 
@@ -311,7 +344,31 @@ with open(os.path.join(run_dir, "run.json"), "w", encoding="utf-8") as handle:
     json.dump(result, handle, indent=2)
     handle.write("\n")
 
-report = f"""# S2 SSH/tmux Reattach Baseline
+if mode == "termination":
+    title = "S2 SSH/tmux Termination Recovery Baseline"
+    label = "Relaunch reconnect"
+    action = (
+        "terminated the app process, waited, relaunched it, reopened the preview, "
+        "waited for a fresh `terminal.ssh.ready`, and verified a new heartbeat marker arrived after each relaunch"
+    )
+    scope = (
+        "This is a simulator-to-tailnet baseline. It does not prove physical-device termination "
+        "behavior, a second controller device or a direct-underlay path; background behavior is covered separately."
+    )
+else:
+    title = "S2 SSH/tmux Reattach Baseline"
+    label = "Reattach"
+    action = (
+        "backgrounded the app to drop the SSH session, returned to the foreground, "
+        "waited for a fresh `terminal.ssh.ready`, and verified a new heartbeat marker arrived after each reattach"
+    )
+    scope = (
+        "This is a simulator-to-tailnet baseline. It does not prove physical-device background behavior, "
+        "a second controller device, a direct-underlay path, or app termination recovery. "
+        "The Tailscale underlay is recorded separately from the SSH/tmux session."
+    )
+
+report = f"""# {title}
 
 - **Run:** `{os.environ['S2_RUN_ID']}`
 - **Commit:** `{os.environ['S2_COMMIT']}` (dirty: `{os.environ['S2_DIRTY']}`)
@@ -326,18 +383,18 @@ report = f"""# S2 SSH/tmux Reattach Baseline
 | Metric | Value |
 | --- | --- |
 | Samples | {cycles} |
-| Reattach p50 | {metrics['reattach_ms']['p50']} ms |
-| Reattach p95 | {metrics['reattach_ms']['p95']} ms |
-| Reattach p99 | {metrics['reattach_ms']['p99']} ms |
-| Reattach min / max | {metrics['reattach_ms']['min']} / {metrics['reattach_ms']['max']} ms |
+| {label} p50 | {metrics[metric_key]['p50']} ms |
+| {label} p95 | {metrics[metric_key]['p95']} ms |
+| {label} p99 | {metrics[metric_key]['p99']} ms |
+| {label} min / max | {metrics[metric_key]['min']} / {metrics[metric_key]['max']} ms |
 | Remote process survived | yes, {survived}/{cycles} |
 | Transcript truthful | yes, {truthful}/{cycles} |
 
-The scenario started a remote heartbeat inside the tmux session, backgrounded the app to drop the SSH session, returned to the foreground, waited for a fresh `terminal.ssh.ready`, and verified a new heartbeat marker arrived after each reattach.
+The scenario started a remote heartbeat inside the tmux session and {action}.
 
 ## Scope
 
-This is a simulator-to-tailnet baseline. It does not prove physical-device background behavior, a second controller device, a direct-underlay path, or app termination recovery. The Tailscale underlay is recorded separately from the SSH/tmux session.
+{scope}
 
 Raw evidence: `run.json`, `test-summary.log`.
 """

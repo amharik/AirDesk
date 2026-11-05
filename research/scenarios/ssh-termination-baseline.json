@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "id": "S2",
+  "name": "ssh-tmux-termination-baseline",
+  "purpose": "Measure whether a remote SSH/tmux process survives app termination and whether the controller can reconnect with a truthful transcript after relaunch",
+  "evidence_scope": "remote-execution-baseline",
+  "candidate": "ssh-tmux-baseline",
+  "transport": "ssh",
+  "requires": [
+    "mac-host",
+    "ios-simulator",
+    "ssh-host",
+    "tmux",
+    "tailnet-network"
+  ],
+  "network": "tailnet",
+  "samples": 3,
+  "steps": [
+    "Start a unique tmux session with a remote heartbeat through the native SSH PTY",
+    "Terminate the app process and wait for the configured interval",
+    "Relaunch the app, reopen the preview and wait for a fresh terminal.ssh.ready event",
+    "Verify a new heartbeat marker is visible after each relaunch"
+  ],
+  "metrics": [
+    "relaunch_ms",
+    "process_survived",
+    "transcript_truthful"
+  ],
+  "failure_injection": [
+    "app-termination"
+  ],
+  "pass": {
+    "process_survived": true,
+    "transcript_truthful": true,
+    "relaunch_ms": "present"
+  }
+}
