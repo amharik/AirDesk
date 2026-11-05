@@ -153,7 +153,7 @@ xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke port 
 xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke username "$REMOTE_USER"
 xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke hostKey "$HOST_KEY"
 xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke privateKey "$PRIVATE_KEY_B64"
-xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke startup "$STARTUP"
+xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke startup -string "$STARTUP"
 xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke backgroundSeconds "$BACKGROUND_SECONDS"
 xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke cycles "$CYCLES"
 xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke token "$TOKEN"
