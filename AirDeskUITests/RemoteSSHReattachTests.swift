@@ -35,16 +35,33 @@ final class RemoteSSHReattachTests: XCTestCase {
     private func focusTerminal(_ app: XCUIApplication) {
         let webView = app.webViews.firstMatch
         XCTAssertTrue(webView.waitForExistence(timeout: 25), app.debugDescription)
-        let terminal = webView.otherElements.matching(
+        let terminals = webView.otherElements.matching(
             NSPredicate(format: "label BEGINSWITH %@", "Terminal, web dialog")
-        ).firstMatch
-        XCTAssertTrue(terminal.waitForExistence(timeout: 20), webView.debugDescription)
-        terminal.tap()
+        )
+        XCTAssertTrue(terminals.firstMatch.waitForExistence(timeout: 20), webView.debugDescription)
+        let terminal = terminals.element(boundBy: max(0, terminals.count - 1))
+        terminal.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75)).tap()
         let keyboard = app.buttons["Show keyboard"]
         if keyboard.waitForExistence(timeout: 5) {
             keyboard.tap()
         }
-        sleep(2)
+        sleep(1)
+    }
+
+    private func typeIntoTerminal(_ command: String, app: XCUIApplication) -> Bool {
+        for _ in 1...3 {
+            focusTerminal(app)
+            let inputsBefore = probeCount(app, containing: "terminal.ssh.input")
+            app.typeText(command + "\n")
+            let deadline = Date().addingTimeInterval(3)
+            while Date() < deadline {
+                if probeCount(app, containing: "terminal.ssh.input") > inputsBefore {
+                    return true
+                }
+                RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+            }
+        }
+        return false
     }
 
     func testRemoteSSHReattachesAfterBackground() throws {
@@ -103,11 +120,11 @@ final class RemoteSSHReattachTests: XCTestCase {
 
         print("AIRDESK_S2_CYCLES=\(cycles)")
         for cycle in 1...cycles {
-            focusTerminal(app)
             let marker = "S2-REMOTE-SURVIVED-\(token)-\(cycle)"
             let armed = "S2-ARMED-\(token)-\(cycle)"
             let remoteDelay = max(2, Int(backgroundSeconds) - 1)
-            app.typeText("(sleep \(remoteDelay); echo \(marker)) & echo \(armed)\n")
+            let command = "(sleep \(remoteDelay); echo \(marker)) & echo \(armed)"
+            XCTAssertTrue(typeIntoTerminal(command, app: app), "probe=\(probeLabel(app))")
             XCTAssertTrue(
                 waitForProbe(app, containing: armed, timeout: 20),
                 "probe=\(probeLabel(app))"
