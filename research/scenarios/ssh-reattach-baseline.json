@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "id": "S2",
+  "name": "ssh-tmux-reattach-baseline",
+  "purpose": "Measure whether a remote SSH/tmux process survives an app background cycle and whether the controller can reattach with a truthful transcript",
+  "evidence_scope": "remote-execution-baseline",
+  "candidate": "ssh-tmux-baseline",
+  "transport": "ssh",
+  "requires": [
+    "mac-host",
+    "ios-simulator",
+    "ssh-host",
+    "tmux",
+    "tailnet-network"
+  ],
+  "network": "tailnet",
+  "samples": 3,
+  "steps": [
+    "Start a unique tmux session on the remote host through the native SSH PTY",
+    "Arm a bounded remote marker that prints after a delay",
+    "Background the app so the controller drops the SSH connection",
+    "Return the app to the foreground and wait for a fresh terminal.ssh.ready event",
+    "Verify the delayed marker is visible after reattach and that new input is accepted"
+  ],
+  "metrics": [
+    "reattach_ms",
+    "process_survived",
+    "transcript_truthful"
+  ],
+  "failure_injection": [
+    "app-background-and-ssh-drop"
+  ],
+  "pass": {
+    "process_survived": true,
+    "transcript_truthful": true,
+    "reattach_ms": "present"
+  }
+}
