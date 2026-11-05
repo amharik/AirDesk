@@ -1,6 +1,6 @@
 # Fabric Research Baseline and Measurement Protocol
 
-- **Status:** R0 baseline — T1 WebSocket, T2 WebTransport, T3 WebRTC and T4 Iroh/QUIC loopback measurements recorded; T3 repeated in the iOS 18.6 simulator; T4 repeated across two hosts on a DERP-relayed tailnet
+- **Status:** R0 baseline — T1 WebSocket, T2 WebTransport, T3 WebRTC and T4 Iroh/QUIC loopback measurements recorded; T3 repeated in the iOS 18.6 simulator; T4 repeated across two hosts on a DERP-relayed tailnet; SSH/tmux pre-screen complete, S2 reattach not run
 - **Date:** 2026-11-05
 - **Parent:** `universal-compute-fabric-research.md`
 - **Scope:** Reproducible measurement rules, candidate matrix, scenario procedures and results template for the universal compute fabric research track
@@ -48,7 +48,7 @@ Hardware availability must be recorded per run. A missing device is reported as 
 | WebTransport over HTTP/3 | Browser/native candidate | Safari/WKWebView support starts at 26.4, so iOS 17–26.3 need a fallback; `serverCertificateHashes`, ECDSA certificate handling | Hold for the iOS 18.6 baseline; WebSocket fallback |
 | WebRTC data channels | Direct-peer candidate | macOS WKWebView and iOS 18.6 simulator loopback work with host candidates; physical device, TURN fallback and silent-loss behavior remain open | Adapter behind transport interface; trial only |
 | Iroh/QUIC | Direct-peer research candidate | Relay-free loopback and two-host tailnet pass in Rust; the tailnet underlay was DERP-relayed, so direct NAT traversal remains unproven; relay fallback, binary size, Rust/Swift bindings and App Store review remain open | Spike only until R1 gate |
-| SSH/tmux | Remote execution reference | Existing native SSH path | Keep for remote host workflows |
+| SSH/tmux | Remote execution reference | Native NIOSSH path with pinned host key, Keychain password and tmux default; license/platform pre-screen passes; S2 reattach is not measured | Keep for remote host workflows; run S2 before using reattach claims |
 
 ### 3.2 State and authority
 
@@ -164,6 +164,8 @@ Hardware availability must be recorded per run. A missing device is reported as 
 4. Verify the remote process survived, the transcript is truthful and no keys remain pressed.
 5. Record reattach time and failure classification.
 
+Status: not run. The existing simulator reconnect test and `real-ssh-smoke.sh` prove the native SSH PTY path and a transport-level reconnect, but they do not cover app suspension, a second device, a labeled remote network or transcript truthfulness.
+
 ### S3 — Offline multi-device state
 
 1. Open the same workspace on two eligible devices.
@@ -263,7 +265,7 @@ Reports live under `docs/research/runs/`. Recorded harness baselines:
 - T4 loopback: `docs/research/runs/2026-11-05-iroh-baseline.md`
 - T4 two-host tailnet: `docs/research/runs/2026-11-05-iroh-tailnet-baseline.md`
 
-Candidate comparisons across recorded networks remain open. The T4 tailnet run used a DERP-relayed Tailscale underlay, so it is a separate network label and not a direct-underlay result.
+Candidate comparisons across recorded networks remain open. The T4 tailnet run used a DERP-relayed Tailscale underlay, so it is a separate network label and not a direct-underlay result. SSH/tmux is a stream/session reference and is not part of the T1–T4 payload comparison; its S2 reattach baseline remains unmeasured.
 
 ## 8. R0 exit checklist
 

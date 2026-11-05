@@ -151,6 +151,7 @@ scripts/research/run-transport.sh --scenario research/scenarios/webrtc-baseline.
 scripts/research/run-webrtc-ios.sh
 scripts/research/run-iroh.sh
 AIRDESK_IROH_SERVER_SSH=user@tailnet-host AIRDESK_IROH_SERVER_IP=<tailnet-ipv4> scripts/research/run-iroh-net.sh
+scripts/real-ssh-smoke.sh
 ```
 
 `run-webrtc-ios.sh` runs the opt-in `WebRTCLoopbackProbeTests` in the iOS 18.6 simulator and writes raw probe JSON. The test skips in normal CI unless the simulator probe defaults are enabled.
@@ -160,6 +161,8 @@ T3 runs a Swift/WebKit probe on the Mac and records macOS WKWebView behavior, no
 `run-iroh.sh` builds the separate `research/iroh-probe` Rust crate with its pinned `Cargo.lock`, runs the T4 relay-free loopback scenario at 64 B, 1 KiB and 16 KiB, and writes one JSON result per payload. The probe is research-only and is not part of the product dependency graph.
 
 `run-iroh-net.sh` runs the same probe across two hosts. It copies the crate to the remote SSH target, builds it there, binds the server to the remote tailnet IPv4 address with Iroh relays disabled, and runs the Mac client against the explicit endpoint ID plus direct address. It records the Tailscale underlay path (`tailscale-direct` or `tailscale-derp`) in `run-index.json` because a Tailscale DERP hop is outside Iroh but still a relay dependency. The local Linux workspace container lacks the Rust toolchain; the Mac is the client and the remote Linux runner is the server. Neither is a product dependency.
+
+`real-ssh-smoke.sh` is the SSH/tmux interop smoke, not an S2 result. It starts a temporary local Mac OpenSSH server on `127.0.0.1:22222` with generated Ed25519 keys, optionally uses `tmux new -A -s <smoke-session>` as the startup command, and runs the opt-in `RealSSHTerminalTests` in the iOS 18.6 simulator. It does not exercise app suspension, a second device, a remote network or transcript truthfulness. The SSH/tmux pre-screen was completed on 2026-11-05 from the source, unit tests and smoke tooling; no new SSH measurement was recorded, and the S2 runner remains to be implemented.
 
 ### Recorded runner
 

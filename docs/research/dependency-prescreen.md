@@ -1,7 +1,7 @@
 # Fabric Dependency Pre-screen
 
 - **Status:** R0 pre-screen — research only; no dependency is admitted
-- **Date:** 2026-11-04; updated 2026-11-05 with the T4 two-host tailnet result
+- **Date:** 2026-11-04; updated 2026-11-05 with the T4 two-host tailnet result and the SSH/tmux pre-screen
 - **Parent:** `docs/planning/universal-compute-fabric-research.md`
 - **Policy:** ADR-003 dependency admission and commercial licensing policy
 - **Method:** Primary project pages and package registries reviewed on 2026-11-04; versions and terms must be re-checked at the exact pinned commit before any Trial or Adopt decision
@@ -35,9 +35,26 @@ No candidate may enter the shipping client, the default build, or a production p
 | WebTransport over HTTP/3 | Safari and iOS Safari support arrive in 26.4; caniuse lists iOS 26.4+, so iOS 17–26.3 need a fallback; caniwebview lists WKWebView iOS 26.4 but in-app behavior still needs a device check; secure context required | Deno 2.9.4 exposes client and server APIs only with `--unstable-net`; T2 loopback baseline recorded and is slower than T1 at every payload size | Hold for the iOS 18.6 baseline; revisit only for iOS 26.4+ or a native controller; unstable server API is harness-only |
 | WebRTC data channels | RTCDataChannel is available in WKWebView since iOS 11; WebKit restricts host ICE candidates, so mDNS, server-reflexive candidates or TURN may be required; Safari can drop data channels silently under loss and needs heartbeats | T3 passes on macOS WKWebView and the iOS 18.6 simulator with host candidates only; established RTT is near T1, but channel setup is 141–193 ms and reconnect is 237–314 ms | Trial for long-lived sessions; repeat on the physical iPhone and a labeled Wi-Fi/tailnet path before comparing with Iroh; test TURN and silent-drop recovery separately |
 | Iroh/QUIC | Latest crate is 1.4.1, MIT OR Apache-2.0, MSRV 1.91.0; QUIC peer connections use public-key identity, hole punching and relay fallback; relay servers forward encrypted packets | T4 loopback passes with direct `127.0.0.1` addresses, zero relay addresses, 30/30 delivery and 2.6–8.4 ms reconnect. T4 two-host tailnet also passes 30/30 with zero Iroh relay paths, direct Iroh p50 55–163 ms and reconnect 152–300 ms, but Tailscale reported DERP and no direct underlay; no WKWebView or Swift path measured | Trial for a labeled direct-underlay spike and a separate relay-fallback scenario; hold the public relay default, NAT traversal claim and distribution decision until separately proven |
-| SSH/tmux | Existing native remote-terminal path | Existing smoke tooling; represents remote execution, not a browser transport | Keep as the remote-execution reference |
+| SSH/tmux | SwiftNIO SSH 0.15.1, SwiftNIO 2.104.0 and SwiftCrypto 4.5.2 are Apache-2.0; tmux is ISC; OpenSSH is BSD-style with no GPL code | Existing native PTY path with a pinned host key, Keychain password and `tmux new -A -s airdesk`; simulator reconnect and local OpenSSH smoke exist, but app-suspend/reattach, physical-device and labeled-network behavior are not measured | Keep as the remote-execution reference, not an R1 browser transport; run S2 before using reattach claims |
 
-Matching T1, T2, T3 and T4 numbers across payload sizes is the first R1 comparison. Do not compare loopback, LAN, tailnet or relay runs without separate labels.
+Matching T1, T2, T3 and T4 numbers across payload sizes is the first R1 comparison. Do not compare loopback, LAN, tailnet or relay runs without separate labels. SSH/tmux is a stream/session path and is not payload-comparable with the browser transports.
+
+### SSH/tmux remote-execution pre-screen
+
+**Disposition: Spike/reference.** SSH/tmux is already implemented as AirDesk's remote-execution path, but it is not a candidate for the R1 direct-transport decision and is not a fallback for the browser bridge.
+
+Evidence reviewed in the current tree:
+
+- **Client stack.** Native NIOSSH `0.15.1` over SwiftNIO `2.104.0` and SwiftCrypto `4.5.2`; no external SSH client or WKWebView dependency.
+- **Session shape.** The app requests an `xterm-256color` PTY, starts at 80x24, sends window-change requests on resize, and defaults to `tmux new -A -s airdesk` as an SSH exec request. With an empty startup command it opens a plain shell instead.
+- **Credentials and host identity.** The server host key is pinned and compared for exact equality; there is no `known_hosts` learning or trust-on-first-use path. The password is stored in the device Keychain. A private-key seed is available only through the debug UI-test environment, and the authentication delegate clears its in-memory secret after one offer.
+- **Lifecycle.** Backgrounding stops the SSH session and marks it paused; returning to the foreground reconnects. Transport loss retries three times at 1, 2 and 4 seconds, then reports exit. tmux owns remote process survival, but this codebase does not measure whether the terminal transcript is truthful after reattach.
+- **Security boundary.** The startup command is an explicit user-supplied remote exec string, so it should be treated as credentialed remote execution rather than a sandbox. No agent forwarding, port forwarding or SFTP surface is present. There is no SSH keepalive or host-key-rotation UX; long-idle NAT survival and rotation are open.
+- **Tests and smoke coverage.** Unit tests cover PTY input, resize, startup exec, mismatched-host-key rejection and 64 KiB output chunking. UI tests cover typing, resize and one simulated reconnect against an in-process test server. `scripts/real-ssh-smoke.sh` exercises a generated-key local Mac OpenSSH server and optional tmux from the iOS simulator. None of these is an S2 remote reattach run.
+- **License fit.** Repository license files reviewed at the current upstream heads: SwiftNIO SSH, SwiftNIO and SwiftCrypto are Apache-2.0; tmux uses the ISC-style permissive notice; OpenSSH is BSD-style and states it contains no GPL code. This is compatible with client distribution, subject to the normal pinned-commit recheck and App Store export review.
+- **Platform fit.** OpenSSH and tmux servers exist on macOS and Linux, and the iOS client runs in-process with no browser or iOS-version gate. Physical-device backgrounding, Keychain access over a real install and App Store encryption-export treatment remain unverified.
+
+The pre-screen supports SSH/tmux as the remote-execution reference and as the baseline for S2. It does not support presenting tmux as a migration mechanism or as an R1 transport winner. S2 must record process survival, reattach time and transcript truthfulness on a labeled remote network before any such claim.
 
 ## 3. Consequences for the research plan
 
@@ -72,6 +89,10 @@ Xpra is promising for Linux persistence but its server is GPLv2+ and its seamles
 
 WebKit's stated position is oppose, and Chromium support is an early preview. Agent supervision must remain based on PTY/terminal observation, approval actions and explicit capability leases.
 
+### SSH/tmux is a remote-execution reference, not a transport candidate
+
+SSH/tmux must stay out of the T1/T2/T3/T4 payload comparison. Its R1 role is to anchor remote execution and the S2 reattach test. The pre-screen clears the license and platform questions for the current native path, but app-suspend/reattach, physical-device behavior, long-idle NAT survival and transcript truthfulness are still unmeasured. Do not describe tmux as a migration mechanism until S2 records those outcomes.
+
 ## 4. Required follow-up
 
 Before promotion from Spike:
@@ -91,6 +112,11 @@ Before promotion from Spike:
 - RTCDataChannel compatibility: <https://caniwebview.com/features/mdn-rtcdatachannel/>
 - WebKit RTCDataChannel host-candidate note: <https://bugs.webkit.org/show_bug.cgi?id=189503>
 - Deno WebTransport example: <https://docs.deno.com/examples/web_transport/>
+- SwiftNIO SSH license: <https://github.com/apple/swift-nio-ssh/blob/main/LICENSE.txt>
+- SwiftNIO license: <https://github.com/apple/swift-nio/blob/main/LICENSE.txt>
+- SwiftCrypto license: <https://github.com/apple/swift-crypto/blob/main/LICENSE.txt>
+- tmux license: <https://github.com/tmux/tmux/blob/master/COPYING>
+- OpenSSH license: <https://github.com/openssh/openssh-portable/blob/master/LICENCE>
 - Iroh crate: <https://crates.io/crates/iroh>
 - Iroh documentation: <https://docs.rs/iroh/latest/iroh/>
 - Iroh QUIC design: <https://docs.iroh.computer/protocols/using-quic>
