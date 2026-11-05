@@ -201,3 +201,5 @@ Exit: Q1–Q8 answered with evidence; scenario corpus has pass/fail results; R6 
 | 2026-11-04 | M8 / RF-02 | Added an opt-in iOS WKWebView WebRTC probe and recorded iOS 18.6 simulator loopback results at 64 B, 1 KiB and 16 KiB | 8c179e9 |
 | 2026-11-05 | M8 / RF-02 | Added the relay-free Iroh/QUIC loopback probe and recorded two clean T4 baselines | 46e9341, 1200ad0 |
 | 2026-11-05 | M8 / RF-02 | Added the two-host Iroh tailnet runner and recorded the Tailscale DERP underlay path | b1bca77, 2beb77a |
+| 2026-11-05 | M8 / RF-02 | Recorded the two-host Iroh tailnet baseline, DERP caveat and report | e260fcd |
+| 2026-11-05 | M8 / RF-02 | Completed the SSH/tmux pre-screen; kept it as the remote-execution reference with S2 reattach unmeasured | 38bb76d |
