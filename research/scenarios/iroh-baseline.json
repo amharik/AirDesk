@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "id": "T4",
+  "name": "iroh-quic-loopback-baseline",
+  "purpose": "Measure a relay-free Iroh/QUIC endpoint pair on loopback and verify direct addressing, framed echo and reconnect",
+  "evidence_scope": "transport-baseline",
+  "candidate": "iroh-quic",
+  "transport": "iroh",
+  "requires": [
+    "mac-host",
+    "cargo",
+    "git",
+    "loopback-network"
+  ],
+  "network": "loopback",
+  "samples": 30,
+  "payload_bytes": 64,
+  "steps": [
+    "Build the pinned iroh 1.4.1 probe from research/iroh-probe",
+    "Bind two endpoints to 127.0.0.1 with RelayMode::Disabled",
+    "Connect the client to the server by EndpointId plus direct address",
+    "Echo bounded binary payloads on bidirectional QUIC streams",
+    "Close the connection and reconnect to measure setup cost"
+  ],
+  "metrics": [
+    "control_rtt_ms",
+    "messages_delivered",
+    "connect_ms",
+    "reconnect_ms"
+  ],
+  "failure_injection": [
+    "connection-close-and-reconnect"
+  ],
+  "pass": {
+    "messages_delivered": "equals samples",
+    "relay_addrs": 0,
+    "failures": "empty",
+    "reconnect_ms": "present"
+  }
+}
