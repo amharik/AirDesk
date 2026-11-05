@@ -46,7 +46,7 @@ if [[ -z "$SERVER" ]]; then
   exit 1
 fi
 
-for tool in cargo git ssh tar ping; do
+for tool in cargo git ssh tailscale tar ping; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     echo "Missing required tool: $tool" >&2
     exit 1
@@ -120,6 +120,17 @@ SERVER_CARGO_VERSION="${SERVER_CARGO_VERSION%% *}"
 PING_AVG="$(ping -c 3 "$SERVER_IP" 2>/dev/null | awk -F'/' '/round-trip/ {print $5}' || true)"
 if [[ -z "$PING_AVG" ]]; then
   PING_AVG="null"
+fi
+CLIENT_IP="$(tailscale ip -4 2>/dev/null | head -n 1 || true)"
+TAILNET_PATH="unknown"
+if [[ -n "$CLIENT_IP" ]]; then
+  TAILNET_PING_LINE="$(ssh -o BatchMode=yes "$SERVER" \
+    "tailscale ping -c 1 '$CLIENT_IP' 2>/dev/null | head -n 1" || true)"
+  if [[ "$TAILNET_PING_LINE" == *"via DERP"* ]]; then
+    TAILNET_PATH="tailscale-derp"
+  elif [[ "$TAILNET_PING_LINE" == *"pong from"* ]]; then
+    TAILNET_PATH="tailscale-direct"
+  fi
 fi
 
 echo "building probe on client host"
@@ -219,6 +230,7 @@ cat >"$RUN_DIR/run-index.json" <<EOF
     "host": "macOS $HOST_OS $HOST_ARCH",
     "controller": "cargo $CARGO_VERSION",
     "network": "tailnet",
+    "underlay": "$TAILNET_PATH",
     "relay_mode": "disabled",
     "server": {
       "role": "remote-linux",

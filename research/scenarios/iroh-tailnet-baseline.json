@@ -20,6 +20,7 @@
     "Build the pinned iroh 1.4.1 probe from research/iroh-probe on both hosts",
     "Bind the server endpoint to its tailnet IPv4 address with RelayMode::Disabled",
     "Connect the macOS client to the server by EndpointId plus direct tailnet address",
+    "Record whether the Tailscale underlay is direct or DERP-relayed",
     "Echo bounded binary payloads on bidirectional QUIC streams",
     "Close the connection and reconnect to measure setup cost"
   ],
