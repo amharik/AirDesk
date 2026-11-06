@@ -1,0 +1,236 @@
+[
+  {
+    "id": "offline-replay",
+    "description": "Queued offline edits replay in order and advance workspace sequence and revision deterministically.",
+    "operation": {
+      "kind": "offline-drain",
+      "initial": {
+        "workspaceId": "ws-1",
+        "hostEpoch": 2,
+        "workspaceSeq": 10,
+        "revision": 3,
+        "metadata": [
+          { "path": "layout.bounds", "merge": "lww" },
+          { "path": "history", "merge": "append-log" }
+        ],
+        "fields": {
+          "layout.bounds": {
+            "value": { "x": 0, "y": 0 },
+            "revision": 3,
+            "deviceId": "dev-a"
+          }
+        }
+      },
+      "edits": [
+        { "path": "layout.bounds", "value": { "x": 1, "y": 1 }, "revision": 5, "deviceId": "dev-a" },
+        { "path": "history", "value": "offline-1", "revision": 5, "deviceId": "dev-a", "appendId": "h1" }
+      ],
+      "rebase": true
+    },
+    "expected": {
+      "status": "drained",
+      "applied": [
+        { "path": "layout.bounds", "value": { "x": 1, "y": 1 }, "revision": 5, "deviceId": "dev-a" },
+        { "path": "history", "value": "offline-1", "revision": 5, "deviceId": "dev-a", "appendId": "h1" }
+      ],
+      "remaining": [],
+      "queueSize": 0,
+      "snapshot": {
+        "workspaceSeq": 12,
+        "revision": 5,
+        "fields": {
+          "layout.bounds": {
+            "value": { "x": 1, "y": 1 },
+            "revision": 5,
+            "deviceId": "dev-a"
+          },
+          "history": [{ "id": "h1", "value": "offline-1", "revision": 5 }]
+        }
+      }
+    }
+  },
+  {
+    "id": "offline-rebase-after-remote",
+    "description": "Queued edits rebase onto a newer workspace sequence and revision after remote catch-up.",
+    "operation": {
+      "kind": "offline-drain",
+      "initial": {
+        "workspaceId": "ws-1",
+        "hostEpoch": 2,
+        "workspaceSeq": 10,
+        "revision": 3,
+        "metadata": [
+          { "path": "layout.bounds", "merge": "lww" },
+          { "path": "history", "merge": "append-log" }
+        ],
+        "fields": {
+          "layout.bounds": {
+            "value": { "x": 0, "y": 0 },
+            "revision": 3,
+            "deviceId": "dev-a"
+          }
+        }
+      },
+      "serverPatches": [
+        {
+          "workspaceId": "ws-1",
+          "senderDeviceId": "dev-b",
+          "hostEpoch": 2,
+          "baseWorkspaceSeq": 10,
+          "revision": 4,
+          "fields": [
+            { "path": "layout.bounds", "value": { "x": 2, "y": 2 }, "revision": 4, "deviceId": "dev-b" }
+          ]
+        }
+      ],
+      "edits": [
+        { "path": "layout.bounds", "value": { "x": 3, "y": 3 }, "revision": 5, "deviceId": "dev-a" },
+        { "path": "history", "value": "offline-rebase", "revision": 5, "deviceId": "dev-a", "appendId": "h2" }
+      ],
+      "rebase": true
+    },
+    "expected": {
+      "status": "drained",
+      "applied": [
+        { "path": "layout.bounds", "value": { "x": 3, "y": 3 }, "revision": 5, "deviceId": "dev-a" },
+        { "path": "history", "value": "offline-rebase", "revision": 5, "deviceId": "dev-a", "appendId": "h2" }
+      ],
+      "remaining": [],
+      "queueSize": 0,
+      "snapshot": {
+        "workspaceSeq": 13,
+        "revision": 6,
+        "fields": {
+          "layout.bounds": {
+            "value": { "x": 3, "y": 3 },
+            "revision": 5,
+            "deviceId": "dev-a"
+          },
+          "history": [{ "id": "h2", "value": "offline-rebase", "revision": 5 }]
+        }
+      }
+    }
+  },
+  {
+    "id": "offline-halt-on-manual-conflict",
+    "description": "Offline replay halts at the first explicit conflict and preserves the remaining queue.",
+    "operation": {
+      "kind": "offline-drain",
+      "initial": {
+        "workspaceId": "ws-1",
+        "hostEpoch": 2,
+        "workspaceSeq": 10,
+        "revision": 3,
+        "metadata": [
+          { "path": "layout.bounds", "merge": "lww" },
+          { "path": "history", "merge": "append-log" }
+        ],
+        "fields": {
+          "layout.bounds": {
+            "value": { "x": 0, "y": 0 },
+            "revision": 3,
+            "deviceId": "dev-a"
+          }
+        }
+      },
+      "edits": [
+        { "path": "layout.bounds", "value": { "x": 1, "y": 1 }, "revision": 4, "deviceId": "dev-a" },
+        { "path": "unclassified.value", "value": "offline", "revision": 4, "deviceId": "dev-a" }
+      ],
+      "rebase": true
+    },
+    "expected": {
+      "status": "halted",
+      "applied": [
+        { "path": "layout.bounds", "value": { "x": 1, "y": 1 }, "revision": 4, "deviceId": "dev-a" }
+      ],
+      "remaining": [
+        { "path": "unclassified.value", "value": "offline", "revision": 4, "deviceId": "dev-a" }
+      ],
+      "queueSize": 1,
+      "halt": {
+        "status": "conflict",
+        "conflicts": [
+          { "path": "unclassified.value", "merge": "manual", "reason": "unclassified-field" }
+        ]
+      },
+      "snapshot": {
+        "workspaceSeq": 11,
+        "revision": 4,
+        "fields": {
+          "layout.bounds": {
+            "value": { "x": 1, "y": 1 },
+            "revision": 4,
+            "deviceId": "dev-a"
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "offline-stale-without-rebase",
+    "description": "Without rebasing, an offline queue halts on a stale sequence after remote catch-up.",
+    "operation": {
+      "kind": "offline-drain",
+      "initial": {
+        "workspaceId": "ws-1",
+        "hostEpoch": 2,
+        "workspaceSeq": 10,
+        "revision": 3,
+        "metadata": [
+          { "path": "layout.bounds", "merge": "lww" },
+          { "path": "history", "merge": "append-log" }
+        ],
+        "fields": {
+          "layout.bounds": {
+            "value": { "x": 0, "y": 0 },
+            "revision": 3,
+            "deviceId": "dev-a"
+          }
+        }
+      },
+      "serverPatches": [
+        {
+          "workspaceId": "ws-1",
+          "senderDeviceId": "dev-b",
+          "hostEpoch": 2,
+          "baseWorkspaceSeq": 10,
+          "revision": 4,
+          "fields": [
+            { "path": "layout.bounds", "value": { "x": 2, "y": 2 }, "revision": 4, "deviceId": "dev-b" }
+          ]
+        }
+      ],
+      "edits": [
+        { "path": "layout.bounds", "value": { "x": 9, "y": 9 }, "revision": 5, "deviceId": "dev-a" }
+      ],
+      "rebase": false,
+      "baseWorkspaceSeq": 10,
+      "patchRevision": 5
+    },
+    "expected": {
+      "status": "halted",
+      "applied": [],
+      "remaining": [
+        { "path": "layout.bounds", "value": { "x": 9, "y": 9 }, "revision": 5, "deviceId": "dev-a" }
+      ],
+      "queueSize": 1,
+      "halt": {
+        "status": "rejected",
+        "reason": "stale-seq",
+        "conflicts": []
+      },
+      "snapshot": {
+        "workspaceSeq": 11,
+        "revision": 4,
+        "fields": {
+          "layout.bounds": {
+            "value": { "x": 2, "y": 2 },
+            "revision": 4,
+            "deviceId": "dev-b"
+          }
+        }
+      }
+    }
+  }
+]
