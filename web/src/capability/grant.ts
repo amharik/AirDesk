@@ -29,7 +29,14 @@ export type CapabilityGrantErrorCode =
   | 'chain-mismatch'
   | 'parent-mismatch'
   | 'attenuation-widened'
-  | 'lease-invalid';
+  | 'lease-invalid'
+  | 'missing-proof'
+  | 'proof-not-required'
+  | 'proof-mismatch'
+  | 'confirmation-mismatch'
+  | 'invalid-revocation'
+  | 'revocation-stale'
+  | 'revoked';
 
 export class CapabilityGrantError extends Error {
   readonly code: CapabilityGrantErrorCode;
