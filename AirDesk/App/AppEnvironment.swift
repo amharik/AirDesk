@@ -13,6 +13,11 @@ final class AppEnvironment: ObservableObject {
     let entitlements: EntitlementManager
     let haptics: Haptics
     let fabric: IrohFabricPeer
+    let deviceIdentityStore: DeviceIdentityStore
+    let identity: DeviceIdentity?
+    let identityError: String?
+    let deviceRegistry: DeviceRegistry?
+    let deviceRegistryError: String?
     lazy var session: SessionCoordinator = {
         SessionCoordinator(
             settings: settings,
@@ -52,6 +57,29 @@ final class AppEnvironment: ObservableObject {
     #endif
 
     private init() {
+        let store = DeviceIdentityStore()
+        var loadedIdentity: DeviceIdentity?
+        var identityLoadError: String?
+        do {
+            loadedIdentity = try store.loadOrCreate()
+        } catch {
+            identityLoadError = error.localizedDescription
+        }
+
+        var registry: DeviceRegistry?
+        var registryLoadError: String?
+        do {
+            registry = try DeviceRegistry.applicationSupport()
+        } catch {
+            registryLoadError = error.localizedDescription
+        }
+
+        deviceIdentityStore = store
+        identity = loadedIdentity
+        identityError = identityLoadError
+        deviceRegistry = registry
+        deviceRegistryError = registryLoadError
+
         settings = AppSettings()
         diagnostics = PerformanceMetrics()
         display = DisplayCoordinator()

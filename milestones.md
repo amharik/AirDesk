@@ -16,19 +16,19 @@ This file is the implementation tracker. `docs/adr/README.md` remains authoritat
 
 ## Current focus
 
-- Milestone: `M8` — universal compute fabric research
-- Track: `100x research first`; product release sequencing is paused until the R6 architecture decision gate
-- Work item: `RF-00`, `RF-01` and `RF-02` are active; R0 has the research plan, dependency pre-screen, threat-model delta, harness and qualified Mac runner; R1 has loopback WebSocket, WebTransport and WebRTC baselines at 64 B, 1 KiB and 16 KiB; T3 also passes in the iOS 18.6 simulator; T4 relay-free Iroh/QUIC passes on loopback and across two hosts on a tailnet, but the tailnet underlay was DERP-relayed; the forced Iroh relay-only run passes 90/90 through the public n0 relay at p50 108.8/106.1/183.9 ms; ADR-021 adopts Iroh for the native peer data plane and `XPORT-05` wires the official Swift SDK adapter into the app with ticket pairing, path diagnostics, explicit remote-lease input and WebSocket fallback; the SSH/tmux pre-screen is complete; S2 simulator background reattach and app-termination recovery both pass 3/3, and second-device handoff passes 1/1, with process survival and truthful transcripts on a DERP-relayed tailnet
-- Next: repeat T3 and S2 on the physical iPhone when signing is available, add a labeled Wi-Fi/tailnet path with and without TURN, establish a direct Tailscale/LAN underlay and repeat T4, exercise automatic direct-to-relay fallback and a self-hosted relay, and exercise the XPORT-05 pairing flow on two physical devices before the R1 decision; WebTransport is held on iOS 18.6 because WKWebView support starts at iOS 26.4; do not promote research spikes or dependencies
+- Milestone: `M4–M7` foundational implementation resumed under user direction on 2026-11-06, with `M8` research still active as the architecture gate
+- Track: `100x research first` remains authoritative; product release sequencing is still paused until the R6 decision gate, but the user explicitly directed implementation of Android, identity, protocol, browser-endpoint, sync/collaboration and remote-placement foundations
+- Work item: the Android controller/display baseline builds and passes its unit/lint gates; ADFP now has a typed control header and additive fabric payload union with generated Swift, TypeScript, Rust and Kotlin bindings; iOS and browser use Ed25519 with P-256 fallback while Android uses P-256, and all three have local registries, revocation and pairing-offer validation; browser loopback endpoint policy, sync/merge/envelope, collaboration roles/audit and remote-placement selection have tested foundations. AD-PAIR-1/SPAKE2+, signed capability leases, production browser host wiring, real network transports and remote execution remain unimplemented
+- Next: repeat T3/S2 and install the Android APK when physical signing/hardware is available; implement AD-PAIR-1/SPAKE2+ and real transport binding before claiming pairing; connect the browser endpoint to a production host and page; implement capability issuance/verification and remote execution; do not promote research spikes or proposed ADRs
 - Retained implementation state: `M0-03`, `RT-02`, `RT-03`, `RT-05`, `RT-06`, `APP-02`, `APP-05`, `IN-01`, `IN-04`, `IN-06`, `IN-07` and `INPUT-01` are complete; `RT-04` is blocked on a native execution engine/package decision; `IN-02` channel routing and validation are in place, with the production transport binding still open
 
 ## Verification status
 
-Real iPad testing is parked by request. On 2026-11-06, `scripts/check-core.sh` runs 121 workspace-core and input tests successfully on macOS via SwiftPM; the full `AirDeskTests` target runs 256 tests with 1 skip and 0 failures on an iPhone 16 Pro simulator (iOS 18.6), including the Iroh transport, codec, peer loopback and session-integration tests; `xcodebuild build-for-testing` for the generic iOS Simulator destination succeeds with `CODE_SIGNING_ALLOWED=NO`; `protocol/check.sh` passes; and the Rust protocol crate passes 10 tests. The full web Vitest suite passes 56 tests when invoked through Deno against the installed Node modules, while a native Node executable remains unavailable locally. Device signing still fails with `Certificate installation failed ... Code=-61 "Write permissions error."` even after the login keychain exposes valid Apple Development identities, because Xcode cannot use the private-key ACL over SSH. Device verification will resume from a GUI Xcode session with a one-time "Always Allow" keychain prompt.
+Real iPad testing is parked by request. On 2026-11-06, after integrating the Android, ADFP, browser and iOS identity work, `scripts/check-core.sh` passes 121 workspace-core and input tests; the full `AirDeskTests` target passes 287 tests with 1 skip and 0 failures on an iPhone 16 Pro simulator (iOS 18.6); the web suite passes 125 tests across 17 files, plus TypeScript, ESLint and the Committed DesktopShell bundle check; `protocol/check.sh` passes; the Rust protocol crate passes 10 tests on `sillyoci`; and the Android app passes 49 unit tests with `lintDebug` reporting 0 errors and 6 dependency-update warnings. The Android debug APK is built at `android/build-artifacts/AirDesk-debug.apk` (SHA-256 `ce2e6b452509a1b407ebca99492df037e0ae3b47167e4d40040d75da0742785c`) but has not been installed on a physical device. Device signing still fails with `Certificate installation failed ... Code=-61 "Write permissions error."` even after the login keychain exposes valid Apple Development identities, because Xcode cannot use the private-key ACL over SSH. Device verification will resume from a GUI Xcode session with a one-time "Always Allow" keychain prompt.
 
 ## Release 1 scope freeze
 
-Release 1 is a single-device workspace with one authoritative host, persisted desired state, truthful recovery, local runtime providers, and the input protocol compatibility path. It includes no fabric membership, no multi-device synchronization, no capability grants between devices, no browser endpoint and no distributed placement. Those remain Release 2–5 work and must not be pulled into Release 1 acceptance.
+Release 1 is a single-device workspace with one authoritative host, persisted desired state, truthful recovery, local runtime providers, and the input protocol compatibility path. It includes no fabric membership, no multi-device synchronization, no capability grants between devices, no browser endpoint and no distributed placement. Those remain Release 2–5 work and must not be pulled into Release 1 acceptance. The Android and fabric foundations added on 2026-11-06 are not Release 1 features and remain behind their proposed ADR gates.
 
 ## M0 — Plan reset and guardrails
 
@@ -91,11 +91,11 @@ Exit: old and new paths negotiate cleanly; no input edge is ever sent on Channel
 
 | ID | Task | Status | Depends | Acceptance |
 | --- | --- | --- | --- | --- |
-| ID-01 | Device identity and QR/PIN pairing | Pending | M3, M1 | Ed25519 default, P-256 fallback; SPAKE2+; nonce/expiry; replay rejected |
-| ID-02 | Native/browser channel binding | Pending | ID-01 | Native TLS exporter; browser host-cert hash from pairing payload or signed advertisement |
-| ID-03 | Device registry and revocation | Pending | ID-01 | Revocation invalidates trust and leases without deleting workspaces |
+| ID-01 | Device identity and QR/PIN pairing | In progress | M3, M1 | iOS and browser implement Ed25519 default with P-256 fallback; Android uses P-256; all three validate nonce/expiry/replay in local pairing offers; SPAKE2+ and QR/PIN remain pending |
+| ID-02 | Native/browser channel binding | In progress | ID-01 | Binding kinds and offer validation exist; native TLS exporter and browser host-cert acquisition remain pending |
+| ID-03 | Device registry and revocation | In progress | ID-01 | Local device registry/revocation implemented on iOS, Android and browser; distributed lease invalidation remains pending |
 | ID-04 | Canonical discovery | Pending | ID-01 | `_airdesk._tcp`/`_airdesk._udp`, canonical TXT keys, no `dev_id`/`role_mask` |
-| CAP-01 | Capability registry | Pending | ID-03 | `cap_uri`, four-value availability, advertisement distinct from authorization |
+| CAP-01 | Capability registry | In progress | ID-03 | `cap_uri`, four-value availability and explicit authorization exist in ADFP and Android advertisement; registry and revocation propagation remain pending |
 | CAP-02 | Grants and leases | Pending | CAP-01 | `COSE_Sign1`, `jti`, `cnf`, `epoch_id = generation`; provider/owner root grant; coordinator cannot mint |
 | HOST-02 | Host handoff | Pending | ID-03, HOST-01 | Quiesce/stage/activate/retire; force takeover; stale `host_epoch` demotes |
 | HOST-03 | Host-degraded mode | Pending | HOST-02 | Structural writes fail typed; running runtimes and leased input continue |
@@ -106,10 +106,11 @@ Exit: pairing grants no ownership; grants are provider-issued; handoff and force
 
 | ID | Task | Status | Depends | Acceptance |
 | --- | --- | --- | --- | --- |
-| PROTO-01 | ADFP baseline | Pending | M3 | Envelope, AD-WS/DEV/CAP/RUNTIME/RESOURCE/INPUT/DISPLAY |
+| PROTO-01 | ADFP baseline | In progress | M3 | Typed `ControlHeader`, additive `FabricPayload`, baseline conformance and Swift/TS/Rust/Kotlin bindings exist; module coverage and production transport remain pending |
 | PROTO-02 | Resource RPC surface | Pending | PROTO-01 | ADFP op codes, not 9P2000 tags; `Qid` layout only |
-| AGENT-01 | Native agent contract | Pending | ID-01 | Identity, capabilities, permissions, health and lifecycle |
+| AGENT-01 | Native agent contract | In progress | ID-01 | Android identity, capabilities, permissions and local health baseline exist; formal cross-platform contract remains pending |
 | AGENT-02 | iOS device agent | Pending | AGENT-01 | Camera, files, input and health under iOS permissions |
+| AND-01 | Android device agent and controller baseline | In progress | AGENT-01 | Kotlin/Compose controller, identity, capability advertisement, WebView presentation and canonical ADFP integration build; physical-device and production-transport qualification remain pending |
 | ABI-01 | WIT capability host ABI | Pending | AGENT-01 | Per-runtime conformance; WASI 0.2 baseline; 0.3 uses `stream<T>` |
 | INPUT-01 | Multi-controller arbitration | Done | IN-05 | Distinct cursors; single keyboard focus; guarded `force_preempt`; no stuck input |
 | XPORT-01 | Direct transport benchmark | In progress | AGENT-02 | WebRTC/QUIC vs WebSocket p50/p95, CPU, reconnect |
@@ -123,9 +124,9 @@ Exit: a paired device provides an authorized capability; disconnect preserves wo
 
 | ID | Task | Status | Depends | Acceptance |
 | --- | --- | --- | --- | --- |
-| END-01 | Browser endpoint feasibility spike | Pending | M5 | Loopback, COOP/COEP, secure context, asset isolation proven |
-| END-02 | Local host agent | Pending | END-01 | Loopback WebSocket, strict origin/token, capability boundary |
-| END-03 | Browser presentation endpoint | Pending | END-02 | Presents and recovers; never becomes host |
+| END-01 | Browser endpoint feasibility spike | In progress | M5 | Loopback URL/token/origin policy and fail-closed state are tested; production COOP/COEP and asset-isolation proof remain pending |
+| END-02 | Local host agent | In progress | END-01 | Loopback WebSocket client, token/origin validation and reconnect state exist; production host service remains pending |
+| END-03 | Browser presentation endpoint | In progress | END-02 | Presentation registration/reconnect state and policy exist; production page/host wiring remains pending |
 | END-04 | Single-threaded browser profile | Pending | END-03 | Works without `SharedArrayBuffer`; threaded opt-in |
 | DISP-01 | External display and Cast qualification | Pending | M5 | Supported matrix documented; Cast development-only until hardware passes |
 | DISP-02 | Display reconnect | Pending | END-03 | Reconnect does not recreate the workspace |
@@ -138,13 +139,13 @@ Exit: endpoints present without authority; browser stays loopback-only in v1.
 | ID | Task | Status | Depends | Acceptance |
 | --- | --- | --- | --- | --- |
 | REM-01 | Remote Wanix provider | Pending | M5 | Remote lifecycle and observed status |
-| REM-02 | Placement policies | Pending | M1, REM-01 | Explainable local/device/runtime placement |
+| REM-02 | Placement policies | In progress | M1, REM-01 | Deterministic local/device/runtime placement selection and typed failures are tested; remote execution integration remains pending |
 | REM-03 | Remote terminal and applications | Pending | REM-01 | Capability-scoped remote execution; Xpra-style reattach preferred |
 | REM-04 | Scoped namespace import | Pending | REM-01, PROTO-02 | 9P-inspired import cannot bypass leases |
-| SYNC-01 | Encrypted workspace synchronization | Pending | WS-06, ID-03 | Explicit conflict model; no silent multi-writer corruption |
-| SYNC-02 | Merge-class tests | Pending | SYNC-01 | `lww`, `append-log`, `manual` behave as declared |
+| SYNC-01 | Encrypted workspace synchronization | In progress | WS-06, ID-03 | Merge model, offline queue and AES-GCM envelope/replay foundations are tested; transport and workspace-store integration remain pending |
+| SYNC-02 | Merge-class tests | In progress | SYNC-01 | Unit coverage exists for `lww`, `append-log` and `manual`; cross-device conflict corpus remains pending |
 | GROUP-01 | Membership and user identity | Pending | SYNC-01 | WebAuthn/FIDO2 separate from device identity |
-| GROUP-02 | Collaboration permissions | Pending | GROUP-01 | Auditable and revocable |
+| GROUP-02 | Collaboration permissions | In progress | GROUP-01 | Device-level roles, permissions, audit and revocation are tested; user identity and shared-document scopes remain pending |
 | GROUP-03 | Shared documents | Pending | GROUP-02 | CRDTs confined to shared documents |
 
 ## M8 — Universal compute fabric research (research-first track)
@@ -211,3 +212,6 @@ Exit: Q1–Q8 answered with evidence; scenario corpus has pass/fail results; R6 
 | 2026-11-06 | M8 / RF-02 | Added the S2 second-device handoff harness and sequential simulator runner; recorded 1/1 handoff with 40.4 s cold recovery, process survival and a truthful transcript on a DERP-relayed tailnet | 796387f, 5c962e5, 3fcac85 |
 | 2026-11-06 | M5 / XPORT-04 | Adopted the official Iroh Swift SDK under ADR-021; added direct-only/self-hosted relay policy, reliable channel framing, movement datagrams, endpoint tickets, diagnostics and loopback tests; build and 3/3 adapter tests pass on the iOS 18.6 simulator | 91b3f86 |
 | 2026-11-06 | M5 / XPORT-05 | Integrated Iroh into `AppEnvironment`, settings and sessions; added ticket pairing, path diagnostics, input codec, live peer loopback, explicit remote-lease grant and WebSocket fallback; full suite passes 256 tests with 1 skip and 0 failures on the iOS 18.6 simulator | f7c2b3d |
+| 2026-11-06 | M4 / M5 / M6 | Added typed ADFP control header and additive fabric payload union, regenerated Swift/TS/Rust/Kotlin bindings and preserved baseline conformance; added Android identity, pairing validation, capability advertisement, WebView presentation and canonical ADFP integration; Android passes 49 tests with 0 lint errors | working tree |
+| 2026-11-06 | M4 / M7 | Added browser identity, pairing-offer validation, replay guard, registry/revocation, loopback endpoint policy, merge/sync envelope, collaboration roles/audit and remote-placement foundations; web passes 125 tests plus TypeScript, ESLint and bundle checks | working tree |
+| 2026-11-06 | M4 / M6 | Added native iOS Ed25519/P-256 device identity, Keychain persistence, local registry/revocation, pairing-offer validation and diagnostics/settings surfaces; combined suite passes 287 tests with 1 skip, core passes 121, Rust passes 10 and `protocol/check.sh` passes | working tree |

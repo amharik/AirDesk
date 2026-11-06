@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en" data-appearance="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="color-scheme" content="dark light">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' 'sha256-a5qOmWtV4zivHG9TzYCcBDIYXWtamE0rSi+b/aPFeYw=' 'sha256-vWvTHbd5URFC6ZXdJfBcriueY7hIyWP2o0+8ycL5u40='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' file:; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>AirDesk — Wanix Kernel</title>
+  <link rel="stylesheet" href="wanix-live.css">
+  <script src="wanix-file-worker-fix.js"></script>
+  <script type="module"
+    src="wanix/wanix.min.js"></script>
+</head>
+<body>
+  <main id="wanix-live" aria-label="Live Wanix kernel">
+    <section id="boot" role="status">
+      <div class="boot-mark"><span></span><span></span><span></span></div>
+      <div class="boot-label">AIRDESK</div>
+      <div class="boot-sub">starting live Wanix kernel</div>
+    </section>
+
+    <div id="failure" hidden>
+      <div class="failure-panel">
+        <div class="failure-title">Wanix could not start</div>
+        <p id="failure-message">The live runtime did not become ready.</p>
+        <button id="retry" type="button">Retry</button>
+      </div>
+    </div>
+
+    <div id="wanix-surface">
+      <wanix-namespace
+        id="wanix"
+        wasm="wanix/wanix.wasm">
+        <wanix-bind dst="." src="#ramfs/new"></wanix-bind>
+        <wanix-bind id="opfs-bind" dst="opfs" src="#web/opfs"></wanix-bind>
+        <wanix-bind dst="tmp" src="#ramfs/new"></wanix-bind>
+        <wanix-bind
+          type="file"
+          dst="rc.wasm"
+          src="wanix/rc.wasm"></wanix-bind>
+        <wanix-bind type="file" dst="README.md" perm="0644"># AirDesk Wanix Kernel
+
+This is a live Wanix namespace running inside AirDesk.
+
+- `opfs/` persists in the browser's Origin Private File System.
+- `tmp/` is scratch memory.
+- The controller sends keyboard input through the native AirDesk bridge.
+
+Try `ls`, `cd opfs`, `echo hello &gt; note.txt`, or `cat note.txt`.
+</wanix-bind>
+        <wanix-task id="shell" cmd="rc.wasm" term start></wanix-task>
+        <wanix-term path="#task/shell/term" cursor-blink="true" scrollback="5000" raw></wanix-term>
+      </wanix-namespace>
+    </div>
+
+    <div id="status" aria-hidden="true">
+      <span class="status-dot"></span>
+      <span id="status-label">WANIX KERNEL</span>
+    </div>
+  </main>
+
+  <script src="bridge.js"></script>
+  <script src="wanix-live.js"></script>
+</body>
+</html>

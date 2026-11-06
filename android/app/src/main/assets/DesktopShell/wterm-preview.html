@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en" data-appearance="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="color-scheme" content="dark light">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' 'sha256-a5qOmWtV4zivHG9TzYCcBDIYXWtamE0rSi+b/aPFeYw=' 'sha256-vWvTHbd5URFC6ZXdJfBcriueY7hIyWP2o0+8ycL5u40='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' file:; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>AirDesk — wterm Preview</title>
+  <link rel="stylesheet" href="wterm-preview.css">
+</head>
+<body data-appearance="dark">
+  <main class="wterm-preview" aria-label="wterm terminal preview">
+    <header class="wterm-preview-header">
+      <div class="wterm-preview-title">
+        <span>Terminal</span>
+        <small>wterm · just-bash</small>
+      </div>
+      <span class="wterm-preview-status" id="wterm-status">Starting…</span>
+      <button class="wterm-preview-action" type="button" id="wterm-self-test">Run self test</button>
+    </header>
+
+    <div id="terminal" aria-label="wterm terminal" tabindex="0"></div>
+
+    <footer class="wterm-preview-foot">Offline virtual filesystem · no CDN · wterm 0.5.7</footer>
+  </main>
+
+  <script src="bridge.js"></script>
+  <script src="wterm-preview.js"></script>
+</body>
+</html>

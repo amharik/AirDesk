@@ -52,6 +52,97 @@ public enum AirDesk_Protocol__ControlType: UInt8, FlatbuffersVectorInitializable
 }
 
 
+public enum AirDesk_Protocol__SenderRole: UInt8, FlatbuffersVectorInitializable, Enum, Verifiable {
+  public typealias T = UInt8
+  public static var byteSize: Int { return MemoryLayout<UInt8>.size }
+  public var value: UInt8 { return self.rawValue }
+  case unspecified = 0
+  case controller = 1
+  case host = 2
+  case observer = 3
+  case agent = 4
+  case system = 5
+
+  public static var max: AirDesk_Protocol__SenderRole { return .system }
+  public static var min: AirDesk_Protocol__SenderRole { return .unspecified }
+}
+
+
+public enum AirDesk_Protocol__Availability: UInt8, FlatbuffersVectorInitializable, Enum, Verifiable {
+  public typealias T = UInt8
+  public static var byteSize: Int { return MemoryLayout<UInt8>.size }
+  public var value: UInt8 { return self.rawValue }
+  case unknown = 0
+  case available = 1
+  case busy = 2
+  case restricted = 3
+  case unavailable = 4
+
+  public static var max: AirDesk_Protocol__Availability { return .unavailable }
+  public static var min: AirDesk_Protocol__Availability { return .unknown }
+}
+
+
+public enum AirDesk_Protocol__Authorization: UInt8, FlatbuffersVectorInitializable, Enum, Verifiable {
+  public typealias T = UInt8
+  public static var byteSize: Int { return MemoryLayout<UInt8>.size }
+  public var value: UInt8 { return self.rawValue }
+  case unknown = 0
+  case ungranted = 1
+  case granted = 2
+  case denied = 3
+  case revoked = 4
+
+  public static var max: AirDesk_Protocol__Authorization { return .revoked }
+  public static var min: AirDesk_Protocol__Authorization { return .unknown }
+}
+
+
+public enum AirDesk_Protocol__MergeClass: UInt8, FlatbuffersVectorInitializable, Enum, Verifiable {
+  public typealias T = UInt8
+  public static var byteSize: Int { return MemoryLayout<UInt8>.size }
+  public var value: UInt8 { return self.rawValue }
+  case unknown = 0
+  case lww = 1
+  case appendLog = 2
+  case manual = 3
+
+  public static var max: AirDesk_Protocol__MergeClass { return .manual }
+  public static var min: AirDesk_Protocol__MergeClass { return .unknown }
+}
+
+
+public enum AirDesk_Protocol__ChannelBindingKind: UInt8, FlatbuffersVectorInitializable, Enum, Verifiable {
+  public typealias T = UInt8
+  public static var byteSize: Int { return MemoryLayout<UInt8>.size }
+  public var value: UInt8 { return self.rawValue }
+  case none_ = 0
+  case tlsExporter = 1
+  case certificateHash = 2
+
+  public static var max: AirDesk_Protocol__ChannelBindingKind { return .certificateHash }
+  public static var min: AirDesk_Protocol__ChannelBindingKind { return .none_ }
+}
+
+
+public enum AirDesk_Protocol__DeviceKind: UInt8, FlatbuffersVectorInitializable, Enum, Verifiable {
+  public typealias T = UInt8
+  public static var byteSize: Int { return MemoryLayout<UInt8>.size }
+  public var value: UInt8 { return self.rawValue }
+  case unknown = 0
+  case phone = 1
+  case tablet = 2
+  case desktop = 3
+  case browser = 4
+  case display = 5
+  case server = 6
+  case agent = 7
+
+  public static var max: AirDesk_Protocol__DeviceKind { return .agent }
+  public static var min: AirDesk_Protocol__DeviceKind { return .unknown }
+}
+
+
 public enum AirDesk_Protocol__MessagePayload: UInt8, FlatbuffersVectorInitializable, UnionEnum {
   public typealias T = UInt8
 
@@ -70,13 +161,37 @@ public enum AirDesk_Protocol__MessagePayload: UInt8, FlatbuffersVectorInitializa
 }
 
 
+public enum AirDesk_Protocol__FabricPayload: UInt8, FlatbuffersVectorInitializable, UnionEnum {
+  public typealias T = UInt8
+
+  public init?(value: T) {
+    self.init(rawValue: value)
+  }
+
+  public static var byteSize: Int { return MemoryLayout<UInt8>.size }
+  public var value: UInt8 { return self.rawValue }
+  case none_ = 0
+  case deviceidentity = 1
+  case pairingoffer = 2
+  case pairingresponse = 3
+  case capabilitydescriptor = 4
+  case capabilitylease = 5
+  case displaysession = 6
+  case syncrecord = 7
+  case groupmember = 8
+
+  public static var max: AirDesk_Protocol__FabricPayload { return .groupmember }
+  public static var min: AirDesk_Protocol__FabricPayload { return .none_ }
+}
+
+
 public struct AirDesk_Protocol__InputEvent: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
 
   static func validateVersion() { FlatBuffersVersion_25_12_19() }
   public var __buffer: ByteBuffer! { return _accessor.bb }
   private var _accessor: Table
 
-  public static var id: String { "ADEN" } 
+  public static var id: String { "ADEN" }
   public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__InputEvent.id, addPrefix: prefix) }
   private init(_ t: Table) { _accessor = t }
   public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
@@ -226,7 +341,7 @@ public struct AirDesk_Protocol__ControlMessage: FlatBufferTable, FlatbuffersVect
   public var __buffer: ByteBuffer! { return _accessor.bb }
   private var _accessor: Table
 
-  public static var id: String { "ADEN" } 
+  public static var id: String { "ADEN" }
   public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__ControlMessage.id, addPrefix: prefix) }
   private init(_ t: Table) { _accessor = t }
   public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
@@ -328,13 +443,797 @@ public struct AirDesk_Protocol__ControlMessage: FlatBufferTable, FlatbuffersVect
   }
 }
 
+public struct AirDesk_Protocol__ControlHeader: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__ControlHeader.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case messageId = 4
+    case senderDeviceId = 6
+    case senderRole = 8
+    case correlationId = 10
+    case idempotencyKey = 12
+    case expiresAt = 14
+    case cancellationId = 16
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var messageId: String? { let o = _accessor.offset(VTOFFSET.messageId.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var messageIdSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.messageId.v) }
+  public var senderDeviceId: String? { let o = _accessor.offset(VTOFFSET.senderDeviceId.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var senderDeviceIdSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.senderDeviceId.v) }
+  public var senderRole: AirDesk_Protocol__SenderRole { let o = _accessor.offset(VTOFFSET.senderRole.v); return o == 0 ? .unspecified : AirDesk_Protocol__SenderRole(rawValue: _accessor.readBuffer(of: UInt8.self, at: o)) ?? .unspecified }
+  public var correlationId: String? { let o = _accessor.offset(VTOFFSET.correlationId.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var correlationIdSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.correlationId.v) }
+  public var idempotencyKey: String? { let o = _accessor.offset(VTOFFSET.idempotencyKey.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var idempotencyKeySegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.idempotencyKey.v) }
+  public var expiresAt: UInt64 { let o = _accessor.offset(VTOFFSET.expiresAt.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt64.self, at: o) }
+  public var cancellationId: String? { let o = _accessor.offset(VTOFFSET.cancellationId.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var cancellationIdSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.cancellationId.v) }
+  public static func startControlHeader(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 7) }
+  public static func add(messageId: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: messageId, at: VTOFFSET.messageId.p) }
+  public static func add(senderDeviceId: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: senderDeviceId, at: VTOFFSET.senderDeviceId.p) }
+  public static func add(senderRole: AirDesk_Protocol__SenderRole, _ fbb: inout FlatBufferBuilder) { fbb.add(element: senderRole.rawValue, def: 0, at: VTOFFSET.senderRole.p) }
+  public static func add(correlationId: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: correlationId, at: VTOFFSET.correlationId.p) }
+  public static func add(idempotencyKey: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: idempotencyKey, at: VTOFFSET.idempotencyKey.p) }
+  public static func add(expiresAt: UInt64, _ fbb: inout FlatBufferBuilder) { fbb.add(element: expiresAt, def: 0, at: VTOFFSET.expiresAt.p) }
+  public static func add(cancellationId: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: cancellationId, at: VTOFFSET.cancellationId.p) }
+  public static func endControlHeader(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createControlHeader(
+    _ fbb: inout FlatBufferBuilder,
+    messageIdOffset messageId: Offset = Offset(),
+    senderDeviceIdOffset senderDeviceId: Offset = Offset(),
+    senderRole: AirDesk_Protocol__SenderRole = .unspecified,
+    correlationIdOffset correlationId: Offset = Offset(),
+    idempotencyKeyOffset idempotencyKey: Offset = Offset(),
+    expiresAt: UInt64 = 0,
+    cancellationIdOffset cancellationId: Offset = Offset()
+  ) -> Offset {
+    let __start = AirDesk_Protocol__ControlHeader.startControlHeader(&fbb)
+    AirDesk_Protocol__ControlHeader.add(messageId: messageId, &fbb)
+    AirDesk_Protocol__ControlHeader.add(senderDeviceId: senderDeviceId, &fbb)
+    AirDesk_Protocol__ControlHeader.add(senderRole: senderRole, &fbb)
+    AirDesk_Protocol__ControlHeader.add(correlationId: correlationId, &fbb)
+    AirDesk_Protocol__ControlHeader.add(idempotencyKey: idempotencyKey, &fbb)
+    AirDesk_Protocol__ControlHeader.add(expiresAt: expiresAt, &fbb)
+    AirDesk_Protocol__ControlHeader.add(cancellationId: cancellationId, &fbb)
+    return AirDesk_Protocol__ControlHeader.endControlHeader(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.messageId.p, fieldName: "messageId", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.senderDeviceId.p, fieldName: "senderDeviceId", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.senderRole.p, fieldName: "senderRole", required: false, type: AirDesk_Protocol__SenderRole.self)
+    try _v.visit(field: VTOFFSET.correlationId.p, fieldName: "correlationId", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.idempotencyKey.p, fieldName: "idempotencyKey", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.expiresAt.p, fieldName: "expiresAt", required: false, type: UInt64.self)
+    try _v.visit(field: VTOFFSET.cancellationId.p, fieldName: "cancellationId", required: false, type: ForwardOffset<String>.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__DeviceIdentity: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__DeviceIdentity.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case version = 4
+    case kind = 6
+    case deviceId = 8
+    case publicKey = 10
+    case nonce = 12
+    case expiresAt = 14
+    case channelBindingKind = 16
+    case channelBindingValue = 18
+    case capabilities = 20
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var version: UInt32 { let o = _accessor.offset(VTOFFSET.version.v); return o == 0 ? 1 : _accessor.readBuffer(of: UInt32.self, at: o) }
+  public var kind: AirDesk_Protocol__DeviceKind { let o = _accessor.offset(VTOFFSET.kind.v); return o == 0 ? .unknown : AirDesk_Protocol__DeviceKind(rawValue: _accessor.readBuffer(of: UInt8.self, at: o)) ?? .unknown }
+  public var deviceId: String? { let o = _accessor.offset(VTOFFSET.deviceId.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var deviceIdSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.deviceId.v) }
+  public var publicKey: String? { let o = _accessor.offset(VTOFFSET.publicKey.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var publicKeySegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.publicKey.v) }
+  public var nonce: FlatbufferVector<UInt8> { return _accessor.vector(at: VTOFFSET.nonce.v, byteSize: 1) }
+  public func withUnsafePointerToNonce<T>(_ body: (UnsafeRawBufferPointer, Int) throws -> T) rethrows -> T? { return try _accessor.withUnsafePointerToSlice(at: VTOFFSET.nonce.v, body: body) }
+  public var expiresAt: UInt64 { let o = _accessor.offset(VTOFFSET.expiresAt.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt64.self, at: o) }
+  public var channelBindingKind: AirDesk_Protocol__ChannelBindingKind { let o = _accessor.offset(VTOFFSET.channelBindingKind.v); return o == 0 ? .none_ : AirDesk_Protocol__ChannelBindingKind(rawValue: _accessor.readBuffer(of: UInt8.self, at: o)) ?? .none_ }
+  public var channelBindingValue: String? { let o = _accessor.offset(VTOFFSET.channelBindingValue.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var channelBindingValueSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.channelBindingValue.v) }
+  public var capabilities: FlatbufferVector<String?> { return _accessor.vector(at: VTOFFSET.capabilities.v, byteSize: 4) }
+  public static func startDeviceIdentity(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 9) }
+  public static func add(version: UInt32, _ fbb: inout FlatBufferBuilder) { fbb.add(element: version, def: 1, at: VTOFFSET.version.p) }
+  public static func add(kind: AirDesk_Protocol__DeviceKind, _ fbb: inout FlatBufferBuilder) { fbb.add(element: kind.rawValue, def: 0, at: VTOFFSET.kind.p) }
+  public static func add(deviceId: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: deviceId, at: VTOFFSET.deviceId.p) }
+  public static func add(publicKey: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: publicKey, at: VTOFFSET.publicKey.p) }
+  public static func addVectorOf(nonce: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: nonce, at: VTOFFSET.nonce.p) }
+  public static func add(expiresAt: UInt64, _ fbb: inout FlatBufferBuilder) { fbb.add(element: expiresAt, def: 0, at: VTOFFSET.expiresAt.p) }
+  public static func add(channelBindingKind: AirDesk_Protocol__ChannelBindingKind, _ fbb: inout FlatBufferBuilder) { fbb.add(element: channelBindingKind.rawValue, def: 0, at: VTOFFSET.channelBindingKind.p) }
+  public static func add(channelBindingValue: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: channelBindingValue, at: VTOFFSET.channelBindingValue.p) }
+  public static func addVectorOf(capabilities: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: capabilities, at: VTOFFSET.capabilities.p) }
+  public static func endDeviceIdentity(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createDeviceIdentity(
+    _ fbb: inout FlatBufferBuilder,
+    version: UInt32 = 1,
+    kind: AirDesk_Protocol__DeviceKind = .unknown,
+    deviceIdOffset deviceId: Offset = Offset(),
+    publicKeyOffset publicKey: Offset = Offset(),
+    nonceVectorOffset nonce: Offset = Offset(),
+    expiresAt: UInt64 = 0,
+    channelBindingKind: AirDesk_Protocol__ChannelBindingKind = .none_,
+    channelBindingValueOffset channelBindingValue: Offset = Offset(),
+    capabilitiesVectorOffset capabilities: Offset = Offset()
+  ) -> Offset {
+    let __start = AirDesk_Protocol__DeviceIdentity.startDeviceIdentity(&fbb)
+    AirDesk_Protocol__DeviceIdentity.add(version: version, &fbb)
+    AirDesk_Protocol__DeviceIdentity.add(kind: kind, &fbb)
+    AirDesk_Protocol__DeviceIdentity.add(deviceId: deviceId, &fbb)
+    AirDesk_Protocol__DeviceIdentity.add(publicKey: publicKey, &fbb)
+    AirDesk_Protocol__DeviceIdentity.addVectorOf(nonce: nonce, &fbb)
+    AirDesk_Protocol__DeviceIdentity.add(expiresAt: expiresAt, &fbb)
+    AirDesk_Protocol__DeviceIdentity.add(channelBindingKind: channelBindingKind, &fbb)
+    AirDesk_Protocol__DeviceIdentity.add(channelBindingValue: channelBindingValue, &fbb)
+    AirDesk_Protocol__DeviceIdentity.addVectorOf(capabilities: capabilities, &fbb)
+    return AirDesk_Protocol__DeviceIdentity.endDeviceIdentity(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.version.p, fieldName: "version", required: false, type: UInt32.self)
+    try _v.visit(field: VTOFFSET.kind.p, fieldName: "kind", required: false, type: AirDesk_Protocol__DeviceKind.self)
+    try _v.visit(field: VTOFFSET.deviceId.p, fieldName: "deviceId", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.publicKey.p, fieldName: "publicKey", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.nonce.p, fieldName: "nonce", required: false, type: ForwardOffset<Vector<UInt8, UInt8>>.self)
+    try _v.visit(field: VTOFFSET.expiresAt.p, fieldName: "expiresAt", required: false, type: UInt64.self)
+    try _v.visit(field: VTOFFSET.channelBindingKind.p, fieldName: "channelBindingKind", required: false, type: AirDesk_Protocol__ChannelBindingKind.self)
+    try _v.visit(field: VTOFFSET.channelBindingValue.p, fieldName: "channelBindingValue", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.capabilities.p, fieldName: "capabilities", required: false, type: ForwardOffset<Vector<ForwardOffset<String>, String>>.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__PairingOffer: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__PairingOffer.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case identity = 4
+    case offerNonce = 6
+    case expiresAt = 8
+    case channelBindingKind = 10
+    case channelBindingValue = 12
+    case capabilities = 14
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var identity: AirDesk_Protocol__DeviceIdentity? { let o = _accessor.offset(VTOFFSET.identity.v); return o == 0 ? nil : AirDesk_Protocol__DeviceIdentity(_accessor.bb, o: _accessor.indirect(o + _accessor.position)) }
+  public var offerNonce: FlatbufferVector<UInt8> { return _accessor.vector(at: VTOFFSET.offerNonce.v, byteSize: 1) }
+  public func withUnsafePointerToOfferNonce<T>(_ body: (UnsafeRawBufferPointer, Int) throws -> T) rethrows -> T? { return try _accessor.withUnsafePointerToSlice(at: VTOFFSET.offerNonce.v, body: body) }
+  public var expiresAt: UInt64 { let o = _accessor.offset(VTOFFSET.expiresAt.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt64.self, at: o) }
+  public var channelBindingKind: AirDesk_Protocol__ChannelBindingKind { let o = _accessor.offset(VTOFFSET.channelBindingKind.v); return o == 0 ? .none_ : AirDesk_Protocol__ChannelBindingKind(rawValue: _accessor.readBuffer(of: UInt8.self, at: o)) ?? .none_ }
+  public var channelBindingValue: String? { let o = _accessor.offset(VTOFFSET.channelBindingValue.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var channelBindingValueSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.channelBindingValue.v) }
+  public var capabilities: FlatbufferVector<String?> { return _accessor.vector(at: VTOFFSET.capabilities.v, byteSize: 4) }
+  public static func startPairingOffer(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 6) }
+  public static func add(identity: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: identity, at: VTOFFSET.identity.p) }
+  public static func addVectorOf(offerNonce: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: offerNonce, at: VTOFFSET.offerNonce.p) }
+  public static func add(expiresAt: UInt64, _ fbb: inout FlatBufferBuilder) { fbb.add(element: expiresAt, def: 0, at: VTOFFSET.expiresAt.p) }
+  public static func add(channelBindingKind: AirDesk_Protocol__ChannelBindingKind, _ fbb: inout FlatBufferBuilder) { fbb.add(element: channelBindingKind.rawValue, def: 0, at: VTOFFSET.channelBindingKind.p) }
+  public static func add(channelBindingValue: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: channelBindingValue, at: VTOFFSET.channelBindingValue.p) }
+  public static func addVectorOf(capabilities: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: capabilities, at: VTOFFSET.capabilities.p) }
+  public static func endPairingOffer(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createPairingOffer(
+    _ fbb: inout FlatBufferBuilder,
+    identityOffset identity: Offset = Offset(),
+    offerNonceVectorOffset offerNonce: Offset = Offset(),
+    expiresAt: UInt64 = 0,
+    channelBindingKind: AirDesk_Protocol__ChannelBindingKind = .none_,
+    channelBindingValueOffset channelBindingValue: Offset = Offset(),
+    capabilitiesVectorOffset capabilities: Offset = Offset()
+  ) -> Offset {
+    let __start = AirDesk_Protocol__PairingOffer.startPairingOffer(&fbb)
+    AirDesk_Protocol__PairingOffer.add(identity: identity, &fbb)
+    AirDesk_Protocol__PairingOffer.addVectorOf(offerNonce: offerNonce, &fbb)
+    AirDesk_Protocol__PairingOffer.add(expiresAt: expiresAt, &fbb)
+    AirDesk_Protocol__PairingOffer.add(channelBindingKind: channelBindingKind, &fbb)
+    AirDesk_Protocol__PairingOffer.add(channelBindingValue: channelBindingValue, &fbb)
+    AirDesk_Protocol__PairingOffer.addVectorOf(capabilities: capabilities, &fbb)
+    return AirDesk_Protocol__PairingOffer.endPairingOffer(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.identity.p, fieldName: "identity", required: false, type: ForwardOffset<AirDesk_Protocol__DeviceIdentity>.self)
+    try _v.visit(field: VTOFFSET.offerNonce.p, fieldName: "offerNonce", required: false, type: ForwardOffset<Vector<UInt8, UInt8>>.self)
+    try _v.visit(field: VTOFFSET.expiresAt.p, fieldName: "expiresAt", required: false, type: UInt64.self)
+    try _v.visit(field: VTOFFSET.channelBindingKind.p, fieldName: "channelBindingKind", required: false, type: AirDesk_Protocol__ChannelBindingKind.self)
+    try _v.visit(field: VTOFFSET.channelBindingValue.p, fieldName: "channelBindingValue", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.capabilities.p, fieldName: "capabilities", required: false, type: ForwardOffset<Vector<ForwardOffset<String>, String>>.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__PairingResponse: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__PairingResponse.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case identity = 4
+    case offerNonce = 6
+    case responseNonce = 8
+    case accepted = 10
+    case expiresAt = 12
+    case channelBindingKind = 14
+    case channelBindingValue = 16
+    case capabilities = 18
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var identity: AirDesk_Protocol__DeviceIdentity? { let o = _accessor.offset(VTOFFSET.identity.v); return o == 0 ? nil : AirDesk_Protocol__DeviceIdentity(_accessor.bb, o: _accessor.indirect(o + _accessor.position)) }
+  public var offerNonce: FlatbufferVector<UInt8> { return _accessor.vector(at: VTOFFSET.offerNonce.v, byteSize: 1) }
+  public func withUnsafePointerToOfferNonce<T>(_ body: (UnsafeRawBufferPointer, Int) throws -> T) rethrows -> T? { return try _accessor.withUnsafePointerToSlice(at: VTOFFSET.offerNonce.v, body: body) }
+  public var responseNonce: FlatbufferVector<UInt8> { return _accessor.vector(at: VTOFFSET.responseNonce.v, byteSize: 1) }
+  public func withUnsafePointerToResponseNonce<T>(_ body: (UnsafeRawBufferPointer, Int) throws -> T) rethrows -> T? { return try _accessor.withUnsafePointerToSlice(at: VTOFFSET.responseNonce.v, body: body) }
+  public var accepted: Bool { let o = _accessor.offset(VTOFFSET.accepted.v); return o == 0 ? false : _accessor.readBuffer(of: Bool.self, at: o) }
+  public var expiresAt: UInt64 { let o = _accessor.offset(VTOFFSET.expiresAt.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt64.self, at: o) }
+  public var channelBindingKind: AirDesk_Protocol__ChannelBindingKind { let o = _accessor.offset(VTOFFSET.channelBindingKind.v); return o == 0 ? .none_ : AirDesk_Protocol__ChannelBindingKind(rawValue: _accessor.readBuffer(of: UInt8.self, at: o)) ?? .none_ }
+  public var channelBindingValue: String? { let o = _accessor.offset(VTOFFSET.channelBindingValue.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var channelBindingValueSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.channelBindingValue.v) }
+  public var capabilities: FlatbufferVector<String?> { return _accessor.vector(at: VTOFFSET.capabilities.v, byteSize: 4) }
+  public static func startPairingResponse(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 8) }
+  public static func add(identity: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: identity, at: VTOFFSET.identity.p) }
+  public static func addVectorOf(offerNonce: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: offerNonce, at: VTOFFSET.offerNonce.p) }
+  public static func addVectorOf(responseNonce: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: responseNonce, at: VTOFFSET.responseNonce.p) }
+  public static func add(accepted: Bool, _ fbb: inout FlatBufferBuilder) { fbb.add(element: accepted, def: false,
+   at: VTOFFSET.accepted.p) }
+  public static func add(expiresAt: UInt64, _ fbb: inout FlatBufferBuilder) { fbb.add(element: expiresAt, def: 0, at: VTOFFSET.expiresAt.p) }
+  public static func add(channelBindingKind: AirDesk_Protocol__ChannelBindingKind, _ fbb: inout FlatBufferBuilder) { fbb.add(element: channelBindingKind.rawValue, def: 0, at: VTOFFSET.channelBindingKind.p) }
+  public static func add(channelBindingValue: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: channelBindingValue, at: VTOFFSET.channelBindingValue.p) }
+  public static func addVectorOf(capabilities: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: capabilities, at: VTOFFSET.capabilities.p) }
+  public static func endPairingResponse(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createPairingResponse(
+    _ fbb: inout FlatBufferBuilder,
+    identityOffset identity: Offset = Offset(),
+    offerNonceVectorOffset offerNonce: Offset = Offset(),
+    responseNonceVectorOffset responseNonce: Offset = Offset(),
+    accepted: Bool = false,
+    expiresAt: UInt64 = 0,
+    channelBindingKind: AirDesk_Protocol__ChannelBindingKind = .none_,
+    channelBindingValueOffset channelBindingValue: Offset = Offset(),
+    capabilitiesVectorOffset capabilities: Offset = Offset()
+  ) -> Offset {
+    let __start = AirDesk_Protocol__PairingResponse.startPairingResponse(&fbb)
+    AirDesk_Protocol__PairingResponse.add(identity: identity, &fbb)
+    AirDesk_Protocol__PairingResponse.addVectorOf(offerNonce: offerNonce, &fbb)
+    AirDesk_Protocol__PairingResponse.addVectorOf(responseNonce: responseNonce, &fbb)
+    AirDesk_Protocol__PairingResponse.add(accepted: accepted, &fbb)
+    AirDesk_Protocol__PairingResponse.add(expiresAt: expiresAt, &fbb)
+    AirDesk_Protocol__PairingResponse.add(channelBindingKind: channelBindingKind, &fbb)
+    AirDesk_Protocol__PairingResponse.add(channelBindingValue: channelBindingValue, &fbb)
+    AirDesk_Protocol__PairingResponse.addVectorOf(capabilities: capabilities, &fbb)
+    return AirDesk_Protocol__PairingResponse.endPairingResponse(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.identity.p, fieldName: "identity", required: false, type: ForwardOffset<AirDesk_Protocol__DeviceIdentity>.self)
+    try _v.visit(field: VTOFFSET.offerNonce.p, fieldName: "offerNonce", required: false, type: ForwardOffset<Vector<UInt8, UInt8>>.self)
+    try _v.visit(field: VTOFFSET.responseNonce.p, fieldName: "responseNonce", required: false, type: ForwardOffset<Vector<UInt8, UInt8>>.self)
+    try _v.visit(field: VTOFFSET.accepted.p, fieldName: "accepted", required: false, type: Bool.self)
+    try _v.visit(field: VTOFFSET.expiresAt.p, fieldName: "expiresAt", required: false, type: UInt64.self)
+    try _v.visit(field: VTOFFSET.channelBindingKind.p, fieldName: "channelBindingKind", required: false, type: AirDesk_Protocol__ChannelBindingKind.self)
+    try _v.visit(field: VTOFFSET.channelBindingValue.p, fieldName: "channelBindingValue", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.capabilities.p, fieldName: "capabilities", required: false, type: ForwardOffset<Vector<ForwardOffset<String>, String>>.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__CapabilityDescriptor: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__CapabilityDescriptor.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case capUri = 4
+    case version = 6
+    case providerDeviceId = 8
+    case availability = 10
+    case authorization = 12
+    case permissions = 14
+    case execution = 16
+    case transport = 18
+    case constraints = 20
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var capUri: String? { let o = _accessor.offset(VTOFFSET.capUri.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var capUriSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.capUri.v) }
+  public var version: UInt32 { let o = _accessor.offset(VTOFFSET.version.v); return o == 0 ? 1 : _accessor.readBuffer(of: UInt32.self, at: o) }
+  public var providerDeviceId: String? { let o = _accessor.offset(VTOFFSET.providerDeviceId.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var providerDeviceIdSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.providerDeviceId.v) }
+  public var availability: AirDesk_Protocol__Availability { let o = _accessor.offset(VTOFFSET.availability.v); return o == 0 ? .unknown : AirDesk_Protocol__Availability(rawValue: _accessor.readBuffer(of: UInt8.self, at: o)) ?? .unknown }
+  public var authorization: AirDesk_Protocol__Authorization { let o = _accessor.offset(VTOFFSET.authorization.v); return o == 0 ? .unknown : AirDesk_Protocol__Authorization(rawValue: _accessor.readBuffer(of: UInt8.self, at: o)) ?? .unknown }
+  public var permissions: FlatbufferVector<String?> { return _accessor.vector(at: VTOFFSET.permissions.v, byteSize: 4) }
+  public var execution: String? { let o = _accessor.offset(VTOFFSET.execution.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var executionSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.execution.v) }
+  public var transport: String? { let o = _accessor.offset(VTOFFSET.transport.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var transportSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.transport.v) }
+  public var constraints: String? { let o = _accessor.offset(VTOFFSET.constraints.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var constraintsSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.constraints.v) }
+  public static func startCapabilityDescriptor(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 9) }
+  public static func add(capUri: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: capUri, at: VTOFFSET.capUri.p) }
+  public static func add(version: UInt32, _ fbb: inout FlatBufferBuilder) { fbb.add(element: version, def: 1, at: VTOFFSET.version.p) }
+  public static func add(providerDeviceId: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: providerDeviceId, at: VTOFFSET.providerDeviceId.p) }
+  public static func add(availability: AirDesk_Protocol__Availability, _ fbb: inout FlatBufferBuilder) { fbb.add(element: availability.rawValue, def: 0, at: VTOFFSET.availability.p) }
+  public static func add(authorization: AirDesk_Protocol__Authorization, _ fbb: inout FlatBufferBuilder) { fbb.add(element: authorization.rawValue, def: 0, at: VTOFFSET.authorization.p) }
+  public static func addVectorOf(permissions: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: permissions, at: VTOFFSET.permissions.p) }
+  public static func add(execution: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: execution, at: VTOFFSET.execution.p) }
+  public static func add(transport: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: transport, at: VTOFFSET.transport.p) }
+  public static func add(constraints: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: constraints, at: VTOFFSET.constraints.p) }
+  public static func endCapabilityDescriptor(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createCapabilityDescriptor(
+    _ fbb: inout FlatBufferBuilder,
+    capUriOffset capUri: Offset = Offset(),
+    version: UInt32 = 1,
+    providerDeviceIdOffset providerDeviceId: Offset = Offset(),
+    availability: AirDesk_Protocol__Availability = .unknown,
+    authorization: AirDesk_Protocol__Authorization = .unknown,
+    permissionsVectorOffset permissions: Offset = Offset(),
+    executionOffset execution: Offset = Offset(),
+    transportOffset transport: Offset = Offset(),
+    constraintsOffset constraints: Offset = Offset()
+  ) -> Offset {
+    let __start = AirDesk_Protocol__CapabilityDescriptor.startCapabilityDescriptor(&fbb)
+    AirDesk_Protocol__CapabilityDescriptor.add(capUri: capUri, &fbb)
+    AirDesk_Protocol__CapabilityDescriptor.add(version: version, &fbb)
+    AirDesk_Protocol__CapabilityDescriptor.add(providerDeviceId: providerDeviceId, &fbb)
+    AirDesk_Protocol__CapabilityDescriptor.add(availability: availability, &fbb)
+    AirDesk_Protocol__CapabilityDescriptor.add(authorization: authorization, &fbb)
+    AirDesk_Protocol__CapabilityDescriptor.addVectorOf(permissions: permissions, &fbb)
+    AirDesk_Protocol__CapabilityDescriptor.add(execution: execution, &fbb)
+    AirDesk_Protocol__CapabilityDescriptor.add(transport: transport, &fbb)
+    AirDesk_Protocol__CapabilityDescriptor.add(constraints: constraints, &fbb)
+    return AirDesk_Protocol__CapabilityDescriptor.endCapabilityDescriptor(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.capUri.p, fieldName: "capUri", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.version.p, fieldName: "version", required: false, type: UInt32.self)
+    try _v.visit(field: VTOFFSET.providerDeviceId.p, fieldName: "providerDeviceId", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.availability.p, fieldName: "availability", required: false, type: AirDesk_Protocol__Availability.self)
+    try _v.visit(field: VTOFFSET.authorization.p, fieldName: "authorization", required: false, type: AirDesk_Protocol__Authorization.self)
+    try _v.visit(field: VTOFFSET.permissions.p, fieldName: "permissions", required: false, type: ForwardOffset<Vector<ForwardOffset<String>, String>>.self)
+    try _v.visit(field: VTOFFSET.execution.p, fieldName: "execution", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.transport.p, fieldName: "transport", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.constraints.p, fieldName: "constraints", required: false, type: ForwardOffset<String>.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__CapabilityLease: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__CapabilityLease.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case leaseId = 4
+    case capUri = 6
+    case workspaceId = 8
+    case applicationId = 10
+    case requesterDeviceId = 12
+    case sessionId = 14
+    case issuedAt = 16
+    case expiresAt = 18
+    case revoked = 20
+    case revocationReason = 22
+    case operations = 24
+    case auditId = 26
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var leaseId: String? { let o = _accessor.offset(VTOFFSET.leaseId.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var leaseIdSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.leaseId.v) }
+  public var capUri: String? { let o = _accessor.offset(VTOFFSET.capUri.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var capUriSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.capUri.v) }
+  public var workspaceId: String? { let o = _accessor.offset(VTOFFSET.workspaceId.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var workspaceIdSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.workspaceId.v) }
+  public var applicationId: String? { let o = _accessor.offset(VTOFFSET.applicationId.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var applicationIdSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.applicationId.v) }
+  public var requesterDeviceId: String? { let o = _accessor.offset(VTOFFSET.requesterDeviceId.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var requesterDeviceIdSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.requesterDeviceId.v) }
+  public var sessionId: String? { let o = _accessor.offset(VTOFFSET.sessionId.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var sessionIdSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.sessionId.v) }
+  public var issuedAt: UInt64 { let o = _accessor.offset(VTOFFSET.issuedAt.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt64.self, at: o) }
+  public var expiresAt: UInt64 { let o = _accessor.offset(VTOFFSET.expiresAt.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt64.self, at: o) }
+  public var revoked: Bool { let o = _accessor.offset(VTOFFSET.revoked.v); return o == 0 ? false : _accessor.readBuffer(of: Bool.self, at: o) }
+  public var revocationReason: String? { let o = _accessor.offset(VTOFFSET.revocationReason.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var revocationReasonSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.revocationReason.v) }
+  public var operations: FlatbufferVector<String?> { return _accessor.vector(at: VTOFFSET.operations.v, byteSize: 4) }
+  public var auditId: String? { let o = _accessor.offset(VTOFFSET.auditId.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var auditIdSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.auditId.v) }
+  public static func startCapabilityLease(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 12) }
+  public static func add(leaseId: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: leaseId, at: VTOFFSET.leaseId.p) }
+  public static func add(capUri: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: capUri, at: VTOFFSET.capUri.p) }
+  public static func add(workspaceId: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: workspaceId, at: VTOFFSET.workspaceId.p) }
+  public static func add(applicationId: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: applicationId, at: VTOFFSET.applicationId.p) }
+  public static func add(requesterDeviceId: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: requesterDeviceId, at: VTOFFSET.requesterDeviceId.p) }
+  public static func add(sessionId: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: sessionId, at: VTOFFSET.sessionId.p) }
+  public static func add(issuedAt: UInt64, _ fbb: inout FlatBufferBuilder) { fbb.add(element: issuedAt, def: 0, at: VTOFFSET.issuedAt.p) }
+  public static func add(expiresAt: UInt64, _ fbb: inout FlatBufferBuilder) { fbb.add(element: expiresAt, def: 0, at: VTOFFSET.expiresAt.p) }
+  public static func add(revoked: Bool, _ fbb: inout FlatBufferBuilder) { fbb.add(element: revoked, def: false,
+   at: VTOFFSET.revoked.p) }
+  public static func add(revocationReason: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: revocationReason, at: VTOFFSET.revocationReason.p) }
+  public static func addVectorOf(operations: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: operations, at: VTOFFSET.operations.p) }
+  public static func add(auditId: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: auditId, at: VTOFFSET.auditId.p) }
+  public static func endCapabilityLease(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createCapabilityLease(
+    _ fbb: inout FlatBufferBuilder,
+    leaseIdOffset leaseId: Offset = Offset(),
+    capUriOffset capUri: Offset = Offset(),
+    workspaceIdOffset workspaceId: Offset = Offset(),
+    applicationIdOffset applicationId: Offset = Offset(),
+    requesterDeviceIdOffset requesterDeviceId: Offset = Offset(),
+    sessionIdOffset sessionId: Offset = Offset(),
+    issuedAt: UInt64 = 0,
+    expiresAt: UInt64 = 0,
+    revoked: Bool = false,
+    revocationReasonOffset revocationReason: Offset = Offset(),
+    operationsVectorOffset operations: Offset = Offset(),
+    auditIdOffset auditId: Offset = Offset()
+  ) -> Offset {
+    let __start = AirDesk_Protocol__CapabilityLease.startCapabilityLease(&fbb)
+    AirDesk_Protocol__CapabilityLease.add(leaseId: leaseId, &fbb)
+    AirDesk_Protocol__CapabilityLease.add(capUri: capUri, &fbb)
+    AirDesk_Protocol__CapabilityLease.add(workspaceId: workspaceId, &fbb)
+    AirDesk_Protocol__CapabilityLease.add(applicationId: applicationId, &fbb)
+    AirDesk_Protocol__CapabilityLease.add(requesterDeviceId: requesterDeviceId, &fbb)
+    AirDesk_Protocol__CapabilityLease.add(sessionId: sessionId, &fbb)
+    AirDesk_Protocol__CapabilityLease.add(issuedAt: issuedAt, &fbb)
+    AirDesk_Protocol__CapabilityLease.add(expiresAt: expiresAt, &fbb)
+    AirDesk_Protocol__CapabilityLease.add(revoked: revoked, &fbb)
+    AirDesk_Protocol__CapabilityLease.add(revocationReason: revocationReason, &fbb)
+    AirDesk_Protocol__CapabilityLease.addVectorOf(operations: operations, &fbb)
+    AirDesk_Protocol__CapabilityLease.add(auditId: auditId, &fbb)
+    return AirDesk_Protocol__CapabilityLease.endCapabilityLease(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.leaseId.p, fieldName: "leaseId", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.capUri.p, fieldName: "capUri", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.workspaceId.p, fieldName: "workspaceId", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.applicationId.p, fieldName: "applicationId", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.requesterDeviceId.p, fieldName: "requesterDeviceId", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.sessionId.p, fieldName: "sessionId", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.issuedAt.p, fieldName: "issuedAt", required: false, type: UInt64.self)
+    try _v.visit(field: VTOFFSET.expiresAt.p, fieldName: "expiresAt", required: false, type: UInt64.self)
+    try _v.visit(field: VTOFFSET.revoked.p, fieldName: "revoked", required: false, type: Bool.self)
+    try _v.visit(field: VTOFFSET.revocationReason.p, fieldName: "revocationReason", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.operations.p, fieldName: "operations", required: false, type: ForwardOffset<Vector<ForwardOffset<String>, String>>.self)
+    try _v.visit(field: VTOFFSET.auditId.p, fieldName: "auditId", required: false, type: ForwardOffset<String>.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__Viewport: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__Viewport.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case width = 4
+    case height = 6
+    case scale = 8
+    case orientation = 10
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var width: UInt32 { let o = _accessor.offset(VTOFFSET.width.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt32.self, at: o) }
+  public var height: UInt32 { let o = _accessor.offset(VTOFFSET.height.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt32.self, at: o) }
+  public var scale: Float32 { let o = _accessor.offset(VTOFFSET.scale.v); return o == 0 ? 1.0 : _accessor.readBuffer(of: Float32.self, at: o) }
+  public var orientation: String? { let o = _accessor.offset(VTOFFSET.orientation.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var orientationSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.orientation.v) }
+  public static func startViewport(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 4) }
+  public static func add(width: UInt32, _ fbb: inout FlatBufferBuilder) { fbb.add(element: width, def: 0, at: VTOFFSET.width.p) }
+  public static func add(height: UInt32, _ fbb: inout FlatBufferBuilder) { fbb.add(element: height, def: 0, at: VTOFFSET.height.p) }
+  public static func add(scale: Float32, _ fbb: inout FlatBufferBuilder) { fbb.add(element: scale, def: 1.0, at: VTOFFSET.scale.p) }
+  public static func add(orientation: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: orientation, at: VTOFFSET.orientation.p) }
+  public static func endViewport(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createViewport(
+    _ fbb: inout FlatBufferBuilder,
+    width: UInt32 = 0,
+    height: UInt32 = 0,
+    scale: Float32 = 1.0,
+    orientationOffset orientation: Offset = Offset()
+  ) -> Offset {
+    let __start = AirDesk_Protocol__Viewport.startViewport(&fbb)
+    AirDesk_Protocol__Viewport.add(width: width, &fbb)
+    AirDesk_Protocol__Viewport.add(height: height, &fbb)
+    AirDesk_Protocol__Viewport.add(scale: scale, &fbb)
+    AirDesk_Protocol__Viewport.add(orientation: orientation, &fbb)
+    return AirDesk_Protocol__Viewport.endViewport(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.width.p, fieldName: "width", required: false, type: UInt32.self)
+    try _v.visit(field: VTOFFSET.height.p, fieldName: "height", required: false, type: UInt32.self)
+    try _v.visit(field: VTOFFSET.scale.p, fieldName: "scale", required: false, type: Float32.self)
+    try _v.visit(field: VTOFFSET.orientation.p, fieldName: "orientation", required: false, type: ForwardOffset<String>.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__DisplaySession: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__DisplaySession.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case workspaceId = 4
+    case displayId = 6
+    case viewport = 8
+    case profile = 10
+    case generation = 12
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var workspaceId: String? { let o = _accessor.offset(VTOFFSET.workspaceId.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var workspaceIdSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.workspaceId.v) }
+  public var displayId: String? { let o = _accessor.offset(VTOFFSET.displayId.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var displayIdSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.displayId.v) }
+  public var viewport: AirDesk_Protocol__Viewport? { let o = _accessor.offset(VTOFFSET.viewport.v); return o == 0 ? nil : AirDesk_Protocol__Viewport(_accessor.bb, o: _accessor.indirect(o + _accessor.position)) }
+  public var profile: String? { let o = _accessor.offset(VTOFFSET.profile.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var profileSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.profile.v) }
+  public var generation: UInt32 { let o = _accessor.offset(VTOFFSET.generation.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt32.self, at: o) }
+  public static func startDisplaySession(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 5) }
+  public static func add(workspaceId: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: workspaceId, at: VTOFFSET.workspaceId.p) }
+  public static func add(displayId: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: displayId, at: VTOFFSET.displayId.p) }
+  public static func add(viewport: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: viewport, at: VTOFFSET.viewport.p) }
+  public static func add(profile: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: profile, at: VTOFFSET.profile.p) }
+  public static func add(generation: UInt32, _ fbb: inout FlatBufferBuilder) { fbb.add(element: generation, def: 0, at: VTOFFSET.generation.p) }
+  public static func endDisplaySession(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createDisplaySession(
+    _ fbb: inout FlatBufferBuilder,
+    workspaceIdOffset workspaceId: Offset = Offset(),
+    displayIdOffset displayId: Offset = Offset(),
+    viewportOffset viewport: Offset = Offset(),
+    profileOffset profile: Offset = Offset(),
+    generation: UInt32 = 0
+  ) -> Offset {
+    let __start = AirDesk_Protocol__DisplaySession.startDisplaySession(&fbb)
+    AirDesk_Protocol__DisplaySession.add(workspaceId: workspaceId, &fbb)
+    AirDesk_Protocol__DisplaySession.add(displayId: displayId, &fbb)
+    AirDesk_Protocol__DisplaySession.add(viewport: viewport, &fbb)
+    AirDesk_Protocol__DisplaySession.add(profile: profile, &fbb)
+    AirDesk_Protocol__DisplaySession.add(generation: generation, &fbb)
+    return AirDesk_Protocol__DisplaySession.endDisplaySession(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.workspaceId.p, fieldName: "workspaceId", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.displayId.p, fieldName: "displayId", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.viewport.p, fieldName: "viewport", required: false, type: ForwardOffset<AirDesk_Protocol__Viewport>.self)
+    try _v.visit(field: VTOFFSET.profile.p, fieldName: "profile", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.generation.p, fieldName: "generation", required: false, type: UInt32.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__SyncRecord: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__SyncRecord.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case workspaceId = 4
+    case recordId = 6
+    case deviceId = 8
+    case userId = 10
+    case seq = 12
+    case mergeClass = 14
+    case payloadHash = 16
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var workspaceId: String? { let o = _accessor.offset(VTOFFSET.workspaceId.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var workspaceIdSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.workspaceId.v) }
+  public var recordId: String? { let o = _accessor.offset(VTOFFSET.recordId.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var recordIdSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.recordId.v) }
+  public var deviceId: String? { let o = _accessor.offset(VTOFFSET.deviceId.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var deviceIdSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.deviceId.v) }
+  public var userId: String? { let o = _accessor.offset(VTOFFSET.userId.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var userIdSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.userId.v) }
+  public var seq: UInt64 { let o = _accessor.offset(VTOFFSET.seq.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt64.self, at: o) }
+  public var mergeClass: AirDesk_Protocol__MergeClass { let o = _accessor.offset(VTOFFSET.mergeClass.v); return o == 0 ? .unknown : AirDesk_Protocol__MergeClass(rawValue: _accessor.readBuffer(of: UInt8.self, at: o)) ?? .unknown }
+  public var payloadHash: FlatbufferVector<UInt8> { return _accessor.vector(at: VTOFFSET.payloadHash.v, byteSize: 1) }
+  public func withUnsafePointerToPayloadHash<T>(_ body: (UnsafeRawBufferPointer, Int) throws -> T) rethrows -> T? { return try _accessor.withUnsafePointerToSlice(at: VTOFFSET.payloadHash.v, body: body) }
+  public static func startSyncRecord(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 7) }
+  public static func add(workspaceId: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: workspaceId, at: VTOFFSET.workspaceId.p) }
+  public static func add(recordId: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: recordId, at: VTOFFSET.recordId.p) }
+  public static func add(deviceId: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: deviceId, at: VTOFFSET.deviceId.p) }
+  public static func add(userId: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: userId, at: VTOFFSET.userId.p) }
+  public static func add(seq: UInt64, _ fbb: inout FlatBufferBuilder) { fbb.add(element: seq, def: 0, at: VTOFFSET.seq.p) }
+  public static func add(mergeClass: AirDesk_Protocol__MergeClass, _ fbb: inout FlatBufferBuilder) { fbb.add(element: mergeClass.rawValue, def: 0, at: VTOFFSET.mergeClass.p) }
+  public static func addVectorOf(payloadHash: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: payloadHash, at: VTOFFSET.payloadHash.p) }
+  public static func endSyncRecord(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createSyncRecord(
+    _ fbb: inout FlatBufferBuilder,
+    workspaceIdOffset workspaceId: Offset = Offset(),
+    recordIdOffset recordId: Offset = Offset(),
+    deviceIdOffset deviceId: Offset = Offset(),
+    userIdOffset userId: Offset = Offset(),
+    seq: UInt64 = 0,
+    mergeClass: AirDesk_Protocol__MergeClass = .unknown,
+    payloadHashVectorOffset payloadHash: Offset = Offset()
+  ) -> Offset {
+    let __start = AirDesk_Protocol__SyncRecord.startSyncRecord(&fbb)
+    AirDesk_Protocol__SyncRecord.add(workspaceId: workspaceId, &fbb)
+    AirDesk_Protocol__SyncRecord.add(recordId: recordId, &fbb)
+    AirDesk_Protocol__SyncRecord.add(deviceId: deviceId, &fbb)
+    AirDesk_Protocol__SyncRecord.add(userId: userId, &fbb)
+    AirDesk_Protocol__SyncRecord.add(seq: seq, &fbb)
+    AirDesk_Protocol__SyncRecord.add(mergeClass: mergeClass, &fbb)
+    AirDesk_Protocol__SyncRecord.addVectorOf(payloadHash: payloadHash, &fbb)
+    return AirDesk_Protocol__SyncRecord.endSyncRecord(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.workspaceId.p, fieldName: "workspaceId", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.recordId.p, fieldName: "recordId", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.deviceId.p, fieldName: "deviceId", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.userId.p, fieldName: "userId", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.seq.p, fieldName: "seq", required: false, type: UInt64.self)
+    try _v.visit(field: VTOFFSET.mergeClass.p, fieldName: "mergeClass", required: false, type: AirDesk_Protocol__MergeClass.self)
+    try _v.visit(field: VTOFFSET.payloadHash.p, fieldName: "payloadHash", required: false, type: ForwardOffset<Vector<UInt8, UInt8>>.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__GroupMember: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__GroupMember.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case workspaceId = 4
+    case deviceId = 6
+    case userId = 8
+    case role = 10
+    case seq = 12
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var workspaceId: String? { let o = _accessor.offset(VTOFFSET.workspaceId.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var workspaceIdSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.workspaceId.v) }
+  public var deviceId: String? { let o = _accessor.offset(VTOFFSET.deviceId.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var deviceIdSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.deviceId.v) }
+  public var userId: String? { let o = _accessor.offset(VTOFFSET.userId.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var userIdSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.userId.v) }
+  public var role: String? { let o = _accessor.offset(VTOFFSET.role.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var roleSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.role.v) }
+  public var seq: UInt64 { let o = _accessor.offset(VTOFFSET.seq.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt64.self, at: o) }
+  public static func startGroupMember(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 5) }
+  public static func add(workspaceId: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: workspaceId, at: VTOFFSET.workspaceId.p) }
+  public static func add(deviceId: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: deviceId, at: VTOFFSET.deviceId.p) }
+  public static func add(userId: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: userId, at: VTOFFSET.userId.p) }
+  public static func add(role: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: role, at: VTOFFSET.role.p) }
+  public static func add(seq: UInt64, _ fbb: inout FlatBufferBuilder) { fbb.add(element: seq, def: 0, at: VTOFFSET.seq.p) }
+  public static func endGroupMember(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createGroupMember(
+    _ fbb: inout FlatBufferBuilder,
+    workspaceIdOffset workspaceId: Offset = Offset(),
+    deviceIdOffset deviceId: Offset = Offset(),
+    userIdOffset userId: Offset = Offset(),
+    roleOffset role: Offset = Offset(),
+    seq: UInt64 = 0
+  ) -> Offset {
+    let __start = AirDesk_Protocol__GroupMember.startGroupMember(&fbb)
+    AirDesk_Protocol__GroupMember.add(workspaceId: workspaceId, &fbb)
+    AirDesk_Protocol__GroupMember.add(deviceId: deviceId, &fbb)
+    AirDesk_Protocol__GroupMember.add(userId: userId, &fbb)
+    AirDesk_Protocol__GroupMember.add(role: role, &fbb)
+    AirDesk_Protocol__GroupMember.add(seq: seq, &fbb)
+    return AirDesk_Protocol__GroupMember.endGroupMember(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.workspaceId.p, fieldName: "workspaceId", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.deviceId.p, fieldName: "deviceId", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.userId.p, fieldName: "userId", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.role.p, fieldName: "role", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.seq.p, fieldName: "seq", required: false, type: UInt64.self)
+    _v.finish()
+  }
+}
+
 public struct AirDesk_Protocol__Envelope: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
 
   static func validateVersion() { FlatBuffersVersion_25_12_19() }
   public var __buffer: ByteBuffer! { return _accessor.bb }
   private var _accessor: Table
 
-  public static var id: String { "ADEN" } 
+  public static var id: String { "ADEN" }
   public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__Envelope.id, addPrefix: prefix) }
   private init(_ t: Table) { _accessor = t }
   public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
@@ -343,6 +1242,9 @@ public struct AirDesk_Protocol__Envelope: FlatBufferTable, FlatbuffersVectorInit
     case version = 4
     case payloadType = 6
     case payload = 8
+    case header = 10
+    case fabricPayloadType = 12
+    case fabricPayload = 14
     var v: Int32 { Int32(self.rawValue) }
     var p: VOffset { self.rawValue }
   }
@@ -350,21 +1252,33 @@ public struct AirDesk_Protocol__Envelope: FlatBufferTable, FlatbuffersVectorInit
   public var version: UInt32 { let o = _accessor.offset(VTOFFSET.version.v); return o == 0 ? 1 : _accessor.readBuffer(of: UInt32.self, at: o) }
   public var payloadType: AirDesk_Protocol__MessagePayload { let o = _accessor.offset(VTOFFSET.payloadType.v); return o == 0 ? .none_ : AirDesk_Protocol__MessagePayload(rawValue: _accessor.readBuffer(of: UInt8.self, at: o)) ?? .none_ }
   public func payload<T: FlatbuffersInitializable>(type: T.Type) -> T? { let o = _accessor.offset(VTOFFSET.payload.v); return o == 0 ? nil : _accessor.union(o) }
-  public static func startEnvelope(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 3) }
+  public var header: AirDesk_Protocol__ControlHeader? { let o = _accessor.offset(VTOFFSET.header.v); return o == 0 ? nil : AirDesk_Protocol__ControlHeader(_accessor.bb, o: _accessor.indirect(o + _accessor.position)) }
+  public var fabricPayloadType: AirDesk_Protocol__FabricPayload { let o = _accessor.offset(VTOFFSET.fabricPayloadType.v); return o == 0 ? .none_ : AirDesk_Protocol__FabricPayload(rawValue: _accessor.readBuffer(of: UInt8.self, at: o)) ?? .none_ }
+  public func fabricPayload<T: FlatbuffersInitializable>(type: T.Type) -> T? { let o = _accessor.offset(VTOFFSET.fabricPayload.v); return o == 0 ? nil : _accessor.union(o) }
+  public static func startEnvelope(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 6) }
   public static func add(version: UInt32, _ fbb: inout FlatBufferBuilder) { fbb.add(element: version, def: 1, at: VTOFFSET.version.p) }
   public static func add(payloadType: AirDesk_Protocol__MessagePayload, _ fbb: inout FlatBufferBuilder) { fbb.add(element: payloadType.rawValue, def: 0, at: VTOFFSET.payloadType.p) }
   public static func add(payload: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: payload, at: VTOFFSET.payload.p) }
+  public static func add(header: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: header, at: VTOFFSET.header.p) }
+  public static func add(fabricPayloadType: AirDesk_Protocol__FabricPayload, _ fbb: inout FlatBufferBuilder) { fbb.add(element: fabricPayloadType.rawValue, def: 0, at: VTOFFSET.fabricPayloadType.p) }
+  public static func add(fabricPayload: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: fabricPayload, at: VTOFFSET.fabricPayload.p) }
   public static func endEnvelope(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
   public static func createEnvelope(
     _ fbb: inout FlatBufferBuilder,
     version: UInt32 = 1,
     payloadType: AirDesk_Protocol__MessagePayload = .none_,
-    payloadOffset payload: Offset = Offset()
+    payloadOffset payload: Offset = Offset(),
+    headerOffset header: Offset = Offset(),
+    fabricPayloadType: AirDesk_Protocol__FabricPayload = .none_,
+    fabricPayloadOffset fabricPayload: Offset = Offset()
   ) -> Offset {
     let __start = AirDesk_Protocol__Envelope.startEnvelope(&fbb)
     AirDesk_Protocol__Envelope.add(version: version, &fbb)
     AirDesk_Protocol__Envelope.add(payloadType: payloadType, &fbb)
     AirDesk_Protocol__Envelope.add(payload: payload, &fbb)
+    AirDesk_Protocol__Envelope.add(header: header, &fbb)
+    AirDesk_Protocol__Envelope.add(fabricPayloadType: fabricPayloadType, &fbb)
+    AirDesk_Protocol__Envelope.add(fabricPayload: fabricPayload, &fbb)
     return AirDesk_Protocol__Envelope.endEnvelope(&fbb, start: __start)
   }
 
@@ -379,6 +1293,29 @@ public struct AirDesk_Protocol__Envelope: FlatBufferTable, FlatbuffersVectorInit
         try ForwardOffset<AirDesk_Protocol__InputEvent>.verify(&verifier, at: pos, of: AirDesk_Protocol__InputEvent.self)
       case .controlmessage:
         try ForwardOffset<AirDesk_Protocol__ControlMessage>.verify(&verifier, at: pos, of: AirDesk_Protocol__ControlMessage.self)
+      }
+    })
+    try _v.visit(field: VTOFFSET.header.p, fieldName: "header", required: false, type: ForwardOffset<AirDesk_Protocol__ControlHeader>.self)
+    try _v.visit(unionKey: VTOFFSET.fabricPayloadType.p, unionField: VTOFFSET.fabricPayload.p, unionKeyName: "fabricPayloadType", fieldName: "fabricPayload", required: false, completion: { (verifier, key: AirDesk_Protocol__FabricPayload, pos) in
+      switch key {
+      case .none_:
+        break // NOTE - SWIFT doesnt support none
+      case .deviceidentity:
+        try ForwardOffset<AirDesk_Protocol__DeviceIdentity>.verify(&verifier, at: pos, of: AirDesk_Protocol__DeviceIdentity.self)
+      case .pairingoffer:
+        try ForwardOffset<AirDesk_Protocol__PairingOffer>.verify(&verifier, at: pos, of: AirDesk_Protocol__PairingOffer.self)
+      case .pairingresponse:
+        try ForwardOffset<AirDesk_Protocol__PairingResponse>.verify(&verifier, at: pos, of: AirDesk_Protocol__PairingResponse.self)
+      case .capabilitydescriptor:
+        try ForwardOffset<AirDesk_Protocol__CapabilityDescriptor>.verify(&verifier, at: pos, of: AirDesk_Protocol__CapabilityDescriptor.self)
+      case .capabilitylease:
+        try ForwardOffset<AirDesk_Protocol__CapabilityLease>.verify(&verifier, at: pos, of: AirDesk_Protocol__CapabilityLease.self)
+      case .displaysession:
+        try ForwardOffset<AirDesk_Protocol__DisplaySession>.verify(&verifier, at: pos, of: AirDesk_Protocol__DisplaySession.self)
+      case .syncrecord:
+        try ForwardOffset<AirDesk_Protocol__SyncRecord>.verify(&verifier, at: pos, of: AirDesk_Protocol__SyncRecord.self)
+      case .groupmember:
+        try ForwardOffset<AirDesk_Protocol__GroupMember>.verify(&verifier, at: pos, of: AirDesk_Protocol__GroupMember.self)
       }
     })
     _v.finish()

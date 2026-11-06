@@ -30,6 +30,55 @@ enum ControlType : ubyte {
   log = 12
 }
 
+enum SenderRole : ubyte {
+  unspecified = 0,
+  controller = 1,
+  host = 2,
+  observer = 3,
+  agent = 4,
+  system = 5
+}
+
+enum Availability : ubyte {
+  unknown = 0,
+  available = 1,
+  busy = 2,
+  restricted = 3,
+  unavailable = 4
+}
+
+enum Authorization : ubyte {
+  unknown = 0,
+  ungranted = 1,
+  granted = 2,
+  denied = 3,
+  revoked = 4
+}
+
+enum MergeClass : ubyte {
+  unknown = 0,
+  lww = 1,
+  append_log = 2,
+  manual = 3
+}
+
+enum ChannelBindingKind : ubyte {
+  none = 0,
+  tls_exporter = 1,
+  certificate_hash = 2
+}
+
+enum DeviceKind : ubyte {
+  unknown = 0,
+  phone = 1,
+  tablet = 2,
+  desktop = 3,
+  browser = 4,
+  display = 5,
+  server = 6,
+  agent = 7
+}
+
 table InputEvent {
   version:uint = 1 (id: 0);
   type:EventType (id: 1);
@@ -67,14 +116,136 @@ table ControlMessage {
   code:string (id: 11);
 }
 
+// Optional control-plane metadata carried alongside any Envelope payload.
+// All fields are optional so existing v1 envelopes remain valid.
+table ControlHeader {
+  message_id:string (id: 0); // opaque UTF-8 id; applications should cap at 128 bytes
+  sender_device_id:string (id: 1); // stable opaque device id; cap at 128 bytes
+  sender_role:SenderRole = unspecified (id: 2);
+  correlation_id:string (id: 3); // request/response correlation; cap at 128 bytes
+  idempotency_key:string (id: 4); // retry key; cap at 128 bytes
+  expires_at:ulong (id: 5); // Unix epoch milliseconds; 0 means unset
+  cancellation_id:string (id: 6); // id of the operation being cancelled; cap at 128 bytes
+}
+
+// Identity fields only. public_key is an opaque encoding carried for future
+// use; this schema does not implement, verify or assert any crypto.
+table DeviceIdentity {
+  version:uint = 1 (id: 0);
+  kind:DeviceKind = unknown (id: 1);
+  device_id:string (id: 2); // stable opaque id; cap at 128 bytes
+  public_key:string (id: 3); // encoded public key; no crypto implemented here
+  nonce:[ubyte] (id: 4); // opaque challenge/response bytes
+  expires_at:ulong (id: 5); // Unix epoch milliseconds; 0 means unset
+  channel_binding_kind:ChannelBindingKind = none (id: 6);
+  channel_binding_value:string (id: 7); // opaque binding value; cap at 512 bytes
+  capabilities:[string] (id: 8); // capability URI hints only, not a lease
+}
+
+table PairingOffer {
+  identity:DeviceIdentity (id: 0);
+  offer_nonce:[ubyte] (id: 1);
+  expires_at:ulong (id: 2); // Unix epoch milliseconds; 0 means unset
+  channel_binding_kind:ChannelBindingKind = none (id: 3);
+  channel_binding_value:string (id: 4); // opaque binding value; cap at 512 bytes
+  capabilities:[string] (id: 5);
+}
+
+table PairingResponse {
+  identity:DeviceIdentity (id: 0);
+  offer_nonce:[ubyte] (id: 1);
+  response_nonce:[ubyte] (id: 2);
+  accepted:bool = false (id: 3);
+  expires_at:ulong (id: 4); // Unix epoch milliseconds; 0 means unset
+  channel_binding_kind:ChannelBindingKind = none (id: 5);
+  channel_binding_value:string (id: 6); // opaque binding value; cap at 512 bytes
+  capabilities:[string] (id: 7);
+}
+
+table CapabilityDescriptor {
+  cap_uri:string (id: 0); // e.g. airdesk://capability/display; cap at 256 bytes
+  version:uint = 1 (id: 1);
+  provider_device_id:string (id: 2);
+  availability:Availability = unknown (id: 3);
+  authorization:Authorization = unknown (id: 4);
+  permissions:[string] (id: 5);
+  execution:string (id: 6); // descriptive execution mode, cap at 128 bytes
+  transport:string (id: 7); // descriptive transport hint, cap at 128 bytes
+  constraints:string (id: 8); // opaque JSON/description, cap at 4096 bytes
+}
+
+table CapabilityLease {
+  lease_id:string (id: 0); // cap at 128 bytes
+  cap_uri:string (id: 1); // cap at 256 bytes
+  workspace_id:string (id: 2); // cap at 128 bytes
+  application_id:string (id: 3); // cap at 128 bytes
+  requester_device_id:string (id: 4); // cap at 128 bytes
+  session_id:string (id: 5); // cap at 128 bytes
+  issued_at:ulong (id: 6); // Unix epoch milliseconds
+  expires_at:ulong (id: 7); // Unix epoch milliseconds; 0 means unset
+  revoked:bool = false (id: 8);
+  revocation_reason:string (id: 9); // cap at 256 bytes
+  operations:[string] (id: 10); // allowed operation names
+  audit_id:string (id: 11); // cap at 128 bytes
+}
+
+table Viewport {
+  width:uint (id: 0);
+  height:uint (id: 1);
+  scale:float = 1.0 (id: 2);
+  orientation:string (id: 3); // e.g. landscape/portrait; cap at 32 bytes
+}
+
+table DisplaySession {
+  workspace_id:string (id: 0); // cap at 128 bytes
+  display_id:string (id: 1); // cap at 128 bytes
+  viewport:Viewport (id: 2);
+  profile:string (id: 3); // display profile name; cap at 128 bytes
+  generation:uint = 0 (id: 4);
+}
+
+// Schema primitives only. Payload hashes are opaque digests; no sync is implied.
+table SyncRecord {
+  workspace_id:string (id: 0);
+  record_id:string (id: 1);
+  device_id:string (id: 2);
+  user_id:string (id: 3);
+  seq:ulong (id: 4);
+  merge_class:MergeClass = unknown (id: 5);
+  payload_hash:[ubyte] (id: 6);
+}
+
+table GroupMember {
+  workspace_id:string (id: 0);
+  device_id:string (id: 1);
+  user_id:string (id: 2);
+  role:string (id: 3); // collaboration role name; cap at 64 bytes
+  seq:ulong (id: 4);
+}
+
 union MessagePayload {
   InputEvent,
   ControlMessage
 }
 
+// Additive fabric union. Existing MessagePayload members are untouched so v1
+// baseline conformance is preserved.
+union FabricPayload {
+  DeviceIdentity,
+  PairingOffer,
+  PairingResponse,
+  CapabilityDescriptor,
+  CapabilityLease,
+  DisplaySession,
+  SyncRecord,
+  GroupMember
+}
+
 table Envelope {
   version:uint = 1 (id: 0);
   payload:MessagePayload (id: 2);
+  header:ControlHeader (id: 3);
+  fabric_payload:FabricPayload (id: 5);
 }
 
 root_type Envelope;

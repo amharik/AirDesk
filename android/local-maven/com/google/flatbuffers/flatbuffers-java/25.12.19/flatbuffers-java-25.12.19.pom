@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.google.flatbuffers</groupId>
+  <artifactId>flatbuffers-java</artifactId>
+  <version>25.12.19</version>
+  <packaging>jar</packaging>
+  <name>FlatBuffers Java API</name>
+  <description>FlatBuffers Java runtime built from the official v25.12.19 tag.</description>
+  <url>https://github.com/google/flatbuffers</url>
+  <licenses>
+    <license>
+      <name>Apache License V2.0</name>
+      <url>https://raw.githubusercontent.com/google/flatbuffers/v25.12.19/LICENSE</url>
+    </license>
+  </licenses>
+</project>

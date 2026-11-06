@@ -5,6 +5,8 @@
 
 import * as flatbuffers from 'flatbuffers';
 
+import { ControlHeader } from '../../air-desk/protocol/control-header.js';
+import { FabricPayload, unionToFabricPayload, unionListToFabricPayload } from '../../air-desk/protocol/fabric-payload.js';
 import { MessagePayload, unionToMessagePayload, unionListToMessagePayload } from '../../air-desk/protocol/message-payload.js';
 
 
@@ -45,8 +47,23 @@ payload<T extends flatbuffers.Table>(obj:any):any|null {
   return offset ? this.bb!.__union(obj, this.bb_pos + offset) : null;
 }
 
+header(obj?:ControlHeader):ControlHeader|null {
+  const offset = this.bb!.__offset(this.bb_pos, 10);
+  return offset ? (obj || new ControlHeader()).__init(this.bb!.__indirect(this.bb_pos + offset), this.bb!) : null;
+}
+
+fabricPayloadType():FabricPayload {
+  const offset = this.bb!.__offset(this.bb_pos, 12);
+  return offset ? this.bb!.readUint8(this.bb_pos + offset) : FabricPayload.NONE;
+}
+
+fabricPayload<T extends flatbuffers.Table>(obj:any):any|null {
+  const offset = this.bb!.__offset(this.bb_pos, 14);
+  return offset ? this.bb!.__union(obj, this.bb_pos + offset) : null;
+}
+
 static startEnvelope(builder:flatbuffers.Builder) {
-  builder.startObject(3);
+  builder.startObject(6);
 }
 
 static addVersion(builder:flatbuffers.Builder, version:number) {
@@ -59,6 +76,18 @@ static addPayloadType(builder:flatbuffers.Builder, payloadType:MessagePayload) {
 
 static addPayload(builder:flatbuffers.Builder, payloadOffset:flatbuffers.Offset) {
   builder.addFieldOffset(2, payloadOffset, 0);
+}
+
+static addHeader(builder:flatbuffers.Builder, headerOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(3, headerOffset, 0);
+}
+
+static addFabricPayloadType(builder:flatbuffers.Builder, fabricPayloadType:FabricPayload) {
+  builder.addFieldInt8(4, fabricPayloadType, FabricPayload.NONE);
+}
+
+static addFabricPayload(builder:flatbuffers.Builder, fabricPayloadOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(5, fabricPayloadOffset, 0);
 }
 
 static endEnvelope(builder:flatbuffers.Builder):flatbuffers.Offset {
@@ -74,11 +103,14 @@ static finishSizePrefixedEnvelopeBuffer(builder:flatbuffers.Builder, offset:flat
   builder.finish(offset, 'ADEN', true);
 }
 
-static createEnvelope(builder:flatbuffers.Builder, version:number, payloadType:MessagePayload, payloadOffset:flatbuffers.Offset):flatbuffers.Offset {
+static createEnvelope(builder:flatbuffers.Builder, version:number, payloadType:MessagePayload, payloadOffset:flatbuffers.Offset, headerOffset:flatbuffers.Offset = 0, fabricPayloadType:FabricPayload = FabricPayload.NONE, fabricPayloadOffset:flatbuffers.Offset = 0):flatbuffers.Offset {
   Envelope.startEnvelope(builder);
   Envelope.addVersion(builder, version);
   Envelope.addPayloadType(builder, payloadType);
   Envelope.addPayload(builder, payloadOffset);
+  Envelope.addHeader(builder, headerOffset);
+  Envelope.addFabricPayloadType(builder, fabricPayloadType);
+  Envelope.addFabricPayload(builder, fabricPayloadOffset);
   return Envelope.endEnvelope(builder);
 }
 }

@@ -5,6 +5,8 @@ This index is the authoritative map of which decision is in force. An ADR's orig
 > **Execution note (2026-11-04):** Decision status is unchanged. The active implementation track is the universal compute fabric research program in `docs/planning/universal-compute-fabric-research.md`; product release sequencing is paused until its R6 decision. Research spikes may implement proposed ADRs behind flags but do not promote them.
 >
 > **Execution note (2026-11-06):** User direction adopts Iroh for the native peer data plane under ADR-021. The browser endpoint remains WebSocket. Product release sequencing is still paused until R6; the Iroh adapter may be implemented and tested in parallel.
+>
+> **Execution note (2026-11-06):** User direction also authorized foundational implementation of Android, identity, ADFP, browser-endpoint, sync/collaboration and remote-placement work. Those changes remain behind the proposed ADRs and do not promote decisions, complete qualification gates or move work into Release 1 scope. AD-PAIR-1/SPAKE2+, signed capability leases, production browser host wiring, real network transports and remote execution are still pending.
 
 | ADR | Decision | Decision status | Implementation status | Effective note |
 | --- | --- | --- | --- | --- |
@@ -16,18 +18,18 @@ This index is the authoritative map of which decision is in force. An ADR's orig
 | [006](006-remote-windowing.md) | Remote windowing | Proposed | Not started | Remote windows are presentation/execution adapters; post-MVP; Xpra reattach preferred over stateless RDP |
 | [007](007-winbox-and-wterm.md) | WinBox and WTerm | Proposed | Production defaults | Shell and terminal must depend on application/runtime interfaces, not Wanix internals |
 | [008](008-input-and-control-protocol.md) | Input and control protocol | Proposed | Implemented, gates pending | Input source, focus owner and multi-controller arbitration added by ADR-015 |
-| [009](009-workspace-persistence-and-recovery.md) | Workspace persistence and recovery | Proposed | Not started | Major amendment: desired/observed state, resource references, independent recovery domains and `lww`/`append-log`/`manual` merge metadata |
-| [010](010-airdesk-fabric-protocol.md) | ADFP semantic scope | Proposed | Not started | Major amendment: AD-RUNTIME and AD-RESOURCE active; transport bindings are versioned separately from ADFP semantics |
-| [011](011-device-identity-discovery-pairing.md) | Identity, discovery and pairing | Proposed | Not started | Device trust is separate from workspace ownership; future user identity uses WebAuthn/FIDO2 |
-| [012](012-capability-advertisement-and-authorization.md) | Capability advertisement and authorization | Proposed | Not started | Capability leases, application context, scope and revocation |
-| [013](013-multi-transport-and-connectivity.md) | Multi-transport and connectivity | Proposed | Not started | Control, data, media and presentation are separate; WebTransport is a Baseline 2026 optional candidate |
-| [014](014-browser-endpoint-topology.md) | Browser endpoint topology | Proposed | Not started | Major amendment: browser is a presentation endpoint; local agent is a host service, not workspace authority |
+| [009](009-workspace-persistence-and-recovery.md) | Workspace persistence and recovery | Proposed | Partial | Major amendment: desired/observed state, resource references, independent recovery domains and `lww`/`append-log`/`manual` merge metadata; single-device manifest/store/recovery are implemented, cross-device sync is not |
+| [010](010-airdesk-fabric-protocol.md) | ADFP semantic scope | Proposed | In progress | Major amendment: AD-RUNTIME and AD-RESOURCE active; transport bindings are versioned separately from ADFP semantics; typed header/fabric payloads and Android codec exist, module/transport coverage is pending |
+| [011](011-device-identity-discovery-pairing.md) | Identity, discovery and pairing | Proposed | In progress | Device trust is separate from workspace ownership; future user identity uses WebAuthn/FIDO2; Ed25519/P-256 identity, local registry/revocation and offer validation exist, AD-PAIR-1/SPAKE2+ and discovery are pending |
+| [012](012-capability-advertisement-and-authorization.md) | Capability advertisement and authorization | Proposed | In progress | Capability leases, application context, scope and revocation; descriptors and lease schema exist, signed issuance/verification is pending |
+| [013](013-multi-transport-and-connectivity.md) | Multi-transport and connectivity | Proposed | In progress | Control, data, media and presentation are separate; WebTransport is a Baseline 2026 optional candidate; Iroh/WebSocket baselines exist, WebTransport remains gated |
+| [014](014-browser-endpoint-topology.md) | Browser endpoint topology | Proposed | In progress | Major amendment: browser is a presentation endpoint; local agent is a host service, not workspace authority; loopback client/policy exist, production host/page wiring is pending |
 | [015](015-session-ownership-and-multi-controller.md) | Session ownership and multi-controller | Proposed | Not started | Major amendment: workspace ownership, session ownership and controller attachment are distinct |
 | [016](016-workspace-domain-model-and-authority.md) | Workspace domain model and authority | Proposed | Not started | Workspace identity is independent of devices, runtimes and display sessions |
-| [017](017-workspace-orchestration-and-runtime-providers.md) | Workspace orchestration and runtime providers | Proposed | Not started | WorkspaceOrchestrator above SessionCoordinator; provider-neutral contract; remote Wanix may be imported over 9P |
-| [018](018-native-device-agents-and-capability-host-abi.md) | Native device agents and capability host ABI | Proposed | Not started | Devices expose capabilities through native agents; Wanix is optional; host ABI maps to its file-service/exported-device boundary |
+| [017](017-workspace-orchestration-and-runtime-providers.md) | Workspace orchestration and runtime providers | Proposed | Partial | WorkspaceOrchestrator above SessionCoordinator; provider-neutral contract; remote Wanix may be imported over 9P; local orchestration/providers exist, remote import is pending |
+| [018](018-native-device-agents-and-capability-host-abi.md) | Native device agents and capability host ABI | Proposed | In progress | Devices expose capabilities through native agents; Wanix is optional; host ABI maps to its file-service/exported-device boundary; Android agent/controller and iOS identity baselines exist, full capability host is pending |
 | [019](019-application-model-and-lifecycle.md) | Application model and lifecycle | Proposed | Not started | Applications are provider-neutral; manifests pin WASI worlds; remote apps select protocols via AD-CAP |
-| [020](020-workspace-host-role-and-authority-handoff.md) | Workspace host role and authority handoff | Proposed | Not started | `WorkspaceHost` owns store commits, structural sequencing and orchestration; input leases stay at the display sink; handoff is explicit and `host_epoch`-fenced |
+| [020](020-workspace-host-role-and-authority-handoff.md) | Workspace host role and authority handoff | Proposed | Partial | `WorkspaceHost` owns store commits, structural sequencing and orchestration; input leases stay at the display sink; handoff is explicit and `host_epoch`-fenced; single-device host exists, handoff/degraded mode are pending |
 | [021](021-iroh-native-transport.md) | Iroh native transport adoption | Accepted | In progress | Official `IrohLib` 1.2.0, iOS 17.5, explicit self-hosted relay policy, browser remains WebSocket |
 
 ## Effective decisions
@@ -51,7 +53,7 @@ Phase is a planning label. It does not change decision or implementation status.
 | Phase | Meaning | Records |
 | --- | --- | --- |
 | Phase 1 baseline | Describes behavior the shipped app is built around; implementation status is per ADR | ADR-001 – ADR-009 |
-| Phase 2/3 target | Describes the device-fabric architecture; no implementation yet | ADR-010 – ADR-020 |
+| Phase 2/3 target | Describes the device-fabric architecture; foundations are in progress behind proposed ADRs | ADR-010 – ADR-020 |
 
 Lineage is recorded explicitly so a fabric ADR cannot silently redefine a baseline decision:
 

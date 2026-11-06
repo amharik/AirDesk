@@ -11,6 +11,7 @@ struct DiagnosticsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                identitySection
                 sessionSection
                 fabricSection
                 performanceSection
@@ -42,6 +43,32 @@ struct DiagnosticsView: View {
             }
         }
         .preferredColorScheme(.dark)
+    }
+
+    private var identitySection: some View {
+        Section {
+            if let identity = environment.identity {
+                infoRow("Device ID", identity.deviceId)
+                infoRow("Algorithm", identity.algorithm.displayName)
+                infoRow("Public key", identity.spkiHex)
+                infoRow("Paired devices", "\(environment.deviceRegistry?.pairedCount ?? 0)")
+                infoRow("Trusted", "\(environment.deviceRegistry?.trustedCount ?? 0)")
+                infoRow("Revoked", "\(environment.deviceRegistry?.revokedCount ?? 0)")
+            } else {
+                infoRow("Device identity", "Unavailable")
+                if let error = environment.identityError {
+                    infoRow("Identity error", error)
+                }
+            }
+            if let error = environment.deviceRegistryError {
+                infoRow("Registry error", error)
+            }
+        } header: {
+            sectionHeader("Device identity")
+        } footer: {
+            Text("The device ID is the SHA-256 fingerprint of the canonical DER SPKI. Pairing primitives are local only; AD-PAIR-1, SPAKE2+ and transport binding are not implemented.")
+        }
+        .listRowBackground(rowBackground)
     }
 
     private var sessionSection: some View {
@@ -248,6 +275,12 @@ struct DiagnosticsView: View {
         fabricRTTms=\(environment.fabric.selectedPath?.rttMs ?? 0)
         fabricRelayPolicy=\(environment.fabric.relayPolicyLabel)
         fabricRemoteInput=\(remoteInputState)
+        identityDeviceId=\(environment.identity?.deviceId ?? "none")
+        identityAlgorithm=\(environment.identity?.algorithm.rawValue ?? "none")
+        identitySPKI=\(environment.identity?.spkiHex ?? "none")
+        pairedPeers=\(environment.deviceRegistry?.pairedCount ?? 0)
+        trustedPeers=\(environment.deviceRegistry?.trustedCount ?? 0)
+        revokedPeers=\(environment.deviceRegistry?.revokedCount ?? 0)
         """
         UIPasteboard.general.string = report
         copied = true

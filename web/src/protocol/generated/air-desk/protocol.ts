@@ -3,9 +3,26 @@
 
 /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any, @typescript-eslint/no-non-null-assertion */
 
+export { Authorization } from './protocol/authorization.js';
+export { Availability } from './protocol/availability.js';
+export { CapabilityDescriptor } from './protocol/capability-descriptor.js';
+export { CapabilityLease } from './protocol/capability-lease.js';
+export { ChannelBindingKind } from './protocol/channel-binding-kind.js';
+export { ControlHeader } from './protocol/control-header.js';
 export { ControlMessage } from './protocol/control-message.js';
 export { ControlType } from './protocol/control-type.js';
+export { DeviceIdentity } from './protocol/device-identity.js';
+export { DeviceKind } from './protocol/device-kind.js';
+export { DisplaySession } from './protocol/display-session.js';
 export { Envelope } from './protocol/envelope.js';
 export { EventType } from './protocol/event-type.js';
+export { FabricPayload } from './protocol/fabric-payload.js';
+export { GroupMember } from './protocol/group-member.js';
 export { InputEvent } from './protocol/input-event.js';
+export { MergeClass } from './protocol/merge-class.js';
 export { MessagePayload } from './protocol/message-payload.js';
+export { PairingOffer } from './protocol/pairing-offer.js';
+export { PairingResponse } from './protocol/pairing-response.js';
+export { SenderRole } from './protocol/sender-role.js';
+export { SyncRecord } from './protocol/sync-record.js';
+export { Viewport } from './protocol/viewport.js';

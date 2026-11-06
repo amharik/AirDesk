@@ -1,0 +1,124 @@
+{
+  "name": "fabric-v1",
+  "header": {
+    "messageId": "msg-0001",
+    "senderDeviceId": "device-tablet-1",
+    "senderRole": "controller",
+    "correlationId": "corr-42",
+    "idempotencyKey": "idem-7",
+    "expiresAt": "1700000000123",
+    "cancellationId": "cancel-99"
+  },
+  "pairing": {
+    "offer": {
+      "identity": {
+        "version": 1,
+        "kind": "tablet",
+        "deviceId": "device-tablet-1",
+        "publicKey": "opaque-controller-public-key",
+        "nonce": "0a1b2c3d4e5f6071",
+        "expiresAt": "1700000005000",
+        "channelBindingKind": "tls_exporter",
+        "channelBindingValue": "exporter-label:airdesk",
+        "capabilities": [
+          "airdesk://capability/display",
+          "airdesk://capability/input"
+        ]
+      },
+      "offerNonce": "1122334455667788",
+      "expiresAt": "1700000006000",
+      "channelBindingKind": "certificate_hash",
+      "channelBindingValue": "opaque-certificate-reference",
+      "capabilities": [
+        "airdesk://capability/display"
+      ]
+    },
+    "response": {
+      "identity": {
+        "version": 1,
+        "kind": "desktop",
+        "deviceId": "device-host-9",
+        "publicKey": "opaque-host-public-key",
+        "nonce": "1827364554637281",
+        "expiresAt": "1700000007000",
+        "channelBindingKind": "certificate_hash",
+        "channelBindingValue": "opaque-certificate-reference",
+        "capabilities": [
+          "airdesk://capability/display",
+          "airdesk://capability/workspace"
+        ]
+      },
+      "offerNonce": "1122334455667788",
+      "responseNonce": "0d0e0a0b0c0f0102",
+      "accepted": true,
+      "expiresAt": "1700000008000",
+      "channelBindingKind": "certificate_hash",
+      "channelBindingValue": "opaque-certificate-reference",
+      "capabilities": [
+        "airdesk://capability/display"
+      ]
+    }
+  },
+  "capability": {
+    "descriptor": {
+      "capUri": "airdesk://capability/display",
+      "version": 2,
+      "providerDeviceId": "device-host-9",
+      "availability": "available",
+      "authorization": "granted",
+      "permissions": [
+        "screen.capture",
+        "input.forward"
+      ],
+      "execution": "remote",
+      "transport": "iroh",
+      "constraints": "{\"maxWidth\":3840,\"maxHeight\":2160}"
+    },
+    "lease": {
+      "leaseId": "lease-0001",
+      "capUri": "airdesk://capability/display",
+      "workspaceId": "workspace-alpha",
+      "applicationId": "app-desktop",
+      "requesterDeviceId": "device-tablet-1",
+      "sessionId": "session-7",
+      "issuedAt": "1700000000000",
+      "expiresAt": "1700000009000",
+      "revoked": false,
+      "revocationReason": "",
+      "operations": [
+        "connect",
+        "view",
+        "input"
+      ],
+      "auditId": "audit-0001"
+    }
+  },
+  "displaySession": {
+    "workspaceId": "workspace-alpha",
+    "displayId": "display-main",
+    "viewport": {
+      "width": 2560,
+      "height": 1600,
+      "scale": 2,
+      "orientation": "landscape"
+    },
+    "profile": "retina-2x",
+    "generation": 3
+  },
+  "syncRecord": {
+    "workspaceId": "workspace-alpha",
+    "recordId": "record-1",
+    "deviceId": "device-tablet-1",
+    "userId": "user-1",
+    "seq": "42",
+    "mergeClass": "lww",
+    "payloadHash": "001122334455"
+  },
+  "groupMember": {
+    "workspaceId": "workspace-alpha",
+    "deviceId": "device-tablet-1",
+    "userId": "user-1",
+    "role": "editor",
+    "seq": "43"
+  }
+}

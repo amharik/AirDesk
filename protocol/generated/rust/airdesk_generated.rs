@@ -259,6 +259,586 @@ impl<'a> ::flatbuffers::Verifiable for ControlType {
 
 impl ::flatbuffers::SimpleToVerifyInSlice for ControlType {}
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+pub const ENUM_MIN_SENDER_ROLE: u8 = 0;
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+pub const ENUM_MAX_SENDER_ROLE: u8 = 5;
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+#[allow(non_camel_case_types)]
+pub const ENUM_VALUES_SENDER_ROLE: [SenderRole; 6] = [
+  SenderRole::unspecified,
+  SenderRole::controller,
+  SenderRole::host,
+  SenderRole::observer,
+  SenderRole::agent,
+  SenderRole::system,
+];
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[repr(transparent)]
+pub struct SenderRole(pub u8);
+#[allow(non_upper_case_globals)]
+impl SenderRole {
+  pub const unspecified: Self = Self(0);
+  pub const controller: Self = Self(1);
+  pub const host: Self = Self(2);
+  pub const observer: Self = Self(3);
+  pub const agent: Self = Self(4);
+  pub const system: Self = Self(5);
+
+  pub const ENUM_MIN: u8 = 0;
+  pub const ENUM_MAX: u8 = 5;
+  pub const ENUM_VALUES: &'static [Self] = &[
+    Self::unspecified,
+    Self::controller,
+    Self::host,
+    Self::observer,
+    Self::agent,
+    Self::system,
+  ];
+  /// Returns the variant's name or "" if unknown.
+  pub fn variant_name(self) -> Option<&'static str> {
+    match self {
+      Self::unspecified => Some("unspecified"),
+      Self::controller => Some("controller"),
+      Self::host => Some("host"),
+      Self::observer => Some("observer"),
+      Self::agent => Some("agent"),
+      Self::system => Some("system"),
+      _ => None,
+    }
+  }
+}
+impl ::core::fmt::Debug for SenderRole {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+    if let Some(name) = self.variant_name() {
+      f.write_str(name)
+    } else {
+      f.write_fmt(format_args!("<UNKNOWN {:?}>", self.0))
+    }
+  }
+}
+impl<'a> ::flatbuffers::Follow<'a> for SenderRole {
+  type Inner = Self;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    let b = unsafe { ::flatbuffers::read_scalar_at::<u8>(buf, loc) };
+    Self(b)
+  }
+}
+
+impl ::flatbuffers::Push for SenderRole {
+    type Output = SenderRole;
+    #[inline]
+    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
+        unsafe { ::flatbuffers::emplace_scalar::<u8>(dst, self.0) };
+    }
+}
+
+impl ::flatbuffers::EndianScalar for SenderRole {
+  type Scalar = u8;
+  #[inline]
+  fn to_little_endian(self) -> u8 {
+    self.0.to_le()
+  }
+  #[inline]
+  #[allow(clippy::wrong_self_convention)]
+  fn from_little_endian(v: u8) -> Self {
+    let b = u8::from_le(v);
+    Self(b)
+  }
+}
+
+impl<'a> ::flatbuffers::Verifiable for SenderRole {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    u8::run_verifier(v, pos)
+  }
+}
+
+impl ::flatbuffers::SimpleToVerifyInSlice for SenderRole {}
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+pub const ENUM_MIN_AVAILABILITY: u8 = 0;
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+pub const ENUM_MAX_AVAILABILITY: u8 = 4;
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+#[allow(non_camel_case_types)]
+pub const ENUM_VALUES_AVAILABILITY: [Availability; 5] = [
+  Availability::unknown,
+  Availability::available,
+  Availability::busy,
+  Availability::restricted,
+  Availability::unavailable,
+];
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[repr(transparent)]
+pub struct Availability(pub u8);
+#[allow(non_upper_case_globals)]
+impl Availability {
+  pub const unknown: Self = Self(0);
+  pub const available: Self = Self(1);
+  pub const busy: Self = Self(2);
+  pub const restricted: Self = Self(3);
+  pub const unavailable: Self = Self(4);
+
+  pub const ENUM_MIN: u8 = 0;
+  pub const ENUM_MAX: u8 = 4;
+  pub const ENUM_VALUES: &'static [Self] = &[
+    Self::unknown,
+    Self::available,
+    Self::busy,
+    Self::restricted,
+    Self::unavailable,
+  ];
+  /// Returns the variant's name or "" if unknown.
+  pub fn variant_name(self) -> Option<&'static str> {
+    match self {
+      Self::unknown => Some("unknown"),
+      Self::available => Some("available"),
+      Self::busy => Some("busy"),
+      Self::restricted => Some("restricted"),
+      Self::unavailable => Some("unavailable"),
+      _ => None,
+    }
+  }
+}
+impl ::core::fmt::Debug for Availability {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+    if let Some(name) = self.variant_name() {
+      f.write_str(name)
+    } else {
+      f.write_fmt(format_args!("<UNKNOWN {:?}>", self.0))
+    }
+  }
+}
+impl<'a> ::flatbuffers::Follow<'a> for Availability {
+  type Inner = Self;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    let b = unsafe { ::flatbuffers::read_scalar_at::<u8>(buf, loc) };
+    Self(b)
+  }
+}
+
+impl ::flatbuffers::Push for Availability {
+    type Output = Availability;
+    #[inline]
+    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
+        unsafe { ::flatbuffers::emplace_scalar::<u8>(dst, self.0) };
+    }
+}
+
+impl ::flatbuffers::EndianScalar for Availability {
+  type Scalar = u8;
+  #[inline]
+  fn to_little_endian(self) -> u8 {
+    self.0.to_le()
+  }
+  #[inline]
+  #[allow(clippy::wrong_self_convention)]
+  fn from_little_endian(v: u8) -> Self {
+    let b = u8::from_le(v);
+    Self(b)
+  }
+}
+
+impl<'a> ::flatbuffers::Verifiable for Availability {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    u8::run_verifier(v, pos)
+  }
+}
+
+impl ::flatbuffers::SimpleToVerifyInSlice for Availability {}
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+pub const ENUM_MIN_AUTHORIZATION: u8 = 0;
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+pub const ENUM_MAX_AUTHORIZATION: u8 = 4;
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+#[allow(non_camel_case_types)]
+pub const ENUM_VALUES_AUTHORIZATION: [Authorization; 5] = [
+  Authorization::unknown,
+  Authorization::ungranted,
+  Authorization::granted,
+  Authorization::denied,
+  Authorization::revoked,
+];
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[repr(transparent)]
+pub struct Authorization(pub u8);
+#[allow(non_upper_case_globals)]
+impl Authorization {
+  pub const unknown: Self = Self(0);
+  pub const ungranted: Self = Self(1);
+  pub const granted: Self = Self(2);
+  pub const denied: Self = Self(3);
+  pub const revoked: Self = Self(4);
+
+  pub const ENUM_MIN: u8 = 0;
+  pub const ENUM_MAX: u8 = 4;
+  pub const ENUM_VALUES: &'static [Self] = &[
+    Self::unknown,
+    Self::ungranted,
+    Self::granted,
+    Self::denied,
+    Self::revoked,
+  ];
+  /// Returns the variant's name or "" if unknown.
+  pub fn variant_name(self) -> Option<&'static str> {
+    match self {
+      Self::unknown => Some("unknown"),
+      Self::ungranted => Some("ungranted"),
+      Self::granted => Some("granted"),
+      Self::denied => Some("denied"),
+      Self::revoked => Some("revoked"),
+      _ => None,
+    }
+  }
+}
+impl ::core::fmt::Debug for Authorization {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+    if let Some(name) = self.variant_name() {
+      f.write_str(name)
+    } else {
+      f.write_fmt(format_args!("<UNKNOWN {:?}>", self.0))
+    }
+  }
+}
+impl<'a> ::flatbuffers::Follow<'a> for Authorization {
+  type Inner = Self;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    let b = unsafe { ::flatbuffers::read_scalar_at::<u8>(buf, loc) };
+    Self(b)
+  }
+}
+
+impl ::flatbuffers::Push for Authorization {
+    type Output = Authorization;
+    #[inline]
+    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
+        unsafe { ::flatbuffers::emplace_scalar::<u8>(dst, self.0) };
+    }
+}
+
+impl ::flatbuffers::EndianScalar for Authorization {
+  type Scalar = u8;
+  #[inline]
+  fn to_little_endian(self) -> u8 {
+    self.0.to_le()
+  }
+  #[inline]
+  #[allow(clippy::wrong_self_convention)]
+  fn from_little_endian(v: u8) -> Self {
+    let b = u8::from_le(v);
+    Self(b)
+  }
+}
+
+impl<'a> ::flatbuffers::Verifiable for Authorization {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    u8::run_verifier(v, pos)
+  }
+}
+
+impl ::flatbuffers::SimpleToVerifyInSlice for Authorization {}
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+pub const ENUM_MIN_MERGE_CLASS: u8 = 0;
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+pub const ENUM_MAX_MERGE_CLASS: u8 = 3;
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+#[allow(non_camel_case_types)]
+pub const ENUM_VALUES_MERGE_CLASS: [MergeClass; 4] = [
+  MergeClass::unknown,
+  MergeClass::lww,
+  MergeClass::append_log,
+  MergeClass::manual,
+];
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[repr(transparent)]
+pub struct MergeClass(pub u8);
+#[allow(non_upper_case_globals)]
+impl MergeClass {
+  pub const unknown: Self = Self(0);
+  pub const lww: Self = Self(1);
+  pub const append_log: Self = Self(2);
+  pub const manual: Self = Self(3);
+
+  pub const ENUM_MIN: u8 = 0;
+  pub const ENUM_MAX: u8 = 3;
+  pub const ENUM_VALUES: &'static [Self] = &[
+    Self::unknown,
+    Self::lww,
+    Self::append_log,
+    Self::manual,
+  ];
+  /// Returns the variant's name or "" if unknown.
+  pub fn variant_name(self) -> Option<&'static str> {
+    match self {
+      Self::unknown => Some("unknown"),
+      Self::lww => Some("lww"),
+      Self::append_log => Some("append_log"),
+      Self::manual => Some("manual"),
+      _ => None,
+    }
+  }
+}
+impl ::core::fmt::Debug for MergeClass {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+    if let Some(name) = self.variant_name() {
+      f.write_str(name)
+    } else {
+      f.write_fmt(format_args!("<UNKNOWN {:?}>", self.0))
+    }
+  }
+}
+impl<'a> ::flatbuffers::Follow<'a> for MergeClass {
+  type Inner = Self;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    let b = unsafe { ::flatbuffers::read_scalar_at::<u8>(buf, loc) };
+    Self(b)
+  }
+}
+
+impl ::flatbuffers::Push for MergeClass {
+    type Output = MergeClass;
+    #[inline]
+    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
+        unsafe { ::flatbuffers::emplace_scalar::<u8>(dst, self.0) };
+    }
+}
+
+impl ::flatbuffers::EndianScalar for MergeClass {
+  type Scalar = u8;
+  #[inline]
+  fn to_little_endian(self) -> u8 {
+    self.0.to_le()
+  }
+  #[inline]
+  #[allow(clippy::wrong_self_convention)]
+  fn from_little_endian(v: u8) -> Self {
+    let b = u8::from_le(v);
+    Self(b)
+  }
+}
+
+impl<'a> ::flatbuffers::Verifiable for MergeClass {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    u8::run_verifier(v, pos)
+  }
+}
+
+impl ::flatbuffers::SimpleToVerifyInSlice for MergeClass {}
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+pub const ENUM_MIN_CHANNEL_BINDING_KIND: u8 = 0;
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+pub const ENUM_MAX_CHANNEL_BINDING_KIND: u8 = 2;
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+#[allow(non_camel_case_types)]
+pub const ENUM_VALUES_CHANNEL_BINDING_KIND: [ChannelBindingKind; 3] = [
+  ChannelBindingKind::none,
+  ChannelBindingKind::tls_exporter,
+  ChannelBindingKind::certificate_hash,
+];
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[repr(transparent)]
+pub struct ChannelBindingKind(pub u8);
+#[allow(non_upper_case_globals)]
+impl ChannelBindingKind {
+  pub const none: Self = Self(0);
+  pub const tls_exporter: Self = Self(1);
+  pub const certificate_hash: Self = Self(2);
+
+  pub const ENUM_MIN: u8 = 0;
+  pub const ENUM_MAX: u8 = 2;
+  pub const ENUM_VALUES: &'static [Self] = &[
+    Self::none,
+    Self::tls_exporter,
+    Self::certificate_hash,
+  ];
+  /// Returns the variant's name or "" if unknown.
+  pub fn variant_name(self) -> Option<&'static str> {
+    match self {
+      Self::none => Some("none"),
+      Self::tls_exporter => Some("tls_exporter"),
+      Self::certificate_hash => Some("certificate_hash"),
+      _ => None,
+    }
+  }
+}
+impl ::core::fmt::Debug for ChannelBindingKind {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+    if let Some(name) = self.variant_name() {
+      f.write_str(name)
+    } else {
+      f.write_fmt(format_args!("<UNKNOWN {:?}>", self.0))
+    }
+  }
+}
+impl<'a> ::flatbuffers::Follow<'a> for ChannelBindingKind {
+  type Inner = Self;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    let b = unsafe { ::flatbuffers::read_scalar_at::<u8>(buf, loc) };
+    Self(b)
+  }
+}
+
+impl ::flatbuffers::Push for ChannelBindingKind {
+    type Output = ChannelBindingKind;
+    #[inline]
+    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
+        unsafe { ::flatbuffers::emplace_scalar::<u8>(dst, self.0) };
+    }
+}
+
+impl ::flatbuffers::EndianScalar for ChannelBindingKind {
+  type Scalar = u8;
+  #[inline]
+  fn to_little_endian(self) -> u8 {
+    self.0.to_le()
+  }
+  #[inline]
+  #[allow(clippy::wrong_self_convention)]
+  fn from_little_endian(v: u8) -> Self {
+    let b = u8::from_le(v);
+    Self(b)
+  }
+}
+
+impl<'a> ::flatbuffers::Verifiable for ChannelBindingKind {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    u8::run_verifier(v, pos)
+  }
+}
+
+impl ::flatbuffers::SimpleToVerifyInSlice for ChannelBindingKind {}
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+pub const ENUM_MIN_DEVICE_KIND: u8 = 0;
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+pub const ENUM_MAX_DEVICE_KIND: u8 = 7;
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+#[allow(non_camel_case_types)]
+pub const ENUM_VALUES_DEVICE_KIND: [DeviceKind; 8] = [
+  DeviceKind::unknown,
+  DeviceKind::phone,
+  DeviceKind::tablet,
+  DeviceKind::desktop,
+  DeviceKind::browser,
+  DeviceKind::display,
+  DeviceKind::server,
+  DeviceKind::agent,
+];
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[repr(transparent)]
+pub struct DeviceKind(pub u8);
+#[allow(non_upper_case_globals)]
+impl DeviceKind {
+  pub const unknown: Self = Self(0);
+  pub const phone: Self = Self(1);
+  pub const tablet: Self = Self(2);
+  pub const desktop: Self = Self(3);
+  pub const browser: Self = Self(4);
+  pub const display: Self = Self(5);
+  pub const server: Self = Self(6);
+  pub const agent: Self = Self(7);
+
+  pub const ENUM_MIN: u8 = 0;
+  pub const ENUM_MAX: u8 = 7;
+  pub const ENUM_VALUES: &'static [Self] = &[
+    Self::unknown,
+    Self::phone,
+    Self::tablet,
+    Self::desktop,
+    Self::browser,
+    Self::display,
+    Self::server,
+    Self::agent,
+  ];
+  /// Returns the variant's name or "" if unknown.
+  pub fn variant_name(self) -> Option<&'static str> {
+    match self {
+      Self::unknown => Some("unknown"),
+      Self::phone => Some("phone"),
+      Self::tablet => Some("tablet"),
+      Self::desktop => Some("desktop"),
+      Self::browser => Some("browser"),
+      Self::display => Some("display"),
+      Self::server => Some("server"),
+      Self::agent => Some("agent"),
+      _ => None,
+    }
+  }
+}
+impl ::core::fmt::Debug for DeviceKind {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+    if let Some(name) = self.variant_name() {
+      f.write_str(name)
+    } else {
+      f.write_fmt(format_args!("<UNKNOWN {:?}>", self.0))
+    }
+  }
+}
+impl<'a> ::flatbuffers::Follow<'a> for DeviceKind {
+  type Inner = Self;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    let b = unsafe { ::flatbuffers::read_scalar_at::<u8>(buf, loc) };
+    Self(b)
+  }
+}
+
+impl ::flatbuffers::Push for DeviceKind {
+    type Output = DeviceKind;
+    #[inline]
+    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
+        unsafe { ::flatbuffers::emplace_scalar::<u8>(dst, self.0) };
+    }
+}
+
+impl ::flatbuffers::EndianScalar for DeviceKind {
+  type Scalar = u8;
+  #[inline]
+  fn to_little_endian(self) -> u8 {
+    self.0.to_le()
+  }
+  #[inline]
+  #[allow(clippy::wrong_self_convention)]
+  fn from_little_endian(v: u8) -> Self {
+    let b = u8::from_le(v);
+    Self(b)
+  }
+}
+
+impl<'a> ::flatbuffers::Verifiable for DeviceKind {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    u8::run_verifier(v, pos)
+  }
+}
+
+impl ::flatbuffers::SimpleToVerifyInSlice for DeviceKind {}
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 pub const ENUM_MIN_MESSAGE_PAYLOAD: u8 = 0;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 pub const ENUM_MAX_MESSAGE_PAYLOAD: u8 = 2;
@@ -347,6 +927,120 @@ impl<'a> ::flatbuffers::Verifiable for MessagePayload {
 
 impl ::flatbuffers::SimpleToVerifyInSlice for MessagePayload {}
 pub struct MessagePayloadUnionTableOffset {}
+
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+pub const ENUM_MIN_FABRIC_PAYLOAD: u8 = 0;
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+pub const ENUM_MAX_FABRIC_PAYLOAD: u8 = 8;
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+#[allow(non_camel_case_types)]
+pub const ENUM_VALUES_FABRIC_PAYLOAD: [FabricPayload; 9] = [
+  FabricPayload::NONE,
+  FabricPayload::DeviceIdentity,
+  FabricPayload::PairingOffer,
+  FabricPayload::PairingResponse,
+  FabricPayload::CapabilityDescriptor,
+  FabricPayload::CapabilityLease,
+  FabricPayload::DisplaySession,
+  FabricPayload::SyncRecord,
+  FabricPayload::GroupMember,
+];
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[repr(transparent)]
+pub struct FabricPayload(pub u8);
+#[allow(non_upper_case_globals)]
+impl FabricPayload {
+  pub const NONE: Self = Self(0);
+  pub const DeviceIdentity: Self = Self(1);
+  pub const PairingOffer: Self = Self(2);
+  pub const PairingResponse: Self = Self(3);
+  pub const CapabilityDescriptor: Self = Self(4);
+  pub const CapabilityLease: Self = Self(5);
+  pub const DisplaySession: Self = Self(6);
+  pub const SyncRecord: Self = Self(7);
+  pub const GroupMember: Self = Self(8);
+
+  pub const ENUM_MIN: u8 = 0;
+  pub const ENUM_MAX: u8 = 8;
+  pub const ENUM_VALUES: &'static [Self] = &[
+    Self::NONE,
+    Self::DeviceIdentity,
+    Self::PairingOffer,
+    Self::PairingResponse,
+    Self::CapabilityDescriptor,
+    Self::CapabilityLease,
+    Self::DisplaySession,
+    Self::SyncRecord,
+    Self::GroupMember,
+  ];
+  /// Returns the variant's name or "" if unknown.
+  pub fn variant_name(self) -> Option<&'static str> {
+    match self {
+      Self::NONE => Some("NONE"),
+      Self::DeviceIdentity => Some("DeviceIdentity"),
+      Self::PairingOffer => Some("PairingOffer"),
+      Self::PairingResponse => Some("PairingResponse"),
+      Self::CapabilityDescriptor => Some("CapabilityDescriptor"),
+      Self::CapabilityLease => Some("CapabilityLease"),
+      Self::DisplaySession => Some("DisplaySession"),
+      Self::SyncRecord => Some("SyncRecord"),
+      Self::GroupMember => Some("GroupMember"),
+      _ => None,
+    }
+  }
+}
+impl ::core::fmt::Debug for FabricPayload {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+    if let Some(name) = self.variant_name() {
+      f.write_str(name)
+    } else {
+      f.write_fmt(format_args!("<UNKNOWN {:?}>", self.0))
+    }
+  }
+}
+impl<'a> ::flatbuffers::Follow<'a> for FabricPayload {
+  type Inner = Self;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    let b = unsafe { ::flatbuffers::read_scalar_at::<u8>(buf, loc) };
+    Self(b)
+  }
+}
+
+impl ::flatbuffers::Push for FabricPayload {
+    type Output = FabricPayload;
+    #[inline]
+    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
+        unsafe { ::flatbuffers::emplace_scalar::<u8>(dst, self.0) };
+    }
+}
+
+impl ::flatbuffers::EndianScalar for FabricPayload {
+  type Scalar = u8;
+  #[inline]
+  fn to_little_endian(self) -> u8 {
+    self.0.to_le()
+  }
+  #[inline]
+  #[allow(clippy::wrong_self_convention)]
+  fn from_little_endian(v: u8) -> Self {
+    let b = u8::from_le(v);
+    Self(b)
+  }
+}
+
+impl<'a> ::flatbuffers::Verifiable for FabricPayload {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    u8::run_verifier(v, pos)
+  }
+}
+
+impl ::flatbuffers::SimpleToVerifyInSlice for FabricPayload {}
+pub struct FabricPayloadUnionTableOffset {}
 
 pub enum InputEventOffset {}
 #[derive(Copy, Clone, PartialEq)]
@@ -1035,6 +1729,2020 @@ impl ::core::fmt::Debug for ControlMessage<'_> {
       ds.finish()
   }
 }
+pub enum ControlHeaderOffset {}
+#[derive(Copy, Clone, PartialEq)]
+
+pub struct ControlHeader<'a> {
+  pub _tab: ::flatbuffers::Table<'a>,
+}
+
+impl<'a> ::flatbuffers::Follow<'a> for ControlHeader<'a> {
+  type Inner = ControlHeader<'a>;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }
+  }
+}
+
+impl<'a> ControlHeader<'a> {
+  pub const VT_MESSAGE_ID: ::flatbuffers::VOffsetT = 4;
+  pub const VT_SENDER_DEVICE_ID: ::flatbuffers::VOffsetT = 6;
+  pub const VT_SENDER_ROLE: ::flatbuffers::VOffsetT = 8;
+  pub const VT_CORRELATION_ID: ::flatbuffers::VOffsetT = 10;
+  pub const VT_IDEMPOTENCY_KEY: ::flatbuffers::VOffsetT = 12;
+  pub const VT_EXPIRES_AT: ::flatbuffers::VOffsetT = 14;
+  pub const VT_CANCELLATION_ID: ::flatbuffers::VOffsetT = 16;
+
+  #[inline]
+  pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
+    ControlHeader { _tab: table }
+  }
+  #[allow(unused_mut)]
+  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
+    _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
+    args: &'args ControlHeaderArgs<'args>
+  ) -> ::flatbuffers::WIPOffset<ControlHeader<'bldr>> {
+    let mut builder = ControlHeaderBuilder::new(_fbb);
+    builder.add_expires_at(args.expires_at);
+    if let Some(x) = args.cancellation_id { builder.add_cancellation_id(x); }
+    if let Some(x) = args.idempotency_key { builder.add_idempotency_key(x); }
+    if let Some(x) = args.correlation_id { builder.add_correlation_id(x); }
+    if let Some(x) = args.sender_device_id { builder.add_sender_device_id(x); }
+    if let Some(x) = args.message_id { builder.add_message_id(x); }
+    builder.add_sender_role(args.sender_role);
+    builder.finish()
+  }
+
+
+  #[inline]
+  pub fn message_id(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(ControlHeader::VT_MESSAGE_ID, None)}
+  }
+  #[inline]
+  pub fn sender_device_id(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(ControlHeader::VT_SENDER_DEVICE_ID, None)}
+  }
+  #[inline]
+  pub fn sender_role(&self) -> SenderRole {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<SenderRole>(ControlHeader::VT_SENDER_ROLE, Some(SenderRole::unspecified)).unwrap()}
+  }
+  #[inline]
+  pub fn correlation_id(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(ControlHeader::VT_CORRELATION_ID, None)}
+  }
+  #[inline]
+  pub fn idempotency_key(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(ControlHeader::VT_IDEMPOTENCY_KEY, None)}
+  }
+  #[inline]
+  pub fn expires_at(&self) -> u64 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u64>(ControlHeader::VT_EXPIRES_AT, Some(0)).unwrap()}
+  }
+  #[inline]
+  pub fn cancellation_id(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(ControlHeader::VT_CANCELLATION_ID, None)}
+  }
+}
+
+impl ::flatbuffers::Verifiable for ControlHeader<'_> {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    v.visit_table(pos)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("message_id", Self::VT_MESSAGE_ID, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("sender_device_id", Self::VT_SENDER_DEVICE_ID, false)?
+     .visit_field::<SenderRole>("sender_role", Self::VT_SENDER_ROLE, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("correlation_id", Self::VT_CORRELATION_ID, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("idempotency_key", Self::VT_IDEMPOTENCY_KEY, false)?
+     .visit_field::<u64>("expires_at", Self::VT_EXPIRES_AT, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("cancellation_id", Self::VT_CANCELLATION_ID, false)?
+     .finish();
+    Ok(())
+  }
+}
+pub struct ControlHeaderArgs<'a> {
+    pub message_id: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub sender_device_id: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub sender_role: SenderRole,
+    pub correlation_id: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub idempotency_key: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub expires_at: u64,
+    pub cancellation_id: Option<::flatbuffers::WIPOffset<&'a str>>,
+}
+impl<'a> Default for ControlHeaderArgs<'a> {
+  #[inline]
+  fn default() -> Self {
+    ControlHeaderArgs {
+      message_id: None,
+      sender_device_id: None,
+      sender_role: SenderRole::unspecified,
+      correlation_id: None,
+      idempotency_key: None,
+      expires_at: 0,
+      cancellation_id: None,
+    }
+  }
+}
+
+pub struct ControlHeaderBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
+  fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
+  start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
+}
+impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> ControlHeaderBuilder<'a, 'b, A> {
+  #[inline]
+  pub fn add_message_id(&mut self, message_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(ControlHeader::VT_MESSAGE_ID, message_id);
+  }
+  #[inline]
+  pub fn add_sender_device_id(&mut self, sender_device_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(ControlHeader::VT_SENDER_DEVICE_ID, sender_device_id);
+  }
+  #[inline]
+  pub fn add_sender_role(&mut self, sender_role: SenderRole) {
+    self.fbb_.push_slot::<SenderRole>(ControlHeader::VT_SENDER_ROLE, sender_role, SenderRole::unspecified);
+  }
+  #[inline]
+  pub fn add_correlation_id(&mut self, correlation_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(ControlHeader::VT_CORRELATION_ID, correlation_id);
+  }
+  #[inline]
+  pub fn add_idempotency_key(&mut self, idempotency_key: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(ControlHeader::VT_IDEMPOTENCY_KEY, idempotency_key);
+  }
+  #[inline]
+  pub fn add_expires_at(&mut self, expires_at: u64) {
+    self.fbb_.push_slot::<u64>(ControlHeader::VT_EXPIRES_AT, expires_at, 0);
+  }
+  #[inline]
+  pub fn add_cancellation_id(&mut self, cancellation_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(ControlHeader::VT_CANCELLATION_ID, cancellation_id);
+  }
+  #[inline]
+  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> ControlHeaderBuilder<'a, 'b, A> {
+    let start = _fbb.start_table();
+    ControlHeaderBuilder {
+      fbb_: _fbb,
+      start_: start,
+    }
+  }
+  #[inline]
+  pub fn finish(self) -> ::flatbuffers::WIPOffset<ControlHeader<'a>> {
+    let o = self.fbb_.end_table(self.start_);
+    ::flatbuffers::WIPOffset::new(o.value())
+  }
+}
+
+impl ::core::fmt::Debug for ControlHeader<'_> {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+    let mut ds = f.debug_struct("ControlHeader");
+      ds.field("message_id", &self.message_id());
+      ds.field("sender_device_id", &self.sender_device_id());
+      ds.field("sender_role", &self.sender_role());
+      ds.field("correlation_id", &self.correlation_id());
+      ds.field("idempotency_key", &self.idempotency_key());
+      ds.field("expires_at", &self.expires_at());
+      ds.field("cancellation_id", &self.cancellation_id());
+      ds.finish()
+  }
+}
+pub enum DeviceIdentityOffset {}
+#[derive(Copy, Clone, PartialEq)]
+
+pub struct DeviceIdentity<'a> {
+  pub _tab: ::flatbuffers::Table<'a>,
+}
+
+impl<'a> ::flatbuffers::Follow<'a> for DeviceIdentity<'a> {
+  type Inner = DeviceIdentity<'a>;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }
+  }
+}
+
+impl<'a> DeviceIdentity<'a> {
+  pub const VT_VERSION: ::flatbuffers::VOffsetT = 4;
+  pub const VT_KIND: ::flatbuffers::VOffsetT = 6;
+  pub const VT_DEVICE_ID: ::flatbuffers::VOffsetT = 8;
+  pub const VT_PUBLIC_KEY: ::flatbuffers::VOffsetT = 10;
+  pub const VT_NONCE: ::flatbuffers::VOffsetT = 12;
+  pub const VT_EXPIRES_AT: ::flatbuffers::VOffsetT = 14;
+  pub const VT_CHANNEL_BINDING_KIND: ::flatbuffers::VOffsetT = 16;
+  pub const VT_CHANNEL_BINDING_VALUE: ::flatbuffers::VOffsetT = 18;
+  pub const VT_CAPABILITIES: ::flatbuffers::VOffsetT = 20;
+
+  #[inline]
+  pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
+    DeviceIdentity { _tab: table }
+  }
+  #[allow(unused_mut)]
+  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
+    _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
+    args: &'args DeviceIdentityArgs<'args>
+  ) -> ::flatbuffers::WIPOffset<DeviceIdentity<'bldr>> {
+    let mut builder = DeviceIdentityBuilder::new(_fbb);
+    builder.add_expires_at(args.expires_at);
+    if let Some(x) = args.capabilities { builder.add_capabilities(x); }
+    if let Some(x) = args.channel_binding_value { builder.add_channel_binding_value(x); }
+    if let Some(x) = args.nonce { builder.add_nonce(x); }
+    if let Some(x) = args.public_key { builder.add_public_key(x); }
+    if let Some(x) = args.device_id { builder.add_device_id(x); }
+    builder.add_version(args.version);
+    builder.add_channel_binding_kind(args.channel_binding_kind);
+    builder.add_kind(args.kind);
+    builder.finish()
+  }
+
+
+  #[inline]
+  pub fn version(&self) -> u32 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u32>(DeviceIdentity::VT_VERSION, Some(1)).unwrap()}
+  }
+  #[inline]
+  pub fn kind(&self) -> DeviceKind {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<DeviceKind>(DeviceIdentity::VT_KIND, Some(DeviceKind::unknown)).unwrap()}
+  }
+  #[inline]
+  pub fn device_id(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(DeviceIdentity::VT_DEVICE_ID, None)}
+  }
+  #[inline]
+  pub fn public_key(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(DeviceIdentity::VT_PUBLIC_KEY, None)}
+  }
+  #[inline]
+  pub fn nonce(&self) -> Option<::flatbuffers::Vector<'a, u8>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, u8>>>(DeviceIdentity::VT_NONCE, None)}
+  }
+  #[inline]
+  pub fn expires_at(&self) -> u64 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u64>(DeviceIdentity::VT_EXPIRES_AT, Some(0)).unwrap()}
+  }
+  #[inline]
+  pub fn channel_binding_kind(&self) -> ChannelBindingKind {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<ChannelBindingKind>(DeviceIdentity::VT_CHANNEL_BINDING_KIND, Some(ChannelBindingKind::none)).unwrap()}
+  }
+  #[inline]
+  pub fn channel_binding_value(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(DeviceIdentity::VT_CHANNEL_BINDING_VALUE, None)}
+  }
+  #[inline]
+  pub fn capabilities(&self) -> Option<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<&'a str>>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<&'a str>>>>(DeviceIdentity::VT_CAPABILITIES, None)}
+  }
+}
+
+impl ::flatbuffers::Verifiable for DeviceIdentity<'_> {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    v.visit_table(pos)?
+     .visit_field::<u32>("version", Self::VT_VERSION, false)?
+     .visit_field::<DeviceKind>("kind", Self::VT_KIND, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("device_id", Self::VT_DEVICE_ID, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("public_key", Self::VT_PUBLIC_KEY, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, u8>>>("nonce", Self::VT_NONCE, false)?
+     .visit_field::<u64>("expires_at", Self::VT_EXPIRES_AT, false)?
+     .visit_field::<ChannelBindingKind>("channel_binding_kind", Self::VT_CHANNEL_BINDING_KIND, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("channel_binding_value", Self::VT_CHANNEL_BINDING_VALUE, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, ::flatbuffers::ForwardsUOffset<&'_ str>>>>("capabilities", Self::VT_CAPABILITIES, false)?
+     .finish();
+    Ok(())
+  }
+}
+pub struct DeviceIdentityArgs<'a> {
+    pub version: u32,
+    pub kind: DeviceKind,
+    pub device_id: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub public_key: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub nonce: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, u8>>>,
+    pub expires_at: u64,
+    pub channel_binding_kind: ChannelBindingKind,
+    pub channel_binding_value: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub capabilities: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<&'a str>>>>,
+}
+impl<'a> Default for DeviceIdentityArgs<'a> {
+  #[inline]
+  fn default() -> Self {
+    DeviceIdentityArgs {
+      version: 1,
+      kind: DeviceKind::unknown,
+      device_id: None,
+      public_key: None,
+      nonce: None,
+      expires_at: 0,
+      channel_binding_kind: ChannelBindingKind::none,
+      channel_binding_value: None,
+      capabilities: None,
+    }
+  }
+}
+
+pub struct DeviceIdentityBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
+  fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
+  start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
+}
+impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> DeviceIdentityBuilder<'a, 'b, A> {
+  #[inline]
+  pub fn add_version(&mut self, version: u32) {
+    self.fbb_.push_slot::<u32>(DeviceIdentity::VT_VERSION, version, 1);
+  }
+  #[inline]
+  pub fn add_kind(&mut self, kind: DeviceKind) {
+    self.fbb_.push_slot::<DeviceKind>(DeviceIdentity::VT_KIND, kind, DeviceKind::unknown);
+  }
+  #[inline]
+  pub fn add_device_id(&mut self, device_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(DeviceIdentity::VT_DEVICE_ID, device_id);
+  }
+  #[inline]
+  pub fn add_public_key(&mut self, public_key: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(DeviceIdentity::VT_PUBLIC_KEY, public_key);
+  }
+  #[inline]
+  pub fn add_nonce(&mut self, nonce: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , u8>>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(DeviceIdentity::VT_NONCE, nonce);
+  }
+  #[inline]
+  pub fn add_expires_at(&mut self, expires_at: u64) {
+    self.fbb_.push_slot::<u64>(DeviceIdentity::VT_EXPIRES_AT, expires_at, 0);
+  }
+  #[inline]
+  pub fn add_channel_binding_kind(&mut self, channel_binding_kind: ChannelBindingKind) {
+    self.fbb_.push_slot::<ChannelBindingKind>(DeviceIdentity::VT_CHANNEL_BINDING_KIND, channel_binding_kind, ChannelBindingKind::none);
+  }
+  #[inline]
+  pub fn add_channel_binding_value(&mut self, channel_binding_value: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(DeviceIdentity::VT_CHANNEL_BINDING_VALUE, channel_binding_value);
+  }
+  #[inline]
+  pub fn add_capabilities(&mut self, capabilities: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , ::flatbuffers::ForwardsUOffset<&'b  str>>>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(DeviceIdentity::VT_CAPABILITIES, capabilities);
+  }
+  #[inline]
+  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> DeviceIdentityBuilder<'a, 'b, A> {
+    let start = _fbb.start_table();
+    DeviceIdentityBuilder {
+      fbb_: _fbb,
+      start_: start,
+    }
+  }
+  #[inline]
+  pub fn finish(self) -> ::flatbuffers::WIPOffset<DeviceIdentity<'a>> {
+    let o = self.fbb_.end_table(self.start_);
+    ::flatbuffers::WIPOffset::new(o.value())
+  }
+}
+
+impl ::core::fmt::Debug for DeviceIdentity<'_> {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+    let mut ds = f.debug_struct("DeviceIdentity");
+      ds.field("version", &self.version());
+      ds.field("kind", &self.kind());
+      ds.field("device_id", &self.device_id());
+      ds.field("public_key", &self.public_key());
+      ds.field("nonce", &self.nonce());
+      ds.field("expires_at", &self.expires_at());
+      ds.field("channel_binding_kind", &self.channel_binding_kind());
+      ds.field("channel_binding_value", &self.channel_binding_value());
+      ds.field("capabilities", &self.capabilities());
+      ds.finish()
+  }
+}
+pub enum PairingOfferOffset {}
+#[derive(Copy, Clone, PartialEq)]
+
+pub struct PairingOffer<'a> {
+  pub _tab: ::flatbuffers::Table<'a>,
+}
+
+impl<'a> ::flatbuffers::Follow<'a> for PairingOffer<'a> {
+  type Inner = PairingOffer<'a>;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }
+  }
+}
+
+impl<'a> PairingOffer<'a> {
+  pub const VT_IDENTITY: ::flatbuffers::VOffsetT = 4;
+  pub const VT_OFFER_NONCE: ::flatbuffers::VOffsetT = 6;
+  pub const VT_EXPIRES_AT: ::flatbuffers::VOffsetT = 8;
+  pub const VT_CHANNEL_BINDING_KIND: ::flatbuffers::VOffsetT = 10;
+  pub const VT_CHANNEL_BINDING_VALUE: ::flatbuffers::VOffsetT = 12;
+  pub const VT_CAPABILITIES: ::flatbuffers::VOffsetT = 14;
+
+  #[inline]
+  pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
+    PairingOffer { _tab: table }
+  }
+  #[allow(unused_mut)]
+  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
+    _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
+    args: &'args PairingOfferArgs<'args>
+  ) -> ::flatbuffers::WIPOffset<PairingOffer<'bldr>> {
+    let mut builder = PairingOfferBuilder::new(_fbb);
+    builder.add_expires_at(args.expires_at);
+    if let Some(x) = args.capabilities { builder.add_capabilities(x); }
+    if let Some(x) = args.channel_binding_value { builder.add_channel_binding_value(x); }
+    if let Some(x) = args.offer_nonce { builder.add_offer_nonce(x); }
+    if let Some(x) = args.identity { builder.add_identity(x); }
+    builder.add_channel_binding_kind(args.channel_binding_kind);
+    builder.finish()
+  }
+
+
+  #[inline]
+  pub fn identity(&self) -> Option<DeviceIdentity<'a>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<DeviceIdentity>>(PairingOffer::VT_IDENTITY, None)}
+  }
+  #[inline]
+  pub fn offer_nonce(&self) -> Option<::flatbuffers::Vector<'a, u8>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, u8>>>(PairingOffer::VT_OFFER_NONCE, None)}
+  }
+  #[inline]
+  pub fn expires_at(&self) -> u64 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u64>(PairingOffer::VT_EXPIRES_AT, Some(0)).unwrap()}
+  }
+  #[inline]
+  pub fn channel_binding_kind(&self) -> ChannelBindingKind {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<ChannelBindingKind>(PairingOffer::VT_CHANNEL_BINDING_KIND, Some(ChannelBindingKind::none)).unwrap()}
+  }
+  #[inline]
+  pub fn channel_binding_value(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(PairingOffer::VT_CHANNEL_BINDING_VALUE, None)}
+  }
+  #[inline]
+  pub fn capabilities(&self) -> Option<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<&'a str>>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<&'a str>>>>(PairingOffer::VT_CAPABILITIES, None)}
+  }
+}
+
+impl ::flatbuffers::Verifiable for PairingOffer<'_> {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    v.visit_table(pos)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<DeviceIdentity>>("identity", Self::VT_IDENTITY, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, u8>>>("offer_nonce", Self::VT_OFFER_NONCE, false)?
+     .visit_field::<u64>("expires_at", Self::VT_EXPIRES_AT, false)?
+     .visit_field::<ChannelBindingKind>("channel_binding_kind", Self::VT_CHANNEL_BINDING_KIND, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("channel_binding_value", Self::VT_CHANNEL_BINDING_VALUE, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, ::flatbuffers::ForwardsUOffset<&'_ str>>>>("capabilities", Self::VT_CAPABILITIES, false)?
+     .finish();
+    Ok(())
+  }
+}
+pub struct PairingOfferArgs<'a> {
+    pub identity: Option<::flatbuffers::WIPOffset<DeviceIdentity<'a>>>,
+    pub offer_nonce: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, u8>>>,
+    pub expires_at: u64,
+    pub channel_binding_kind: ChannelBindingKind,
+    pub channel_binding_value: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub capabilities: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<&'a str>>>>,
+}
+impl<'a> Default for PairingOfferArgs<'a> {
+  #[inline]
+  fn default() -> Self {
+    PairingOfferArgs {
+      identity: None,
+      offer_nonce: None,
+      expires_at: 0,
+      channel_binding_kind: ChannelBindingKind::none,
+      channel_binding_value: None,
+      capabilities: None,
+    }
+  }
+}
+
+pub struct PairingOfferBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
+  fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
+  start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
+}
+impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> PairingOfferBuilder<'a, 'b, A> {
+  #[inline]
+  pub fn add_identity(&mut self, identity: ::flatbuffers::WIPOffset<DeviceIdentity<'b >>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<DeviceIdentity>>(PairingOffer::VT_IDENTITY, identity);
+  }
+  #[inline]
+  pub fn add_offer_nonce(&mut self, offer_nonce: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , u8>>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(PairingOffer::VT_OFFER_NONCE, offer_nonce);
+  }
+  #[inline]
+  pub fn add_expires_at(&mut self, expires_at: u64) {
+    self.fbb_.push_slot::<u64>(PairingOffer::VT_EXPIRES_AT, expires_at, 0);
+  }
+  #[inline]
+  pub fn add_channel_binding_kind(&mut self, channel_binding_kind: ChannelBindingKind) {
+    self.fbb_.push_slot::<ChannelBindingKind>(PairingOffer::VT_CHANNEL_BINDING_KIND, channel_binding_kind, ChannelBindingKind::none);
+  }
+  #[inline]
+  pub fn add_channel_binding_value(&mut self, channel_binding_value: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(PairingOffer::VT_CHANNEL_BINDING_VALUE, channel_binding_value);
+  }
+  #[inline]
+  pub fn add_capabilities(&mut self, capabilities: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , ::flatbuffers::ForwardsUOffset<&'b  str>>>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(PairingOffer::VT_CAPABILITIES, capabilities);
+  }
+  #[inline]
+  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> PairingOfferBuilder<'a, 'b, A> {
+    let start = _fbb.start_table();
+    PairingOfferBuilder {
+      fbb_: _fbb,
+      start_: start,
+    }
+  }
+  #[inline]
+  pub fn finish(self) -> ::flatbuffers::WIPOffset<PairingOffer<'a>> {
+    let o = self.fbb_.end_table(self.start_);
+    ::flatbuffers::WIPOffset::new(o.value())
+  }
+}
+
+impl ::core::fmt::Debug for PairingOffer<'_> {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+    let mut ds = f.debug_struct("PairingOffer");
+      ds.field("identity", &self.identity());
+      ds.field("offer_nonce", &self.offer_nonce());
+      ds.field("expires_at", &self.expires_at());
+      ds.field("channel_binding_kind", &self.channel_binding_kind());
+      ds.field("channel_binding_value", &self.channel_binding_value());
+      ds.field("capabilities", &self.capabilities());
+      ds.finish()
+  }
+}
+pub enum PairingResponseOffset {}
+#[derive(Copy, Clone, PartialEq)]
+
+pub struct PairingResponse<'a> {
+  pub _tab: ::flatbuffers::Table<'a>,
+}
+
+impl<'a> ::flatbuffers::Follow<'a> for PairingResponse<'a> {
+  type Inner = PairingResponse<'a>;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }
+  }
+}
+
+impl<'a> PairingResponse<'a> {
+  pub const VT_IDENTITY: ::flatbuffers::VOffsetT = 4;
+  pub const VT_OFFER_NONCE: ::flatbuffers::VOffsetT = 6;
+  pub const VT_RESPONSE_NONCE: ::flatbuffers::VOffsetT = 8;
+  pub const VT_ACCEPTED: ::flatbuffers::VOffsetT = 10;
+  pub const VT_EXPIRES_AT: ::flatbuffers::VOffsetT = 12;
+  pub const VT_CHANNEL_BINDING_KIND: ::flatbuffers::VOffsetT = 14;
+  pub const VT_CHANNEL_BINDING_VALUE: ::flatbuffers::VOffsetT = 16;
+  pub const VT_CAPABILITIES: ::flatbuffers::VOffsetT = 18;
+
+  #[inline]
+  pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
+    PairingResponse { _tab: table }
+  }
+  #[allow(unused_mut)]
+  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
+    _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
+    args: &'args PairingResponseArgs<'args>
+  ) -> ::flatbuffers::WIPOffset<PairingResponse<'bldr>> {
+    let mut builder = PairingResponseBuilder::new(_fbb);
+    builder.add_expires_at(args.expires_at);
+    if let Some(x) = args.capabilities { builder.add_capabilities(x); }
+    if let Some(x) = args.channel_binding_value { builder.add_channel_binding_value(x); }
+    if let Some(x) = args.response_nonce { builder.add_response_nonce(x); }
+    if let Some(x) = args.offer_nonce { builder.add_offer_nonce(x); }
+    if let Some(x) = args.identity { builder.add_identity(x); }
+    builder.add_channel_binding_kind(args.channel_binding_kind);
+    builder.add_accepted(args.accepted);
+    builder.finish()
+  }
+
+
+  #[inline]
+  pub fn identity(&self) -> Option<DeviceIdentity<'a>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<DeviceIdentity>>(PairingResponse::VT_IDENTITY, None)}
+  }
+  #[inline]
+  pub fn offer_nonce(&self) -> Option<::flatbuffers::Vector<'a, u8>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, u8>>>(PairingResponse::VT_OFFER_NONCE, None)}
+  }
+  #[inline]
+  pub fn response_nonce(&self) -> Option<::flatbuffers::Vector<'a, u8>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, u8>>>(PairingResponse::VT_RESPONSE_NONCE, None)}
+  }
+  #[inline]
+  pub fn accepted(&self) -> bool {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<bool>(PairingResponse::VT_ACCEPTED, Some(false)).unwrap()}
+  }
+  #[inline]
+  pub fn expires_at(&self) -> u64 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u64>(PairingResponse::VT_EXPIRES_AT, Some(0)).unwrap()}
+  }
+  #[inline]
+  pub fn channel_binding_kind(&self) -> ChannelBindingKind {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<ChannelBindingKind>(PairingResponse::VT_CHANNEL_BINDING_KIND, Some(ChannelBindingKind::none)).unwrap()}
+  }
+  #[inline]
+  pub fn channel_binding_value(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(PairingResponse::VT_CHANNEL_BINDING_VALUE, None)}
+  }
+  #[inline]
+  pub fn capabilities(&self) -> Option<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<&'a str>>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<&'a str>>>>(PairingResponse::VT_CAPABILITIES, None)}
+  }
+}
+
+impl ::flatbuffers::Verifiable for PairingResponse<'_> {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    v.visit_table(pos)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<DeviceIdentity>>("identity", Self::VT_IDENTITY, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, u8>>>("offer_nonce", Self::VT_OFFER_NONCE, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, u8>>>("response_nonce", Self::VT_RESPONSE_NONCE, false)?
+     .visit_field::<bool>("accepted", Self::VT_ACCEPTED, false)?
+     .visit_field::<u64>("expires_at", Self::VT_EXPIRES_AT, false)?
+     .visit_field::<ChannelBindingKind>("channel_binding_kind", Self::VT_CHANNEL_BINDING_KIND, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("channel_binding_value", Self::VT_CHANNEL_BINDING_VALUE, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, ::flatbuffers::ForwardsUOffset<&'_ str>>>>("capabilities", Self::VT_CAPABILITIES, false)?
+     .finish();
+    Ok(())
+  }
+}
+pub struct PairingResponseArgs<'a> {
+    pub identity: Option<::flatbuffers::WIPOffset<DeviceIdentity<'a>>>,
+    pub offer_nonce: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, u8>>>,
+    pub response_nonce: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, u8>>>,
+    pub accepted: bool,
+    pub expires_at: u64,
+    pub channel_binding_kind: ChannelBindingKind,
+    pub channel_binding_value: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub capabilities: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<&'a str>>>>,
+}
+impl<'a> Default for PairingResponseArgs<'a> {
+  #[inline]
+  fn default() -> Self {
+    PairingResponseArgs {
+      identity: None,
+      offer_nonce: None,
+      response_nonce: None,
+      accepted: false,
+      expires_at: 0,
+      channel_binding_kind: ChannelBindingKind::none,
+      channel_binding_value: None,
+      capabilities: None,
+    }
+  }
+}
+
+pub struct PairingResponseBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
+  fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
+  start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
+}
+impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> PairingResponseBuilder<'a, 'b, A> {
+  #[inline]
+  pub fn add_identity(&mut self, identity: ::flatbuffers::WIPOffset<DeviceIdentity<'b >>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<DeviceIdentity>>(PairingResponse::VT_IDENTITY, identity);
+  }
+  #[inline]
+  pub fn add_offer_nonce(&mut self, offer_nonce: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , u8>>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(PairingResponse::VT_OFFER_NONCE, offer_nonce);
+  }
+  #[inline]
+  pub fn add_response_nonce(&mut self, response_nonce: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , u8>>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(PairingResponse::VT_RESPONSE_NONCE, response_nonce);
+  }
+  #[inline]
+  pub fn add_accepted(&mut self, accepted: bool) {
+    self.fbb_.push_slot::<bool>(PairingResponse::VT_ACCEPTED, accepted, false);
+  }
+  #[inline]
+  pub fn add_expires_at(&mut self, expires_at: u64) {
+    self.fbb_.push_slot::<u64>(PairingResponse::VT_EXPIRES_AT, expires_at, 0);
+  }
+  #[inline]
+  pub fn add_channel_binding_kind(&mut self, channel_binding_kind: ChannelBindingKind) {
+    self.fbb_.push_slot::<ChannelBindingKind>(PairingResponse::VT_CHANNEL_BINDING_KIND, channel_binding_kind, ChannelBindingKind::none);
+  }
+  #[inline]
+  pub fn add_channel_binding_value(&mut self, channel_binding_value: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(PairingResponse::VT_CHANNEL_BINDING_VALUE, channel_binding_value);
+  }
+  #[inline]
+  pub fn add_capabilities(&mut self, capabilities: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , ::flatbuffers::ForwardsUOffset<&'b  str>>>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(PairingResponse::VT_CAPABILITIES, capabilities);
+  }
+  #[inline]
+  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> PairingResponseBuilder<'a, 'b, A> {
+    let start = _fbb.start_table();
+    PairingResponseBuilder {
+      fbb_: _fbb,
+      start_: start,
+    }
+  }
+  #[inline]
+  pub fn finish(self) -> ::flatbuffers::WIPOffset<PairingResponse<'a>> {
+    let o = self.fbb_.end_table(self.start_);
+    ::flatbuffers::WIPOffset::new(o.value())
+  }
+}
+
+impl ::core::fmt::Debug for PairingResponse<'_> {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+    let mut ds = f.debug_struct("PairingResponse");
+      ds.field("identity", &self.identity());
+      ds.field("offer_nonce", &self.offer_nonce());
+      ds.field("response_nonce", &self.response_nonce());
+      ds.field("accepted", &self.accepted());
+      ds.field("expires_at", &self.expires_at());
+      ds.field("channel_binding_kind", &self.channel_binding_kind());
+      ds.field("channel_binding_value", &self.channel_binding_value());
+      ds.field("capabilities", &self.capabilities());
+      ds.finish()
+  }
+}
+pub enum CapabilityDescriptorOffset {}
+#[derive(Copy, Clone, PartialEq)]
+
+pub struct CapabilityDescriptor<'a> {
+  pub _tab: ::flatbuffers::Table<'a>,
+}
+
+impl<'a> ::flatbuffers::Follow<'a> for CapabilityDescriptor<'a> {
+  type Inner = CapabilityDescriptor<'a>;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }
+  }
+}
+
+impl<'a> CapabilityDescriptor<'a> {
+  pub const VT_CAP_URI: ::flatbuffers::VOffsetT = 4;
+  pub const VT_VERSION: ::flatbuffers::VOffsetT = 6;
+  pub const VT_PROVIDER_DEVICE_ID: ::flatbuffers::VOffsetT = 8;
+  pub const VT_AVAILABILITY: ::flatbuffers::VOffsetT = 10;
+  pub const VT_AUTHORIZATION: ::flatbuffers::VOffsetT = 12;
+  pub const VT_PERMISSIONS: ::flatbuffers::VOffsetT = 14;
+  pub const VT_EXECUTION: ::flatbuffers::VOffsetT = 16;
+  pub const VT_TRANSPORT: ::flatbuffers::VOffsetT = 18;
+  pub const VT_CONSTRAINTS: ::flatbuffers::VOffsetT = 20;
+
+  #[inline]
+  pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
+    CapabilityDescriptor { _tab: table }
+  }
+  #[allow(unused_mut)]
+  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
+    _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
+    args: &'args CapabilityDescriptorArgs<'args>
+  ) -> ::flatbuffers::WIPOffset<CapabilityDescriptor<'bldr>> {
+    let mut builder = CapabilityDescriptorBuilder::new(_fbb);
+    if let Some(x) = args.constraints { builder.add_constraints(x); }
+    if let Some(x) = args.transport { builder.add_transport(x); }
+    if let Some(x) = args.execution { builder.add_execution(x); }
+    if let Some(x) = args.permissions { builder.add_permissions(x); }
+    if let Some(x) = args.provider_device_id { builder.add_provider_device_id(x); }
+    builder.add_version(args.version);
+    if let Some(x) = args.cap_uri { builder.add_cap_uri(x); }
+    builder.add_authorization(args.authorization);
+    builder.add_availability(args.availability);
+    builder.finish()
+  }
+
+
+  #[inline]
+  pub fn cap_uri(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(CapabilityDescriptor::VT_CAP_URI, None)}
+  }
+  #[inline]
+  pub fn version(&self) -> u32 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u32>(CapabilityDescriptor::VT_VERSION, Some(1)).unwrap()}
+  }
+  #[inline]
+  pub fn provider_device_id(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(CapabilityDescriptor::VT_PROVIDER_DEVICE_ID, None)}
+  }
+  #[inline]
+  pub fn availability(&self) -> Availability {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<Availability>(CapabilityDescriptor::VT_AVAILABILITY, Some(Availability::unknown)).unwrap()}
+  }
+  #[inline]
+  pub fn authorization(&self) -> Authorization {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<Authorization>(CapabilityDescriptor::VT_AUTHORIZATION, Some(Authorization::unknown)).unwrap()}
+  }
+  #[inline]
+  pub fn permissions(&self) -> Option<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<&'a str>>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<&'a str>>>>(CapabilityDescriptor::VT_PERMISSIONS, None)}
+  }
+  #[inline]
+  pub fn execution(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(CapabilityDescriptor::VT_EXECUTION, None)}
+  }
+  #[inline]
+  pub fn transport(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(CapabilityDescriptor::VT_TRANSPORT, None)}
+  }
+  #[inline]
+  pub fn constraints(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(CapabilityDescriptor::VT_CONSTRAINTS, None)}
+  }
+}
+
+impl ::flatbuffers::Verifiable for CapabilityDescriptor<'_> {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    v.visit_table(pos)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("cap_uri", Self::VT_CAP_URI, false)?
+     .visit_field::<u32>("version", Self::VT_VERSION, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("provider_device_id", Self::VT_PROVIDER_DEVICE_ID, false)?
+     .visit_field::<Availability>("availability", Self::VT_AVAILABILITY, false)?
+     .visit_field::<Authorization>("authorization", Self::VT_AUTHORIZATION, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, ::flatbuffers::ForwardsUOffset<&'_ str>>>>("permissions", Self::VT_PERMISSIONS, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("execution", Self::VT_EXECUTION, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("transport", Self::VT_TRANSPORT, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("constraints", Self::VT_CONSTRAINTS, false)?
+     .finish();
+    Ok(())
+  }
+}
+pub struct CapabilityDescriptorArgs<'a> {
+    pub cap_uri: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub version: u32,
+    pub provider_device_id: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub availability: Availability,
+    pub authorization: Authorization,
+    pub permissions: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<&'a str>>>>,
+    pub execution: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub transport: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub constraints: Option<::flatbuffers::WIPOffset<&'a str>>,
+}
+impl<'a> Default for CapabilityDescriptorArgs<'a> {
+  #[inline]
+  fn default() -> Self {
+    CapabilityDescriptorArgs {
+      cap_uri: None,
+      version: 1,
+      provider_device_id: None,
+      availability: Availability::unknown,
+      authorization: Authorization::unknown,
+      permissions: None,
+      execution: None,
+      transport: None,
+      constraints: None,
+    }
+  }
+}
+
+pub struct CapabilityDescriptorBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
+  fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
+  start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
+}
+impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> CapabilityDescriptorBuilder<'a, 'b, A> {
+  #[inline]
+  pub fn add_cap_uri(&mut self, cap_uri: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(CapabilityDescriptor::VT_CAP_URI, cap_uri);
+  }
+  #[inline]
+  pub fn add_version(&mut self, version: u32) {
+    self.fbb_.push_slot::<u32>(CapabilityDescriptor::VT_VERSION, version, 1);
+  }
+  #[inline]
+  pub fn add_provider_device_id(&mut self, provider_device_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(CapabilityDescriptor::VT_PROVIDER_DEVICE_ID, provider_device_id);
+  }
+  #[inline]
+  pub fn add_availability(&mut self, availability: Availability) {
+    self.fbb_.push_slot::<Availability>(CapabilityDescriptor::VT_AVAILABILITY, availability, Availability::unknown);
+  }
+  #[inline]
+  pub fn add_authorization(&mut self, authorization: Authorization) {
+    self.fbb_.push_slot::<Authorization>(CapabilityDescriptor::VT_AUTHORIZATION, authorization, Authorization::unknown);
+  }
+  #[inline]
+  pub fn add_permissions(&mut self, permissions: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , ::flatbuffers::ForwardsUOffset<&'b  str>>>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(CapabilityDescriptor::VT_PERMISSIONS, permissions);
+  }
+  #[inline]
+  pub fn add_execution(&mut self, execution: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(CapabilityDescriptor::VT_EXECUTION, execution);
+  }
+  #[inline]
+  pub fn add_transport(&mut self, transport: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(CapabilityDescriptor::VT_TRANSPORT, transport);
+  }
+  #[inline]
+  pub fn add_constraints(&mut self, constraints: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(CapabilityDescriptor::VT_CONSTRAINTS, constraints);
+  }
+  #[inline]
+  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> CapabilityDescriptorBuilder<'a, 'b, A> {
+    let start = _fbb.start_table();
+    CapabilityDescriptorBuilder {
+      fbb_: _fbb,
+      start_: start,
+    }
+  }
+  #[inline]
+  pub fn finish(self) -> ::flatbuffers::WIPOffset<CapabilityDescriptor<'a>> {
+    let o = self.fbb_.end_table(self.start_);
+    ::flatbuffers::WIPOffset::new(o.value())
+  }
+}
+
+impl ::core::fmt::Debug for CapabilityDescriptor<'_> {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+    let mut ds = f.debug_struct("CapabilityDescriptor");
+      ds.field("cap_uri", &self.cap_uri());
+      ds.field("version", &self.version());
+      ds.field("provider_device_id", &self.provider_device_id());
+      ds.field("availability", &self.availability());
+      ds.field("authorization", &self.authorization());
+      ds.field("permissions", &self.permissions());
+      ds.field("execution", &self.execution());
+      ds.field("transport", &self.transport());
+      ds.field("constraints", &self.constraints());
+      ds.finish()
+  }
+}
+pub enum CapabilityLeaseOffset {}
+#[derive(Copy, Clone, PartialEq)]
+
+pub struct CapabilityLease<'a> {
+  pub _tab: ::flatbuffers::Table<'a>,
+}
+
+impl<'a> ::flatbuffers::Follow<'a> for CapabilityLease<'a> {
+  type Inner = CapabilityLease<'a>;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }
+  }
+}
+
+impl<'a> CapabilityLease<'a> {
+  pub const VT_LEASE_ID: ::flatbuffers::VOffsetT = 4;
+  pub const VT_CAP_URI: ::flatbuffers::VOffsetT = 6;
+  pub const VT_WORKSPACE_ID: ::flatbuffers::VOffsetT = 8;
+  pub const VT_APPLICATION_ID: ::flatbuffers::VOffsetT = 10;
+  pub const VT_REQUESTER_DEVICE_ID: ::flatbuffers::VOffsetT = 12;
+  pub const VT_SESSION_ID: ::flatbuffers::VOffsetT = 14;
+  pub const VT_ISSUED_AT: ::flatbuffers::VOffsetT = 16;
+  pub const VT_EXPIRES_AT: ::flatbuffers::VOffsetT = 18;
+  pub const VT_REVOKED: ::flatbuffers::VOffsetT = 20;
+  pub const VT_REVOCATION_REASON: ::flatbuffers::VOffsetT = 22;
+  pub const VT_OPERATIONS: ::flatbuffers::VOffsetT = 24;
+  pub const VT_AUDIT_ID: ::flatbuffers::VOffsetT = 26;
+
+  #[inline]
+  pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
+    CapabilityLease { _tab: table }
+  }
+  #[allow(unused_mut)]
+  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
+    _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
+    args: &'args CapabilityLeaseArgs<'args>
+  ) -> ::flatbuffers::WIPOffset<CapabilityLease<'bldr>> {
+    let mut builder = CapabilityLeaseBuilder::new(_fbb);
+    builder.add_expires_at(args.expires_at);
+    builder.add_issued_at(args.issued_at);
+    if let Some(x) = args.audit_id { builder.add_audit_id(x); }
+    if let Some(x) = args.operations { builder.add_operations(x); }
+    if let Some(x) = args.revocation_reason { builder.add_revocation_reason(x); }
+    if let Some(x) = args.session_id { builder.add_session_id(x); }
+    if let Some(x) = args.requester_device_id { builder.add_requester_device_id(x); }
+    if let Some(x) = args.application_id { builder.add_application_id(x); }
+    if let Some(x) = args.workspace_id { builder.add_workspace_id(x); }
+    if let Some(x) = args.cap_uri { builder.add_cap_uri(x); }
+    if let Some(x) = args.lease_id { builder.add_lease_id(x); }
+    builder.add_revoked(args.revoked);
+    builder.finish()
+  }
+
+
+  #[inline]
+  pub fn lease_id(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(CapabilityLease::VT_LEASE_ID, None)}
+  }
+  #[inline]
+  pub fn cap_uri(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(CapabilityLease::VT_CAP_URI, None)}
+  }
+  #[inline]
+  pub fn workspace_id(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(CapabilityLease::VT_WORKSPACE_ID, None)}
+  }
+  #[inline]
+  pub fn application_id(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(CapabilityLease::VT_APPLICATION_ID, None)}
+  }
+  #[inline]
+  pub fn requester_device_id(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(CapabilityLease::VT_REQUESTER_DEVICE_ID, None)}
+  }
+  #[inline]
+  pub fn session_id(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(CapabilityLease::VT_SESSION_ID, None)}
+  }
+  #[inline]
+  pub fn issued_at(&self) -> u64 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u64>(CapabilityLease::VT_ISSUED_AT, Some(0)).unwrap()}
+  }
+  #[inline]
+  pub fn expires_at(&self) -> u64 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u64>(CapabilityLease::VT_EXPIRES_AT, Some(0)).unwrap()}
+  }
+  #[inline]
+  pub fn revoked(&self) -> bool {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<bool>(CapabilityLease::VT_REVOKED, Some(false)).unwrap()}
+  }
+  #[inline]
+  pub fn revocation_reason(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(CapabilityLease::VT_REVOCATION_REASON, None)}
+  }
+  #[inline]
+  pub fn operations(&self) -> Option<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<&'a str>>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<&'a str>>>>(CapabilityLease::VT_OPERATIONS, None)}
+  }
+  #[inline]
+  pub fn audit_id(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(CapabilityLease::VT_AUDIT_ID, None)}
+  }
+}
+
+impl ::flatbuffers::Verifiable for CapabilityLease<'_> {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    v.visit_table(pos)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("lease_id", Self::VT_LEASE_ID, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("cap_uri", Self::VT_CAP_URI, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("workspace_id", Self::VT_WORKSPACE_ID, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("application_id", Self::VT_APPLICATION_ID, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("requester_device_id", Self::VT_REQUESTER_DEVICE_ID, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("session_id", Self::VT_SESSION_ID, false)?
+     .visit_field::<u64>("issued_at", Self::VT_ISSUED_AT, false)?
+     .visit_field::<u64>("expires_at", Self::VT_EXPIRES_AT, false)?
+     .visit_field::<bool>("revoked", Self::VT_REVOKED, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("revocation_reason", Self::VT_REVOCATION_REASON, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, ::flatbuffers::ForwardsUOffset<&'_ str>>>>("operations", Self::VT_OPERATIONS, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("audit_id", Self::VT_AUDIT_ID, false)?
+     .finish();
+    Ok(())
+  }
+}
+pub struct CapabilityLeaseArgs<'a> {
+    pub lease_id: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub cap_uri: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub workspace_id: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub application_id: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub requester_device_id: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub session_id: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub issued_at: u64,
+    pub expires_at: u64,
+    pub revoked: bool,
+    pub revocation_reason: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub operations: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<&'a str>>>>,
+    pub audit_id: Option<::flatbuffers::WIPOffset<&'a str>>,
+}
+impl<'a> Default for CapabilityLeaseArgs<'a> {
+  #[inline]
+  fn default() -> Self {
+    CapabilityLeaseArgs {
+      lease_id: None,
+      cap_uri: None,
+      workspace_id: None,
+      application_id: None,
+      requester_device_id: None,
+      session_id: None,
+      issued_at: 0,
+      expires_at: 0,
+      revoked: false,
+      revocation_reason: None,
+      operations: None,
+      audit_id: None,
+    }
+  }
+}
+
+pub struct CapabilityLeaseBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
+  fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
+  start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
+}
+impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> CapabilityLeaseBuilder<'a, 'b, A> {
+  #[inline]
+  pub fn add_lease_id(&mut self, lease_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(CapabilityLease::VT_LEASE_ID, lease_id);
+  }
+  #[inline]
+  pub fn add_cap_uri(&mut self, cap_uri: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(CapabilityLease::VT_CAP_URI, cap_uri);
+  }
+  #[inline]
+  pub fn add_workspace_id(&mut self, workspace_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(CapabilityLease::VT_WORKSPACE_ID, workspace_id);
+  }
+  #[inline]
+  pub fn add_application_id(&mut self, application_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(CapabilityLease::VT_APPLICATION_ID, application_id);
+  }
+  #[inline]
+  pub fn add_requester_device_id(&mut self, requester_device_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(CapabilityLease::VT_REQUESTER_DEVICE_ID, requester_device_id);
+  }
+  #[inline]
+  pub fn add_session_id(&mut self, session_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(CapabilityLease::VT_SESSION_ID, session_id);
+  }
+  #[inline]
+  pub fn add_issued_at(&mut self, issued_at: u64) {
+    self.fbb_.push_slot::<u64>(CapabilityLease::VT_ISSUED_AT, issued_at, 0);
+  }
+  #[inline]
+  pub fn add_expires_at(&mut self, expires_at: u64) {
+    self.fbb_.push_slot::<u64>(CapabilityLease::VT_EXPIRES_AT, expires_at, 0);
+  }
+  #[inline]
+  pub fn add_revoked(&mut self, revoked: bool) {
+    self.fbb_.push_slot::<bool>(CapabilityLease::VT_REVOKED, revoked, false);
+  }
+  #[inline]
+  pub fn add_revocation_reason(&mut self, revocation_reason: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(CapabilityLease::VT_REVOCATION_REASON, revocation_reason);
+  }
+  #[inline]
+  pub fn add_operations(&mut self, operations: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , ::flatbuffers::ForwardsUOffset<&'b  str>>>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(CapabilityLease::VT_OPERATIONS, operations);
+  }
+  #[inline]
+  pub fn add_audit_id(&mut self, audit_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(CapabilityLease::VT_AUDIT_ID, audit_id);
+  }
+  #[inline]
+  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> CapabilityLeaseBuilder<'a, 'b, A> {
+    let start = _fbb.start_table();
+    CapabilityLeaseBuilder {
+      fbb_: _fbb,
+      start_: start,
+    }
+  }
+  #[inline]
+  pub fn finish(self) -> ::flatbuffers::WIPOffset<CapabilityLease<'a>> {
+    let o = self.fbb_.end_table(self.start_);
+    ::flatbuffers::WIPOffset::new(o.value())
+  }
+}
+
+impl ::core::fmt::Debug for CapabilityLease<'_> {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+    let mut ds = f.debug_struct("CapabilityLease");
+      ds.field("lease_id", &self.lease_id());
+      ds.field("cap_uri", &self.cap_uri());
+      ds.field("workspace_id", &self.workspace_id());
+      ds.field("application_id", &self.application_id());
+      ds.field("requester_device_id", &self.requester_device_id());
+      ds.field("session_id", &self.session_id());
+      ds.field("issued_at", &self.issued_at());
+      ds.field("expires_at", &self.expires_at());
+      ds.field("revoked", &self.revoked());
+      ds.field("revocation_reason", &self.revocation_reason());
+      ds.field("operations", &self.operations());
+      ds.field("audit_id", &self.audit_id());
+      ds.finish()
+  }
+}
+pub enum ViewportOffset {}
+#[derive(Copy, Clone, PartialEq)]
+
+pub struct Viewport<'a> {
+  pub _tab: ::flatbuffers::Table<'a>,
+}
+
+impl<'a> ::flatbuffers::Follow<'a> for Viewport<'a> {
+  type Inner = Viewport<'a>;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }
+  }
+}
+
+impl<'a> Viewport<'a> {
+  pub const VT_WIDTH: ::flatbuffers::VOffsetT = 4;
+  pub const VT_HEIGHT: ::flatbuffers::VOffsetT = 6;
+  pub const VT_SCALE: ::flatbuffers::VOffsetT = 8;
+  pub const VT_ORIENTATION: ::flatbuffers::VOffsetT = 10;
+
+  #[inline]
+  pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
+    Viewport { _tab: table }
+  }
+  #[allow(unused_mut)]
+  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
+    _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
+    args: &'args ViewportArgs<'args>
+  ) -> ::flatbuffers::WIPOffset<Viewport<'bldr>> {
+    let mut builder = ViewportBuilder::new(_fbb);
+    if let Some(x) = args.orientation { builder.add_orientation(x); }
+    builder.add_scale(args.scale);
+    builder.add_height(args.height);
+    builder.add_width(args.width);
+    builder.finish()
+  }
+
+
+  #[inline]
+  pub fn width(&self) -> u32 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u32>(Viewport::VT_WIDTH, Some(0)).unwrap()}
+  }
+  #[inline]
+  pub fn height(&self) -> u32 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u32>(Viewport::VT_HEIGHT, Some(0)).unwrap()}
+  }
+  #[inline]
+  pub fn scale(&self) -> f32 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<f32>(Viewport::VT_SCALE, Some(1.0)).unwrap()}
+  }
+  #[inline]
+  pub fn orientation(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(Viewport::VT_ORIENTATION, None)}
+  }
+}
+
+impl ::flatbuffers::Verifiable for Viewport<'_> {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    v.visit_table(pos)?
+     .visit_field::<u32>("width", Self::VT_WIDTH, false)?
+     .visit_field::<u32>("height", Self::VT_HEIGHT, false)?
+     .visit_field::<f32>("scale", Self::VT_SCALE, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("orientation", Self::VT_ORIENTATION, false)?
+     .finish();
+    Ok(())
+  }
+}
+pub struct ViewportArgs<'a> {
+    pub width: u32,
+    pub height: u32,
+    pub scale: f32,
+    pub orientation: Option<::flatbuffers::WIPOffset<&'a str>>,
+}
+impl<'a> Default for ViewportArgs<'a> {
+  #[inline]
+  fn default() -> Self {
+    ViewportArgs {
+      width: 0,
+      height: 0,
+      scale: 1.0,
+      orientation: None,
+    }
+  }
+}
+
+pub struct ViewportBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
+  fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
+  start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
+}
+impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> ViewportBuilder<'a, 'b, A> {
+  #[inline]
+  pub fn add_width(&mut self, width: u32) {
+    self.fbb_.push_slot::<u32>(Viewport::VT_WIDTH, width, 0);
+  }
+  #[inline]
+  pub fn add_height(&mut self, height: u32) {
+    self.fbb_.push_slot::<u32>(Viewport::VT_HEIGHT, height, 0);
+  }
+  #[inline]
+  pub fn add_scale(&mut self, scale: f32) {
+    self.fbb_.push_slot::<f32>(Viewport::VT_SCALE, scale, 1.0);
+  }
+  #[inline]
+  pub fn add_orientation(&mut self, orientation: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(Viewport::VT_ORIENTATION, orientation);
+  }
+  #[inline]
+  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> ViewportBuilder<'a, 'b, A> {
+    let start = _fbb.start_table();
+    ViewportBuilder {
+      fbb_: _fbb,
+      start_: start,
+    }
+  }
+  #[inline]
+  pub fn finish(self) -> ::flatbuffers::WIPOffset<Viewport<'a>> {
+    let o = self.fbb_.end_table(self.start_);
+    ::flatbuffers::WIPOffset::new(o.value())
+  }
+}
+
+impl ::core::fmt::Debug for Viewport<'_> {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+    let mut ds = f.debug_struct("Viewport");
+      ds.field("width", &self.width());
+      ds.field("height", &self.height());
+      ds.field("scale", &self.scale());
+      ds.field("orientation", &self.orientation());
+      ds.finish()
+  }
+}
+pub enum DisplaySessionOffset {}
+#[derive(Copy, Clone, PartialEq)]
+
+pub struct DisplaySession<'a> {
+  pub _tab: ::flatbuffers::Table<'a>,
+}
+
+impl<'a> ::flatbuffers::Follow<'a> for DisplaySession<'a> {
+  type Inner = DisplaySession<'a>;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }
+  }
+}
+
+impl<'a> DisplaySession<'a> {
+  pub const VT_WORKSPACE_ID: ::flatbuffers::VOffsetT = 4;
+  pub const VT_DISPLAY_ID: ::flatbuffers::VOffsetT = 6;
+  pub const VT_VIEWPORT: ::flatbuffers::VOffsetT = 8;
+  pub const VT_PROFILE: ::flatbuffers::VOffsetT = 10;
+  pub const VT_GENERATION: ::flatbuffers::VOffsetT = 12;
+
+  #[inline]
+  pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
+    DisplaySession { _tab: table }
+  }
+  #[allow(unused_mut)]
+  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
+    _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
+    args: &'args DisplaySessionArgs<'args>
+  ) -> ::flatbuffers::WIPOffset<DisplaySession<'bldr>> {
+    let mut builder = DisplaySessionBuilder::new(_fbb);
+    builder.add_generation(args.generation);
+    if let Some(x) = args.profile { builder.add_profile(x); }
+    if let Some(x) = args.viewport { builder.add_viewport(x); }
+    if let Some(x) = args.display_id { builder.add_display_id(x); }
+    if let Some(x) = args.workspace_id { builder.add_workspace_id(x); }
+    builder.finish()
+  }
+
+
+  #[inline]
+  pub fn workspace_id(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(DisplaySession::VT_WORKSPACE_ID, None)}
+  }
+  #[inline]
+  pub fn display_id(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(DisplaySession::VT_DISPLAY_ID, None)}
+  }
+  #[inline]
+  pub fn viewport(&self) -> Option<Viewport<'a>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<Viewport>>(DisplaySession::VT_VIEWPORT, None)}
+  }
+  #[inline]
+  pub fn profile(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(DisplaySession::VT_PROFILE, None)}
+  }
+  #[inline]
+  pub fn generation(&self) -> u32 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u32>(DisplaySession::VT_GENERATION, Some(0)).unwrap()}
+  }
+}
+
+impl ::flatbuffers::Verifiable for DisplaySession<'_> {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    v.visit_table(pos)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("workspace_id", Self::VT_WORKSPACE_ID, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("display_id", Self::VT_DISPLAY_ID, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<Viewport>>("viewport", Self::VT_VIEWPORT, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("profile", Self::VT_PROFILE, false)?
+     .visit_field::<u32>("generation", Self::VT_GENERATION, false)?
+     .finish();
+    Ok(())
+  }
+}
+pub struct DisplaySessionArgs<'a> {
+    pub workspace_id: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub display_id: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub viewport: Option<::flatbuffers::WIPOffset<Viewport<'a>>>,
+    pub profile: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub generation: u32,
+}
+impl<'a> Default for DisplaySessionArgs<'a> {
+  #[inline]
+  fn default() -> Self {
+    DisplaySessionArgs {
+      workspace_id: None,
+      display_id: None,
+      viewport: None,
+      profile: None,
+      generation: 0,
+    }
+  }
+}
+
+pub struct DisplaySessionBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
+  fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
+  start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
+}
+impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> DisplaySessionBuilder<'a, 'b, A> {
+  #[inline]
+  pub fn add_workspace_id(&mut self, workspace_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(DisplaySession::VT_WORKSPACE_ID, workspace_id);
+  }
+  #[inline]
+  pub fn add_display_id(&mut self, display_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(DisplaySession::VT_DISPLAY_ID, display_id);
+  }
+  #[inline]
+  pub fn add_viewport(&mut self, viewport: ::flatbuffers::WIPOffset<Viewport<'b >>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<Viewport>>(DisplaySession::VT_VIEWPORT, viewport);
+  }
+  #[inline]
+  pub fn add_profile(&mut self, profile: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(DisplaySession::VT_PROFILE, profile);
+  }
+  #[inline]
+  pub fn add_generation(&mut self, generation: u32) {
+    self.fbb_.push_slot::<u32>(DisplaySession::VT_GENERATION, generation, 0);
+  }
+  #[inline]
+  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> DisplaySessionBuilder<'a, 'b, A> {
+    let start = _fbb.start_table();
+    DisplaySessionBuilder {
+      fbb_: _fbb,
+      start_: start,
+    }
+  }
+  #[inline]
+  pub fn finish(self) -> ::flatbuffers::WIPOffset<DisplaySession<'a>> {
+    let o = self.fbb_.end_table(self.start_);
+    ::flatbuffers::WIPOffset::new(o.value())
+  }
+}
+
+impl ::core::fmt::Debug for DisplaySession<'_> {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+    let mut ds = f.debug_struct("DisplaySession");
+      ds.field("workspace_id", &self.workspace_id());
+      ds.field("display_id", &self.display_id());
+      ds.field("viewport", &self.viewport());
+      ds.field("profile", &self.profile());
+      ds.field("generation", &self.generation());
+      ds.finish()
+  }
+}
+pub enum SyncRecordOffset {}
+#[derive(Copy, Clone, PartialEq)]
+
+pub struct SyncRecord<'a> {
+  pub _tab: ::flatbuffers::Table<'a>,
+}
+
+impl<'a> ::flatbuffers::Follow<'a> for SyncRecord<'a> {
+  type Inner = SyncRecord<'a>;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }
+  }
+}
+
+impl<'a> SyncRecord<'a> {
+  pub const VT_WORKSPACE_ID: ::flatbuffers::VOffsetT = 4;
+  pub const VT_RECORD_ID: ::flatbuffers::VOffsetT = 6;
+  pub const VT_DEVICE_ID: ::flatbuffers::VOffsetT = 8;
+  pub const VT_USER_ID: ::flatbuffers::VOffsetT = 10;
+  pub const VT_SEQ: ::flatbuffers::VOffsetT = 12;
+  pub const VT_MERGE_CLASS: ::flatbuffers::VOffsetT = 14;
+  pub const VT_PAYLOAD_HASH: ::flatbuffers::VOffsetT = 16;
+
+  #[inline]
+  pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
+    SyncRecord { _tab: table }
+  }
+  #[allow(unused_mut)]
+  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
+    _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
+    args: &'args SyncRecordArgs<'args>
+  ) -> ::flatbuffers::WIPOffset<SyncRecord<'bldr>> {
+    let mut builder = SyncRecordBuilder::new(_fbb);
+    builder.add_seq(args.seq);
+    if let Some(x) = args.payload_hash { builder.add_payload_hash(x); }
+    if let Some(x) = args.user_id { builder.add_user_id(x); }
+    if let Some(x) = args.device_id { builder.add_device_id(x); }
+    if let Some(x) = args.record_id { builder.add_record_id(x); }
+    if let Some(x) = args.workspace_id { builder.add_workspace_id(x); }
+    builder.add_merge_class(args.merge_class);
+    builder.finish()
+  }
+
+
+  #[inline]
+  pub fn workspace_id(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(SyncRecord::VT_WORKSPACE_ID, None)}
+  }
+  #[inline]
+  pub fn record_id(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(SyncRecord::VT_RECORD_ID, None)}
+  }
+  #[inline]
+  pub fn device_id(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(SyncRecord::VT_DEVICE_ID, None)}
+  }
+  #[inline]
+  pub fn user_id(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(SyncRecord::VT_USER_ID, None)}
+  }
+  #[inline]
+  pub fn seq(&self) -> u64 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u64>(SyncRecord::VT_SEQ, Some(0)).unwrap()}
+  }
+  #[inline]
+  pub fn merge_class(&self) -> MergeClass {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<MergeClass>(SyncRecord::VT_MERGE_CLASS, Some(MergeClass::unknown)).unwrap()}
+  }
+  #[inline]
+  pub fn payload_hash(&self) -> Option<::flatbuffers::Vector<'a, u8>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, u8>>>(SyncRecord::VT_PAYLOAD_HASH, None)}
+  }
+}
+
+impl ::flatbuffers::Verifiable for SyncRecord<'_> {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    v.visit_table(pos)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("workspace_id", Self::VT_WORKSPACE_ID, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("record_id", Self::VT_RECORD_ID, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("device_id", Self::VT_DEVICE_ID, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("user_id", Self::VT_USER_ID, false)?
+     .visit_field::<u64>("seq", Self::VT_SEQ, false)?
+     .visit_field::<MergeClass>("merge_class", Self::VT_MERGE_CLASS, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, u8>>>("payload_hash", Self::VT_PAYLOAD_HASH, false)?
+     .finish();
+    Ok(())
+  }
+}
+pub struct SyncRecordArgs<'a> {
+    pub workspace_id: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub record_id: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub device_id: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub user_id: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub seq: u64,
+    pub merge_class: MergeClass,
+    pub payload_hash: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, u8>>>,
+}
+impl<'a> Default for SyncRecordArgs<'a> {
+  #[inline]
+  fn default() -> Self {
+    SyncRecordArgs {
+      workspace_id: None,
+      record_id: None,
+      device_id: None,
+      user_id: None,
+      seq: 0,
+      merge_class: MergeClass::unknown,
+      payload_hash: None,
+    }
+  }
+}
+
+pub struct SyncRecordBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
+  fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
+  start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
+}
+impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> SyncRecordBuilder<'a, 'b, A> {
+  #[inline]
+  pub fn add_workspace_id(&mut self, workspace_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(SyncRecord::VT_WORKSPACE_ID, workspace_id);
+  }
+  #[inline]
+  pub fn add_record_id(&mut self, record_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(SyncRecord::VT_RECORD_ID, record_id);
+  }
+  #[inline]
+  pub fn add_device_id(&mut self, device_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(SyncRecord::VT_DEVICE_ID, device_id);
+  }
+  #[inline]
+  pub fn add_user_id(&mut self, user_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(SyncRecord::VT_USER_ID, user_id);
+  }
+  #[inline]
+  pub fn add_seq(&mut self, seq: u64) {
+    self.fbb_.push_slot::<u64>(SyncRecord::VT_SEQ, seq, 0);
+  }
+  #[inline]
+  pub fn add_merge_class(&mut self, merge_class: MergeClass) {
+    self.fbb_.push_slot::<MergeClass>(SyncRecord::VT_MERGE_CLASS, merge_class, MergeClass::unknown);
+  }
+  #[inline]
+  pub fn add_payload_hash(&mut self, payload_hash: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , u8>>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(SyncRecord::VT_PAYLOAD_HASH, payload_hash);
+  }
+  #[inline]
+  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> SyncRecordBuilder<'a, 'b, A> {
+    let start = _fbb.start_table();
+    SyncRecordBuilder {
+      fbb_: _fbb,
+      start_: start,
+    }
+  }
+  #[inline]
+  pub fn finish(self) -> ::flatbuffers::WIPOffset<SyncRecord<'a>> {
+    let o = self.fbb_.end_table(self.start_);
+    ::flatbuffers::WIPOffset::new(o.value())
+  }
+}
+
+impl ::core::fmt::Debug for SyncRecord<'_> {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+    let mut ds = f.debug_struct("SyncRecord");
+      ds.field("workspace_id", &self.workspace_id());
+      ds.field("record_id", &self.record_id());
+      ds.field("device_id", &self.device_id());
+      ds.field("user_id", &self.user_id());
+      ds.field("seq", &self.seq());
+      ds.field("merge_class", &self.merge_class());
+      ds.field("payload_hash", &self.payload_hash());
+      ds.finish()
+  }
+}
+pub enum GroupMemberOffset {}
+#[derive(Copy, Clone, PartialEq)]
+
+pub struct GroupMember<'a> {
+  pub _tab: ::flatbuffers::Table<'a>,
+}
+
+impl<'a> ::flatbuffers::Follow<'a> for GroupMember<'a> {
+  type Inner = GroupMember<'a>;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }
+  }
+}
+
+impl<'a> GroupMember<'a> {
+  pub const VT_WORKSPACE_ID: ::flatbuffers::VOffsetT = 4;
+  pub const VT_DEVICE_ID: ::flatbuffers::VOffsetT = 6;
+  pub const VT_USER_ID: ::flatbuffers::VOffsetT = 8;
+  pub const VT_ROLE: ::flatbuffers::VOffsetT = 10;
+  pub const VT_SEQ: ::flatbuffers::VOffsetT = 12;
+
+  #[inline]
+  pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
+    GroupMember { _tab: table }
+  }
+  #[allow(unused_mut)]
+  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
+    _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
+    args: &'args GroupMemberArgs<'args>
+  ) -> ::flatbuffers::WIPOffset<GroupMember<'bldr>> {
+    let mut builder = GroupMemberBuilder::new(_fbb);
+    builder.add_seq(args.seq);
+    if let Some(x) = args.role { builder.add_role(x); }
+    if let Some(x) = args.user_id { builder.add_user_id(x); }
+    if let Some(x) = args.device_id { builder.add_device_id(x); }
+    if let Some(x) = args.workspace_id { builder.add_workspace_id(x); }
+    builder.finish()
+  }
+
+
+  #[inline]
+  pub fn workspace_id(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(GroupMember::VT_WORKSPACE_ID, None)}
+  }
+  #[inline]
+  pub fn device_id(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(GroupMember::VT_DEVICE_ID, None)}
+  }
+  #[inline]
+  pub fn user_id(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(GroupMember::VT_USER_ID, None)}
+  }
+  #[inline]
+  pub fn role(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(GroupMember::VT_ROLE, None)}
+  }
+  #[inline]
+  pub fn seq(&self) -> u64 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u64>(GroupMember::VT_SEQ, Some(0)).unwrap()}
+  }
+}
+
+impl ::flatbuffers::Verifiable for GroupMember<'_> {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    v.visit_table(pos)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("workspace_id", Self::VT_WORKSPACE_ID, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("device_id", Self::VT_DEVICE_ID, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("user_id", Self::VT_USER_ID, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("role", Self::VT_ROLE, false)?
+     .visit_field::<u64>("seq", Self::VT_SEQ, false)?
+     .finish();
+    Ok(())
+  }
+}
+pub struct GroupMemberArgs<'a> {
+    pub workspace_id: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub device_id: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub user_id: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub role: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub seq: u64,
+}
+impl<'a> Default for GroupMemberArgs<'a> {
+  #[inline]
+  fn default() -> Self {
+    GroupMemberArgs {
+      workspace_id: None,
+      device_id: None,
+      user_id: None,
+      role: None,
+      seq: 0,
+    }
+  }
+}
+
+pub struct GroupMemberBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
+  fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
+  start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
+}
+impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> GroupMemberBuilder<'a, 'b, A> {
+  #[inline]
+  pub fn add_workspace_id(&mut self, workspace_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(GroupMember::VT_WORKSPACE_ID, workspace_id);
+  }
+  #[inline]
+  pub fn add_device_id(&mut self, device_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(GroupMember::VT_DEVICE_ID, device_id);
+  }
+  #[inline]
+  pub fn add_user_id(&mut self, user_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(GroupMember::VT_USER_ID, user_id);
+  }
+  #[inline]
+  pub fn add_role(&mut self, role: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(GroupMember::VT_ROLE, role);
+  }
+  #[inline]
+  pub fn add_seq(&mut self, seq: u64) {
+    self.fbb_.push_slot::<u64>(GroupMember::VT_SEQ, seq, 0);
+  }
+  #[inline]
+  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> GroupMemberBuilder<'a, 'b, A> {
+    let start = _fbb.start_table();
+    GroupMemberBuilder {
+      fbb_: _fbb,
+      start_: start,
+    }
+  }
+  #[inline]
+  pub fn finish(self) -> ::flatbuffers::WIPOffset<GroupMember<'a>> {
+    let o = self.fbb_.end_table(self.start_);
+    ::flatbuffers::WIPOffset::new(o.value())
+  }
+}
+
+impl ::core::fmt::Debug for GroupMember<'_> {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+    let mut ds = f.debug_struct("GroupMember");
+      ds.field("workspace_id", &self.workspace_id());
+      ds.field("device_id", &self.device_id());
+      ds.field("user_id", &self.user_id());
+      ds.field("role", &self.role());
+      ds.field("seq", &self.seq());
+      ds.finish()
+  }
+}
 pub enum EnvelopeOffset {}
 #[derive(Copy, Clone, PartialEq)]
 
@@ -1054,6 +3762,9 @@ impl<'a> Envelope<'a> {
   pub const VT_VERSION: ::flatbuffers::VOffsetT = 4;
   pub const VT_PAYLOAD_TYPE: ::flatbuffers::VOffsetT = 6;
   pub const VT_PAYLOAD: ::flatbuffers::VOffsetT = 8;
+  pub const VT_HEADER: ::flatbuffers::VOffsetT = 10;
+  pub const VT_FABRIC_PAYLOAD_TYPE: ::flatbuffers::VOffsetT = 12;
+  pub const VT_FABRIC_PAYLOAD: ::flatbuffers::VOffsetT = 14;
 
   #[inline]
   pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
@@ -1062,11 +3773,14 @@ impl<'a> Envelope<'a> {
   #[allow(unused_mut)]
   pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
     _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-    args: &'args EnvelopeArgs
+    args: &'args EnvelopeArgs<'args>
   ) -> ::flatbuffers::WIPOffset<Envelope<'bldr>> {
     let mut builder = EnvelopeBuilder::new(_fbb);
+    if let Some(x) = args.fabric_payload { builder.add_fabric_payload(x); }
+    if let Some(x) = args.header { builder.add_header(x); }
     if let Some(x) = args.payload { builder.add_payload(x); }
     builder.add_version(args.version);
+    builder.add_fabric_payload_type(args.fabric_payload_type);
     builder.add_payload_type(args.payload_type);
     builder.finish()
   }
@@ -1092,6 +3806,27 @@ impl<'a> Envelope<'a> {
     // Created from valid Table for this object
     // which contains a valid value in this slot
     unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Table<'a>>>(Envelope::VT_PAYLOAD, None)}
+  }
+  #[inline]
+  pub fn header(&self) -> Option<ControlHeader<'a>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<ControlHeader>>(Envelope::VT_HEADER, None)}
+  }
+  #[inline]
+  pub fn fabric_payload_type(&self) -> FabricPayload {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<FabricPayload>(Envelope::VT_FABRIC_PAYLOAD_TYPE, Some(FabricPayload::NONE)).unwrap()}
+  }
+  #[inline]
+  pub fn fabric_payload(&self) -> Option<::flatbuffers::Table<'a>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Table<'a>>>(Envelope::VT_FABRIC_PAYLOAD, None)}
   }
   #[inline]
   #[allow(non_snake_case)]
@@ -1123,6 +3858,126 @@ impl<'a> Envelope<'a> {
     }
   }
 
+  #[inline]
+  #[allow(non_snake_case)]
+  pub fn fabric_payload_as_device_identity(&self) -> Option<DeviceIdentity<'a>> {
+    if self.fabric_payload_type() == FabricPayload::DeviceIdentity {
+      self.fabric_payload().map(|t| {
+       // Safety:
+       // Created from a valid Table for this object
+       // Which contains a valid union in this slot
+       unsafe { DeviceIdentity::init_from_table(t) }
+     })
+    } else {
+      None
+    }
+  }
+
+  #[inline]
+  #[allow(non_snake_case)]
+  pub fn fabric_payload_as_pairing_offer(&self) -> Option<PairingOffer<'a>> {
+    if self.fabric_payload_type() == FabricPayload::PairingOffer {
+      self.fabric_payload().map(|t| {
+       // Safety:
+       // Created from a valid Table for this object
+       // Which contains a valid union in this slot
+       unsafe { PairingOffer::init_from_table(t) }
+     })
+    } else {
+      None
+    }
+  }
+
+  #[inline]
+  #[allow(non_snake_case)]
+  pub fn fabric_payload_as_pairing_response(&self) -> Option<PairingResponse<'a>> {
+    if self.fabric_payload_type() == FabricPayload::PairingResponse {
+      self.fabric_payload().map(|t| {
+       // Safety:
+       // Created from a valid Table for this object
+       // Which contains a valid union in this slot
+       unsafe { PairingResponse::init_from_table(t) }
+     })
+    } else {
+      None
+    }
+  }
+
+  #[inline]
+  #[allow(non_snake_case)]
+  pub fn fabric_payload_as_capability_descriptor(&self) -> Option<CapabilityDescriptor<'a>> {
+    if self.fabric_payload_type() == FabricPayload::CapabilityDescriptor {
+      self.fabric_payload().map(|t| {
+       // Safety:
+       // Created from a valid Table for this object
+       // Which contains a valid union in this slot
+       unsafe { CapabilityDescriptor::init_from_table(t) }
+     })
+    } else {
+      None
+    }
+  }
+
+  #[inline]
+  #[allow(non_snake_case)]
+  pub fn fabric_payload_as_capability_lease(&self) -> Option<CapabilityLease<'a>> {
+    if self.fabric_payload_type() == FabricPayload::CapabilityLease {
+      self.fabric_payload().map(|t| {
+       // Safety:
+       // Created from a valid Table for this object
+       // Which contains a valid union in this slot
+       unsafe { CapabilityLease::init_from_table(t) }
+     })
+    } else {
+      None
+    }
+  }
+
+  #[inline]
+  #[allow(non_snake_case)]
+  pub fn fabric_payload_as_display_session(&self) -> Option<DisplaySession<'a>> {
+    if self.fabric_payload_type() == FabricPayload::DisplaySession {
+      self.fabric_payload().map(|t| {
+       // Safety:
+       // Created from a valid Table for this object
+       // Which contains a valid union in this slot
+       unsafe { DisplaySession::init_from_table(t) }
+     })
+    } else {
+      None
+    }
+  }
+
+  #[inline]
+  #[allow(non_snake_case)]
+  pub fn fabric_payload_as_sync_record(&self) -> Option<SyncRecord<'a>> {
+    if self.fabric_payload_type() == FabricPayload::SyncRecord {
+      self.fabric_payload().map(|t| {
+       // Safety:
+       // Created from a valid Table for this object
+       // Which contains a valid union in this slot
+       unsafe { SyncRecord::init_from_table(t) }
+     })
+    } else {
+      None
+    }
+  }
+
+  #[inline]
+  #[allow(non_snake_case)]
+  pub fn fabric_payload_as_group_member(&self) -> Option<GroupMember<'a>> {
+    if self.fabric_payload_type() == FabricPayload::GroupMember {
+      self.fabric_payload().map(|t| {
+       // Safety:
+       // Created from a valid Table for this object
+       // Which contains a valid union in this slot
+       unsafe { GroupMember::init_from_table(t) }
+     })
+    } else {
+      None
+    }
+  }
+
 }
 
 impl ::flatbuffers::Verifiable for Envelope<'_> {
@@ -1139,22 +3994,42 @@ impl ::flatbuffers::Verifiable for Envelope<'_> {
           _ => Ok(()),
         }
      })?
+     .visit_field::<::flatbuffers::ForwardsUOffset<ControlHeader>>("header", Self::VT_HEADER, false)?
+     .visit_union::<FabricPayload, _>("fabric_payload_type", Self::VT_FABRIC_PAYLOAD_TYPE, "fabric_payload", Self::VT_FABRIC_PAYLOAD, false, |key, v, pos| {
+        match key {
+          FabricPayload::DeviceIdentity => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<DeviceIdentity>>("FabricPayload::DeviceIdentity", pos),
+          FabricPayload::PairingOffer => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<PairingOffer>>("FabricPayload::PairingOffer", pos),
+          FabricPayload::PairingResponse => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<PairingResponse>>("FabricPayload::PairingResponse", pos),
+          FabricPayload::CapabilityDescriptor => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<CapabilityDescriptor>>("FabricPayload::CapabilityDescriptor", pos),
+          FabricPayload::CapabilityLease => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<CapabilityLease>>("FabricPayload::CapabilityLease", pos),
+          FabricPayload::DisplaySession => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<DisplaySession>>("FabricPayload::DisplaySession", pos),
+          FabricPayload::SyncRecord => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<SyncRecord>>("FabricPayload::SyncRecord", pos),
+          FabricPayload::GroupMember => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<GroupMember>>("FabricPayload::GroupMember", pos),
+          _ => Ok(()),
+        }
+     })?
      .finish();
     Ok(())
   }
 }
-pub struct EnvelopeArgs {
+pub struct EnvelopeArgs<'a> {
     pub version: u32,
     pub payload_type: MessagePayload,
     pub payload: Option<::flatbuffers::WIPOffset<::flatbuffers::UnionWIPOffset>>,
+    pub header: Option<::flatbuffers::WIPOffset<ControlHeader<'a>>>,
+    pub fabric_payload_type: FabricPayload,
+    pub fabric_payload: Option<::flatbuffers::WIPOffset<::flatbuffers::UnionWIPOffset>>,
 }
-impl<'a> Default for EnvelopeArgs {
+impl<'a> Default for EnvelopeArgs<'a> {
   #[inline]
   fn default() -> Self {
     EnvelopeArgs {
       version: 1,
       payload_type: MessagePayload::NONE,
       payload: None,
+      header: None,
+      fabric_payload_type: FabricPayload::NONE,
+      fabric_payload: None,
     }
   }
 }
@@ -1175,6 +4050,18 @@ impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> EnvelopeBuilder<'a, 'b, A> {
   #[inline]
   pub fn add_payload(&mut self, payload: ::flatbuffers::WIPOffset<::flatbuffers::UnionWIPOffset>) {
     self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(Envelope::VT_PAYLOAD, payload);
+  }
+  #[inline]
+  pub fn add_header(&mut self, header: ::flatbuffers::WIPOffset<ControlHeader<'b >>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<ControlHeader>>(Envelope::VT_HEADER, header);
+  }
+  #[inline]
+  pub fn add_fabric_payload_type(&mut self, fabric_payload_type: FabricPayload) {
+    self.fbb_.push_slot::<FabricPayload>(Envelope::VT_FABRIC_PAYLOAD_TYPE, fabric_payload_type, FabricPayload::NONE);
+  }
+  #[inline]
+  pub fn add_fabric_payload(&mut self, fabric_payload: ::flatbuffers::WIPOffset<::flatbuffers::UnionWIPOffset>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(Envelope::VT_FABRIC_PAYLOAD, fabric_payload);
   }
   #[inline]
   pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> EnvelopeBuilder<'a, 'b, A> {
@@ -1214,6 +4101,70 @@ impl ::core::fmt::Debug for Envelope<'_> {
         _ => {
           let x: Option<()> = None;
           ds.field("payload", &x)
+        },
+      };
+      ds.field("header", &self.header());
+      ds.field("fabric_payload_type", &self.fabric_payload_type());
+      match self.fabric_payload_type() {
+        FabricPayload::DeviceIdentity => {
+          if let Some(x) = self.fabric_payload_as_device_identity() {
+            ds.field("fabric_payload", &x)
+          } else {
+            ds.field("fabric_payload", &"InvalidFlatbuffer: Union discriminant does not match value.")
+          }
+        },
+        FabricPayload::PairingOffer => {
+          if let Some(x) = self.fabric_payload_as_pairing_offer() {
+            ds.field("fabric_payload", &x)
+          } else {
+            ds.field("fabric_payload", &"InvalidFlatbuffer: Union discriminant does not match value.")
+          }
+        },
+        FabricPayload::PairingResponse => {
+          if let Some(x) = self.fabric_payload_as_pairing_response() {
+            ds.field("fabric_payload", &x)
+          } else {
+            ds.field("fabric_payload", &"InvalidFlatbuffer: Union discriminant does not match value.")
+          }
+        },
+        FabricPayload::CapabilityDescriptor => {
+          if let Some(x) = self.fabric_payload_as_capability_descriptor() {
+            ds.field("fabric_payload", &x)
+          } else {
+            ds.field("fabric_payload", &"InvalidFlatbuffer: Union discriminant does not match value.")
+          }
+        },
+        FabricPayload::CapabilityLease => {
+          if let Some(x) = self.fabric_payload_as_capability_lease() {
+            ds.field("fabric_payload", &x)
+          } else {
+            ds.field("fabric_payload", &"InvalidFlatbuffer: Union discriminant does not match value.")
+          }
+        },
+        FabricPayload::DisplaySession => {
+          if let Some(x) = self.fabric_payload_as_display_session() {
+            ds.field("fabric_payload", &x)
+          } else {
+            ds.field("fabric_payload", &"InvalidFlatbuffer: Union discriminant does not match value.")
+          }
+        },
+        FabricPayload::SyncRecord => {
+          if let Some(x) = self.fabric_payload_as_sync_record() {
+            ds.field("fabric_payload", &x)
+          } else {
+            ds.field("fabric_payload", &"InvalidFlatbuffer: Union discriminant does not match value.")
+          }
+        },
+        FabricPayload::GroupMember => {
+          if let Some(x) = self.fabric_payload_as_group_member() {
+            ds.field("fabric_payload", &x)
+          } else {
+            ds.field("fabric_payload", &"InvalidFlatbuffer: Union discriminant does not match value.")
+          }
+        },
+        _ => {
+          let x: Option<()> = None;
+          ds.field("fabric_payload", &x)
         },
       };
       ds.finish()

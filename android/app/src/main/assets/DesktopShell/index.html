@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en" data-appearance="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="color-scheme" content="dark light">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' 'sha256-a5qOmWtV4zivHG9TzYCcBDIYXWtamE0rSi+b/aPFeYw=' 'sha256-vWvTHbd5URFC6ZXdJfBcriueY7hIyWP2o0+8ycL5u40='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' file:; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>AirDesk — Wanix Desktop</title>
+  <link rel="stylesheet" href="shell.css">
+  <link rel="stylesheet" href="window-manager.css">
+</head>
+<body data-wallpaper="aurora" data-appearance="dark">
+  <div class="wallpaper" aria-hidden="true">
+    <div class="wallpaper-layer layer-a"></div>
+    <div class="wallpaper-layer layer-b"></div>
+    <div class="wallpaper-layer layer-c"></div>
+    <div class="wallpaper-grain"></div>
+  </div>
+
+  <main id="desktop" aria-label="Wanix desktop">
+    <header id="menubar">
+      <div class="menu-left">
+        <button class="menubar-item apple" data-menu="apple" aria-label="Apple menu"></button>
+        <button class="menubar-item app-name" id="active-app" data-menu="app">Finder</button>
+        <button class="menubar-item" data-menu="file">File</button>
+        <button class="menubar-item" data-menu="edit">Edit</button>
+        <button class="menubar-item" data-menu="view">View</button>
+        <button class="menubar-item" data-menu="window">Window</button>
+        <button class="menubar-item" data-menu="help">Help</button>
+      </div>
+      <div class="menu-right">
+        <button class="menubar-status wanix-status" id="wanix-status" data-menu="wanix">
+          <span class="wanix-dot"></span><span>WANIX</span>
+        </button>
+        <button class="menubar-status" data-menu="control" aria-label="Control center"></button>
+        <button class="menubar-status battery" data-menu="battery" aria-label="Battery"></button>
+        <button class="menubar-clock" id="clock" data-menu="clock">Mon 26 Oct 9:41 PM</button>
+      </div>
+    </header>
+
+    <section id="desktop-icons" aria-label="Desktop items"></section>
+    <section id="window-layer" aria-label="Windows"></section>
+
+    <div id="dock-shell">
+      <nav id="dock" aria-label="Dock"></nav>
+    </div>
+
+    <div id="cursor" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <path d="M5.2 3.2 18.9 11.6l-6.3 1.2-3.2 6.1L5.2 3.2Z"></path>
+      </svg>
+    </div>
+
+    <div id="spotlight" class="spotlight" hidden>
+      <div class="spotlight-panel">
+        <div class="spotlight-input-row">
+          <span class="spotlight-search-icon"></span>
+          <input id="spotlight-input" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="AirDesk Search" aria-label="Search applications">
+          <kbd>esc</kbd>
+        </div>
+        <div class="spotlight-results" id="spotlight-results"></div>
+        <div class="spotlight-footer"><span>Type to filter applications</span><span>Return to open</span></div>
+      </div>
+    </div>
+
+    <div id="context-menu" class="context-menu" hidden></div>
+    <div id="toast" class="toast" role="status"></div>
+
+    <div id="boot" class="boot">
+      <div class="boot-mark"><span></span><span></span><span></span></div>
+      <div class="boot-label">AIRDESK</div>
+      <div class="boot-sub">starting live Wanix kernel</div>
+    </div>
+  </main>
+
+  <div id="wanix-host" hidden>
+    <wanix-namespace
+      id="wanix"
+      wasm="wanix/wanix.wasm">
+      <wanix-bind dst="." src="#ramfs/new"></wanix-bind>
+      <wanix-bind id="opfs-bind" dst="opfs" src="#web/opfs"></wanix-bind>
+      <wanix-bind dst="tmp" src="#ramfs/new"></wanix-bind>
+      <wanix-bind
+        type="file"
+        dst="rc.wasm"
+        src="wanix/rc.wasm"></wanix-bind>
+      <wanix-bind type="file" dst="README.md" perm="0644"># AirDesk Wanix Workspace
+
+This desktop is backed by a live Wanix namespace.
+
+- `opfs/` persists in the browser's Origin Private File System.
+- `tmp/` is scratch memory.
+- Finder and Notes read and write the same namespace.
+- The controller sends input through the native AirDesk bridge.
+</wanix-bind>
+      <wanix-task id="shell" cmd="rc.wasm" term></wanix-task>
+    </wanix-namespace>
+  </div>
+
+  <noscript>AirDesk requires JavaScript to run the Wanix desktop.</noscript>
+  <script src="apps.js"></script>
+  <script src="bridge.js"></script>
+  <script src="wanix-file-worker-fix.js"></script>
+  <script src="wanix-shell.js"></script>
+  <script src="window-manager.js"></script>
+  <script src="desktop.js"></script>
+</body>
+</html>

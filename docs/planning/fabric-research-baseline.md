@@ -33,7 +33,7 @@ The matrix is filled as hardware and candidate builds become available. “Requi
 | Linux devbox | Remote execution | SSH/tmux path exists | S2, S4 |
 | Windows host | Remote application window | No implementation | S7 |
 | Linux Xpra host | Remote application window | No implementation | S7 |
-| Android device | Browser/native agent | No implementation | Optional |
+| Android device | Browser/native agent | P-256 identity, pairing-offer validation, capability advertisement and WebView presentation baseline build; no device install or network transport yet | Optional |
 | Chromium/Firefox browser | Threaded browser candidate | Not baseline | Optional |
 
 Hardware availability must be recorded per run. A missing device is reported as missing, not replaced by a simulator result.

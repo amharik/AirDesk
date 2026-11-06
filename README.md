@@ -10,7 +10,7 @@ The architecture is workspace-centric: the workspace is a persistent logical env
 
 AirDesk is in active development. It builds and runs on iOS and iPadOS 17+, and the current input, desktop, terminal, and display paths are implemented. It is **not yet App Store-ready**: ADR-007 is still Proposed and the remaining Cast, external-display, performance, and distribution gates must pass first.
 
-The active execution track is **research-first**: validate or reject the universal compute fabric before resuming product release sequencing. See the [universal compute fabric research plan](docs/planning/universal-compute-fabric-research.md). The prior five-release sequence is paused until that program's R6 decision; it remains documented in the [release roadmap](docs/planning/release-roadmap.md).
+The active execution track is **research-first**: validate or reject the universal compute fabric before resuming product release sequencing. See the [universal compute fabric research plan](docs/planning/universal-compute-fabric-research.md). The prior five-release sequence is paused until that program's R6 decision; it remains documented in the [release roadmap](docs/planning/release-roadmap.md). On 2026-11-06 the user also directed foundational implementation of Android, identity, ADFP, browser-endpoint, sync/collaboration and remote-placement work; those changes remain behind their proposed ADRs and do not complete Release 2–5 qualification.
 
 The target runtime baseline is WASI 0.2 worlds; WASI 0.3 is an evaluation target and WASIX is a vendor extension. WebTransport is a qualified optional browser transport, not a requirement. Browser endpoints use a single-threaded Wanix profile unless `SharedArrayBuffer` isolation is available.
 
@@ -22,10 +22,13 @@ The target runtime baseline is WASI 0.2 worlds; WASI 0.3 is an evaluation target
 | Remote SSH PTY | Working, opt-in |
 | AirPlay / external display | Implemented |
 | Google Cast receiver | Development app |
-| Unit tests | 116 passing |
+| iOS unit tests | 287 passing; 1 skipped |
+| Web tests | 125 passing |
+| Android unit tests | 49 passing; debug APK built, on-device install pending |
 | iPad UI suite | Passing; 1 opt-in test skipped |
-| Workspace model and orchestration | Architecture defined; not implemented |
-| Device fabric and browser endpoint | Architecture defined; Release 2/3 |
+| Workspace model and orchestration | Implemented with tests |
+| Device identity, protocol and local registry | Foundations implemented |
+| Browser endpoint, sync and collaboration | Foundations implemented; production transport pending |
 | App Store release | Not yet |
 
 ## Features
@@ -132,8 +135,9 @@ Remote SSH is opt-in and uses the native SSH stack, not the web shell.
 - Transcript replay restores terminal text after a reload, but the Wanix shell process restarts. Byte-exact PTY reconnect and live process resumption are not implemented.
 - The real OpenSSH smoke test is opt-in because it needs a reachable SSH host and throwaway credentials. The default UI suite uses an in-process fixture.
 - Puter removal is tracked as `PUTER-01`; its adapter and assets are still present in this build but are not configured.
-- The workspace store, `WorkspaceOrchestrator`, runtime provider registry, native device agents and capability leases are architecture targets, not shipped features yet.
-- The browser endpoint is Release 3 and is a presentation endpoint. It is not the first release or the workspace authority.
+- The workspace store, `WorkspaceOrchestrator`, runtime provider registry and local device registry are implemented with tests. Signed capability leases, AD-PAIR-1/SPAKE2+ pairing and production network transports are not.
+- The browser endpoint is a presentation endpoint. Its loopback client/state/policy foundations exist, but there is no production host service or page integration yet, and it is not the workspace authority.
+- The Android controller/display baseline builds and passes unit tests, but has not been installed on a physical device. Its presentation and protocol paths are not yet release-qualified.
 
 ## Architecture at a glance
 
@@ -177,6 +181,7 @@ AirDesk/
   Display/             WKWebView surface and external display scenes
   Runtime/             Wanix runtime adapter; Puter removal in progress
   Input/               Input schema, dispatcher, pointer ballistics
+  Identity/            Device identity, registry, pairing offers
   Web/                 Swift-to-JavaScript bridge, loopback asset server
   Security/            Origin and navigation policy
   Store/               StoreKit 2 entitlement manager
@@ -185,6 +190,7 @@ AirDesk/
 AirDeskTests/          Unit tests
 AirDeskUITests/        UI and device tests
 CastReceiver/          Google Cast receiver development app
+android/               Kotlin/Compose controller and display baseline
 scripts/               Build, CI, simulator, and smoke-test helpers
 protocol/              FlatBuffers schema and language bindings
 docs/product/          Product vision, principles and roadmap
@@ -210,17 +216,21 @@ npm run build
 
 ### Protocol bindings
 
-`protocol/airdesk.fbs` is the source of truth for input and control messages. Install `flatc` 25.12.19, then regenerate the checked-in Swift, TypeScript, and Rust bindings:
+`protocol/airdesk.fbs` is the source of truth for input and control messages. Install `flatc` 25.12.19, then regenerate the checked-in Swift, TypeScript, Rust and Kotlin bindings:
 
 ```bash
 ./protocol/generate.sh
+./protocol/check.sh
 cd web && npm run check
 cargo test --manifest-path ../protocol/rust/Cargo.toml
 ```
 
 ### Tests and CI
 
-- `AirDeskTests`: 116 unit tests covering input, runtime routing, SSH PTY, reconnect, terminal messages, and entitlements.
+- `AirDeskTests`: 287 unit tests covering input, runtime routing, SSH PTY, reconnect, terminal messages, identity, capabilities, and entitlements.
+- `web/test`: 125 tests covering the desktop shell, protocol, browser identity/endpoint, sync/collaboration and remote placement.
+- `android/app/src/test`: 49 Kotlin unit tests covering identity, pairing, capabilities, presentation and canonical ADFP integration.
+- `protocol/rust`: 10 tests covering movement/control fixtures and packed-frame handling.
 - `AirDeskUITests`: controller and desktop flows, terminal typing, resize, transcript replay, remote SSH, and WinBox lifecycle.
 - `.github/workflows/ios.yml` runs the CI-equivalent checks on macOS through `scripts/ci-ios.sh`.
 
@@ -235,6 +245,8 @@ scripts/real-ssh-smoke.sh
 - The desktop asset server binds to loopback and enforces COOP/COEP and a strict CSP.
 - No runtime CDN is required for Wanix, WTerm, fonts, or terminal cores.
 - Remote SSH uses the native SwiftNIO stack with a pinned OpenSSH host key.
+- Device identity keys are generated on-device and stored in the Keychain on iOS and the Android Keystore on Android. Pairing offers and device IDs are public; private keys are never logged or committed.
+- AD-PAIR-1/SPAKE2+, channel-binding acquisition and signed capability leases are not implemented yet; do not treat current local pairing-offer validation as a completed trust protocol.
 - Passwords are stored in the device Keychain. SSH credentials and private keys are not bundled into the web shell or committed to the repository.
 - The `airdeskTerminal` bridge carries only PTY input, output, resize, and lifecycle messages.
 

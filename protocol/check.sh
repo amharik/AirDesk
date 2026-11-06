@@ -20,24 +20,37 @@ fi
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
-mkdir -p "$TMP/swift" "$TMP/ts" "$TMP/rust"
+mkdir -p "$TMP/swift" "$TMP/ts" "$TMP/rust" "$TMP/kotlin"
 
 "$FLATC" --swift -o "$TMP/swift" "$ROOT/protocol/airdesk.fbs"
 "$FLATC" --ts -o "$TMP/ts" "$ROOT/protocol/airdesk.fbs"
 "$FLATC" --rust -o "$TMP/rust" "$ROOT/protocol/airdesk.fbs"
+"$FLATC" --kotlin -o "$TMP/kotlin" "$ROOT/protocol/airdesk.fbs"
 
-cmp "$TMP/swift/airdesk_generated.swift" "$ROOT/AirDesk/Protocol/Generated/airdesk_generated.swift"
+sed 's/[[:space:]]*$//' "$TMP/swift/airdesk_generated.swift" > "$TMP/swift/airdesk_generated.normalized.swift"
+cmp "$TMP/swift/airdesk_generated.normalized.swift" "$ROOT/AirDesk/Protocol/Generated/airdesk_generated.swift"
 cmp "$TMP/rust/airdesk_generated.rs" "$ROOT/protocol/generated/rust/airdesk_generated.rs"
 
-find "$TMP/ts/air-desk" -name '*.ts' -type f | while IFS= read -r generated; do
-  relative=${generated#"$TMP/ts/"}
-  committed="$ROOT/web/src/protocol/generated/$relative"
+find "$TMP/ts" -name '*.ts' -type f | while IFS= read -r generated; do
   expected="$TMP/expected.ts"
   {
     echo '// @ts-nocheck'
     cat "$generated"
   } > "$expected"
-  cmp "$expected" "$committed"
+  mv "$expected" "$generated"
+done
+
+"$ROOT/protocol/patch-generated-ts.sh" "$TMP/ts/air-desk/protocol/envelope.ts"
+
+find "$TMP/ts" -name '*.ts' -type f | while IFS= read -r generated; do
+  relative=${generated#"$TMP/ts/"}
+  committed="$ROOT/web/src/protocol/generated/$relative"
+  cmp "$generated" "$committed"
+done
+
+find "$TMP/kotlin" -name '*.kt' -type f | while IFS= read -r generated; do
+  relative=${generated#"$TMP/kotlin/"}
+  cmp "$generated" "$ROOT/protocol/generated/kotlin/$relative"
 done
 
 echo "Protocol schema, baseline conformance and generated bindings are current."

@@ -15,6 +15,7 @@ struct FabricSettingsView: View {
 
     var body: some View {
         Form {
+            identitySection
             connectionSection
             relaySection
             ticketSection
@@ -35,6 +36,49 @@ struct FabricSettingsView: View {
         .onChange(of: fabric.ticket) { _, _ in
             copied = false
         }
+    }
+
+    private var identitySection: some View {
+        Section {
+            if let identity = environment.identity {
+                infoRow("Device ID", identity.deviceId)
+                infoRow("Algorithm", identity.algorithm.displayName)
+                infoRow("Public key", identity.spkiHex)
+                infoRow("Paired devices", "\(environment.deviceRegistry?.pairedCount ?? 0)")
+                infoRow("Revoked", "\(environment.deviceRegistry?.revokedCount ?? 0)")
+                Button {
+                    UIPasteboard.general.string = identity.deviceId
+                    message = "Device ID copied."
+                } label: {
+                    Label("Copy device ID", systemImage: "doc.on.doc")
+                }
+                .foregroundStyle(ADTheme.accent)
+                Button {
+                    UIPasteboard.general.string = identity.spkiHex
+                    message = "Public key copied."
+                } label: {
+                    Label("Copy public key", systemImage: "key")
+                }
+                .foregroundStyle(ADTheme.accent)
+            } else {
+                infoRow("Device identity", "Unavailable")
+                if let error = environment.identityError {
+                    Text(error)
+                        .font(.system(size: 12))
+                        .foregroundStyle(ADTheme.danger)
+                }
+            }
+            if let message {
+                Text(message)
+                    .font(.system(size: 12))
+                    .foregroundStyle(ADTheme.accent)
+            }
+        } header: {
+            header("Device identity")
+        } footer: {
+            Text("The long-term Ed25519 key is stored in the Keychain after first unlock, this device only, without iCloud sync. P-256 is the fallback identity algorithm; Secure Enclave Ed25519 is not claimed. Pairing offers require an out-of-band channel binding; AD-PAIR-1, SPAKE2+ and QR scanning are not implemented.")
+        }
+        .listRowBackground(rowBackground)
     }
 
     private var connectionSection: some View {
