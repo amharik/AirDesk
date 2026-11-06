@@ -13,6 +13,7 @@ final class AppEnvironment: ObservableObject {
     let entitlements: EntitlementManager
     let haptics: Haptics
     let fabric: IrohFabricPeer
+    let capabilityCatalog: CapabilityCatalog
     let deviceIdentityStore: DeviceIdentityStore
     let identity: DeviceIdentity?
     let identityError: String?
@@ -79,6 +80,9 @@ final class AppEnvironment: ObservableObject {
         identityError = identityLoadError
         deviceRegistry = registry
         deviceRegistryError = registryLoadError
+        capabilityCatalog = CapabilityCatalog(
+            providerDeviceId: loadedIdentity?.deviceId ?? ""
+        )
 
         settings = AppSettings()
         diagnostics = PerformanceMetrics()

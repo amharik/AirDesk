@@ -32,6 +32,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     func sceneDidBecomeActive(_ scene: UIScene) {
+        AppEnvironment.shared.capabilityCatalog.reload()
         AppEnvironment.shared.session.sceneBecameActive()
     }
 

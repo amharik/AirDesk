@@ -12,6 +12,7 @@ struct DiagnosticsView: View {
         NavigationStack {
             Form {
                 identitySection
+                capabilitiesSection
                 sessionSection
                 fabricSection
                 performanceSection
@@ -69,6 +70,12 @@ struct DiagnosticsView: View {
             Text("The device ID is the SHA-256 fingerprint of the canonical DER SPKI. Pairing primitives are local only; AD-PAIR-1, SPAKE2+ and transport binding are not implemented.")
         }
         .listRowBackground(rowBackground)
+    }
+
+    private var capabilitiesSection: some View {
+        CapabilityCatalogSection(catalog: environment.capabilityCatalog)
+            .listRowBackground(rowBackground)
+            .onAppear { environment.capabilityCatalog.reload() }
     }
 
     private var sessionSection: some View {
@@ -288,6 +295,87 @@ struct DiagnosticsView: View {
         Task {
             try? await Task.sleep(nanoseconds: 1_500_000_000)
             copied = false
+        }
+    }
+}
+
+private struct CapabilityCatalogSection: View {
+    @ObservedObject var catalog: CapabilityCatalog
+
+    var body: some View {
+        Section {
+            if catalog.descriptors.isEmpty {
+                Text("No capabilities advertised.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(ADTheme.textTertiary)
+            } else {
+                ForEach(catalog.descriptors) { capability in
+                    capabilityRow(capability)
+                }
+            }
+            if catalog.cameraCanRequestAccess {
+                Button {
+                    Task { await catalog.requestCameraAccess() }
+                } label: {
+                    Label("Request camera access", systemImage: "camera")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(ADTheme.accent)
+                }
+            }
+        } header: {
+            Text("DEVICE CAPABILITIES")
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .tracking(1.2)
+                .foregroundStyle(ADTheme.textTertiary)
+        } footer: {
+            Text("Capability advertisement is not permission. Availability and authorization are reported separately; no capability grants, leases or remote invocation are issued in this baseline.")
+        }
+    }
+
+    private func capabilityRow(_ capability: CapabilityDescriptor) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 8) {
+                Text(capability.label)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.82))
+                Spacer(minLength: 8)
+                Text(capability.availability.displayName)
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundStyle(availabilityColor(capability.availability))
+                Text(capability.authorization.displayName)
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundStyle(authorizationColor(capability.authorization))
+            }
+            Text(capability.capUri)
+                .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+                .foregroundStyle(ADTheme.textTertiary)
+            if !capability.permissions.isEmpty {
+                Text("Permissions: \(capability.permissions.joined(separator: ", "))")
+                    .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+                    .foregroundStyle(ADTheme.textTertiary)
+            }
+            Text(capability.note)
+                .font(.system(size: 11.5))
+                .foregroundStyle(ADTheme.textSecondary)
+                .lineSpacing(1)
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func availabilityColor(_ availability: CapabilityAvailability) -> Color {
+        switch availability {
+        case .available: return ADTheme.accent
+        case .busy: return ADTheme.amber
+        case .restricted: return ADTheme.amber
+        case .unavailable, .unknown: return ADTheme.textTertiary
+        }
+    }
+
+    private func authorizationColor(_ authorization: CapabilityAuthorization) -> Color {
+        switch authorization {
+        case .granted: return ADTheme.accent
+        case .denied, .revoked: return ADTheme.amber
+        case .ungranted, .unknown: return ADTheme.textTertiary
         }
     }
 }
