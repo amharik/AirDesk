@@ -1,6 +1,6 @@
 # Browser endpoint host protocol
 
-Status: loopback host service and browser client/policy are implemented and tested behind [ADR-014](../adr/014-browser-endpoint-topology.md). App wiring, a production browser page, COOP/COEP isolation proof and non-loopback transport remain pending.
+Status: loopback host service, browser client/policy and app lifecycle wiring are implemented and tested behind [ADR-014](../adr/014-browser-endpoint-topology.md). A production browser page, reconnect UX, COOP/COEP isolation proof and non-loopback transport remain pending.
 
 ## Topology
 
@@ -70,14 +70,15 @@ The host rejects workspace/session mismatches, duplicate registration, stale gen
 
 The host sends ping frames on the configured interval when heartbeats are enabled and closes a connection that misses the timeout. Server shutdown cancels the listener and all active connections. Reconnect is a new connection and registration; it does not create workspace state.
 
+The iOS app starts the host only when the persisted browser-endpoint setting is enabled. It uses the local desktop asset server's loopback origin, generates a 32-byte token with a one-hour expiry, exposes the full WebSocket URL in Settings and Diagnostics, and stops the listener when the setting is disabled. The token rotates on every restart.
+
 ## Test coverage
 
-`AirDeskTests/BrowserEndpointProtocolTests.swift` covers URLs, origins, validation and codecs. `AirDeskTests/BrowserEndpointHostTests.swift` covers startup, handshake rejection, token expiry, origin mismatch, registration, viewport/focus updates, duplicate/stale state, heartbeat and closure. `web/test/browser-endpoint.test.ts` covers the client/policy side.
+`AirDeskTests/BrowserEndpointProtocolTests.swift` covers URLs, origins, validation and codecs. `AirDeskTests/BrowserEndpointHostTests.swift` covers startup, handshake rejection, token expiry, origin mismatch, registration, viewport/focus updates, duplicate/stale state, heartbeat and closure. `AirDeskTests/BrowserEndpointServiceTests.swift` covers service startup, token rotation, restart and failure state. `web/test/browser-endpoint.test.ts` covers the client/policy side.
 
 ## Pending
 
-- Wire the host into `AppEnvironment`, expose a session-scoped token and show its URL in the app.
 - Build the browser page and presentation client.
 - Prove COOP/COEP and asset isolation for the single-threaded profile.
-- Add explicit lifecycle integration, reconnect UX and diagnostics.
+- Add reconnect UX and complete scene lifecycle handling.
 - Evaluate a TLS/non-loopback transport only after the loopback baseline is qualified.

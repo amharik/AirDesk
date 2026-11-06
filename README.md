@@ -22,14 +22,14 @@ The target runtime baseline is WASI 0.2 worlds; WASI 0.3 is an evaluation target
 | Remote SSH PTY | Working, opt-in |
 | AirPlay / external display | Implemented |
 | Google Cast receiver | Development app |
-| iOS unit tests | 324 passing; 1 skipped |
+| iOS unit tests | 328 passing; 1 skipped |
 | Web tests | 150 passing across 20 files |
 | Android unit tests | 49 passing; debug APK built, on-device install pending |
 | iPad UI suite | Passing; 1 opt-in test skipped |
 | Workspace model and orchestration | Implemented with tests |
 | Device identity, protocol and local registry | Foundations implemented; SPAKE2+ session integration, PBKDF and signed capability leases pending |
 | Device capability catalog | iOS and Android advertise local capabilities; capture streaming, file transfer and remote invocation pending |
-| Browser endpoint, sync and collaboration | Loopback host service and sync conflict corpus implemented; production page, app wiring and transport pending |
+| Browser endpoint, sync and collaboration | Loopback host service and app wiring implemented; production page and transport pending |
 | App Store release | Not yet |
 
 ## Features
@@ -137,7 +137,7 @@ Remote SSH is opt-in and uses the native SSH stack, not the web shell.
 - The real OpenSSH smoke test is opt-in because it needs a reachable SSH host and throwaway credentials. The default UI suite uses an in-process fixture.
 - Puter removal is tracked as `PUTER-01`; its adapter and assets are still present in this build but are not configured.
 - The workspace store, `WorkspaceOrchestrator`, runtime provider registry, local device registry and iOS/Android capability catalogs are implemented with tests. Signed capability leases, interactive SPAKE2+ pairing, capture streaming, file transfer, remote invocation and production network transports are not.
-- The browser endpoint is a presentation endpoint. Its loopback client/state/policy, Swift host service and handshake/registration tests exist, but there is no production browser page or app wiring yet, and it is not the workspace authority. See the [AD-PAIR-1](docs/protocols/ad-pair-1.md) and [browser endpoint](docs/protocols/browser-endpoint.md) notes.
+- The browser endpoint is a presentation endpoint. Its loopback client/state/policy, Swift host service, handshake/registration tests and app wiring exist, including a settings toggle, scoped endpoint URL and diagnostics; there is no production browser page yet, and it is not the workspace authority. See the [AD-PAIR-1](docs/protocols/ad-pair-1.md) and [browser endpoint](docs/protocols/browser-endpoint.md) notes.
 - The Android controller/display baseline builds and passes unit tests, but has not been installed on a physical device. Its presentation and protocol paths are not yet release-qualified.
 - The web identity layer has the AD-PAIR-1 transcript, signature/binding checks, SAS, HKDF key schedule and an RFC 9383 P-256 SPAKE2+ primitive validated against the RFC vector. Interactive pairing integration, password-derived `w0`/`w1`, QR/PIN and real binding acquisition are still pending.
 
@@ -230,7 +230,7 @@ cargo test --manifest-path ../protocol/rust/Cargo.toml
 
 ### Tests and CI
 
-- `AirDeskTests`: 324 unit tests covering input, runtime routing, SSH PTY, reconnect, terminal messages, identity, capabilities, browser endpoint hosting, and entitlements.
+- `AirDeskTests`: 328 unit tests covering input, runtime routing, SSH PTY, reconnect, terminal messages, identity, capabilities, browser endpoint hosting and service lifecycle, and entitlements.
 - `web/test`: 150 tests covering the desktop shell, protocol, browser identity/pairing, the RFC 9383 SPAKE2+ vector, endpoint policy, sync conflict corpus/collaboration and remote placement.
 - `android/app/src/test`: 49 Kotlin unit tests covering identity, pairing, capabilities, presentation and canonical ADFP integration.
 - `protocol/rust`: 10 tests covering movement/control fixtures and packed-frame handling.
