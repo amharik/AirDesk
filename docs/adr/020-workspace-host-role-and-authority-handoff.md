@@ -1,6 +1,6 @@
 # ADR-020: Workspace host role, duty split and authority handoff
 
-- **Status:** Proposed — host-role, handoff and degraded-mode gates required
+- **Status:** Proposed — local host-role, handoff and degraded-mode gates pass; distributed transfer and lease gates pending
 - **Date:** 2026-11-03
 - **Deciders:** Product owner, engineering lead, security owner
 - **Scope:** Where workspace authority runs, which duties it carries, what happens when it is unreachable, how it moves between devices

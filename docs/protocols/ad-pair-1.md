@@ -1,6 +1,6 @@
 # AD-PAIR-1 pairing transcript and key schedule
 
-Status: partial implementation behind [ADR-011](../adr/011-device-identity-discovery-pairing.md). The transcript, signature checks, channel-binding validation and key schedule are implemented in the browser identity layer. A low-level RFC 9383 SPAKE2+ P-256 primitive is implemented and validated against the RFC vector, but it is not yet wired into `AdPairSession`. Password-derived `w0`/`w1`, QR/PIN flows and native/browser binding acquisition remain pending.
+Status: partial implementation behind [ADR-011](../adr/011-device-identity-discovery-pairing.md). The transcript, signature checks, channel-binding validation and key schedule are implemented in the browser identity layer. An interactive RFC 9383 SPAKE2+ P-256 prover/verifier session is implemented, validated against the RFC vector and integrated with `AdPairSession` confirmation evidence. Password-derived `w0`/`w1`, QR/PIN flows and native/browser binding acquisition remain pending.
 
 ## Scope
 
@@ -52,7 +52,9 @@ Each side signs the canonical transcript bytes with its device key. Ed25519 is t
 
 `web/test/spake2plus.test.ts` reproduces the RFC 9383 P-256 test vector, including `shareP`, `shareV`, `Z`, `V`, `TT`, all derived keys and both confirmations. The primitive requires canonical registration scalars and uses `@noble/curves` for point arithmetic.
 
-The primitive is intentionally separate from the one-shot `Spake2PlusPrimitive`/`AdPairSession` interface. The application needs an interactive prover/verifier adapter, password-to-scalar PBKDF, and native parity before pairing can be called complete.
+`Spake2PlusSession` adapts the primitive to the interactive exchange: `proverStart()` emits the prover share, `verifierRespond()` returns the verifier share and confirmation, `proverFinish()` verifies the verifier confirmation and emits the prover confirmation, and `verifierFinish()` verifies the prover confirmation. The resulting base64url shares, confirmations and shared secret can be supplied to `AdPairSession` as `pakeExchange`; `AdPairFinishInput.secret` is then optional, and the session validates the exchange before signing the transcript.
+
+The password-to-scalar PBKDF and native parity are still required before pairing can be called complete.
 
 ## SAS
 
@@ -90,7 +92,6 @@ The transcript hash must be exactly 32 bytes. Missing or malformed channel bindi
 
 ## Pending
 
-- Wire the RFC 9383 primitive into the interactive `AdPairSession` flow and validate both confirmation directions end to end.
 - Password-to-`w0`/`w1` PBKDF and registration records.
 - QR/PIN acquisition and user-verification flows.
 - TLS exporter and browser host-certificate hash acquisition.

@@ -243,7 +243,7 @@ Every task must include:
 | ADR-017 | Workspace orchestration and runtime providers | Proposed |
 | ADR-018 | Native device agents and capability host ABI | Proposed |
 | ADR-019 | Application model and lifecycle | Proposed |
-| ADR-020 | Workspace host role and authority handoff | Proposed — host-role, handoff and degraded-mode gates required |
+| ADR-020 | Workspace host role and authority handoff | Proposed — local host, handoff and degraded-mode gates pass; distributed transfer and lease gates pending |
 
 The ADR index in `docs/adr/README.md` is authoritative for decision status, implementation status and amendments.
 
