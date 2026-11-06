@@ -1,6 +1,6 @@
 import Foundation
 
-enum DiscoveryServiceKind: String, CaseIterable, Sendable {
+enum DiscoveryServiceKind: String, CaseIterable, Hashable, Sendable {
     case control
     case webTransport
 

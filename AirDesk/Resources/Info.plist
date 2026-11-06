@@ -85,6 +85,7 @@
 		<string>_googlecast._tcp</string>
 		<string>$(AIRDESK_CAST_RECEIVER_APP_ID)._googlecast._tcp</string>
 		<string>_airdesk._tcp</string>
+		<string>_airdesk._udp</string>
 	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
