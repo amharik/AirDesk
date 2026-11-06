@@ -1,0 +1,329 @@
+[
+  {
+    "id": "apply-stale-epoch",
+    "description": "A patch from an older host epoch is rejected before any field is considered.",
+    "operation": {
+      "kind": "apply-patch",
+      "snapshot": {
+        "workspaceId": "ws-1",
+        "hostEpoch": 2,
+        "workspaceSeq": 10,
+        "revision": 3,
+        "metadata": [],
+        "fields": {}
+      },
+      "patch": {
+        "workspaceId": "ws-1",
+        "senderDeviceId": "dev-a",
+        "hostEpoch": 1,
+        "baseWorkspaceSeq": 10,
+        "revision": 4,
+        "fields": []
+      }
+    },
+    "expected": {
+      "status": "rejected",
+      "reason": "stale-epoch",
+      "conflicts": [],
+      "snapshot": { "workspaceSeq": 10, "revision": 3, "fields": {} }
+    }
+  },
+  {
+    "id": "apply-future-epoch",
+    "description": "A patch from an unknown future host epoch is rejected.",
+    "operation": {
+      "kind": "apply-patch",
+      "snapshot": {
+        "workspaceId": "ws-1",
+        "hostEpoch": 2,
+        "workspaceSeq": 10,
+        "revision": 3,
+        "metadata": [],
+        "fields": {}
+      },
+      "patch": {
+        "workspaceId": "ws-1",
+        "senderDeviceId": "dev-a",
+        "hostEpoch": 3,
+        "baseWorkspaceSeq": 10,
+        "revision": 4,
+        "fields": []
+      }
+    },
+    "expected": {
+      "status": "rejected",
+      "reason": "future-epoch",
+      "conflicts": [],
+      "snapshot": { "workspaceSeq": 10, "revision": 3, "fields": {} }
+    }
+  },
+  {
+    "id": "apply-stale-seq",
+    "description": "A patch based on an already-applied workspace sequence is rejected.",
+    "operation": {
+      "kind": "apply-patch",
+      "snapshot": {
+        "workspaceId": "ws-1",
+        "hostEpoch": 2,
+        "workspaceSeq": 10,
+        "revision": 3,
+        "metadata": [],
+        "fields": {}
+      },
+      "patch": {
+        "workspaceId": "ws-1",
+        "senderDeviceId": "dev-a",
+        "hostEpoch": 2,
+        "baseWorkspaceSeq": 9,
+        "revision": 4,
+        "fields": []
+      }
+    },
+    "expected": {
+      "status": "rejected",
+      "reason": "stale-seq",
+      "conflicts": [],
+      "snapshot": { "workspaceSeq": 10, "revision": 3, "fields": {} }
+    }
+  },
+  {
+    "id": "apply-future-seq",
+    "description": "A patch that skips past the next workspace sequence is rejected.",
+    "operation": {
+      "kind": "apply-patch",
+      "snapshot": {
+        "workspaceId": "ws-1",
+        "hostEpoch": 2,
+        "workspaceSeq": 10,
+        "revision": 3,
+        "metadata": [],
+        "fields": {}
+      },
+      "patch": {
+        "workspaceId": "ws-1",
+        "senderDeviceId": "dev-a",
+        "hostEpoch": 2,
+        "baseWorkspaceSeq": 11,
+        "revision": 4,
+        "fields": []
+      }
+    },
+    "expected": {
+      "status": "rejected",
+      "reason": "future-seq",
+      "conflicts": [],
+      "snapshot": { "workspaceSeq": 10, "revision": 3, "fields": {} }
+    }
+  },
+  {
+    "id": "apply-stale-revision",
+    "description": "A patch revision older than the snapshot revision is rejected.",
+    "operation": {
+      "kind": "apply-patch",
+      "snapshot": {
+        "workspaceId": "ws-1",
+        "hostEpoch": 2,
+        "workspaceSeq": 10,
+        "revision": 3,
+        "metadata": [],
+        "fields": {}
+      },
+      "patch": {
+        "workspaceId": "ws-1",
+        "senderDeviceId": "dev-a",
+        "hostEpoch": 2,
+        "baseWorkspaceSeq": 10,
+        "revision": 2,
+        "fields": []
+      }
+    },
+    "expected": {
+      "status": "rejected",
+      "reason": "stale-revision",
+      "conflicts": [],
+      "snapshot": { "workspaceSeq": 10, "revision": 3, "fields": {} }
+    }
+  },
+  {
+    "id": "apply-invalid-patch",
+    "description": "A field with a negative revision invalidates the whole patch before application.",
+    "operation": {
+      "kind": "apply-patch",
+      "snapshot": {
+        "workspaceId": "ws-1",
+        "hostEpoch": 2,
+        "workspaceSeq": 10,
+        "revision": 3,
+        "metadata": [{ "path": "layout.bounds", "merge": "lww" }],
+        "fields": {}
+      },
+      "patch": {
+        "workspaceId": "ws-1",
+        "senderDeviceId": "dev-a",
+        "hostEpoch": 2,
+        "baseWorkspaceSeq": 10,
+        "revision": 4,
+        "fields": [
+          { "path": "layout.bounds", "value": { "x": 1 }, "revision": -1, "deviceId": "dev-a" }
+        ]
+      }
+    },
+    "expected": {
+      "status": "rejected",
+      "reason": "invalid-patch",
+      "conflicts": [],
+      "fieldStatuses": {},
+      "snapshot": { "workspaceSeq": 10, "revision": 3, "fields": {} }
+    }
+  },
+  {
+    "id": "apply-interrupted-hook",
+    "description": "An exception in the apply hook rejects the whole patch without mutating the snapshot.",
+    "operation": {
+      "kind": "apply-patch",
+      "snapshot": {
+        "workspaceId": "ws-1",
+        "hostEpoch": 2,
+        "workspaceSeq": 10,
+        "revision": 3,
+        "metadata": [
+          { "path": "layout.bounds", "merge": "lww" },
+          { "path": "history", "merge": "append-log" }
+        ],
+        "fields": {
+          "layout.bounds": {
+            "value": { "x": 0, "y": 0 },
+            "revision": 3,
+            "deviceId": "dev-a"
+          }
+        }
+      },
+      "patch": {
+        "workspaceId": "ws-1",
+        "senderDeviceId": "dev-b",
+        "hostEpoch": 2,
+        "baseWorkspaceSeq": 10,
+        "revision": 4,
+        "fields": [
+          { "path": "layout.bounds", "value": { "x": 1, "y": 1 }, "revision": 4, "deviceId": "dev-b" },
+          { "path": "history", "value": "late", "revision": 4, "deviceId": "dev-b", "appendId": "h1" }
+        ]
+      },
+      "interruptAfterField": 1
+    },
+    "expected": {
+      "status": "rejected",
+      "reason": "interrupted",
+      "conflicts": [],
+      "fieldStatuses": { "layout.bounds": "merged" },
+      "snapshot": {
+        "workspaceSeq": 10,
+        "revision": 3,
+        "fields": {
+          "layout.bounds": {
+            "value": { "x": 0, "y": 0 },
+            "revision": 3,
+            "deviceId": "dev-a"
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "apply-classified-manual-conflict",
+    "description": "A classified manual field returns a conflict and leaves the snapshot untouched.",
+    "operation": {
+      "kind": "apply-patch",
+      "snapshot": {
+        "workspaceId": "ws-1",
+        "hostEpoch": 2,
+        "workspaceSeq": 10,
+        "revision": 3,
+        "metadata": [{ "path": "identity.name", "merge": "manual" }],
+        "fields": { "identity.name": "Ada" }
+      },
+      "patch": {
+        "workspaceId": "ws-1",
+        "senderDeviceId": "dev-b",
+        "hostEpoch": 2,
+        "baseWorkspaceSeq": 10,
+        "revision": 4,
+        "fields": [{ "path": "identity.name", "value": "Grace", "revision": 4, "deviceId": "dev-b" }]
+      }
+    },
+    "expected": {
+      "status": "conflict",
+      "conflicts": [
+        { "path": "identity.name", "merge": "manual", "reason": "manual-merge" }
+      ],
+      "fieldStatuses": { "identity.name": "conflict" },
+      "snapshot": {
+        "workspaceSeq": 10,
+        "revision": 3,
+        "fields": { "identity.name": "Ada" }
+      }
+    }
+  },
+  {
+    "id": "apply-unclassified-new-field",
+    "description": "A new unclassified field is refused rather than silently created.",
+    "operation": {
+      "kind": "apply-patch",
+      "snapshot": {
+        "workspaceId": "ws-1",
+        "hostEpoch": 2,
+        "workspaceSeq": 10,
+        "revision": 3,
+        "metadata": [],
+        "fields": {}
+      },
+      "patch": {
+        "workspaceId": "ws-1",
+        "senderDeviceId": "dev-b",
+        "hostEpoch": 2,
+        "baseWorkspaceSeq": 10,
+        "revision": 4,
+        "fields": [
+          { "path": "unclassified.value", "value": true, "revision": 4, "deviceId": "dev-b" }
+        ]
+      }
+    },
+    "expected": {
+      "status": "conflict",
+      "conflicts": [
+        { "path": "unclassified.value", "merge": "manual", "reason": "unclassified-field" }
+      ],
+      "fieldStatuses": { "unclassified.value": "conflict" },
+      "snapshot": { "workspaceSeq": 10, "revision": 3, "fields": {} }
+    }
+  },
+  {
+    "id": "merge-snapshots-future-epoch",
+    "description": "Snapshot merge rejects a remote snapshot from a newer host epoch.",
+    "operation": {
+      "kind": "merge-snapshots",
+      "local": {
+        "workspaceId": "ws-1",
+        "hostEpoch": 2,
+        "workspaceSeq": 10,
+        "revision": 3,
+        "metadata": [],
+        "fields": {}
+      },
+      "remote": {
+        "workspaceId": "ws-1",
+        "hostEpoch": 3,
+        "workspaceSeq": 10,
+        "revision": 4,
+        "metadata": [],
+        "fields": {}
+      }
+    },
+    "expected": {
+      "status": "rejected",
+      "reason": "future-epoch",
+      "conflicts": [],
+      "snapshot": { "workspaceSeq": 10, "revision": 3, "fields": {} }
+    }
+  }
+]

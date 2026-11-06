@@ -1,0 +1,210 @@
+[
+  {
+    "id": "lww-newer-remote",
+    "description": "A remote LWW value with a newer revision wins.",
+    "operation": {
+      "kind": "merge-lww",
+      "path": "layout.bounds",
+      "local": { "value": { "x": 1, "y": 1 }, "revision": 4, "deviceId": "dev-a" },
+      "remote": { "value": { "x": 2, "y": 2 }, "revision": 5, "deviceId": "dev-b" }
+    },
+    "expected": {
+      "status": "remote",
+      "winner": "remote",
+      "value": { "value": { "x": 2, "y": 2 }, "revision": 5, "deviceId": "dev-b" },
+      "conflicts": []
+    }
+  },
+  {
+    "id": "lww-newer-local",
+    "description": "A local LWW value with a newer revision is retained.",
+    "operation": {
+      "kind": "merge-lww",
+      "path": "layout.bounds",
+      "local": { "value": { "x": 7, "y": 7 }, "revision": 9, "deviceId": "dev-a" },
+      "remote": { "value": { "x": 2, "y": 2 }, "revision": 8, "deviceId": "dev-b" }
+    },
+    "expected": {
+      "status": "local",
+      "winner": "local",
+      "value": { "value": { "x": 7, "y": 7 }, "revision": 9, "deviceId": "dev-a" },
+      "conflicts": []
+    }
+  },
+  {
+    "id": "lww-equal-value",
+    "description": "Equal LWW metadata and canonically equal values are unchanged.",
+    "operation": {
+      "kind": "merge-lww",
+      "path": "layout.bounds",
+      "local": { "value": { "x": 1, "y": 2 }, "revision": 6, "deviceId": "dev-a" },
+      "remote": { "value": { "y": 2, "x": 1 }, "revision": 6, "deviceId": "dev-a" }
+    },
+    "expected": {
+      "status": "equal",
+      "winner": "equal",
+      "value": { "value": { "x": 1, "y": 2 }, "revision": 6, "deviceId": "dev-a" },
+      "conflicts": []
+    }
+  },
+  {
+    "id": "lww-ambiguous-tie",
+    "description": "Equal revision and device id with different values is an explicit ambiguous conflict.",
+    "operation": {
+      "kind": "merge-lww",
+      "path": "layout.bounds",
+      "local": { "value": "one", "revision": 8, "deviceId": "dev-a" },
+      "remote": { "value": "two", "revision": 8, "deviceId": "dev-a" }
+    },
+    "expected": {
+      "status": "conflict",
+      "winner": "conflict",
+      "conflicts": [
+        { "path": "layout.bounds", "merge": "lww", "reason": "ambiguous-lww" }
+      ]
+    }
+  },
+  {
+    "id": "append-log-disjoint",
+    "description": "Disjoint append-log entries are unioned deterministically.",
+    "operation": {
+      "kind": "merge-append-log",
+      "path": "history",
+      "local": [{ "id": "a", "value": { "text": "first" }, "revision": 1 }],
+      "remote": [{ "id": "b", "value": { "text": "second" }, "revision": 2 }]
+    },
+    "expected": {
+      "status": "merged",
+      "entries": [
+        { "id": "a", "value": { "text": "first" }, "revision": 1 },
+        { "id": "b", "value": { "text": "second" }, "revision": 2 }
+      ],
+      "added": 1,
+      "duplicates": [],
+      "conflicts": []
+    }
+  },
+  {
+    "id": "append-log-duplicate-same-value",
+    "description": "Duplicate append-log ids with the same value are deduplicated without conflict.",
+    "operation": {
+      "kind": "merge-append-log",
+      "path": "history",
+      "local": [{ "id": "a", "value": { "text": "same" }, "revision": 2 }],
+      "remote": [{ "id": "a", "value": { "text": "same" }, "revision": 2 }]
+    },
+    "expected": {
+      "status": "unchanged",
+      "entries": [{ "id": "a", "value": { "text": "same" }, "revision": 2 }],
+      "added": 0,
+      "duplicates": ["a"],
+      "conflicts": []
+    }
+  },
+  {
+    "id": "append-log-duplicate-conflicting-value",
+    "description": "Duplicate append-log ids with different values are reported and resolved deterministically.",
+    "operation": {
+      "kind": "merge-append-log",
+      "path": "history",
+      "local": [{ "id": "a", "value": "local", "revision": 1 }],
+      "remote": [{ "id": "a", "value": "remote", "revision": 1 }]
+    },
+    "expected": {
+      "status": "conflict",
+      "entries": [{ "id": "a", "value": "remote", "revision": 1 }],
+      "added": 0,
+      "duplicates": ["a"],
+      "conflicts": [
+        { "path": "history", "merge": "append-log", "reason": "append-log-duplicate-conflict" }
+      ]
+    }
+  },
+  {
+    "id": "append-log-ordering-stability",
+    "description": "Append-log entries are ordered by revision then id regardless of input order.",
+    "operation": {
+      "kind": "merge-append-log",
+      "path": "history",
+      "local": [
+        { "id": "b", "value": "b", "revision": 2 },
+        { "id": "a", "value": "a", "revision": 2 },
+        { "id": "d", "value": "d", "revision": 1 }
+      ],
+      "remote": [
+        { "id": "c", "value": "c", "revision": 2 },
+        { "id": "a", "value": "a", "revision": 2 }
+      ]
+    },
+    "expected": {
+      "status": "merged",
+      "entries": [
+        { "id": "d", "value": "d", "revision": 1 },
+        { "id": "a", "value": "a", "revision": 2 },
+        { "id": "b", "value": "b", "revision": 2 },
+        { "id": "c", "value": "c", "revision": 2 }
+      ],
+      "added": 1,
+      "duplicates": ["a"],
+      "conflicts": []
+    }
+  },
+  {
+    "id": "manual-classified-conflict",
+    "description": "Classified manual fields fail closed with a manual-merge reason.",
+    "operation": {
+      "kind": "merge-field",
+      "metadata": [{ "path": "identity.name", "merge": "manual" }],
+      "path": "identity.name",
+      "local": "Ada",
+      "remote": "Grace"
+    },
+    "expected": {
+      "status": "conflict",
+      "merge": "manual",
+      "changed": false,
+      "value": "Ada",
+      "conflicts": [
+        { "path": "identity.name", "merge": "manual", "reason": "manual-merge" }
+      ]
+    }
+  },
+  {
+    "id": "manual-classified-equal",
+    "description": "Classified manual fields with equal values are unchanged rather than conflicted.",
+    "operation": {
+      "kind": "merge-field",
+      "metadata": [{ "path": "identity.name", "merge": "manual" }],
+      "path": "identity.name",
+      "local": "Ada",
+      "remote": "Ada"
+    },
+    "expected": {
+      "status": "unchanged",
+      "merge": "manual",
+      "changed": false,
+      "value": "Ada",
+      "conflicts": []
+    }
+  },
+  {
+    "id": "manual-unclassified-conflict",
+    "description": "Unclassified fields default to manual and are not auto-merged.",
+    "operation": {
+      "kind": "merge-field",
+      "metadata": [],
+      "path": "unclassified.value",
+      "local": { "enabled": true },
+      "remote": { "enabled": false }
+    },
+    "expected": {
+      "status": "conflict",
+      "merge": "manual",
+      "changed": false,
+      "value": { "enabled": true },
+      "conflicts": [
+        { "path": "unclassified.value", "merge": "manual", "reason": "unclassified-field" }
+      ]
+    }
+  }
+]
