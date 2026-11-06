@@ -1,4 +1,5 @@
 import FlatBuffers
+import Foundation
 import XCTest
 @testable import AirDesk
 
@@ -57,6 +58,27 @@ final class CapabilityCatalogTests: XCTestCase {
         ).cameraDescriptor
         XCTAssertEqual(missingHardware?.availability, .unavailable)
         XCTAssertEqual(missingHardware?.authorization, .ungranted)
+    }
+
+    func testCameraAuthorizedButUnavailableKeepsPermissionSeparate() {
+        let missingHardware = makeCatalog(
+            hardwareAvailable: false,
+            cameraStatus: .authorized
+        ).cameraDescriptor
+
+        XCTAssertEqual(missingHardware?.availability, .unavailable)
+        XCTAssertEqual(missingHardware?.authorization, .granted)
+    }
+
+    func testCameraCanOnlyRequestAccessBeforeFirstPrompt() {
+        XCTAssertTrue(makeCatalog(cameraStatus: .notDetermined).cameraCanRequestAccess)
+        XCTAssertFalse(makeCatalog(cameraStatus: .authorized).cameraCanRequestAccess)
+        XCTAssertFalse(makeCatalog(cameraStatus: .denied).cameraCanRequestAccess)
+        XCTAssertFalse(makeCatalog(cameraStatus: .restricted).cameraCanRequestAccess)
+        XCTAssertFalse(makeCatalog(
+            hardwareAvailable: false,
+            cameraStatus: .notDetermined
+        ).cameraCanRequestAccess)
     }
 
     func testCameraPermissionRequestRefreshesCatalogWithoutClaimingOtherGrants() async {
@@ -133,6 +155,30 @@ final class CapabilityCatalogTests: XCTestCase {
         XCTAssertEqual(decoded.execution, descriptor.execution)
         XCTAssertEqual(decoded.transport, descriptor.transport)
         XCTAssertEqual(decoded.constraints, descriptor.constraints)
+    }
+
+    func testEveryDescriptorCarriesRequiredADFPFieldsAndValidConstraints() throws {
+        for descriptor in makeCatalog().descriptors {
+            XCTAssertFalse(descriptor.capUri.isEmpty)
+            XCTAssertFalse(descriptor.providerDeviceId.isEmpty)
+            XCTAssertFalse(descriptor.execution.isEmpty)
+            XCTAssertFalse(descriptor.transport.isEmpty)
+            XCTAssertFalse(descriptor.constraints.isEmpty)
+            XCTAssertNoThrow(
+                try JSONSerialization.jsonObject(with: Data(descriptor.constraints.utf8))
+            )
+        }
+    }
+
+    func testDescriptorWithoutPermissionsRoundTripsWithEmptyPermissions() throws {
+        let descriptor = try XCTUnwrap(
+            makeCatalog().descriptors.first { $0.capUri == "airdesk://display/output" }
+        )
+        XCTAssertTrue(descriptor.permissions.isEmpty)
+
+        var buffer = ByteBuffer(data: descriptor.adfpEncoded())
+        let decoded: AirDesk_Protocol__CapabilityDescriptor = getRoot(byteBuffer: &buffer)
+        XCTAssertTrue(Array(decoded.permissions).compactMap { $0 }.isEmpty)
     }
 
     func testSelfIdentityBindingUsesLocalDeviceIDForEveryDescriptor() throws {

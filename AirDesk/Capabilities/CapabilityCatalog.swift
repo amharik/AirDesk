@@ -40,21 +40,27 @@ final class CapabilityCatalog: ObservableObject {
         camera.permissionStatus
     }
 
+    var cameraCanRequestAccess: Bool {
+        camera.hardwareAvailable && camera.permissionStatus == .notDetermined
+    }
+
     var cameraDescriptor: CapabilityDescriptor? {
         descriptors.first { $0.capUri == Self.cameraCapUri }
     }
 
     func reload() {
-        let status = camera.permissionStatus
+        let hardwareAvailable = camera.hardwareAvailable
+        let permissionStatus = camera.permissionStatus
+        let documentsAvailable = files.appScopedDocumentsAvailable
         descriptors = [
             displayDescriptor,
             pointerDescriptor,
             keyboardDescriptor,
             cameraDescriptor(
-                hardwareAvailable: camera.hardwareAvailable,
-                permissionStatus: status
+                hardwareAvailable: hardwareAvailable,
+                permissionStatus: permissionStatus
             ),
-            documentsDescriptor,
+            documentsDescriptor(available: documentsAvailable),
             healthDescriptor
         ]
     }
@@ -132,13 +138,13 @@ final class CapabilityCatalog: ObservableObject {
         )
     }
 
-    private var documentsDescriptor: CapabilityDescriptor {
+    private func documentsDescriptor(available: Bool) -> CapabilityDescriptor {
         makeDescriptor(
             capUri: Self.documentsCapUri,
             execution: "on-device-read",
             transport: "none",
             constraints: #"{"scope":"app-documents","userSelectedOnly":true,"deviceWideAccess":false,"remoteTransfer":false}"#,
-            availability: files.appScopedDocumentsAvailable ? .restricted : .unavailable,
+            availability: available ? .restricted : .unavailable,
             authorization: .ungranted,
             label: "Documents read",
             summary: "App-scoped documents and user-selected files only.",

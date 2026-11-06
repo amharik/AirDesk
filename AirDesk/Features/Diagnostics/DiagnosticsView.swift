@@ -75,6 +75,7 @@ struct DiagnosticsView: View {
     private var capabilitiesSection: some View {
         CapabilityCatalogSection(catalog: environment.capabilityCatalog)
             .listRowBackground(rowBackground)
+            .onAppear { environment.capabilityCatalog.reload() }
     }
 
     private var sessionSection: some View {
@@ -312,9 +313,7 @@ private struct CapabilityCatalogSection: View {
                     capabilityRow(capability)
                 }
             }
-            if let camera = catalog.cameraDescriptor,
-               camera.availability != .unavailable,
-               camera.authorization != .granted {
+            if catalog.cameraCanRequestAccess {
                 Button {
                     Task { await catalog.requestCameraAccess() }
                 } label: {
