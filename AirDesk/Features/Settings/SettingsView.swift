@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct SettingsView: View {
     @EnvironmentObject private var environment: AppEnvironment
@@ -17,6 +18,7 @@ struct SettingsView: View {
                 }
                 remoteTerminalSection
                 displaySection
+                browserEndpointSection
                 cursorSection
                 runtimeSection
                 fabricSection
@@ -228,6 +230,20 @@ struct SettingsView: View {
             sectionHeader("Display output")
         } footer: {
             Text("Mirror \(DeviceContext.name) uses AirPlay Screen Mirroring from Control Center and shows the desktop with a floating remote. Extended desktop requires an external-display scene and keeps the controller on \(DeviceContext.name).")
+        }
+        .listRowBackground(rowBackground)
+    }
+
+    private var browserEndpointSection: some View {
+        Section {
+            BrowserEndpointControls(
+                service: environment.browserEndpoint,
+                enabled: $settings.browserEndpointEnabled
+            )
+        } header: {
+            sectionHeader("Browser presentation")
+        } footer: {
+            Text("The loopback host only accepts the configured local asset origin. A production browser presentation page is not bundled yet.")
         }
         .listRowBackground(rowBackground)
     }
@@ -525,6 +541,76 @@ struct SettingsView: View {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
         return "\(version) (\(build))"
+    }
+}
+
+private struct BrowserEndpointControls: View {
+    @ObservedObject var service: BrowserEndpointService
+    @Binding var enabled: Bool
+    @State private var copied = false
+
+    var body: some View {
+        Toggle(isOn: $enabled) {
+            Label {
+                Text("Browser endpoint host")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(0.86))
+            } icon: {
+                Image(systemName: "safari")
+                    .foregroundStyle(ADTheme.textSecondary)
+            }
+        }
+        .tint(ADTheme.accent)
+
+        if enabled || service.state != .stopped {
+            HStack(spacing: 11) {
+                Image(systemName: "dot.radiowaves.left.and.right")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(ADTheme.textSecondary)
+                    .frame(width: 20)
+                Text("Host status")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(0.86))
+                Spacer(minLength: 10)
+                CapsuleBadge(
+                    text: service.state.title,
+                    tint: service.state == .running ? ADTheme.accent : ADTheme.textTertiary
+                )
+            }
+
+            if let endpointURL = service.endpointURL {
+                Button {
+                    UIPasteboard.general.string = endpointURL.absoluteString
+                    copied = true
+                } label: {
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack {
+                            Text(copied ? "Endpoint copied" : "Copy endpoint URL")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(ADTheme.accent)
+                            Spacer()
+                            Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(ADTheme.accent)
+                        }
+                        Text(endpointURL.absoluteString)
+                            .font(.system(size: 10.5, design: .monospaced))
+                            .foregroundStyle(ADTheme.textTertiary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+
+        if let lastError = service.lastError {
+            Text(lastError)
+                .font(.system(size: 11.5))
+                .foregroundStyle(ADTheme.danger)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 

@@ -15,6 +15,7 @@ struct DiagnosticsView: View {
                 capabilitiesSection
                 sessionSection
                 fabricSection
+                browserEndpointSection
                 performanceSection
                 runtimeSection
                 transitionsSection
@@ -124,6 +125,10 @@ struct DiagnosticsView: View {
             Text("Path and RTT values come from the live endpoint. A relayed path is never reported as direct.")
         }
         .listRowBackground(rowBackground)
+    }
+
+    private var browserEndpointSection: some View {
+        BrowserEndpointDiagnosticsSection(service: environment.browserEndpoint)
     }
 
     private var remoteInputState: String {
@@ -296,6 +301,35 @@ struct DiagnosticsView: View {
             try? await Task.sleep(nanoseconds: 1_500_000_000)
             copied = false
         }
+    }
+}
+
+private struct BrowserEndpointDiagnosticsSection: View {
+    @ObservedObject var service: BrowserEndpointService
+
+    var body: some View {
+        Section {
+            LabeledContent("Host", value: service.state.title)
+            LabeledContent("Page", value: "Not bundled")
+            if let endpointURL = service.endpointURL {
+                LabeledContent("Endpoint", value: endpointURL.absoluteString)
+                    .lineLimit(2)
+            }
+            if let lastError = service.lastError {
+                LabeledContent("Last error", value: lastError)
+            }
+        } header: {
+            Text("BROWSER ENDPOINT")
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .tracking(1.2)
+                .foregroundStyle(ADTheme.textTertiary)
+        } footer: {
+            Text("The host binds to loopback only. It accepts the configured local asset origin and a short-lived session token.")
+        }
+        .listRowBackground(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.white.opacity(0.045))
+        )
     }
 }
 

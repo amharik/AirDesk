@@ -13,6 +13,7 @@ final class AppEnvironment: ObservableObject {
     let entitlements: EntitlementManager
     let haptics: Haptics
     let fabric: IrohFabricPeer
+    let browserEndpoint: BrowserEndpointService
     let capabilityCatalog: CapabilityCatalog
     let deviceIdentityStore: DeviceIdentityStore
     let identity: DeviceIdentity?
@@ -91,6 +92,7 @@ final class AppEnvironment: ObservableObject {
         entitlements = EntitlementManager()
         haptics = Haptics.shared
         fabric = IrohFabricPeer()
+        browserEndpoint = BrowserEndpointService()
     }
 
     func bootstrap() {
@@ -178,6 +180,16 @@ final class AppEnvironment: ObservableObject {
             }
             .store(in: &cancellables)
 
+        settings.$browserEndpointEnabled
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                Task { @MainActor in
+                    self?.applyBrowserEndpointSettings()
+                }
+            }
+            .store(in: &cancellables)
+
         fabric.$state
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
@@ -198,6 +210,12 @@ final class AppEnvironment: ObservableObject {
             Task { @MainActor in
                 await fabric.start(relayPolicy: settings.fabricRelayPolicy)
                 session.fabricSettingsDidChange()
+            }
+        }
+
+        if settings.browserEndpointEnabled {
+            Task { @MainActor in
+                self.applyBrowserEndpointSettings()
             }
         }
 
@@ -260,6 +278,21 @@ final class AppEnvironment: ObservableObject {
         }
         NativeSmokeTest.runIfRequested(session: session)
         #endif
+    }
+
+    func applyBrowserEndpointSettings() {
+        guard settings.browserEndpointEnabled else {
+            browserEndpoint.stop()
+            return
+        }
+
+        do {
+            let directory = try DesktopSurface.bundledDirectory()
+            let baseURL = try LocalAssetServer.shared.start(rootDirectory: directory)
+            try browserEndpoint.start(allowedOrigin: baseURL.absoluteString)
+        } catch {
+            browserEndpoint.markFailed(error)
+        }
     }
 
     func applyFabricSettings() async {

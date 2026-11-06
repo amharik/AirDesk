@@ -20,6 +20,7 @@ final class AppSettings: ObservableObject {
         static let fabricEnabled = "airdesk.fabric.enabled"
         static let fabricInputForwarding = "airdesk.fabric.inputForwarding"
         static let fabricRelayURLs = "airdesk.fabric.relayURLs"
+        static let browserEndpointEnabled = "airdesk.browserEndpoint.enabled"
     }
 
     private static let remoteTerminalKeychainService = "com.airdesk.ios.remote-terminal"
@@ -96,6 +97,10 @@ final class AppSettings: ObservableObject {
         didSet { defaults.set(fabricRelayURLs, forKey: Key.fabricRelayURLs) }
     }
 
+    @Published var browserEndpointEnabled: Bool {
+        didSet { defaults.set(browserEndpointEnabled, forKey: Key.browserEndpointEnabled) }
+    }
+
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
@@ -122,6 +127,7 @@ final class AppSettings: ObservableObject {
         fabricEnabled = defaults.object(forKey: Key.fabricEnabled) as? Bool ?? false
         fabricInputForwardingEnabled = defaults.object(forKey: Key.fabricInputForwarding) as? Bool ?? false
         fabricRelayURLs = defaults.string(forKey: Key.fabricRelayURLs) ?? ""
+        browserEndpointEnabled = defaults.object(forKey: Key.browserEndpointEnabled) as? Bool ?? false
         if let raw = defaults.string(forKey: Key.displayMode), let mode = DisplayPresentationMode(rawValue: raw) {
             displayMode = mode
         } else {
@@ -199,5 +205,6 @@ final class AppSettings: ObservableObject {
         fabricEnabled = false
         fabricInputForwardingEnabled = false
         fabricRelayURLs = ""
+        browserEndpointEnabled = false
     }
 }

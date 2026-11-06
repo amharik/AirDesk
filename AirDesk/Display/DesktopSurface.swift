@@ -254,7 +254,7 @@ final class DesktopSurface {
     }
 
     private func localAssetURL(name: String, extension ext: String, request: LoadRequest) throws -> URL {
-        let directory = try bundledDirectory()
+        let directory = try Self.bundledDirectory()
         let baseURL = try LocalAssetServer.shared.start(rootDirectory: directory)
         var components = URLComponents(
             url: baseURL.appendingPathComponent("\(name).\(ext)"),
@@ -282,7 +282,7 @@ final class DesktopSurface {
         return url
     }
 
-    private func bundledDirectory() throws -> URL {
+    static func bundledDirectory() throws -> URL {
         if let url = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "DesktopShell") {
             return url.deletingLastPathComponent()
         }
