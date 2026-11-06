@@ -1,6 +1,6 @@
 # AD-PAIR-1 pairing transcript and key schedule
 
-Status: partial implementation behind [ADR-011](../adr/011-device-identity-discovery-pairing.md). The transcript, signature checks, channel-binding validation and key schedule are implemented in the browser identity layer. An interactive RFC 9383 SPAKE2+ P-256 prover/verifier session is implemented, validated against the RFC vector and integrated with `AdPairSession` confirmation evidence. Password-derived `w0`/`w1`, QR/PIN flows and native/browser binding acquisition remain pending.
+Status: partial implementation behind [ADR-011](../adr/011-device-identity-discovery-pairing.md). The transcript, signature checks, channel-binding validation and key schedule are implemented in the browser identity layer. An interactive RFC 9383 SPAKE2+ P-256 prover/verifier session is implemented, validated against the RFC vector and integrated with `AdPairSession` confirmation evidence. An scrypt password PBKDF and salted registration record are implemented. QR/PIN flows and native/browser binding acquisition remain pending.
 
 ## Scope
 
@@ -54,7 +54,17 @@ Each side signs the canonical transcript bytes with its device key. Ed25519 is t
 
 `Spake2PlusSession` adapts the primitive to the interactive exchange: `proverStart()` emits the prover share, `verifierRespond()` returns the verifier share and confirmation, `proverFinish()` verifies the verifier confirmation and emits the prover confirmation, and `verifierFinish()` verifies the prover confirmation. The resulting base64url shares, confirmations and shared secret can be supplied to `AdPairSession` as `pakeExchange`; `AdPairFinishInput.secret` is then optional, and the session validates the exchange before signing the transcript.
 
-The password-to-scalar PBKDF and native parity are still required before pairing can be called complete.
+Native parity is still required before pairing can be called complete.
+
+## Password PBKDF
+
+`deriveSpake2PlusPasswordScalars()` and `createSpake2PlusPasswordRegistration()` implement the RFC 9383 password-to-scalar step:
+
+- password strings are normalized with NFKC; empty passwords are rejected
+- the material is `len(password) || password || len(idProver) || idProver || len(idVerifier) || idVerifier`
+- scrypt uses `N=32768`, `r=8`, `p=1`, `dkLen=80` and a 16–64 byte salt; generated salts are 32 bytes
+- the two 40-byte halves are reduced modulo the P-256 order to produce `w0` and `w1`
+- the registration record is `L = w1*P`; the salt and profile must travel with the registration record
 
 ## SAS
 
@@ -92,7 +102,6 @@ The transcript hash must be exactly 32 bytes. Missing or malformed channel bindi
 
 ## Pending
 
-- Password-to-`w0`/`w1` PBKDF and registration records.
 - QR/PIN acquisition and user-verification flows.
 - TLS exporter and browser host-certificate hash acquisition.
 - Native iOS/Android implementation and cross-platform vectors.
