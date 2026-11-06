@@ -166,13 +166,6 @@ STARTUP="$TMUX_BIN new -A -s $SESSION 'i=0; while :; do i=\$((i+1)); echo S2-REM
 xcrun simctl shutdown "$SIMULATOR_ID" >/dev/null 2>&1 || true
 xcrun simctl boot "$SIMULATOR_ID" >/dev/null 2>&1 || true
 xcrun simctl bootstatus "$SIMULATOR_ID" -b
-if [[ "$MODE" == "second-device" ]]; then
-    xcrun simctl shutdown "$SIMULATOR_ID_B" >/dev/null 2>&1 || true
-    xcrun simctl boot "$SIMULATOR_ID_B" >/dev/null 2>&1 || true
-    xcrun simctl bootstatus "$SIMULATOR_ID_B" -b
-    sleep 5
-fi
-
 cd "$ROOT"
 if command -v xcodegen >/dev/null 2>&1; then
     xcodegen generate >/dev/null
@@ -207,7 +200,6 @@ write_defaults() {
 
 if [[ "$MODE" == "second-device" ]]; then
     write_defaults "$SIMULATOR_ID"
-    write_defaults "$SIMULATOR_ID_B"
     PRIMARY_LOG="$WORK/primary.log"
     SECONDARY_LOG="$WORK/secondary.log"
 
@@ -233,6 +225,13 @@ if [[ "$MODE" == "second-device" ]]; then
         echo "Primary controller did not report a heartbeat marker." >&2
         exit 1
     fi
+
+    xcrun simctl shutdown "$SIMULATOR_ID" >/dev/null 2>&1 || true
+    xcrun simctl shutdown "$SIMULATOR_ID_B" >/dev/null 2>&1 || true
+    xcrun simctl boot "$SIMULATOR_ID_B" >/dev/null 2>&1 || true
+    xcrun simctl bootstatus "$SIMULATOR_ID_B" -b
+    sleep 10
+    write_defaults "$SIMULATOR_ID_B"
     xcrun simctl spawn "$SIMULATOR_ID_B" defaults write com.airdesk.realsshsmoke baselineMarker "$PRIMARY_MARKER"
 
     echo "running S2 secondary controller on $SIMULATOR_ID_B (baseline $PRIMARY_MARKER)"
