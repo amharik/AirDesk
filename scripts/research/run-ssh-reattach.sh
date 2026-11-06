@@ -346,12 +346,14 @@ with open(os.path.join(run_dir, "run.json"), "w", encoding="utf-8") as handle:
 
 if mode == "termination":
     title = "S2 SSH/tmux Termination Recovery Baseline"
-    label = "Relaunch reconnect"
+    label = "Relaunch recovery"
     action = (
         "terminated the app process, waited, relaunched it, reopened the preview, "
         "waited for a fresh `terminal.ssh.ready`, and verified a new heartbeat marker arrived after each relaunch"
     )
     scope = (
+        "`relaunch_ms` covers the full cold recovery from `app.launch()` through app startup, preview presentation, "
+        "SSH reconnect and the first fresh ready event; it is not a transport-only reconnect measurement. "
         "This is a simulator-to-tailnet baseline. It does not prove physical-device termination "
         "behavior, a second controller device or a direct-underlay path; background behavior is covered separately."
     )

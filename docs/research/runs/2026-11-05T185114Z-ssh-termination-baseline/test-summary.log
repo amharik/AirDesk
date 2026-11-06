@@ -1,0 +1,19 @@
+Test Suite 'Selected tests' started at 2026-11-06 00:16:42.133.
+Test Suite 'AirDeskUITests.xctest' started at 2026-11-06 00:16:42.135.
+Test Suite 'RemoteSSHReattachTests' started at 2026-11-06 00:16:42.135.
+Test Case '-[AirDeskUITests.RemoteSSHReattachTests testRemoteSSHReattachesAfterTermination]' started.
+AIRDESK_S2_CYCLES=3
+AIRDESK_S2_CYCLE_REATTACH_MS=70799
+AIRDESK_S2_CYCLE_PROCESS_SURVIVED=true
+AIRDESK_S2_CYCLE_TRANSCRIPT_TRUTHFUL=true
+AIRDESK_S2_CYCLE_REATTACH_MS=57555
+AIRDESK_S2_CYCLE_PROCESS_SURVIVED=true
+AIRDESK_S2_CYCLE_TRANSCRIPT_TRUTHFUL=true
+AIRDESK_S2_CYCLE_REATTACH_MS=43513
+AIRDESK_S2_CYCLE_PROCESS_SURVIVED=true
+AIRDESK_S2_CYCLE_TRANSCRIPT_TRUTHFUL=true
+AIRDESK_S2_DONE=true
+Test Case '-[AirDeskUITests.RemoteSSHReattachTests testRemoteSSHReattachesAfterTermination]' passed (270.670 seconds).
+Test Suite 'RemoteSSHReattachTests' passed at 2026-11-06 00:21:12.809.
+Test Suite 'AirDeskUITests.xctest' passed at 2026-11-06 00:21:12.810.
+Test Suite 'Selected tests' passed at 2026-11-06 00:21:12.812.

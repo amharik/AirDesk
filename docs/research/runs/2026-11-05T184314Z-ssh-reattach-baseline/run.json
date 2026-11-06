@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "scenario": "S2",
+  "scenario_name": "ssh-tmux-reattach-baseline",
+  "candidate": "ssh-tmux-baseline",
+  "transport": "ssh",
+  "run_id": "2026-11-05T184314Z-ssh-reattach-baseline",
+  "commit": "472537a22a19",
+  "dirty": false,
+  "date": "2026-11-05T18:43:24Z",
+  "samples": 3,
+  "failure_injection": [
+    "app-background-and-ssh-drop"
+  ],
+  "environment": {
+    "controller": "iPhone 16 Pro (3B46FDF8-1482-4517-99F3-D6EF46A85133) (Booted)  / iOS 18.6 simulator",
+    "simulator_id": "3B46FDF8-1482-4517-99F3-D6EF46A85133",
+    "xcode": "Xcode 16.4 Build version 16F6",
+    "host": "macOS 15.5 x86_64",
+    "server": "Linux 6.12.101+deb13-amd64 x86_64",
+    "server_user": "sillygirl",
+    "server_tmux": "tmux 3.5a",
+    "network": "tailnet",
+    "underlay": "tailscale-derp",
+    "underlay_probe": "pong from sillygirl (100.109.90.66) via DERP(blr) in 31ms",
+    "ping_avg_ms": 40.667,
+    "mode": "background",
+    "background_seconds": 5,
+    "termination_seconds": null
+  },
+  "metrics": {
+    "reattach_ms": {
+      "p50": 6891,
+      "p95": 8208,
+      "p99": 8208,
+      "min": 5345,
+      "max": 8208,
+      "values": [
+        8208,
+        6891,
+        5345
+      ]
+    },
+    "process_survived": true,
+    "transcript_truthful": true
+  },
+  "failures": [],
+  "pass": {
+    "process_survived": true,
+    "transcript_truthful": true,
+    "reattach_ms": true
+  }
+}

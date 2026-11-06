@@ -30,6 +30,7 @@ research/
     iroh-tailnet-baseline.json
     iroh-relay-fallback.json
     ssh-reattach-baseline.json
+    ssh-termination-baseline.json
     state.json
     remote-placement.json
     remote-window.json
@@ -59,7 +60,11 @@ docs/
       2026-11-04-websocket-baseline/
         run.json
         report.md
-      2026-11-05T171939Z-ssh-reattach-baseline/
+      2026-11-05T184314Z-ssh-reattach-baseline/
+        run.json
+        report.md
+        test-summary.log
+      2026-11-05T185114Z-ssh-termination-baseline/
         run.json
         report.md
         test-summary.log
@@ -160,6 +165,7 @@ scripts/research/run-iroh.sh
 AIRDESK_IROH_SERVER_SSH=user@tailnet-host AIRDESK_IROH_SERVER_IP=<tailnet-ipv4> scripts/research/run-iroh-net.sh
 AIRDESK_IROH_SERVER_SSH=user@tailnet-host scripts/research/run-iroh-relay.sh
 AIRDESK_S2_REMOTE_SSH=user@tailnet-host AIRDESK_SIMULATOR_ID=<simulator-udid> scripts/research/run-ssh-reattach.sh
+AIRDESK_S2_MODE=termination AIRDESK_S2_REMOTE_SSH=user@tailnet-host AIRDESK_SIMULATOR_ID=<simulator-udid> scripts/research/run-ssh-reattach.sh
 scripts/real-ssh-smoke.sh
 ```
 
@@ -175,7 +181,7 @@ T3 runs a Swift/WebKit probe on the Mac and records macOS WKWebView behavior, no
 
 `real-ssh-smoke.sh` is the SSH/tmux interop smoke, not an S2 result. It starts a temporary local Mac OpenSSH server on `127.0.0.1:22222` with generated Ed25519 keys, optionally uses `tmux new -A -s <smoke-session>` as the startup command, and runs the opt-in `RealSSHTerminalTests` in the iOS 18.6 simulator. It does not exercise app suspension, a second device, a remote network or transcript truthfulness.
 
-`run-ssh-reattach.sh` is the S2 runner. It requires a Mac controller, a remote Linux/macOS SSH host with tmux, a booted iOS simulator and a tailnet path. It generates a throwaway Ed25519 key, appends it to the remote `authorized_keys`, pins the remote host key, starts a unique tmux session with a remote heartbeat, writes the test defaults, runs the 3-cycle background/reattach test and writes a run directory with `run.json`, `report.md` and `test-summary.log`. It records whether the Tailscale underlay is direct or DERP-relayed. The 2026-11-05 run completed 3/3 reattaches with process survival and truthful transcripts; physical-device and second-device coverage remain open.
+`run-ssh-reattach.sh` is the S2 runner. It requires a Mac controller, a remote Linux/macOS SSH host with tmux, a booted iOS simulator and a tailnet path. It generates a throwaway Ed25519 key, appends it to the remote `authorized_keys`, pins the remote host key, starts a unique tmux session with a remote heartbeat, writes the test defaults, runs the configured cycle mode and writes a run directory with `run.json`, `report.md` and `test-summary.log`. `AIRDESK_S2_MODE=background` (default) backgrounds each cycle; `AIRDESK_S2_MODE=termination` terminates the app process and measures cold relaunch recovery. Both modes use `-AirDeskUITestOpenPreview` to avoid menu-navigation flakiness. It records whether the Tailscale underlay is direct or DERP-relayed. The 2026-11-05 runs completed 3/3 background reattaches and 3/3 termination recoveries with process survival and truthful transcripts; physical-device and second-device coverage remain open.
 
 ### Recorded runner
 
@@ -187,7 +193,7 @@ The T4 two-host tailnet runner was recorded on 2026-11-05: macOS client at `2beb
 
 The T4 relay-only runner was recorded on 2026-11-05: macOS client at `e4f9eeeb6b09`, Debian 13 x86_64 server with Cargo 1.99.1, 30 samples per payload and three clean runs. The public n0 home relay was `https://aps1-1.relay.n0.iroh.link./`; all 90 deliveries selected the relay path. The Tailscale SSH control underlay was DERP-relayed.
 
-The S2 runner was recorded on 2026-11-05: iPhone 16 Pro simulator `3B46FDF8-1482-4517-99F3-D6EF46A85133` on iOS 18.6, Xcode 16.4, macOS 15.5 x86_64, remote Debian 13 x86_64 host `sillygirl` with tmux 3.5a, commit `0bacc6c7f222`, 3 cycles and a 5-second background. The Tailscale underlay was DERP-relayed.
+The S2 runner was recorded on 2026-11-05: iPhone 16 Pro simulator `3B46FDF8-1482-4517-99F3-D6EF46A85133` on iOS 18.6, Xcode 16.4, macOS 15.5 x86_64, remote Debian 13 x86_64 host `sillygirl` with tmux 3.5a, commit `472537a22a19`, 3 cycles and a 5-second background. The auto-preview background run reattached 3/3 at p50 6.9 s (max 8.2 s); the termination run recovered 3/3 at p50 57.6 s (max 70.8 s) for the full cold relaunch path. The Tailscale underlay was DERP-relayed.
 
 The first qualified runner was recorded on 2026-11-04:
 
