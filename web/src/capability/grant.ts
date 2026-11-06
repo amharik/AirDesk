@@ -36,7 +36,9 @@ export type CapabilityGrantErrorCode =
   | 'confirmation-mismatch'
   | 'invalid-revocation'
   | 'revocation-stale'
-  | 'revoked';
+  | 'revoked'
+  | 'root-issuer-not-approved'
+  | 'operation-not-granted';
 
 export class CapabilityGrantError extends Error {
   readonly code: CapabilityGrantErrorCode;
