@@ -2,6 +2,7 @@ export * from './encoding';
 export * from './identity';
 export * from './pake';
 export * from './pairing';
+export * from './pairing-code';
 export * from './pairing-payload';
 export * from './registry';
 export * from './replay';
