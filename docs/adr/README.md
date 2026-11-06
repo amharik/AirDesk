@@ -3,6 +3,8 @@
 This index is the authoritative map of which decision is in force. An ADR's original text is historical; amendments and supersessions are recorded here and in the ADR header.
 
 > **Execution note (2026-11-04):** Decision status is unchanged. The active implementation track is the universal compute fabric research program in `docs/planning/universal-compute-fabric-research.md`; product release sequencing is paused until its R6 decision. Research spikes may implement proposed ADRs behind flags but do not promote them.
+>
+> **Execution note (2026-11-06):** User direction adopts Iroh for the native peer data plane under ADR-021. The browser endpoint remains WebSocket. Product release sequencing is still paused until R6; the Iroh adapter may be implemented and tested in parallel.
 
 | ADR | Decision | Decision status | Implementation status | Effective note |
 | --- | --- | --- | --- | --- |
@@ -26,6 +28,7 @@ This index is the authoritative map of which decision is in force. An ADR's orig
 | [018](018-native-device-agents-and-capability-host-abi.md) | Native device agents and capability host ABI | Proposed | Not started | Devices expose capabilities through native agents; Wanix is optional; host ABI maps to its file-service/exported-device boundary |
 | [019](019-application-model-and-lifecycle.md) | Application model and lifecycle | Proposed | Not started | Applications are provider-neutral; manifests pin WASI worlds; remote apps select protocols via AD-CAP |
 | [020](020-workspace-host-role-and-authority-handoff.md) | Workspace host role and authority handoff | Proposed | Not started | `WorkspaceHost` owns store commits, structural sequencing and orchestration; input leases stay at the display sink; handoff is explicit and `host_epoch`-fenced |
+| [021](021-iroh-native-transport.md) | Iroh native transport adoption | Accepted | In progress | Official `IrohLib` 1.2.0, iOS 17.5, explicit self-hosted relay policy, browser remains WebSocket |
 
 ## Effective decisions
 
@@ -34,7 +37,7 @@ This index is the authoritative map of which decision is in force. An ADR's orig
 - **Orchestration:** `WorkspaceOrchestrator` owns workspace lifecycle, placement and reconciliation above `SessionCoordinator`.
 - **Runtime:** Wanix is the preferred portable provider; WASI 0.2 worlds are baseline, WASI 0.3 is an evaluation and WASIX is a vendor extension.
 - **Devices:** native agents expose capabilities; a device is useful without Wanix; remote namespaces may be imported over 9P.
-- **Transport:** WebSocket is the baseline; WebTransport is a Baseline 2026 optional candidate with WebSocket fallback.
+- **Transport:** WebSocket is the browser baseline; Iroh is the native peer data plane under ADR-021 with direct-first, explicit self-hosted relay policy; WebTransport remains an optional Baseline 2026 candidate.
 - **Persistence:** device-local first; fields declare `lww`, `append-log` or `manual`; encrypted cross-device synchronization is later; CRDTs are shared-document only.
 - **Display:** a display session, including a browser endpoint, presents a workspace but is not its authority; browser starts single-threaded.
 - **Identity:** Ed25519 default with P-256 fallback; device trust is not workspace ownership or collaboration; future user identity uses WebAuthn/FIDO2.

@@ -37,6 +37,7 @@ A single transport adapter may carry more than one plane, but plane separation m
 | WebSocket + TLS | Yes | Limited | Limited | Coordinator and control baseline |
 | WebRTC data channels | Signaling | Yes | Limited | Direct device data path |
 | QUIC | Yes | Yes | Limited | Qualified native direct path |
+| Iroh/QUIC (native) | Yes | Yes | Limited | ADR-021 native peer data plane; ALPN `airdesk/fabric/1`; direct-only or explicit self-hosted relay |
 | Cast custom messaging | No | No | Yes | Development-only until hardware qualification |
 | AirPlay/external display | No | No | Yes | Fallback presentation path |
 | WebTransport | Yes | Yes | Limited | Baseline 2026; browser data candidate, not required |
@@ -49,6 +50,8 @@ A single transport adapter may carry more than one plane, but plane separation m
 - A packed movement frame carries no session, generation or controller identity; the receiver derives them from the authenticated connection. Movement frames are never accepted on shared or unauthenticated paths.
 - The control plane must not carry bulk content.
 - A failed direct path fails closed unless an encrypted relay is explicitly authorized.
+- The Iroh native adapter uses reliable bidirectional streams for channels 0, 2..N and 0x81, each with a 1-byte channel id, 4-byte big-endian length and payload; channel 1 movement uses exactly one 16-byte datagram per send. Invalid channel ids, oversized frames and malformed movement datagrams are rejected.
+- Iroh relay URLs are explicit HTTPS endpoints; an invalid or empty relay configuration fails closed. The public n0 relay must not be a product default.
 - WebRTC DTLS fingerprints must be bound to authenticated identities.
 - Transport discovery does not establish trust.
 - Cast is never assumed to be a WebRTC browser.

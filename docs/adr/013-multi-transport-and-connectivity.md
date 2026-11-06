@@ -6,6 +6,7 @@
 - **Updated:** 2026-11-03 — research update: WebTransport Baseline 2026, transport evolution negotiation, SAB fallback
 - **Updated:** 2026-11-03 — peer review: ephemeral WebTransport certificate rotation and dual-hash advertisement
 - **Updated:** 2026-11-03 — peer review round 3: signed/pairing-only cert hashes; WebTransport Baseline date and WKWebView qualification gate
+- **Updated:** 2026-11-06 — ADR-021 adopts Iroh for the native peer data plane with explicit self-hosted relay policy; browser remains WebSocket
 - **Deciders:** Engineering lead, transport owner
 - **Scope:** Transport adapters, control/data/media planes, browser and native transport sequencing, WebTransport, relay policy
 - **Supersedes:** None
@@ -72,6 +73,8 @@ The logical message model is independent of transport. Transport choice must not
 | Future | libp2p adapter | Optional, never mandatory |
 
 The device fabric requires a direct data path. It does not require relay. If a direct path cannot be established, the session fails closed with a diagnostic rather than silently using a control-plane relay.
+
+**Amendment (2026-11-06):** ADR-021 adopts Iroh for the native peer data plane. The default is direct-only; product relay support requires an explicit self-hosted HTTPS relay configuration. The public n0 relay is not a product default. The browser endpoint remains on WebSocket.
 
 ### 2.1 WebTransport is available but still optional
 

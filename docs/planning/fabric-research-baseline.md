@@ -1,7 +1,7 @@
 # Fabric Research Baseline and Measurement Protocol
 
-- **Status:** R0 baseline — T1 WebSocket, T2 WebTransport, T3 WebRTC and T4 Iroh/QUIC loopback measurements recorded; T3 repeated in the iOS 18.6 simulator; T4 repeated across two hosts on a DERP-relayed tailnet and on a forced public-relay path; SSH/tmux pre-screen complete; S2 simulator reattach and termination recovery pass 3/3, and second-device handoff passes 1/1, on a DERP-relayed tailnet
-- **Date:** 2026-11-05
+- **Status:** R0 baseline — T1 WebSocket, T2 WebTransport, T3 WebRTC and T4 Iroh/QUIC loopback measurements recorded; T3 repeated in the iOS 18.6 simulator; T4 repeated across two hosts on a DERP-relayed tailnet and on a forced public-relay path; SSH/tmux pre-screen complete; S2 simulator reattach and termination recovery pass 3/3, and second-device handoff passes 1/1, on a DERP-relayed tailnet; the Swift Iroh adapter is in progress under ADR-021
+- **Date:** 2026-11-06
 - **Parent:** `universal-compute-fabric-research.md`
 - **Scope:** Reproducible measurement rules, candidate matrix, scenario procedures and results template for the universal compute fabric research track
 
@@ -47,7 +47,7 @@ Hardware availability must be recorded per run. A missing device is reported as 
 | Loopback WebSocket | Required reference | Existing local asset server and bridge | Keep as fallback |
 | WebTransport over HTTP/3 | Browser/native candidate | Safari/WKWebView support starts at 26.4, so iOS 17–26.3 need a fallback; `serverCertificateHashes`, ECDSA certificate handling | Hold for the iOS 18.6 baseline; WebSocket fallback |
 | WebRTC data channels | Direct-peer candidate | macOS WKWebView and iOS 18.6 simulator loopback work with host candidates; physical device, TURN fallback and silent-loss behavior remain open | Adapter behind transport interface; trial only |
-| Iroh/QUIC | Direct-peer research candidate | Relay-free loopback and two-host tailnet pass in Rust; the tailnet underlay was DERP-relayed, so direct NAT traversal remains unproven. A forced relay-only run passes 90/90 at p50 108.8/106.1/183.9 ms for 64 B/1 KiB/16 KiB through the public n0 relay, but does not prove automatic fallback or self-hosted relay operation | Spike only until R1 gate |
+| Iroh/QUIC | Native direct-peer transport | Relay-free loopback and two-host tailnet pass in Rust; the tailnet underlay was DERP-relayed, so direct NAT traversal remains unproven. A forced relay-only run passes 90/90 at p50 108.8/106.1/183.9 ms for 64 B/1 KiB/16 KiB through the public n0 relay, but does not prove automatic fallback or self-hosted relay operation. The official `iroh-ffi` 1.2.0 Swift adapter is being integrated with direct-only and explicit self-hosted relay policies | Adopt under ADR-021; qualify direct-underlay, physical-device, automatic fallback and self-hosted relay |
 | SSH/tmux | Remote execution reference | Native NIOSSH path with pinned host key, Keychain password and tmux default; license/platform pre-screen passes; S2 simulator background reattach passes 3/3 at p50 6.9 s and max 8.2 s; app-termination recovery passes 3/3, with full cold relaunch at p50 57.6 s and max 70.8 s; second-device simulator handoff passes 1/1 with 40.4 s cold recovery, process survival and truthfulness on a DERP-relayed tailnet | Keep for remote host workflows; physical-device reattach remains open |
 
 ### 3.2 State and authority
@@ -148,6 +148,15 @@ Hardware availability must be recorded per run. A missing device is reported as 
 6. Record p50/p95/p99 RTT, direct/relay address counts and paths, first connect, reconnect time and delivery failures.
 7. For the tailnet run, record whether the Tailscale underlay is direct or DERP-relayed.
 8. Treat these as Rust API baselines; do not generalize to WKWebView, NAT traversal, automatic direct-to-relay fallback or self-hosted relay operation.
+
+### T5 — Swift Iroh transport adapter
+
+1. Build the app with the official `IrohLib` package from `iroh-ffi` 1.2.0 and iOS 17.5.
+2. Bind two endpoints with `presetMinimal()` and `RelayMode.disabled()` on `127.0.0.1:0`.
+3. Exchange a reliable control frame, a reliable runtime frame and a 16-byte movement datagram in both directions.
+4. Verify tickets, endpoint IDs, selected paths and direct/relay diagnostics.
+5. Verify malformed channels, oversized reliable frames, invalid movement lengths and non-HTTPS relay URLs fail closed.
+6. Keep this as a loopback integration test; it is not a substitute for labeled direct-underlay, physical-device or self-hosted-relay runs.
 
 ### S1 — Cross-endpoint presentation
 
