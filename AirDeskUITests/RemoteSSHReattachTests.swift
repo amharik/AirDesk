@@ -12,6 +12,7 @@ final class RemoteSSHReattachTests: XCTestCase {
         let terminationSeconds: Double
         let cycles: Int
         let token: String
+        let baselineMarker: Int
     }
 
     private func loadConfiguration() throws -> Configuration {
@@ -38,7 +39,8 @@ final class RemoteSSHReattachTests: XCTestCase {
             backgroundSeconds: Double(value("backgroundSeconds") ?? "5") ?? 5,
             terminationSeconds: Double(value("terminationSeconds") ?? "2") ?? 2,
             cycles: max(1, Int(value("cycles") ?? "3") ?? 3),
-            token: value("token") ?? String(UUID().uuidString.prefix(8))
+            token: value("token") ?? String(UUID().uuidString.prefix(8)),
+            baselineMarker: max(0, Int(value("baselineMarker") ?? "0") ?? 0)
         )
     }
 
@@ -205,6 +207,60 @@ final class RemoteSSHReattachTests: XCTestCase {
             print("AIRDESK_S2_CYCLE_PROCESS_SURVIVED=true")
             print("AIRDESK_S2_CYCLE_TRANSCRIPT_TRUTHFUL=true")
         }
+        print("AIRDESK_S2_DONE=true")
+    }
+
+    func testRemoteSSHSecondDevicePrimary() throws {
+        let configuration = try loadConfiguration()
+        let app = makeApp(configuration)
+        app.launch()
+        defer { app.terminate() }
+
+        openPreview(app)
+        XCTAssertTrue(
+            waitForProbe(app, containing: "terminal.ssh.ready", timeout: 60),
+            "probe=\(probeLabel(app))"
+        )
+
+        let marker = "S2-REMOTE-SURVIVED-\(configuration.token)-"
+        XCTAssertTrue(
+            waitForProbeCount(app, containing: marker, minimum: 1, timeout: 30),
+            "probe=\(probeLabel(app))"
+        )
+        let markerIndex = latestMarkerIndex(app, prefix: marker)
+        print("AIRDESK_S2_PRIMARY_MARKER=\(markerIndex)")
+        print("AIRDESK_S2_PRIMARY_READY=true")
+        print("AIRDESK_S2_DONE=true")
+    }
+
+    func testRemoteSSHSecondDeviceSecondary() throws {
+        let configuration = try loadConfiguration()
+        let app = makeApp(configuration)
+        let connectStart = Date()
+        app.launch()
+        defer { app.terminate() }
+
+        openPreview(app)
+        XCTAssertTrue(
+            waitForProbe(app, containing: "terminal.ssh.ready", timeout: 60),
+            "probe=\(probeLabel(app))"
+        )
+        let connectMilliseconds = Int(Date().timeIntervalSince(connectStart) * 1000)
+
+        let marker = "S2-REMOTE-SURVIVED-\(configuration.token)-"
+        XCTAssertTrue(
+            waitForMarkerAfter(
+                app,
+                prefix: marker,
+                after: configuration.baselineMarker,
+                timeout: 30
+            ),
+            "baseline=\(configuration.baselineMarker) probe=\(probeLabel(app))"
+        )
+        let markerIndex = latestMarkerIndex(app, prefix: marker)
+        print("AIRDESK_S2_SECONDARY_CONNECT_MS=\(connectMilliseconds)")
+        print("AIRDESK_S2_SECONDARY_MARKER=\(markerIndex)")
+        print("AIRDESK_S2_SECONDARY_READY=true")
         print("AIRDESK_S2_DONE=true")
     }
 }

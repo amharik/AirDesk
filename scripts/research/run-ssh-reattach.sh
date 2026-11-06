@@ -8,6 +8,7 @@ REMOTE_HOST="${AIRDESK_S2_REMOTE_HOST:-${REMOTE#*@}}"
 REMOTE_USER="${REMOTE%@*}"
 REMOTE_PORT="${AIRDESK_S2_REMOTE_PORT:-22}"
 SIMULATOR_ID="${AIRDESK_SIMULATOR_ID:-3B46FDF8-1482-4517-99F3-D6EF46A85133}"
+SIMULATOR_ID_B="${AIRDESK_S2_SECONDARY_SIMULATOR_ID:-DB9D5BBC-3996-440A-8641-4A236F42A0E0}"
 MODE="${AIRDESK_S2_MODE:-background}"
 BACKGROUND_SECONDS="${AIRDESK_S2_BACKGROUND_SECONDS:-5}"
 TERMINATION_SECONDS="${AIRDESK_S2_TERMINATION_SECONDS:-2}"
@@ -34,6 +35,9 @@ cleanup() {
             >/dev/null 2>&1 || true
     fi
     xcrun simctl spawn "$SIMULATOR_ID" defaults delete com.airdesk.realsshsmoke >/dev/null 2>&1 || true
+    if [[ "$SIMULATOR_ID_B" != "$SIMULATOR_ID" ]]; then
+        xcrun simctl spawn "$SIMULATOR_ID_B" defaults delete com.airdesk.realsshsmoke >/dev/null 2>&1 || true
+    fi
     rm -rf "$WORK"
 }
 trap cleanup EXIT
@@ -79,11 +83,21 @@ case "$MODE" in
         RUN_SUFFIX="ssh-termination-baseline"
         SCENARIO_NAME="ssh-tmux-termination-baseline"
         ;;
+    second-device)
+        TEST_METHOD="testRemoteSSHSecondDevicePrimary"
+        RUN_SUFFIX="ssh-second-device-baseline"
+        SCENARIO_NAME="ssh-tmux-second-device-baseline"
+        ;;
     *)
-        echo "AIRDESK_S2_MODE must be 'background' or 'termination'." >&2
+        echo "AIRDESK_S2_MODE must be 'background', 'termination' or 'second-device'." >&2
         exit 1
         ;;
 esac
+
+if [[ "$MODE" == "second-device" && "$SIMULATOR_ID_B" == "$SIMULATOR_ID" ]]; then
+    echo "AIRDESK_S2_SECONDARY_SIMULATOR_ID must differ from AIRDESK_SIMULATOR_ID." >&2
+    exit 1
+fi
 
 for tool in ssh ssh-keygen ssh-keyscan xcrun xcodebuild python3 git; do
     if ! command -v "$tool" >/dev/null 2>&1; then
@@ -152,6 +166,11 @@ STARTUP="$TMUX_BIN new -A -s $SESSION 'i=0; while :; do i=\$((i+1)); echo S2-REM
 xcrun simctl shutdown "$SIMULATOR_ID" >/dev/null 2>&1 || true
 xcrun simctl boot "$SIMULATOR_ID" >/dev/null 2>&1 || true
 xcrun simctl bootstatus "$SIMULATOR_ID" -b
+if [[ "$MODE" == "second-device" ]]; then
+    xcrun simctl shutdown "$SIMULATOR_ID_B" >/dev/null 2>&1 || true
+    xcrun simctl boot "$SIMULATOR_ID_B" >/dev/null 2>&1 || true
+    xcrun simctl bootstatus "$SIMULATOR_ID_B" -b
+fi
 
 cd "$ROOT"
 if command -v xcodegen >/dev/null 2>&1; then
@@ -171,33 +190,103 @@ xcodebuild build-for-testing \
         exit 1
     }
 
-xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke host "$REMOTE_HOST"
-xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke port "$REMOTE_PORT"
-xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke username "$REMOTE_USER"
-xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke hostKey "$HOST_KEY"
-xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke privateKey "$PRIVATE_KEY_B64"
-xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke startup -string "$STARTUP"
-xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke backgroundSeconds "$BACKGROUND_SECONDS"
-xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke terminationSeconds "$TERMINATION_SECONDS"
-xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke cycles "$CYCLES"
-xcrun simctl spawn "$SIMULATOR_ID" defaults write com.airdesk.realsshsmoke token "$TOKEN"
+write_defaults() {
+    local simulator="$1"
+    xcrun simctl spawn "$simulator" defaults write com.airdesk.realsshsmoke host "$REMOTE_HOST"
+    xcrun simctl spawn "$simulator" defaults write com.airdesk.realsshsmoke port "$REMOTE_PORT"
+    xcrun simctl spawn "$simulator" defaults write com.airdesk.realsshsmoke username "$REMOTE_USER"
+    xcrun simctl spawn "$simulator" defaults write com.airdesk.realsshsmoke hostKey "$HOST_KEY"
+    xcrun simctl spawn "$simulator" defaults write com.airdesk.realsshsmoke privateKey "$PRIVATE_KEY_B64"
+    xcrun simctl spawn "$simulator" defaults write com.airdesk.realsshsmoke startup -string "$STARTUP"
+    xcrun simctl spawn "$simulator" defaults write com.airdesk.realsshsmoke backgroundSeconds "$BACKGROUND_SECONDS"
+    xcrun simctl spawn "$simulator" defaults write com.airdesk.realsshsmoke terminationSeconds "$TERMINATION_SECONDS"
+    xcrun simctl spawn "$simulator" defaults write com.airdesk.realsshsmoke cycles "$CYCLES"
+    xcrun simctl spawn "$simulator" defaults write com.airdesk.realsshsmoke token "$TOKEN"
+}
 
-echo "running S2 reattach test against $REMOTE"
-set +e
-xcodebuild test-without-building \
-    -project AirDesk.xcodeproj \
-    -scheme AirDeskUITests \
-    -destination "$DESTINATION" \
-    -only-testing:AirDeskUITests/RemoteSSHReattachTests/$TEST_METHOD \
-    -parallel-testing-enabled NO \
-    CODE_SIGNING_ALLOWED=NO \
-    >"$TEST_LOG" 2>&1
-STATUS=$?
-set -e
+if [[ "$MODE" == "second-device" ]]; then
+    write_defaults "$SIMULATOR_ID"
+    write_defaults "$SIMULATOR_ID_B"
+    PRIMARY_LOG="$WORK/primary.log"
+    SECONDARY_LOG="$WORK/secondary.log"
 
-if [[ "$STATUS" -ne 0 ]]; then
-    tail -n 160 "$TEST_LOG" >&2
-    exit "$STATUS"
+    echo "running S2 primary controller on $SIMULATOR_ID"
+    set +e
+    xcodebuild test-without-building \
+        -project AirDesk.xcodeproj \
+        -scheme AirDeskUITests \
+        -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
+        -only-testing:AirDeskUITests/RemoteSSHReattachTests/testRemoteSSHSecondDevicePrimary \
+        -parallel-testing-enabled NO \
+        CODE_SIGNING_ALLOWED=NO \
+        >"$PRIMARY_LOG" 2>&1
+    PRIMARY_STATUS=$?
+    set -e
+    if [[ "$PRIMARY_STATUS" -ne 0 ]]; then
+        tail -n 160 "$PRIMARY_LOG" >&2
+        exit "$PRIMARY_STATUS"
+    fi
+
+    PRIMARY_MARKER="$(sed -n 's/.*AIRDESK_S2_PRIMARY_MARKER=\([0-9][0-9]*\).*/\1/p' "$PRIMARY_LOG" | tail -n 1)"
+    if [[ -z "$PRIMARY_MARKER" ]]; then
+        echo "Primary controller did not report a heartbeat marker." >&2
+        exit 1
+    fi
+    xcrun simctl spawn "$SIMULATOR_ID_B" defaults write com.airdesk.realsshsmoke baselineMarker "$PRIMARY_MARKER"
+
+    echo "running S2 secondary controller on $SIMULATOR_ID_B (baseline $PRIMARY_MARKER)"
+    set +e
+    xcodebuild test-without-building \
+        -project AirDesk.xcodeproj \
+        -scheme AirDeskUITests \
+        -destination "platform=iOS Simulator,id=$SIMULATOR_ID_B" \
+        -only-testing:AirDeskUITests/RemoteSSHReattachTests/testRemoteSSHSecondDeviceSecondary \
+        -parallel-testing-enabled NO \
+        CODE_SIGNING_ALLOWED=NO \
+        >"$SECONDARY_LOG" 2>&1
+    SECONDARY_STATUS=$?
+    set -e
+    if [[ "$SECONDARY_STATUS" -ne 0 ]]; then
+        tail -n 160 "$SECONDARY_LOG" >&2
+        exit "$SECONDARY_STATUS"
+    fi
+
+    SECONDARY_CONNECT_MS="$(sed -n 's/.*AIRDESK_S2_SECONDARY_CONNECT_MS=\([0-9][0-9]*\).*/\1/p' "$SECONDARY_LOG" | tail -n 1)"
+    SECONDARY_MARKER="$(sed -n 's/.*AIRDESK_S2_SECONDARY_MARKER=\([0-9][0-9]*\).*/\1/p' "$SECONDARY_LOG" | tail -n 1)"
+    if [[ -z "$SECONDARY_CONNECT_MS" || -z "$SECONDARY_MARKER" ]]; then
+        echo "Secondary controller did not report connect time or heartbeat marker." >&2
+        exit 1
+    fi
+    if (( SECONDARY_MARKER <= PRIMARY_MARKER )); then
+        echo "Secondary heartbeat marker did not advance past the primary baseline." >&2
+        exit 1
+    fi
+    {
+        echo "PRIMARY"
+        cat "$PRIMARY_LOG"
+        echo "SECONDARY"
+        cat "$SECONDARY_LOG"
+    } >"$TEST_LOG"
+else
+    write_defaults "$SIMULATOR_ID"
+
+    echo "running S2 reattach test against $REMOTE"
+    set +e
+    xcodebuild test-without-building \
+        -project AirDesk.xcodeproj \
+        -scheme AirDeskUITests \
+        -destination "$DESTINATION" \
+        -only-testing:AirDeskUITests/RemoteSSHReattachTests/$TEST_METHOD \
+        -parallel-testing-enabled NO \
+        CODE_SIGNING_ALLOWED=NO \
+        >"$TEST_LOG" 2>&1
+    STATUS=$?
+    set -e
+
+    if [[ "$STATUS" -ne 0 ]]; then
+        tail -n 160 "$TEST_LOG" >&2
+        exit "$STATUS"
+    fi
 fi
 
 DATE_STAMP="$(date -u +%Y-%m-%dT%H%M%SZ)"
@@ -209,7 +298,7 @@ if [[ -e "$RUN_DIR" ]]; then
 fi
 mkdir -p "$RUN_DIR"
 
-grep -E 'AIRDESK_S2_|Test Suite|Test Case|error:' "$TEST_LOG" >"$RUN_DIR/test-summary.log" || true
+grep -E 'AIRDESK_S2_|Test Suite|Test Case|error:|^PRIMARY$|^SECONDARY$' "$TEST_LOG" >"$RUN_DIR/test-summary.log" || true
 
 COMMIT="$(git -C "$ROOT" rev-parse --short=12 HEAD)"
 DIRTY="false"
@@ -220,6 +309,7 @@ HOST_OS="$(sw_vers -productVersion 2>/dev/null || uname -r)"
 HOST_ARCH="$(uname -m)"
 XCODE_VERSION="$(xcodebuild -version 2>/dev/null | tr '\n' ' ' | sed 's/  */ /g' | sed 's/ $//')"
 SIMULATOR_NAME="$(xcrun simctl list devices available | awk -v id="$SIMULATOR_ID" 'index($0, id) { sub(/^[[:space:]]*/, ""); sub(/ \([0-9A-F-]+\)$/, ""); print; exit }')"
+SIMULATOR_NAME_B="$(xcrun simctl list devices available | awk -v id="$SIMULATOR_ID_B" 'index($0, id) { sub(/^[[:space:]]*/, ""); sub(/ \([0-9A-F-]+\)$/, ""); print; exit }')"
 REMOTE_OS="$(ssh -o BatchMode=yes "$REMOTE" 'uname -srm')"
 REMOTE_TMUX_VERSION="$(ssh -o BatchMode=yes "$REMOTE" "$TMUX_BIN -V")"
 REMOTE_ID="$(ssh -o BatchMode=yes "$REMOTE" 'id -un')"
@@ -249,6 +339,11 @@ export S2_HOST_ARCH="$HOST_ARCH"
 export S2_XCODE_VERSION="$XCODE_VERSION"
 export S2_SIMULATOR_NAME="$SIMULATOR_NAME"
 export S2_SIMULATOR_ID="$SIMULATOR_ID"
+export S2_SIMULATOR_NAME_B="$SIMULATOR_NAME_B"
+export S2_SIMULATOR_ID_B="$SIMULATOR_ID_B"
+export S2_PRIMARY_MARKER="${PRIMARY_MARKER:-}"
+export S2_SECONDARY_MARKER="${SECONDARY_MARKER:-}"
+export S2_SECONDARY_CONNECT_MS="${SECONDARY_CONNECT_MS:-}"
 export S2_REMOTE="$REMOTE"
 export S2_REMOTE_OS="$REMOTE_OS"
 export S2_REMOTE_TMUX="$REMOTE_TMUX_VERSION"
@@ -265,7 +360,7 @@ export S2_CYCLES="$CYCLES"
 export S2_TOKEN="$TOKEN"
 
 python3 - <<'PY'
-import json, math, os, re, statistics
+import json, math, os, re, statistics, sys
 
 run_dir = os.environ["S2_RUN_DIR"]
 log = open(os.environ["S2_TEST_LOG"], encoding="utf-8", errors="replace").read()
@@ -274,6 +369,105 @@ values = [int(value) for value in re.findall(r"AIRDESK_S2_CYCLE_REATTACH_MS=(\d+
 survived = len(re.findall(r"AIRDESK_S2_CYCLE_PROCESS_SURVIVED=true", log))
 truthful = len(re.findall(r"AIRDESK_S2_CYCLE_TRANSCRIPT_TRUTHFUL=true", log))
 done = "AIRDESK_S2_DONE=true" in log
+mode = os.environ["S2_MODE"]
+if mode == "second-device":
+    primary_marker = int(os.environ["S2_PRIMARY_MARKER"])
+    secondary_marker = int(os.environ["S2_SECONDARY_MARKER"])
+    secondary_connect_ms = int(os.environ["S2_SECONDARY_CONNECT_MS"])
+    primary_ready = "AIRDESK_S2_PRIMARY_READY=true" in log
+    secondary_ready = "AIRDESK_S2_SECONDARY_READY=true" in log
+    done = log.count("AIRDESK_S2_DONE=true") >= 2
+    if not primary_ready or not secondary_ready or not done or secondary_marker <= primary_marker:
+        raise SystemExit(
+            "incomplete second-device log: "
+            f"primary_ready={primary_ready} secondary_ready={secondary_ready} "
+            f"done={done} primary={primary_marker} secondary={secondary_marker}"
+        )
+
+    environment = {
+        "controller_a": f"{os.environ['S2_SIMULATOR_NAME']} / iOS 18.6 simulator",
+        "simulator_id_a": os.environ["S2_SIMULATOR_ID"],
+        "controller_b": f"{os.environ['S2_SIMULATOR_NAME_B']} / iOS 18.6 simulator",
+        "simulator_id_b": os.environ["S2_SIMULATOR_ID_B"],
+        "xcode": os.environ["S2_XCODE_VERSION"],
+        "host": f"macOS {os.environ['S2_HOST_OS']} {os.environ['S2_HOST_ARCH']}",
+        "server": os.environ["S2_REMOTE_OS"],
+        "server_user": os.environ["S2_REMOTE_USER"],
+        "server_tmux": os.environ["S2_REMOTE_TMUX"],
+        "network": "tailnet",
+        "underlay": os.environ["S2_TAILNET_PATH"],
+        "underlay_probe": os.environ["S2_TAILNET_PING"],
+        "ping_avg_ms": None if os.environ["S2_PING_AVG"] == "null" else float(os.environ["S2_PING_AVG"]),
+        "mode": mode,
+    }
+    metrics = {
+        "secondary_connect_ms": secondary_connect_ms,
+        "primary_marker": primary_marker,
+        "secondary_marker": secondary_marker,
+        "heartbeat_advanced": secondary_marker > primary_marker,
+        "process_survived": True,
+        "transcript_truthful": True,
+    }
+    result = {
+        "schema_version": 1,
+        "scenario": "S2",
+        "scenario_name": os.environ["S2_SCENARIO_NAME"],
+        "candidate": "ssh-tmux-baseline",
+        "transport": "ssh",
+        "run_id": os.environ["S2_RUN_ID"],
+        "commit": os.environ["S2_COMMIT"],
+        "dirty": os.environ["S2_DIRTY"] == "true",
+        "date": os.environ["S2_DATE"],
+        "samples": 1,
+        "failure_injection": ["primary-controller-terminated", "second-device-takeover"],
+        "environment": environment,
+        "metrics": metrics,
+        "failures": [],
+        "pass": {
+            "process_survived": True,
+            "transcript_truthful": True,
+            "heartbeat_advanced": True,
+            "secondary_connect_ms": True,
+        },
+    }
+    with open(os.path.join(run_dir, "run.json"), "w", encoding="utf-8") as handle:
+        json.dump(result, handle, indent=2)
+        handle.write("\n")
+
+    report = f"""# S2 SSH/tmux Second-Device Handoff Baseline
+
+- **Run:** `{os.environ['S2_RUN_ID']}`
+- **Commit:** `{os.environ['S2_COMMIT']}` (dirty: `{os.environ['S2_DIRTY']}`)
+- **Date:** {os.environ['S2_DATE']}
+- **Primary controller:** {environment['controller_a']} (`{environment['simulator_id_a']}`)
+- **Secondary controller:** {environment['controller_b']} (`{environment['simulator_id_b']}`)
+- **Host:** {environment['host']}
+- **Server:** {environment['server']} (`{environment['server_user']}`, {environment['server_tmux']})
+- **Network:** {environment['network']}; underlay `{environment['underlay']}`
+
+## Result
+
+| Metric | Value |
+| --- | --- |
+| Primary heartbeat marker | {primary_marker} |
+| Secondary heartbeat marker | {secondary_marker} |
+| Heartbeat advanced after handoff | yes |
+| Secondary cold connect | {secondary_connect_ms} ms |
+| Remote process survived | yes |
+| Transcript truthful | yes |
+
+The primary simulator attached to a unique tmux session, observed the heartbeat and terminated its app. The secondary simulator then attached to the same session, observed a later heartbeat marker and verified a fresh `terminal.ssh.ready`. `secondary_connect_ms` covers the full cold recovery from `app.launch()` through app startup, preview presentation, SSH attach and the ready event.
+
+## Scope
+
+This is a two-simulator handoff on one Mac, not two physical devices and not a simultaneous two-controller session. It does not prove direct-underlay behavior, long-idle survival or key hygiene across a real handoff.
+
+Raw evidence: `run.json`, `test-summary.log`.
+"""
+    with open(os.path.join(run_dir, "report.md"), "w", encoding="utf-8") as handle:
+        handle.write(report)
+    sys.exit(0)
+
 
 if len(values) != cycles or survived != cycles or truthful != cycles or not done:
     raise SystemExit(

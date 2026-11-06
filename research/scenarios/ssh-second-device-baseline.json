@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "id": "S2",
+  "name": "ssh-tmux-second-device-baseline",
+  "purpose": "Measure whether a second controller can attach to the same remote SSH/tmux session after the first controller terminates and observe new output",
+  "evidence_scope": "remote-execution-baseline",
+  "candidate": "ssh-tmux-baseline",
+  "transport": "ssh",
+  "requires": [
+    "mac-host",
+    "ios-simulator-a",
+    "ios-simulator-b",
+    "ssh-host",
+    "tmux",
+    "tailnet-network"
+  ],
+  "network": "tailnet",
+  "samples": 1,
+  "steps": [
+    "Attach the primary simulator to a unique tmux session with a remote heartbeat",
+    "Record the latest heartbeat marker, then terminate the primary app",
+    "Attach the secondary simulator to the same tmux session",
+    "Verify a heartbeat marker later than the primary baseline is visible and a fresh terminal.ssh.ready event arrives"
+  ],
+  "metrics": [
+    "secondary_connect_ms",
+    "primary_marker",
+    "secondary_marker",
+    "heartbeat_advanced",
+    "process_survived",
+    "transcript_truthful"
+  ],
+  "failure_injection": [
+    "primary-controller-terminated",
+    "second-device-takeover"
+  ],
+  "pass": {
+    "heartbeat_advanced": true,
+    "process_survived": true,
+    "transcript_truthful": true,
+    "secondary_connect_ms": "present"
+  }
+}
