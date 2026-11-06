@@ -67,7 +67,7 @@ struct DiagnosticsView: View {
         } header: {
             sectionHeader("Device identity")
         } footer: {
-            Text("The device ID is the SHA-256 fingerprint of the canonical DER SPKI. Pairing primitives are local only; AD-PAIR-1, SPAKE2+ and transport binding are not implemented.")
+            Text("The device ID is the SHA-256 fingerprint of the canonical DER SPKI. The browser has AD-PAIR-1 and an RFC 9383 SPAKE2+ P-256 primitive, but interactive SPAKE2+ pairing and transport binding are not implemented.")
         }
         .listRowBackground(rowBackground)
     }

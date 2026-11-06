@@ -46,7 +46,7 @@ Required behavior:
 The FlatBuffers schema is structural. It declares identity, pairing, binding and lease fields but does not implement or assert cryptography:
 
 - `public_key` and channel-binding values are opaque encodings in the schema.
-- The browser has the AD-PAIR-1 canonical transcript, transcript signatures, binding enforcement, SAS and HKDF key schedule; SPAKE2+ itself, QR/PIN exchange and channel-binding acquisition are not implemented.
+- The browser has the AD-PAIR-1 canonical transcript, transcript signatures, binding enforcement, SAS and HKDF key schedule, plus an RFC 9383 P-256 SPAKE2+ primitive validated against the RFC vector; interactive pairing, QR/PIN exchange and channel-binding acquisition are not implemented.
 - Capability leases are not signed grants yet; `COSE_Sign1` issuance and verification remain pending.
 - `SyncRecord.payload_hash` is an opaque digest; no synchronization transport is implied.
 - A capability advertisement, pairing offer or lease payload never grants workspace ownership.
@@ -56,7 +56,7 @@ The FlatBuffers schema is structural. It declares identity, pairing, binding and
 | Module | Status | Purpose |
 | --- | --- | --- |
 | AD-WS | Active | Workspace desired state, placement and observed status |
-| AD-DEV | Early | Device identity, discovery, pairing and health; identity, local registry and the AD-PAIR-1 transcript/key schedule exist, SPAKE2+ and discovery remain pending |
+| AD-DEV | Early | Device identity, discovery, pairing and health; identity, local registry, the AD-PAIR-1 transcript/key schedule and a low-level SPAKE2+ P-256 primitive exist, interactive pairing and discovery remain pending |
 | AD-CAP | Early | Capability advertisement, leases, revocation and remote-application protocol descriptors; schema, Android advertisement and the iOS local capability catalog exist, signed grants and remote invocation remain pending |
 | AD-RUNTIME | Active MVP | Runtime provider lifecycle, execution status and remote namespace role |
 | AD-RESOURCE | Active MVP | File and resource access |
