@@ -229,4 +229,22 @@ describe('SPAKE2+-P256-SHA256-HKDF-SHA256-HMAC-SHA256 RFC 9383 vector', () => {
       'invalid-scalar'
     );
   });
+
+  it('rejects non-canonical or zero registration scalars', () => {
+    const order = hexToBytes(
+      'ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551'
+    );
+    expectSpake2PlusError(
+      () => spake2PlusProverInit({ w0: order, x: vectorInput(VECTOR.x) }),
+      'invalid-scalar'
+    );
+    expectSpake2PlusError(
+      () => computeSpake2PlusRegistrationRecord(order),
+      'invalid-scalar'
+    );
+    expectSpake2PlusError(
+      () => computeSpake2PlusRegistrationRecord(new Uint8Array(32)),
+      'invalid-scalar'
+    );
+  });
 });

@@ -87,6 +87,23 @@ function ephemeralScalarBytes(value: Spake2PlusBytes | undefined, name: string):
   return bytes;
 }
 
+function registrationScalar(
+  value: Spake2PlusBytes,
+  name: string,
+  allowZero: boolean
+): { bytes: Uint8Array; scalar: bigint } {
+  const bytes = scalarBytes(value, name);
+  const scalar = scalarValue(bytes);
+  if (scalar >= P256_ORDER || (!allowZero && scalar === 0n)) {
+    const range = allowZero ? '[0, n-1]' : '[1, n-1]';
+    throw new Spake2PlusError(
+      'invalid-scalar',
+      `${name} must be in the range ${range}`
+    );
+  }
+  return { bytes, scalar };
+}
+
 function multiplyPoint(point: P256Point, scalar: bigint): P256Point {
   const reduced = scalar % P256_ORDER;
   if (reduced === 0n) return p256.Point.ZERO;
@@ -171,7 +188,7 @@ export function computeSpake2PlusTranscript(
   const shareV = encodePoint(decodePoint(input.shareV, 'shareV'), 'shareV');
   const z = encodePoint(decodePoint(input.z, 'Z'), 'Z');
   const v = encodePoint(decodePoint(input.v, 'V'), 'V');
-  const w0 = scalarBytes(input.w0, 'w0');
+  const w0 = registrationScalar(input.w0, 'w0', true).bytes;
 
   return concatBytes(
     lengthPrefixed(context),
@@ -298,11 +315,7 @@ export function assertSpake2PlusConfirmation(
 export function computeSpake2PlusRegistrationRecord(
   w1: Spake2PlusBytes
 ): Uint8Array {
-  const w1Bytes = scalarBytes(w1, 'w1');
-  const w1Value = scalarValue(w1Bytes) % P256_ORDER;
-  if (w1Value === 0n) {
-    throw new Spake2PlusError('invalid-scalar', 'w1 must not be zero modulo n');
-  }
+  const { scalar: w1Value } = registrationScalar(w1, 'w1', false);
   return encodePoint(p256.Point.BASE.multiply(w1Value), 'L');
 }
 
@@ -319,8 +332,7 @@ export interface Spake2PlusProverInitResult {
 export function spake2PlusProverInit(
   input: Spake2PlusProverInitInput
 ): Spake2PlusProverInitResult {
-  const w0Bytes = scalarBytes(input.w0, 'w0');
-  const w0 = scalarValue(w0Bytes);
+  const { scalar: w0 } = registrationScalar(input.w0, 'w0', true);
   const xBytes = ephemeralScalarBytes(input.x, 'x');
   const x = scalarValue(xBytes);
   const shareP = p256.Point.BASE.multiply(x).add(multiplyPoint(M_POINT, w0));
@@ -356,8 +368,8 @@ export async function spake2PlusProverFinish(
   input: Spake2PlusProverFinishInput
 ): Promise<Spake2PlusFinishResult> {
   const subtle = input.subtle ?? crypto.subtle;
-  const w0Bytes = scalarBytes(input.w0, 'w0');
-  const w1Bytes = scalarBytes(input.w1, 'w1');
+  const w0Bytes = registrationScalar(input.w0, 'w0', true).bytes;
+  const w1Bytes = registrationScalar(input.w1, 'w1', false).bytes;
   const xBytes = ephemeralScalarBytes(input.x, 'x');
   const w0 = scalarValue(w0Bytes);
   const w1 = scalarValue(w1Bytes);
@@ -429,7 +441,7 @@ export async function spake2PlusVerifierFinish(
   input: Spake2PlusVerifierFinishInput
 ): Promise<Spake2PlusVerifierFinishResult> {
   const subtle = input.subtle ?? crypto.subtle;
-  const w0Bytes = scalarBytes(input.w0, 'w0');
+  const w0Bytes = registrationScalar(input.w0, 'w0', true).bytes;
   const w0 = scalarValue(w0Bytes);
   const yBytes = ephemeralScalarBytes(input.y, 'y');
   const y = scalarValue(yBytes);
