@@ -73,6 +73,12 @@ enum WorkspaceStatusCopy {
                 detail: "Running applications and input can continue. Structural changes are unavailable: \(reason)",
                 severity: .warning
             )
+        case .handoffPending(let targetDeviceId):
+            return WorkspaceStatusPresentation(
+                title: "Workspace handoff in progress",
+                detail: "Structural changes are paused while workspace authority moves to \(targetDeviceId).",
+                severity: .info
+            )
         case .handedOff:
             return WorkspaceStatusPresentation(
                 title: "Workspace authority moved",

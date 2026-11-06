@@ -42,6 +42,10 @@ final class WorkspaceStatusCopyTests: XCTestCase {
 
         let handedOff = WorkspaceStatusCopy.host(.handedOff)
         XCTAssertEqual(handedOff?.title, "Workspace authority moved")
+
+        let pending = WorkspaceStatusCopy.host(.handoffPending(targetDeviceId: "device.next"))
+        XCTAssertEqual(pending?.title, "Workspace handoff in progress")
+        XCTAssertTrue(pending?.detail.contains("device.next") == true)
         XCTAssertNil(WorkspaceStatusCopy.host(.active))
     }
 

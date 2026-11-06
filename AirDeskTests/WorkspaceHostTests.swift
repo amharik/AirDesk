@@ -166,6 +166,190 @@ final class WorkspaceHostTests: XCTestCase {
         XCTAssertEqual(updated.metadata.createdAt, first)
     }
 
+    func testDegradedHostKeepsRuntimeSelectionAndLeasedInputAvailable() throws {
+        let (host, _, _) = try makeHost()
+        _ = try createWorkspace(host)
+        let registry = RuntimeRegistry()
+        try registry.register(WanixRuntimeProvider())
+        let application = WorkspaceApplication(
+            id: "app.terminal",
+            version: "1.0.0",
+            name: "Terminal",
+            entrypoint: "main",
+            runtimeTargets: [
+                WorkspaceRuntimeTarget(
+                    provider: "wanix",
+                    world: "wasip1",
+                    architectures: ["wasm32"]
+                )
+            ],
+            requiredCapabilities: [],
+            presentation: .foreground,
+            permissions: [],
+            quotas: nil
+        )
+        let lease = InputLeaseManager()
+        lease.beginSession(sessionId: "session.test", generation: 1)
+        try lease.attach(
+            controllerId: "controller.test",
+            deviceId: "device.controller",
+            role: .primaryDriver
+        )
+        let change = try lease.requestLease(controllerId: "controller.test")
+
+        host.enterDegradedMode(reason: "host offline")
+
+        XCTAssertEqual(try registry.select(application: application).providerId, "wanix")
+        XCTAssertEqual(change.activeControllerId, "controller.test")
+        let move = try lease.moveCursor(
+            controllerId: "controller.test",
+            to: InputPoint(x: 0.25, y: 0.5),
+            epoch: change.leaseEpoch
+        )
+        XCTAssertEqual(move.shared, InputPoint(x: 0.25, y: 0.5))
+        XCTAssertThrowsError(try host.mutate(expectedWorkspaceSeq: 0) { $0.metadata.name = "Blocked" }) { error in
+            XCTAssertEqual(
+                error as? WorkspaceHostError,
+                .hostUnavailable(reason: "host offline")
+            )
+        }
+    }
+
+    func testHandoffQuiesceStageActivateAndRetireTransfersAuthority() throws {
+        let (source, store, _) = try makeHost()
+        _ = try createWorkspace(source)
+        _ = try source.mutate(expectedWorkspaceSeq: 0) { $0.metadata.name = "Before handoff" }
+
+        let quiesced = try source.quiesceForHandoff(targetDeviceId: "device.next")
+        XCTAssertEqual(quiesced.phase, .quiesced)
+        XCTAssertEqual(quiesced.baseWorkspaceSeq, 1)
+        XCTAssertEqual(quiesced.sourceHostEpoch, 1)
+        XCTAssertEqual(source.state, .handoffPending(targetDeviceId: "device.next"))
+        XCTAssertThrowsError(try source.mutate(expectedWorkspaceSeq: 1) { $0.metadata.name = "Blocked" }) { error in
+            XCTAssertEqual(
+                error as? WorkspaceHostError,
+                .hostUnavailable(reason: "handoff in progress")
+            )
+        }
+
+        let staged = try source.stageHandoff(quiesced)
+        XCTAssertEqual(staged.phase, .staged)
+
+        let target = try WorkspaceHost(store: store, deviceId: "device.next")
+        let activated = try target.activateHandoff(staged)
+
+        XCTAssertEqual(activated.phase, .activated)
+        XCTAssertEqual(activated.targetHostEpoch, 2)
+        XCTAssertEqual(target.hostEpoch, 2)
+        XCTAssertEqual(target.workspaceSeq, 2)
+        XCTAssertEqual(try store.load()?.metadata.lastActiveDeviceId, "device.next")
+        XCTAssertEqual(source.state, .handedOff)
+        XCTAssertThrowsError(try source.mutate(expectedWorkspaceSeq: 2) { $0.metadata.name = "Stale host" }) { error in
+            XCTAssertEqual(error as? WorkspaceHostError, .handedOff)
+        }
+
+        let retired = try source.retireAfterHandoff(activated)
+        XCTAssertEqual(retired.phase, .retired)
+        XCTAssertEqual(source.state, .handedOff)
+
+        let next = try target.mutate(expectedWorkspaceSeq: 2) { $0.metadata.name = "After handoff" }
+        XCTAssertEqual(next.workspaceSeq, 3)
+        XCTAssertEqual(next.recovery.hostEpoch, 2)
+    }
+
+    func testHandoffRequiresStagingBeforeActivation() throws {
+        let (source, store, _) = try makeHost()
+        _ = try createWorkspace(source)
+        let quiesced = try source.quiesceForHandoff(targetDeviceId: "device.next")
+
+        let target = try WorkspaceHost(store: store, deviceId: "device.next")
+        XCTAssertThrowsError(try target.activateHandoff(quiesced)) { error in
+            XCTAssertEqual(error as? WorkspaceHostError, .handoffNotStaged)
+        }
+        XCTAssertEqual(target.hostEpoch, 1)
+    }
+
+    func testForceTakeoverDemotesPriorHostWithoutQuiesce() throws {
+        let (source, store, _) = try makeHost()
+        let manifest = try createWorkspace(source)
+        let session = WorkspaceHandoffSession(
+            workspaceId: manifest.id,
+            sourceDeviceId: "device.test",
+            targetDeviceId: "device.next",
+            baseWorkspaceSeq: manifest.workspaceSeq,
+            sourceHostEpoch: manifest.recovery.hostEpoch,
+            checkpointSeq: manifest.recovery.checkpointSeq,
+            journalSequence: manifest.recovery.journalSequence,
+            targetHostEpoch: nil,
+            phase: .quiesced
+        )
+
+        let target = try WorkspaceHost(store: store, deviceId: "device.next")
+        let activated = try target.activateHandoff(session, force: true)
+
+        XCTAssertEqual(activated.phase, .activated)
+        XCTAssertEqual(target.hostEpoch, 2)
+        XCTAssertEqual(source.state, .handedOff)
+        XCTAssertThrowsError(try source.mutate(expectedWorkspaceSeq: 1) { $0.metadata.name = "Stale" }) { error in
+            XCTAssertEqual(error as? WorkspaceHostError, .handedOff)
+        }
+        XCTAssertEqual(try source.retireAfterHandoff(activated).phase, .retired)
+    }
+
+    func testStaleHandoffSnapshotIsRejected() throws {
+        let (source, store, _) = try makeHost()
+        _ = try createWorkspace(source)
+        let quiesced = try source.quiesceForHandoff(targetDeviceId: "device.next")
+
+        let staleWriter = try WorkspaceHost(store: store, deviceId: "device.stale")
+        _ = try staleWriter.mutate(expectedWorkspaceSeq: 0) { $0.metadata.name = "Concurrent" }
+
+        XCTAssertThrowsError(try source.stageHandoff(quiesced)) { error in
+            XCTAssertEqual(
+                error as? WorkspaceHostError,
+                .staleHandoff(workspaceSeq: 1, hostEpoch: 1)
+            )
+        }
+    }
+
+    func testHandoffRejectsUnknownSourceAndTarget() throws {
+        let (source, store, _) = try makeHost()
+        _ = try createWorkspace(source)
+        let quiesced = try source.quiesceForHandoff(targetDeviceId: "device.next")
+        let staged = try source.stageHandoff(quiesced)
+
+        let wrongTarget = try WorkspaceHost(store: store, deviceId: "device.other")
+        XCTAssertThrowsError(try wrongTarget.activateHandoff(staged)) { error in
+            XCTAssertEqual(
+                error as? WorkspaceHostError,
+                .handoffTargetMismatch(expected: "device.next", actual: "device.other")
+            )
+        }
+
+        let wrongSource = try WorkspaceHost(store: store, deviceId: "device.other")
+        XCTAssertThrowsError(try wrongSource.stageHandoff(staged)) { error in
+            XCTAssertEqual(
+                error as? WorkspaceHostError,
+                .handoffSourceMismatch(expected: "device.test", actual: "device.other")
+            )
+        }
+    }
+
+    func testRetireBeforeActivationIsRejected() throws {
+        let (source, store, _) = try makeHost()
+        _ = try createWorkspace(source)
+        let quiesced = try source.quiesceForHandoff(targetDeviceId: "device.next")
+        let staged = try source.stageHandoff(quiesced)
+
+        XCTAssertThrowsError(try source.retireAfterHandoff(staged)) { error in
+            XCTAssertEqual(
+                error as? WorkspaceHostError,
+                .handoffNotActivated(currentHostEpoch: 1)
+            )
+        }
+        XCTAssertEqual(try store.load()?.recovery.hostEpoch, 1)
+    }
+
     private func createWorkspace(_ host: WorkspaceHost) throws -> WorkspaceManifest {
         try host.create(
             owner: WorkspaceOwner(identityId: "person.test", displayName: "Tester"),
