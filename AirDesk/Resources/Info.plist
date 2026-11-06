@@ -78,6 +78,8 @@
 	<string>Automatic</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>AirDesk uses your local network to discover and control Google Cast displays and to reach AirPlay receivers on the same Wi-Fi network.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>AirDesk requests camera access only when you explicitly ask. Camera streaming and remote camera invocation are not implemented.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_googlecast._tcp</string>
