@@ -1,6 +1,6 @@
 # AD-PAIR-1 pairing transcript and key schedule
 
-Status: partial implementation behind [ADR-011](../adr/011-device-identity-discovery-pairing.md). The transcript, signature checks, channel-binding validation and key schedule are implemented in the browser identity layer. An interactive RFC 9383 SPAKE2+ P-256 prover/verifier session is implemented, validated against the RFC vector and integrated with `AdPairSession` confirmation evidence. An scrypt password PBKDF and salted registration record are implemented. QR/PIN flows and native/browser binding acquisition remain pending.
+Status: partial implementation behind [ADR-011](../adr/011-device-identity-discovery-pairing.md). The transcript, signature checks, channel-binding validation and key schedule are implemented in the browser identity layer. An interactive RFC 9383 SPAKE2+ P-256 prover/verifier session is implemented, validated against the RFC vector and integrated with `AdPairSession` confirmation evidence. An scrypt password PBKDF, salted registration record and browser QR/PIN challenge envelopes are implemented. The camera/UI flow, native parity and native/browser binding acquisition remain pending.
 
 ## Scope
 
@@ -66,6 +66,19 @@ Native parity is still required before pairing can be called complete.
 - the two 40-byte halves are reduced modulo the P-256 order to produce `w0` and `w1`
 - the registration record is `L = w1*P`; the salt and profile must travel with the registration record
 
+## QR/PIN challenges
+
+`web/src/identity/pairing-code.ts` defines the `ADPAIR1:` QR envelope and PIN/QR-secret challenge flow:
+
+- the QR code carries a validated ADFP offer, a pairing mode (`pin` or `qr-secret`), and a 16–64 byte salt; it never carries a PIN or long-term secret
+- PIN mode generates an unbiased six-digit PIN for display/entry on the host and controller
+- QR-secret mode carries a short-lived 16–64 byte random secret in the QR code, avoiding PIN entry
+- both sides derive the SPAKE2+ registration with `w0`/`w1` from the PIN or secret, salt and both device IDs; the host needs only `w0` and `L`
+- PIN attempts are limited in memory and fail closed on expiry or lockout
+- malformed modes, salts, identities, unknown fields, expired offers and replayed nonces are rejected
+
+The camera/scanning UI and native parity are pending. A QR code is a bootstrap carrier, not a trust decision; the AD-PAIR-1 transcript, signatures and channel binding still have to validate.
+
 ## SAS
 
 ```text
@@ -102,7 +115,7 @@ The transcript hash must be exactly 32 bytes. Missing or malformed channel bindi
 
 ## Pending
 
-- QR/PIN acquisition and user-verification flows.
+- QR/PIN camera/scanning UI, native parity and user-verification integration.
 - TLS exporter and browser host-certificate hash acquisition.
 - Native iOS/Android implementation and cross-platform vectors.
 - Transport binding of the derived keys to ADFP or Iroh.
