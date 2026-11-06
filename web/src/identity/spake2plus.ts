@@ -2,6 +2,7 @@ import { p256 } from '@noble/curves/nist.js';
 import {
   asBufferSource,
   bytesEqual,
+  bytesToBase64Url,
   bytesToHex,
   concatBytes,
   hexToBytes,
@@ -9,6 +10,7 @@ import {
   sha256,
   utf8
 } from './encoding';
+import type { Spake2PlusExchangeResult } from './pake';
 
 export const SPAKE2PLUS_P256_SUITE =
   'SPAKE2+-P256-SHA256-HKDF-SHA256-HMAC-SHA256' as const;
@@ -28,7 +30,8 @@ export type Spake2PlusErrorCode =
   | 'identity-point'
   | 'non-subgroup-point'
   | 'invalid-scalar'
-  | 'confirmation-mismatch';
+  | 'confirmation-mismatch'
+  | 'invalid-state';
 
 export class Spake2PlusError extends Error {
   constructor(
@@ -493,4 +496,173 @@ export async function spake2PlusVerifierFinish(
     confirmation: confirmations.confirmV,
     expectedConfirmation: confirmations.confirmP
   };
+}
+
+export type Spake2PlusRole = 'prover' | 'verifier';
+
+export interface Spake2PlusSessionOptions {
+  role: Spake2PlusRole;
+  context: Spake2PlusBytes;
+  idProver: Spake2PlusBytes;
+  idVerifier: Spake2PlusBytes;
+  w0: Spake2PlusBytes;
+  w1?: Spake2PlusBytes;
+  L?: Spake2PlusBytes;
+  x?: Spake2PlusBytes;
+  y?: Spake2PlusBytes;
+  subtle?: SubtleCrypto;
+}
+
+export interface Spake2PlusVerifierResponse {
+  readonly share: Uint8Array;
+  readonly confirmation: Uint8Array;
+}
+
+export interface Spake2PlusSessionResult {
+  readonly exchange: Spake2PlusExchangeResult;
+  readonly transcript: Uint8Array;
+  readonly keys: Spake2PlusKeys;
+  readonly confirmation: Uint8Array;
+  readonly expectedConfirmation: Uint8Array;
+}
+
+type Spake2PlusSessionPhase =
+  | 'initial'
+  | 'awaiting-share'
+  | 'awaiting-confirmation'
+  | 'completed';
+
+function sessionError(message: string): Spake2PlusError {
+  return new Spake2PlusError('invalid-state', message);
+}
+
+function finishResult(
+  result: Spake2PlusFinishResult,
+  confirmationP: Uint8Array,
+  confirmationV: Uint8Array
+): Spake2PlusSessionResult {
+  return {
+    exchange: {
+      initiatorShare: bytesToBase64Url(result.shareP),
+      responderShare: bytesToBase64Url(result.shareV),
+      initiatorConfirmation: bytesToBase64Url(confirmationP),
+      responderConfirmation: bytesToBase64Url(confirmationV),
+      sharedSecret: bytesToBase64Url(result.keys.kShared)
+    },
+    transcript: new Uint8Array(result.transcript),
+    keys: result.keys,
+    confirmation: new Uint8Array(result.confirmation),
+    expectedConfirmation: new Uint8Array(result.expectedConfirmation)
+  };
+}
+
+export class Spake2PlusSession {
+  readonly role: Spake2PlusRole;
+
+  private readonly options: Spake2PlusSessionOptions;
+  private phase: Spake2PlusSessionPhase = 'initial';
+  private proverInit: Spake2PlusProverInitResult | null = null;
+  private verifierPending: Spake2PlusVerifierFinishResult | null = null;
+
+  constructor(options: Spake2PlusSessionOptions) {
+    this.options = options;
+    this.role = options.role;
+  }
+
+  proverStart(): Uint8Array {
+    if (this.role !== 'prover') {
+      throw sessionError('only the prover starts the exchange');
+    }
+    if (this.phase !== 'initial') {
+      throw sessionError('prover exchange already started');
+    }
+    const start = spake2PlusProverInit({
+      w0: this.options.w0,
+      ...(this.options.x !== undefined ? { x: this.options.x } : {})
+    });
+    this.proverInit = start;
+    this.phase = 'awaiting-share';
+    return new Uint8Array(start.shareP);
+  }
+
+  async verifierRespond(shareP: Spake2PlusBytes): Promise<Spake2PlusVerifierResponse> {
+    if (this.role !== 'verifier') {
+      throw sessionError('only the verifier responds to a prover share');
+    }
+    if (this.phase !== 'initial') {
+      throw sessionError('verifier response already produced');
+    }
+    if (this.options.L === undefined) {
+      throw new Spake2PlusError('invalid-input', 'verifier registration record L is required');
+    }
+    const result = await spake2PlusVerifierFinish({
+      w0: this.options.w0,
+      L: this.options.L,
+      shareP,
+      context: this.options.context,
+      idProver: this.options.idProver,
+      idVerifier: this.options.idVerifier,
+      ...(this.options.y !== undefined ? { y: this.options.y } : {}),
+      ...(this.options.subtle !== undefined ? { subtle: this.options.subtle } : {})
+    });
+    this.verifierPending = result;
+    this.phase = 'awaiting-confirmation';
+    return {
+      share: new Uint8Array(result.shareV),
+      confirmation: new Uint8Array(result.confirmation)
+    };
+  }
+
+  async proverFinish(
+    shareV: Spake2PlusBytes,
+    confirmationV: Uint8Array
+  ): Promise<Spake2PlusSessionResult> {
+    if (this.role !== 'prover') {
+      throw sessionError('only the prover finishes with a verifier response');
+    }
+    if (this.phase !== 'awaiting-share' || !this.proverInit) {
+      throw sessionError('prover is not awaiting a verifier share');
+    }
+    if (this.options.w1 === undefined) {
+      throw new Spake2PlusError('invalid-input', 'prover witness w1 is required');
+    }
+    const result = await spake2PlusProverFinish({
+      w0: this.options.w0,
+      w1: this.options.w1,
+      x: this.proverInit.x,
+      shareV,
+      context: this.options.context,
+      idProver: this.options.idProver,
+      idVerifier: this.options.idVerifier,
+      ...(this.options.subtle !== undefined ? { subtle: this.options.subtle } : {})
+    });
+    assertSpake2PlusConfirmation(result.expectedConfirmation, confirmationV);
+    this.phase = 'completed';
+    return finishResult(
+      result,
+      result.confirmation,
+      result.expectedConfirmation
+    );
+  }
+
+  async verifierFinish(
+    confirmationP: Uint8Array
+  ): Promise<Spake2PlusSessionResult> {
+    if (this.role !== 'verifier') {
+      throw sessionError('only the verifier finishes with a prover confirmation');
+    }
+    if (this.phase !== 'awaiting-confirmation' || !this.verifierPending) {
+      throw sessionError('verifier is not awaiting a prover confirmation');
+    }
+    assertSpake2PlusConfirmation(
+      this.verifierPending.expectedConfirmation,
+      confirmationP
+    );
+    this.phase = 'completed';
+    return finishResult(
+      this.verifierPending,
+      this.verifierPending.expectedConfirmation,
+      this.verifierPending.confirmation
+    );
+  }
 }

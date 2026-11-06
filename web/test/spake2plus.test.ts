@@ -3,6 +3,7 @@ import {
   SPAKE2PLUS_P256_M,
   SPAKE2PLUS_P256_N,
   Spake2PlusError,
+  Spake2PlusSession,
   assertSpake2PlusConfirmation,
   bytesToHex,
   computeSpake2PlusRegistrationRecord,
@@ -246,5 +247,82 @@ describe('SPAKE2+-P256-SHA256-HKDF-SHA256-HMAC-SHA256 RFC 9383 vector', () => {
       () => computeSpake2PlusRegistrationRecord(new Uint8Array(32)),
       'invalid-scalar'
     );
+  });
+});
+
+function makeSession(role: 'prover' | 'verifier'): Spake2PlusSession {
+  return new Spake2PlusSession({
+    role,
+    context: VECTOR.context,
+    idProver: VECTOR.idProver,
+    idVerifier: VECTOR.idVerifier,
+    w0: vectorInput(VECTOR.w0),
+    ...(role === 'prover'
+      ? { w1: vectorInput(VECTOR.w1), x: vectorInput(VECTOR.x) }
+      : { L: vectorInput(VECTOR.L), y: vectorInput(VECTOR.y) })
+  });
+}
+
+describe('SPAKE2+ interactive session', () => {
+  it('completes the prover/verifier round trip with matching evidence and keys', async () => {
+    const prover = makeSession('prover');
+    const verifier = makeSession('verifier');
+
+    const shareP = prover.proverStart();
+    expect(bytesToHex(shareP)).toBe(VECTOR.shareP);
+
+    const response = await verifier.verifierRespond(shareP);
+    expect(bytesToHex(response.share)).toBe(VECTOR.shareV);
+    expect(bytesToHex(response.confirmation)).toBe(VECTOR.confirmV);
+
+    const proverResult = await prover.proverFinish(
+      response.share,
+      response.confirmation
+    );
+    expect(bytesToHex(proverResult.confirmation)).toBe(VECTOR.confirmP);
+    expect(bytesToHex(proverResult.transcript)).toBe(VECTOR.TT);
+    expect(bytesToHex(proverResult.keys.kShared)).toBe(VECTOR.K_shared);
+
+    const verifierResult = await verifier.verifierFinish(
+      proverResult.confirmation
+    );
+    expect(verifierResult.exchange).toEqual(proverResult.exchange);
+    expect(verifierResult.keys).toEqual(proverResult.keys);
+    expect(verifierResult.transcript).toEqual(proverResult.transcript);
+  });
+
+  it('fails closed on a tampered verifier confirmation', async () => {
+    const prover = makeSession('prover');
+    const verifier = makeSession('verifier');
+    const response = await verifier.verifierRespond(prover.proverStart());
+    const tampered = new Uint8Array(response.confirmation);
+    tampered[0] = (tampered[0] ?? 0) ^ 0x01;
+
+    await expect(
+      prover.proverFinish(response.share, tampered)
+    ).rejects.toMatchObject({ code: 'confirmation-mismatch' });
+  });
+
+  it('rejects out-of-order and wrong-role operations', async () => {
+    const prover = makeSession('prover');
+    const verifier = makeSession('verifier');
+
+    await expect(
+      prover.verifierRespond(new Uint8Array([0x00]))
+    ).rejects.toMatchObject({ code: 'invalid-state' });
+    await expect(
+      prover.proverFinish(vectorInput(VECTOR.shareV), vectorInput(VECTOR.confirmV))
+    ).rejects.toMatchObject({ code: 'invalid-state' });
+
+    const response = await verifier.verifierRespond(prover.proverStart());
+    await expect(verifier.verifierRespond(response.share)).rejects.toMatchObject({
+      code: 'invalid-state'
+    });
+    await expect(
+      verifier.verifierFinish(vectorInput(VECTOR.confirmP))
+    ).resolves.toMatchObject({});
+    await expect(
+      verifier.verifierFinish(vectorInput(VECTOR.confirmP))
+    ).rejects.toMatchObject({ code: 'invalid-state' });
   });
 });

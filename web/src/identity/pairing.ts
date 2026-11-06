@@ -15,7 +15,7 @@ import {
   detectDeviceIdentityAlgorithm
 } from './identity';
 import type { DeviceSignatureVerifier } from './identity';
-import type { Spake2PlusPrimitive } from './pake';
+import type { Spake2PlusExchangeResult, Spake2PlusPrimitive } from './pake';
 import { NonceReplayGuard } from './replay';
 import type { DeviceRegistry } from './registry';
 import { deriveAdPairSessionKeys } from './session-keys';
@@ -27,6 +27,7 @@ import {
   combineRequestedCapabilities,
   computePairingTranscriptHash,
   deriveShortAuthenticationString,
+  normalizedPakeEvidence,
   requireChannelBinding,
   verifyPairingTranscriptSignature
 } from './transcript';
@@ -55,7 +56,8 @@ export const PAIRING_GRANT_BOUNDARY: PairingGrantBoundary = Object.freeze({
 });
 
 export interface AdPairSessionOptions {
-  pake: Spake2PlusPrimitive;
+  pake?: Spake2PlusPrimitive;
+  pakeExchange?: Spake2PlusExchangeResult;
   now?: () => number;
   replayGuard?: NonceReplayGuard;
   registry?: DeviceRegistry;
@@ -65,7 +67,7 @@ export interface AdPairSessionOptions {
 }
 
 export interface AdPairFinishInput {
-  secret: Uint8Array;
+  secret?: Uint8Array;
   expectedTranscriptHash?: Uint8Array;
   initiatorSignature?: Uint8Array;
   responderSignature?: Uint8Array;
@@ -168,6 +170,35 @@ function decodePakeSharedSecret(value: string): Uint8Array {
   return bytes;
 }
 
+function validatePakeExchange(value: Spake2PlusExchangeResult): Spake2PlusExchangeResult {
+  const evidence = normalizedPakeEvidence(value);
+  decodePakeSharedSecret(value.sharedSecret);
+  for (const confirmation of [
+    evidence.initiatorConfirmation,
+    evidence.responderConfirmation
+  ]) {
+    let bytes: Uint8Array;
+    try {
+      bytes = base64UrlToBytes(confirmation);
+    } catch {
+      throw new PairingValidationError(
+        'invalid-pake-evidence',
+        'invalid PAKE confirmation'
+      );
+    }
+    if (bytes.length !== 32) {
+      throw new PairingValidationError(
+        'invalid-pake-evidence',
+        'PAKE confirmation must be 32 bytes'
+      );
+    }
+  }
+  return {
+    ...evidence,
+    sharedSecret: value.sharedSecret
+  };
+}
+
 export class AdPairSession {
   private currentState: AdPairState = 'initial';
   private offerPayload: PairingPayload | null = null;
@@ -261,10 +292,6 @@ export class AdPairSession {
     }
 
     try {
-      if (input.secret.length === 0) {
-        throw new PairingValidationError('invalid-state', 'pairing secret is required');
-      }
-
       const offer = this.offerPayload;
       const response = this.responsePayload;
       const subtle = this.options.subtle ?? crypto.subtle;
@@ -279,12 +306,23 @@ export class AdPairSession {
       const channelBinding = requireChannelBinding(offer.channelBinding);
       assertMatchingChannelBinding(channelBinding, requireChannelBinding(response.channelBinding));
 
-      const pake = await this.options.pake.exchange({
-        protocolVersion: offer.version,
-        secret: input.secret,
-        initiatorDeviceId: offer.deviceId,
-        responderDeviceId: response.deviceId
-      });
+      let pake: Spake2PlusExchangeResult;
+      if (this.options.pakeExchange) {
+        pake = validatePakeExchange(this.options.pakeExchange);
+      } else {
+        if (!this.options.pake) {
+          throw new PairingValidationError('invalid-state', 'PAKE provider is required');
+        }
+        if (!input.secret || input.secret.length === 0) {
+          throw new PairingValidationError('invalid-state', 'pairing secret is required');
+        }
+        pake = await this.options.pake.exchange({
+          protocolVersion: offer.version,
+          secret: input.secret,
+          initiatorDeviceId: offer.deviceId,
+          responderDeviceId: response.deviceId
+        });
+      }
       const transcriptInput = { offer, response, pake };
       const transcript = canonicalPairingTranscript(transcriptInput);
       const transcriptHash = await computePairingTranscriptHash(transcriptInput, subtle);

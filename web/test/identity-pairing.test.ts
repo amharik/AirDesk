@@ -6,11 +6,13 @@ import {
   MemoryKeyStore,
   NonceReplayGuard,
   PairingValidationError,
+  Spake2PlusSession,
   base64UrlToBytes,
   bytesToBase64Url,
   bytesToHex,
   canonicalPairingTranscript,
   computePairingTranscriptHash,
+  computeSpake2PlusRegistrationRecord,
   deriveAdPairSessionKeys,
   hexToBytes,
   importBrowserIdentity,
@@ -216,6 +218,82 @@ describe('AD-PAIR-1 deterministic fixture', () => {
     expect(bytesToHex(changedTranscript.transport.bytes)).not.toBe(
       fixture.expected.sessionKeys.transport
     );
+  });
+});
+
+describe('AD-PAIR-1 interactive SPAKE2+ exchange', () => {
+  it('consumes a completed prover/verifier exchange without a fake PAKE result', async () => {
+    const w0 = new Uint8Array(32);
+    w0[31] = 1;
+    const w1 = new Uint8Array(32);
+    w1[31] = 2;
+    const prover = new Spake2PlusSession({
+      role: 'prover',
+      context: 'AD-PAIR-1',
+      idProver: fixture.offer.deviceId,
+      idVerifier: fixture.response.deviceId,
+      w0,
+      w1
+    });
+    const verifier = new Spake2PlusSession({
+      role: 'verifier',
+      context: 'AD-PAIR-1',
+      idProver: fixture.offer.deviceId,
+      idVerifier: fixture.response.deviceId,
+      w0,
+      L: computeSpake2PlusRegistrationRecord(w1)
+    });
+
+    const response = await verifier.verifierRespond(prover.proverStart());
+    const proverExchange = await prover.proverFinish(
+      response.share,
+      response.confirmation
+    );
+    const verifierExchange = await verifier.verifierFinish(
+      proverExchange.confirmation
+    );
+    expect(verifierExchange.exchange).toEqual(proverExchange.exchange);
+
+    const initiator = await loadIdentity(fixture.initiator);
+    const responder = await loadIdentity(fixture.responder);
+    const offer = clone(fixture.offer);
+    const pairingResponse = clone(fixture.response);
+    const session = new AdPairSession({
+      pakeExchange: proverExchange.exchange,
+      now: () => fixture.now,
+      initiatorVerifier: initiator,
+      responderVerifier: responder
+    });
+    session.acceptOffer(offer);
+    session.acceptResponse(pairingResponse);
+
+    const transcript = canonicalPairingTranscript({
+      offer,
+      response: pairingResponse,
+      pake: proverExchange.exchange
+    });
+    const result = await session.finish({
+      initiatorSignature: await signPairingTranscript(initiator, transcript),
+      responderSignature: await signPairingTranscript(responder, transcript)
+    });
+
+    expect(result.transcript).toEqual(transcript);
+    expect(bytesToHex(result.sessionKeys.initiatorToResponder.bytes)).toBe(
+      bytesToHex(
+        (
+          await deriveAdPairSessionKeys({
+            pakeSharedSecret: base64UrlToBytes(proverExchange.exchange.sharedSecret),
+            transcriptHash: await computePairingTranscriptHash({
+              offer,
+              response: pairingResponse,
+              pake: proverExchange.exchange
+            }),
+            channelBinding: fixture.binding
+          })
+        ).initiatorToResponder.bytes
+      )
+    );
+    expect(result.shortAuthenticationString).toMatch(/^\d{6}$/);
   });
 });
 
