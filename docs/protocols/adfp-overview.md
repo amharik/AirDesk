@@ -56,7 +56,7 @@ The FlatBuffers schema is structural. It declares identity, pairing, binding and
 | Module | Status | Purpose |
 | --- | --- | --- |
 | AD-WS | Active | Workspace desired state, placement and observed status |
-| AD-DEV | Early | Device identity, discovery, pairing and health; identity, local registry, the AD-PAIR-1 transcript/key schedule and a low-level SPAKE2+ P-256 primitive exist, interactive pairing and discovery remain pending |
+| AD-DEV | Early | Device identity, discovery, pairing and health; identity, local registry, the AD-PAIR-1 transcript/key schedule, interactive SPAKE2+ pairing and canonical DNS-SD advertisement records exist; the runtime discovery adapter and real channel binding remain pending |
 | AD-CAP | Early | Capability advertisement, leases, revocation and remote-application protocol descriptors; schema, Android advertisement and the iOS local capability catalog exist, signed grants and remote invocation remain pending |
 | AD-RUNTIME | Active MVP | Runtime provider lifecycle, execution status and remote namespace role |
 | AD-RESOURCE | Active MVP | File and resource access |
