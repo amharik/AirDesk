@@ -1,6 +1,6 @@
 # Fabric Research Baseline and Measurement Protocol
 
-- **Status:** R0 baseline — T1 WebSocket, T2 WebTransport, T3 WebRTC and T4 Iroh/QUIC loopback measurements recorded; T3 repeated in the iOS 18.6 simulator; T4 repeated across two hosts on a DERP-relayed tailnet and on a forced public-relay path; SSH/tmux pre-screen complete and S2 simulator reattach plus termination recovery pass 3/3 on a DERP-relayed tailnet
+- **Status:** R0 baseline — T1 WebSocket, T2 WebTransport, T3 WebRTC and T4 Iroh/QUIC loopback measurements recorded; T3 repeated in the iOS 18.6 simulator; T4 repeated across two hosts on a DERP-relayed tailnet and on a forced public-relay path; SSH/tmux pre-screen complete; S2 simulator reattach and termination recovery pass 3/3, and second-device handoff passes 1/1, on a DERP-relayed tailnet
 - **Date:** 2026-11-05
 - **Parent:** `universal-compute-fabric-research.md`
 - **Scope:** Reproducible measurement rules, candidate matrix, scenario procedures and results template for the universal compute fabric research track
@@ -48,7 +48,7 @@ Hardware availability must be recorded per run. A missing device is reported as 
 | WebTransport over HTTP/3 | Browser/native candidate | Safari/WKWebView support starts at 26.4, so iOS 17–26.3 need a fallback; `serverCertificateHashes`, ECDSA certificate handling | Hold for the iOS 18.6 baseline; WebSocket fallback |
 | WebRTC data channels | Direct-peer candidate | macOS WKWebView and iOS 18.6 simulator loopback work with host candidates; physical device, TURN fallback and silent-loss behavior remain open | Adapter behind transport interface; trial only |
 | Iroh/QUIC | Direct-peer research candidate | Relay-free loopback and two-host tailnet pass in Rust; the tailnet underlay was DERP-relayed, so direct NAT traversal remains unproven. A forced relay-only run passes 90/90 at p50 108.8/106.1/183.9 ms for 64 B/1 KiB/16 KiB through the public n0 relay, but does not prove automatic fallback or self-hosted relay operation | Spike only until R1 gate |
-| SSH/tmux | Remote execution reference | Native NIOSSH path with pinned host key, Keychain password and tmux default; license/platform pre-screen passes; S2 simulator background reattach passes 3/3 at p50 6.9 s and max 8.2 s; app-termination recovery also passes 3/3, with full cold relaunch at p50 57.6 s and max 70.8 s, process survival and truthfulness on a DERP-relayed tailnet | Keep for remote host workflows; physical-device and second-device reattach remain open |
+| SSH/tmux | Remote execution reference | Native NIOSSH path with pinned host key, Keychain password and tmux default; license/platform pre-screen passes; S2 simulator background reattach passes 3/3 at p50 6.9 s and max 8.2 s; app-termination recovery passes 3/3, with full cold relaunch at p50 57.6 s and max 70.8 s; second-device simulator handoff passes 1/1 with 40.4 s cold recovery, process survival and truthfulness on a DERP-relayed tailnet | Keep for remote host workflows; physical-device reattach remains open |
 
 ### 3.2 State and authority
 
@@ -159,13 +159,13 @@ Hardware availability must be recorded per run. A missing device is reported as 
 
 ### S2 — Remote agent or terminal reattach
 
-1. Select `research/scenarios/ssh-reattach-baseline.json` for backgrounding or `research/scenarios/ssh-termination-baseline.json` for app termination.
+1. Select `research/scenarios/ssh-reattach-baseline.json` for backgrounding, `research/scenarios/ssh-termination-baseline.json` for app termination or `research/scenarios/ssh-second-device-baseline.json` for second-device handoff.
 2. Start a remote SSH/tmux session from the phone and generate output while detaching the controller, suspending the app or terminating the app process.
 3. Reattach from the same or a second device.
 4. Verify the remote process survived, the transcript is truthful and no keys remain pressed.
 5. Record reattach or relaunch recovery time and failure classification.
 
-Status: simulator pass. The 2026-11-05 background run used an iPhone 16 Pro simulator on iOS 18.6, a remote Debian 13 host (`sillygirl`), tmux 3.5a and a DERP-relayed tailnet path. All 3 cycles reattached (6.9 s p50, 5.3–8.2 s), the tmux heartbeat process survived 3/3, and new output was visible 3/3. The termination run used the same setup: all 3 cycles recovered after a cold relaunch (57.6 s p50, 43.5–70.8 s), with the same process-survival and transcript results. The relaunch metric includes app startup and preview presentation, not only SSH reconnect. This does not cover physical-device backgrounding/termination, a second device, a direct-underlay path or keys-held-on-disconnect behavior.
+Status: simulator pass. The 2026-11-05 background run used an iPhone 16 Pro simulator on iOS 18.6, a remote Debian 13 host (`sillygirl`), tmux 3.5a and a DERP-relayed tailnet path. All 3 cycles reattached (6.9 s p50, 5.3–8.2 s), the tmux heartbeat process survived 3/3, and new output was visible 3/3. The termination run used the same setup: all 3 cycles recovered after a cold relaunch (57.6 s p50, 43.5–70.8 s), with the same process-survival and transcript results. The relaunch metric includes app startup and preview presentation, not only SSH reconnect. The 2026-11-06 second-device run used an iPhone 16 Pro primary and an iPhone 16 Pro Max secondary on the same Mac, run sequentially: the primary advanced the heartbeat to marker 9 and was shut down; the secondary attached to the same session, advanced it to 109 and passed 1/1 with a 40.4 s cold recovery, process survival and a truthful transcript. This does not cover physical-device backgrounding/termination, a simultaneous two-controller session, a direct-underlay path or keys-held-on-disconnect behavior.
 
 ### S3 — Offline multi-device state
 
@@ -268,8 +268,9 @@ Reports live under `docs/research/runs/`. Recorded harness baselines:
 - T4 forced public relay: `docs/research/runs/2026-11-05-iroh-relay-fallback.md`
 - S2 simulator SSH/tmux reattach: `docs/research/runs/2026-11-05T184314Z-ssh-reattach-baseline/report.md`
 - S2 simulator SSH/tmux termination recovery: `docs/research/runs/2026-11-05T185114Z-ssh-termination-baseline/report.md`
+- S2 simulator SSH/tmux second-device handoff: `docs/research/runs/2026-11-06T015637Z-ssh-second-device-baseline/report.md`
 
-Candidate comparisons across recorded networks remain open. The T4 tailnet run used a DERP-relayed Tailscale underlay, so it is a separate network label and not a direct-underlay result. The T4 relay run cleared IP transports on both ends and used the public n0 relay map, so it is a forced relay-only result, not an automatic fallback or self-hosted-relay result. SSH/tmux is a stream/session reference and is not part of the T1–T4 payload comparison; its S2 background and termination simulator baselines pass 3/3 but still need physical-device, second-device and direct-underlay evidence.
+Candidate comparisons across recorded networks remain open. The T4 tailnet run used a DERP-relayed Tailscale underlay, so it is a separate network label and not a direct-underlay result. The T4 relay run cleared IP transports on both ends and used the public n0 relay map, so it is a forced relay-only result, not an automatic fallback or self-hosted-relay result. SSH/tmux is a stream/session reference and is not part of the T1–T4 payload comparison; its S2 background and termination simulator baselines pass 3/3 and the second-device simulator handoff passes 1/1, but physical-device and direct-underlay evidence remain open.
 
 ## 8. R0 exit checklist
 

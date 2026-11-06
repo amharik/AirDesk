@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "scenario": "S2",
+  "scenario_name": "ssh-tmux-second-device-baseline",
+  "candidate": "ssh-tmux-baseline",
+  "transport": "ssh",
+  "run_id": "2026-11-06T015637Z-ssh-second-device-baseline",
+  "commit": "3fcac85083ff",
+  "dirty": false,
+  "date": "2026-11-06T01:56:48Z",
+  "samples": 1,
+  "failure_injection": [
+    "primary-controller-terminated",
+    "second-device-takeover"
+  ],
+  "environment": {
+    "controller_a": "iPhone 16 Pro (3B46FDF8-1482-4517-99F3-D6EF46A85133) / iOS 18.6 simulator",
+    "simulator_id_a": "3B46FDF8-1482-4517-99F3-D6EF46A85133",
+    "controller_b": "iPhone 16 Pro Max (DB9D5BBC-3996-440A-8641-4A236F42A0E0) / iOS 18.6 simulator",
+    "simulator_id_b": "DB9D5BBC-3996-440A-8641-4A236F42A0E0",
+    "xcode": "Xcode 16.4 Build version 16F6",
+    "host": "macOS 15.5 x86_64",
+    "server": "Linux 6.12.101+deb13-amd64 x86_64",
+    "server_user": "sillygirl",
+    "server_tmux": "tmux 3.5a",
+    "network": "tailnet",
+    "underlay": "tailscale-derp",
+    "underlay_probe": "pong from sillygirl (100.109.90.66) via DERP(bom) in 57ms",
+    "ping_avg_ms": 56.785,
+    "mode": "second-device"
+  },
+  "metrics": {
+    "secondary_connect_ms": 40363,
+    "secondary_attempts": 1,
+    "primary_marker": 9,
+    "secondary_marker": 109,
+    "heartbeat_advanced": true,
+    "process_survived": true,
+    "transcript_truthful": true
+  },
+  "failures": [],
+  "pass": {
+    "process_survived": true,
+    "transcript_truthful": true,
+    "heartbeat_advanced": true,
+    "secondary_connect_ms": true
+  }
+}

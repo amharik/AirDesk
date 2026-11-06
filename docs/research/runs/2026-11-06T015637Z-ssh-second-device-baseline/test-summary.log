@@ -1,0 +1,25 @@
+PRIMARY
+Test Suite 'Selected tests' started at 2026-11-06 07:22:04.458.
+Test Suite 'AirDeskUITests.xctest' started at 2026-11-06 07:22:04.460.
+Test Suite 'RemoteSSHReattachTests' started at 2026-11-06 07:22:04.461.
+Test Case '-[AirDeskUITests.RemoteSSHReattachTests testRemoteSSHSecondDevicePrimary]' started.
+AIRDESK_S2_PRIMARY_MARKER=9
+AIRDESK_S2_PRIMARY_READY=true
+AIRDESK_S2_DONE=true
+Test Case '-[AirDeskUITests.RemoteSSHReattachTests testRemoteSSHSecondDevicePrimary]' passed (87.336 seconds).
+Test Suite 'RemoteSSHReattachTests' passed at 2026-11-06 07:23:31.800.
+Test Suite 'AirDeskUITests.xctest' passed at 2026-11-06 07:23:31.802.
+Test Suite 'Selected tests' passed at 2026-11-06 07:23:31.803.
+SECONDARY
+Test Suite 'Selected tests' started at 2026-11-06 07:25:50.779.
+Test Suite 'AirDeskUITests.xctest' started at 2026-11-06 07:25:50.781.
+Test Suite 'RemoteSSHReattachTests' started at 2026-11-06 07:25:50.781.
+Test Case '-[AirDeskUITests.RemoteSSHReattachTests testRemoteSSHSecondDeviceSecondary]' started.
+AIRDESK_S2_SECONDARY_CONNECT_MS=40363
+AIRDESK_S2_SECONDARY_MARKER=109
+AIRDESK_S2_SECONDARY_READY=true
+AIRDESK_S2_DONE=true
+Test Case '-[AirDeskUITests.RemoteSSHReattachTests testRemoteSSHSecondDeviceSecondary]' passed (45.060 seconds).
+Test Suite 'RemoteSSHReattachTests' passed at 2026-11-06 07:26:35.842.
+Test Suite 'AirDeskUITests.xctest' passed at 2026-11-06 07:26:35.844.
+Test Suite 'Selected tests' passed at 2026-11-06 07:26:35.846.
