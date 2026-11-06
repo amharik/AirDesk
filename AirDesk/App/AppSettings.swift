@@ -17,6 +17,9 @@ final class AppSettings: ObservableObject {
         static let remoteTerminalUsername = "airdesk.remoteTerminal.username"
         static let remoteTerminalHostKey = "airdesk.remoteTerminal.hostKey"
         static let remoteTerminalStartupCommand = "airdesk.remoteTerminal.startupCommand"
+        static let fabricEnabled = "airdesk.fabric.enabled"
+        static let fabricInputForwarding = "airdesk.fabric.inputForwarding"
+        static let fabricRelayURLs = "airdesk.fabric.relayURLs"
     }
 
     private static let remoteTerminalKeychainService = "com.airdesk.ios.remote-terminal"
@@ -81,6 +84,18 @@ final class AppSettings: ObservableObject {
     @Published var remoteTerminalPassword: String
     @Published private(set) var remoteTerminalCredentialError: String?
 
+    @Published var fabricEnabled: Bool {
+        didSet { defaults.set(fabricEnabled, forKey: Key.fabricEnabled) }
+    }
+
+    @Published var fabricInputForwardingEnabled: Bool {
+        didSet { defaults.set(fabricInputForwardingEnabled, forKey: Key.fabricInputForwarding) }
+    }
+
+    @Published var fabricRelayURLs: String {
+        didSet { defaults.set(fabricRelayURLs, forKey: Key.fabricRelayURLs) }
+    }
+
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
@@ -104,6 +119,9 @@ final class AppSettings: ObservableObject {
         ))
         .flatMap { String(data: $0, encoding: .utf8) } ?? ""
         remoteTerminalCredentialError = nil
+        fabricEnabled = defaults.object(forKey: Key.fabricEnabled) as? Bool ?? false
+        fabricInputForwardingEnabled = defaults.object(forKey: Key.fabricInputForwarding) as? Bool ?? false
+        fabricRelayURLs = defaults.string(forKey: Key.fabricRelayURLs) ?? ""
         if let raw = defaults.string(forKey: Key.displayMode), let mode = DisplayPresentationMode(rawValue: raw) {
             displayMode = mode
         } else {
@@ -130,6 +148,14 @@ final class AppSettings: ObservableObject {
             startupCommand: remoteTerminalStartupCommand,
             password: remoteTerminalPassword
         )
+    }
+
+    var fabricRelayPolicy: IrohRelayPolicy {
+        let urls = fabricRelayURLs
+            .split(whereSeparator: { $0 == "," || $0 == "\n" })
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        return urls.isEmpty ? .directOnly : .selfHosted(urls: urls)
     }
 
     func saveRemoteTerminalPassword() throws {
@@ -170,5 +196,8 @@ final class AppSettings: ObservableObject {
         remoteTerminalStartupCommand = "tmux new -A -s airdesk"
         remoteTerminalPassword = ""
         try? saveRemoteTerminalPassword()
+        fabricEnabled = false
+        fabricInputForwardingEnabled = false
+        fabricRelayURLs = ""
     }
 }

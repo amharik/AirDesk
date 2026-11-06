@@ -47,6 +47,38 @@ final class SessionRuntimeRoutingTests: XCTestCase {
         XCTAssertEqual(adapter.sentEvents, [event])
     }
 
+    func testFabricRouteForwardsInputWhenConnected() {
+        let endpoint = StubRuntimeEndpoint(state: .ready)
+        let fabric = StubFabricRouting(isConnected: true)
+        let transport = SessionInputTransport()
+        transport.route = .endpoint
+        transport.endpoint = endpoint
+        transport.fabric = fabric
+        transport.forwardsToFabric = true
+        let event = InputEvent.make(.keyDown, sessionId: "ads-test", seq: 1, key: "a")
+
+        transport.send(event, on: .reliableEdges)
+
+        XCTAssertEqual(fabric.sentEvents, [event])
+        XCTAssertTrue(endpoint.sentEvents.isEmpty)
+    }
+
+    func testFabricRouteFallsBackWhenDisconnected() {
+        let endpoint = StubRuntimeEndpoint(state: .ready)
+        let fabric = StubFabricRouting(isConnected: false)
+        let transport = SessionInputTransport()
+        transport.route = .endpoint
+        transport.endpoint = endpoint
+        transport.fabric = fabric
+        transport.forwardsToFabric = true
+        let event = InputEvent.make(.keyDown, sessionId: "ads-test", seq: 1, key: "a")
+
+        transport.send(event, on: .reliableEdges)
+
+        XCTAssertTrue(fabric.sentEvents.isEmpty)
+        XCTAssertEqual(endpoint.sentEvents, [event])
+    }
+
     func testTransportRejectsInputOnTheWrongChannel() {
         let endpoint = StubRuntimeEndpoint(state: .ready)
         let transport = SessionInputTransport()
@@ -87,6 +119,21 @@ private final class StubRuntimeEndpoint: RuntimeEndpoint {
     func send(_ event: InputEvent) { sentEvents.append(event) }
     func sendControl(_ control: RuntimeControl) {}
     func stop() async {}
+}
+
+@MainActor
+private final class StubFabricRouting: IrohFabricInputRouting {
+    let isConnected: Bool
+    private(set) var sentEvents: [InputEvent] = []
+
+    init(isConnected: Bool) {
+        self.isConnected = isConnected
+    }
+
+    func sendInput(_ event: InputEvent) -> Bool {
+        sentEvents.append(event)
+        return true
+    }
 }
 
 @MainActor

@@ -87,6 +87,8 @@ final class SessionCoordinator: ObservableObject {
     @Published private(set) var previewKeyboardDismissRequest = 0
     @Published private(set) var debugJSLog = ""
     @Published private(set) var remoteTerminalStatus = "Idle"
+    @Published private(set) var fabricControllerID: String?
+    @Published private(set) var fabricControllerHasLease = false
 
     private(set) var negotiatedInputProtocol = NegotiatedInputProtocol(
         version: .legacy,
@@ -136,6 +138,7 @@ final class SessionCoordinator: ObservableObject {
     private let display: DisplayCoordinator
     private let cast: CastSessionCoordinator
     private let entitlements: EntitlementManager
+    private let fabric: (any IrohFabricInputRouting)?
     private let remoteTerminal = RemoteTerminalController()
     private let inputLease = InputLeaseManager()
     private var localInputValidationEnabled = false
@@ -166,6 +169,7 @@ final class SessionCoordinator: ObservableObject {
         display: DisplayCoordinator,
         cast: CastSessionCoordinator,
         entitlements: EntitlementManager,
+        fabric: (any IrohFabricInputRouting)? = nil,
         runtimeProviders: DesktopRuntimeProviderRegistry? = nil,
         endpointFactory: (@MainActor (DisplayProfile) throws -> (any RuntimeEndpoint)?)? = nil
     ) {
@@ -178,6 +182,7 @@ final class SessionCoordinator: ObservableObject {
         self.display = display
         self.cast = cast
         self.entitlements = entitlements
+        self.fabric = fabric
         self.desktopSurface = surface
         self.dispatcher = InputDispatcher()
         self.inputTransport = SessionInputTransport()
@@ -201,6 +206,8 @@ final class SessionCoordinator: ObservableObject {
 
         isExternalConnected = display.isExternalDisplayConnected
         inputTransport.cast = cast
+        inputTransport.fabric = fabric
+        applyFabricInputRoute()
         cast.addControlObserver { [weak self] message in
             self?.handleCastControl(message)
         }
@@ -317,6 +324,7 @@ final class SessionCoordinator: ObservableObject {
         }
 
         inputTransport.route = profile.input == .castChannel ? .cast : .endpoint
+        applyFabricInputRoute()
         isDemoConnection = device.isDemo || device.kind == .preview
         isExternalConnected = display.isExternalDisplayConnected
         runtimeName = settings.runtimeChoice.title
@@ -347,6 +355,9 @@ final class SessionCoordinator: ObservableObject {
         mode = .preview
         profile = .preview
         inputTransport.route = .endpoint
+        inputTransport.forwardsToFabric = false
+        fabricControllerID = nil
+        fabricControllerHasLease = false
         isDemoConnection = false
         isPreviewPresented = false
         sessionId = ""
@@ -373,6 +384,9 @@ final class SessionCoordinator: ObservableObject {
         mode = .preview
         profile = .preview
         inputTransport.route = .endpoint
+        inputTransport.forwardsToFabric = false
+        fabricControllerID = nil
+        fabricControllerHasLease = false
         isDemoConnection = false
         isPreviewPresented = false
         sessionId = ""
@@ -581,6 +595,127 @@ final class SessionCoordinator: ObservableObject {
         if isDemoConnection {
             desktopSurface.send(event)
         }
+    }
+
+    var canGrantFabricControl: Bool {
+        phase == .ready && fabricControllerID != nil && !fabricControllerHasLease
+    }
+
+    var canReclaimLocalControl: Bool {
+        phase == .ready && fabricControllerHasLease
+    }
+
+    func fabricPeerDidConnect(_ remoteEndpointID: String) {
+        guard phase == .ready else { return }
+        let controllerId = Self.fabricControllerID(for: remoteEndpointID)
+        fabricControllerHasLease = false
+        if fabricControllerID != controllerId {
+            if let previous = fabricControllerID {
+                inputLease.detach(controllerId: previous)
+            }
+            fabricControllerID = controllerId
+        }
+        try? inputLease.attach(
+            controllerId: controllerId,
+            deviceId: remoteEndpointID,
+            role: .primaryDriver
+        )
+        applyFabricInputRoute()
+        diagnostics.mark("fabric.peer.connected")
+    }
+
+    func fabricPeerDidDisconnect(_ remoteEndpointID: String) {
+        let controllerId = Self.fabricControllerID(for: remoteEndpointID)
+        guard fabricControllerID == controllerId else { return }
+        let heldLease = fabricControllerHasLease
+        inputLease.detach(controllerId: controllerId)
+        fabricControllerID = nil
+        fabricControllerHasLease = false
+        if heldLease {
+            try? inputLease.requestLease(
+                controllerId: Self.localControllerId,
+                forcePreempt: true,
+                confirmed: true
+            )
+        }
+        applyFabricInputRoute()
+        diagnostics.mark("fabric.peer.disconnected")
+    }
+
+    func grantFabricControl() {
+        guard phase == .ready, let controllerId = fabricControllerID else { return }
+        do {
+            _ = try inputLease.requestLease(
+                controllerId: controllerId,
+                forcePreempt: true,
+                confirmed: true
+            )
+            fabricControllerHasLease = true
+            diagnostics.mark("fabric.control.granted")
+        } catch {
+            notice = "Unable to grant Iroh control: \(error.localizedDescription)"
+        }
+    }
+
+    func reclaimLocalControl() {
+        guard phase == .ready else { return }
+        do {
+            _ = try inputLease.requestLease(
+                controllerId: Self.localControllerId,
+                forcePreempt: true,
+                confirmed: true
+            )
+            fabricControllerHasLease = false
+            diagnostics.mark("fabric.control.reclaimed")
+        } catch {
+            notice = "Unable to reclaim local control: \(error.localizedDescription)"
+        }
+    }
+
+    func fabricSettingsDidChange() {
+        applyFabricInputRoute()
+    }
+
+    func fabricDidReceive(_ event: InputEvent) {
+        guard phase == .ready,
+              let controllerId = fabricControllerID,
+              fabricControllerHasLease else { return }
+        var localEvent = event
+        localEvent.sessionId = sessionId
+        localEvent.generation = sessionGeneration
+        guard let validated = try? inputLease.validateEdge(
+            localEvent,
+            on: inputContext(controllerId: controllerId, leaseEpoch: inputLease.leaseEpoch)
+        ) else { return }
+        dispatchFabricInput(validated.event)
+    }
+
+    func fabricDidReceive(_ frame: PackedMovementFrame) {
+        guard phase == .ready,
+              let controllerId = fabricControllerID,
+              fabricControllerHasLease else { return }
+        let adjusted = PackedMovementFrame(
+            leaseEpochLow: UInt16(truncatingIfNeeded: inputLease.leaseEpoch),
+            seq: frame.seq,
+            x: frame.x,
+            y: frame.y,
+            buttonMask: frame.buttonMask,
+            modifiers: frame.modifiers
+        )
+        guard let accepted = acceptIncomingMovement(
+            adjusted,
+            controllerId: controllerId,
+            leaseEpoch: inputLease.leaseEpoch
+        ) else { return }
+        let event = InputEvent.make(
+            .pointerMove,
+            sessionId: sessionId,
+            generation: sessionGeneration,
+            seq: Int(accepted.seq),
+            x: Double(accepted.x),
+            y: Double(accepted.y)
+        )
+        dispatchFabricInput(event)
     }
 
     func settingsDidChange() {
@@ -821,6 +956,23 @@ final class SessionCoordinator: ObservableObject {
             controllerId: controllerId,
             leaseEpoch: leaseEpoch
         )
+    }
+
+    private static func fabricControllerID(for remoteEndpointID: String) -> String {
+        "iroh:\(remoteEndpointID)"
+    }
+
+    private func applyFabricInputRoute() {
+        inputTransport.forwardsToFabric = settings.fabricInputForwardingEnabled
+            && fabric?.isConnected == true
+    }
+
+    private func dispatchFabricInput(_ event: InputEvent) {
+        if isDemoConnection {
+            desktopSurface.send(event)
+        } else {
+            endpoint?.send(event)
+        }
     }
 
     private func shouldSendLocalInput(_ event: InputEvent) -> Bool {

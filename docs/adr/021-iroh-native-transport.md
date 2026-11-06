@@ -48,7 +48,7 @@ Production relay support must be explicit and self-hosted:
 
 - ALPN: `airdesk/fabric/1`.
 - Reliable ADFP channels (control, input edges, runtime, resource, display) use one bidirectional stream per frame with a 1-byte channel identifier, a 4-byte big-endian payload length and the payload. The reliable payload limit is 1 MiB.
-- Movement uses an unreliable datagram containing exactly the 16-byte `PackedPointerFrame`; movement is never sent on a reliable stream.
+- Movement uses an unreliable datagram containing exactly the 16-byte `PackedMovementFrame`; movement is never sent on a reliable stream.
 - Channel semantics remain those in `docs/protocols/transport-mapping.md`.
 
 ### 7. Browser path
@@ -58,7 +58,7 @@ The browser endpoint continues to use WebSocket under ADR-014. This ADR does not
 ## Consequences
 
 - iOS 17.5 becomes the minimum deployment target for the app.
-- The app links `IrohLib`, `SystemConfiguration`, `CoreWLAN` and `Network`.
+- The app embeds `IrohLib` and explicitly links `Network`; the package supplies its remaining system dependencies.
 - Direct-only mode works without relays but can fail when no direct address is reachable.
 - Self-hosted relay operation and automatic direct-to-relay behavior still require labeled network evidence.
 - Physical-device, direct-underlay and self-hosted-relay qualification remain open.
@@ -74,10 +74,14 @@ The initial integration is accepted when:
 4. diagnostics expose endpoint identity, ticket, path state and relay policy;
 5. the second-device harness and existing SSH paths remain unaffected.
 
-Initial loopback validation passed on 2026-11-06 with Xcode 16.4 on the Intel Mac mini:
+Adapter and app-integration validation passed on 2026-11-06 with Xcode 16.4 on the Intel Mac mini:
 
 - `xcodebuild build-for-testing` succeeded for iPhone 16 Pro iOS 18.6 simulator with `ENABLE_ON_DEMAND_RESOURCES=NO`;
-- `IrohFabricTransportTests` passed 3/3 in 0.7 s, covering frame validation, fail-closed relay policy, reliable control/runtime frames, movement datagrams, tickets and diagnostics;
-- the full `AirDeskTests` suite ran 247 tests with 244 passes, 1 skip and 2 failures; both failures were `DesktopShellIntegrationTests` under full-suite simulator load, and both passed when rerun in isolation.
+- `IrohFabricTransportTests` passed 3/3, covering frame validation, fail-closed relay policy, reliable control/runtime frames, movement datagrams, tickets and diagnostics;
+- `IrohFabricInputCodecTests` passed 5/5, covering movement datagrams, reliable edges, control frames and invalid payloads;
+- `IrohFabricPeerTests` passed 1/1, covering peer start, ticket connect, path diagnostics and live reliable/datagram delivery;
+- `SessionRuntimeRoutingTests` passed 6/6, including Iroh forwarding and fallback to the local endpoint;
+- `SessionCoordinatorLeaseTests/testFabricPeerRequiresLeaseAndForwardsValidatedInput` passed, covering explicit remote lease grant, session/generation rebinding, reliable input, movement rebinding and control reclamation;
+- the full `AirDeskTests` suite ran 256 tests with 255 passes, 1 skip and 0 failures.
 
-App wiring remains `XPORT-05`; the browser path and production release sequencing remain unchanged.
+App wiring (`XPORT-05`) is complete. Physical-device pairing, direct-underlay and self-hosted-relay qualification remain open; the browser path and production release sequencing remain unchanged.

@@ -1,7 +1,7 @@
 # AirDesk implementation milestones
 
 Status: active
-Last updated: 2026-11-05
+Last updated: 2026-11-06
 
 This file is the implementation tracker. `docs/adr/README.md` remains authoritative for decision status. This file tracks execution order, acceptance criteria and current progress. Update it whenever a work item changes state.
 
@@ -18,13 +18,13 @@ This file is the implementation tracker. `docs/adr/README.md` remains authoritat
 
 - Milestone: `M8` — universal compute fabric research
 - Track: `100x research first`; product release sequencing is paused until the R6 architecture decision gate
-- Work item: `RF-00`, `RF-01`, `RF-02` and `XPORT-05` are active; R0 has the research plan, dependency pre-screen, threat-model delta, harness and qualified Mac runner; R1 has loopback WebSocket, WebTransport and WebRTC baselines at 64 B, 1 KiB and 16 KiB; T3 also passes in the iOS 18.6 simulator; T4 relay-free Iroh/QUIC passes on loopback and across two hosts on a tailnet, but the tailnet underlay was DERP-relayed; the forced Iroh relay-only run passes 90/90 through the public n0 relay at p50 108.8/106.1/183.9 ms; ADR-021 adopts Iroh for the native peer data plane and the official Swift SDK adapter passes loopback build/tests; the SSH/tmux pre-screen is complete; S2 simulator background reattach and app-termination recovery both pass 3/3, and second-device handoff passes 1/1, with process survival and truthful transcripts on a DERP-relayed tailnet
-- Next: repeat T3 and S2 on the physical iPhone when signing is available, add a labeled Wi-Fi/tailnet path with and without TURN, establish a direct Tailscale/LAN underlay and repeat T4, and exercise automatic direct-to-relay fallback and a self-hosted relay before the R1 decision; WebTransport is held on iOS 18.6 because WKWebView support starts at iOS 26.4; do not promote research spikes or dependencies
+- Work item: `RF-00`, `RF-01` and `RF-02` are active; R0 has the research plan, dependency pre-screen, threat-model delta, harness and qualified Mac runner; R1 has loopback WebSocket, WebTransport and WebRTC baselines at 64 B, 1 KiB and 16 KiB; T3 also passes in the iOS 18.6 simulator; T4 relay-free Iroh/QUIC passes on loopback and across two hosts on a tailnet, but the tailnet underlay was DERP-relayed; the forced Iroh relay-only run passes 90/90 through the public n0 relay at p50 108.8/106.1/183.9 ms; ADR-021 adopts Iroh for the native peer data plane and `XPORT-05` wires the official Swift SDK adapter into the app with ticket pairing, path diagnostics, explicit remote-lease input and WebSocket fallback; the SSH/tmux pre-screen is complete; S2 simulator background reattach and app-termination recovery both pass 3/3, and second-device handoff passes 1/1, with process survival and truthful transcripts on a DERP-relayed tailnet
+- Next: repeat T3 and S2 on the physical iPhone when signing is available, add a labeled Wi-Fi/tailnet path with and without TURN, establish a direct Tailscale/LAN underlay and repeat T4, exercise automatic direct-to-relay fallback and a self-hosted relay, and exercise the XPORT-05 pairing flow on two physical devices before the R1 decision; WebTransport is held on iOS 18.6 because WKWebView support starts at iOS 26.4; do not promote research spikes or dependencies
 - Retained implementation state: `M0-03`, `RT-02`, `RT-03`, `RT-05`, `RT-06`, `APP-02`, `APP-05`, `IN-01`, `IN-04`, `IN-06`, `IN-07` and `INPUT-01` are complete; `RT-04` is blocked on a native execution engine/package decision; `IN-02` channel routing and validation are in place, with the production transport binding still open
 
 ## Verification status
 
-Real iPad testing is parked by request. On 2026-11-04, `scripts/check-core.sh` runs 121 workspace-core and input tests successfully on macOS via SwiftPM; the full `AirDeskTests` target runs 243 tests with 0 failures on an iPhone 16 Pro simulator (iOS 18.6); `xcodebuild build-for-testing` for the generic iOS Simulator destination succeeds with `CODE_SIGNING_ALLOWED=NO`; `protocol/check.sh` passes; and the Rust protocol crate passes 10 tests. The full web Vitest suite passes 56 tests when invoked through Deno against the installed Node modules, while a native Node executable remains unavailable locally. Device signing still fails with `Certificate installation failed ... Code=-61 "Write permissions error."` even after the login keychain exposes valid Apple Development identities, because Xcode cannot use the private-key ACL over SSH. Device verification will resume from a GUI Xcode session with a one-time "Always Allow" keychain prompt.
+Real iPad testing is parked by request. On 2026-11-06, `scripts/check-core.sh` runs 121 workspace-core and input tests successfully on macOS via SwiftPM; the full `AirDeskTests` target runs 256 tests with 1 skip and 0 failures on an iPhone 16 Pro simulator (iOS 18.6), including the Iroh transport, codec, peer loopback and session-integration tests; `xcodebuild build-for-testing` for the generic iOS Simulator destination succeeds with `CODE_SIGNING_ALLOWED=NO`; `protocol/check.sh` passes; and the Rust protocol crate passes 10 tests. The full web Vitest suite passes 56 tests when invoked through Deno against the installed Node modules, while a native Node executable remains unavailable locally. Device signing still fails with `Certificate installation failed ... Code=-61 "Write permissions error."` even after the login keychain exposes valid Apple Development identities, because Xcode cannot use the private-key ACL over SSH. Device verification will resume from a GUI Xcode session with a one-time "Always Allow" keychain prompt.
 
 ## Release 1 scope freeze
 
@@ -115,7 +115,7 @@ Exit: pairing grants no ownership; grants are provider-issued; handoff and force
 | XPORT-01 | Direct transport benchmark | In progress | AGENT-02 | WebRTC/QUIC vs WebSocket p50/p95, CPU, reconnect |
 | XPORT-02 | Direct transport qualification | Pending | XPORT-01 | ADR-013 updated with evidence; relay remains absent |
 | XPORT-04 | Iroh native transport adapter | Done | ADR-021 | `IrohLib` 1.2.0, direct-only default, explicit self-hosted relay policy, channel framing, movement datagrams, diagnostics and loopback tests |
-| XPORT-05 | Iroh session integration | Pending | XPORT-04 | Wire the adapter into `SessionCoordinator`/`AppEnvironment`, add ticket pairing and path diagnostics, and preserve WebSocket fallback |
+| XPORT-05 | Iroh session integration | Done | XPORT-04 | Adapter wired through `IrohFabricPeer`, `AppEnvironment`, settings, input routing and diagnostics; ticket pairing, explicit remote-lease input, movement datagrams, path/relay status and WebSocket fallback covered by loopback tests |
 
 Exit: a paired device provides an authorized capability; disconnect preserves workspace; no relay is required.
 

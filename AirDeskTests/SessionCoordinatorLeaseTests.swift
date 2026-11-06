@@ -61,6 +61,65 @@ final class SessionCoordinatorLeaseTests: XCTestCase {
         XCTAssertNil(coordinator.activeInputControllerId)
     }
 
+    func testFabricPeerRequiresLeaseAndForwardsValidatedInput() async throws {
+        let endpoint = StubLeaseEndpoint()
+        let fabric = StubLeaseFabric(isConnected: true)
+        let coordinator = makeCoordinator(fabric: fabric, endpoint: endpoint)
+        coordinator.beginConnection(to: DisplayDevice(
+            id: "test.wired",
+            name: "Test display",
+            detail: "Test",
+            kind: .wired,
+            mode: .extended
+        ))
+        try await waitUntilReady(coordinator)
+        let baseline = endpoint.sentEvents.count
+
+        coordinator.fabricPeerDidConnect("peer-1")
+        XCTAssertEqual(coordinator.fabricControllerID, "iroh:peer-1")
+        XCTAssertFalse(coordinator.fabricControllerHasLease)
+
+        coordinator.fabricDidReceive(InputEvent.make(
+            .keyDown,
+            sessionId: "remote-session",
+            generation: 1,
+            seq: 1,
+            key: "a"
+        ))
+        XCTAssertEqual(endpoint.sentEvents.count, baseline)
+
+        coordinator.grantFabricControl()
+        XCTAssertTrue(coordinator.fabricControllerHasLease)
+
+        coordinator.fabricDidReceive(InputEvent.make(
+            .keyDown,
+            sessionId: "remote-session",
+            generation: 1,
+            seq: 2,
+            key: "a"
+        ))
+        XCTAssertEqual(endpoint.sentEvents.count, baseline + 1)
+        XCTAssertEqual(endpoint.sentEvents.last?.sessionId, coordinator.sessionId)
+        XCTAssertEqual(endpoint.sentEvents.last?.generation, coordinator.sessionGeneration)
+        XCTAssertEqual(endpoint.sentEvents.last?.key, "a")
+
+        coordinator.fabricDidReceive(PackedMovementFrame(
+            leaseEpochLow: 0,
+            seq: 3,
+            x: 0.3,
+            y: 0.4
+        ))
+        XCTAssertEqual(endpoint.sentEvents.count, baseline + 2)
+        XCTAssertEqual(endpoint.sentEvents.last?.type, .pointerMove)
+        XCTAssertEqual(endpoint.sentEvents.last?.x ?? -1, 0.3, accuracy: 0.001)
+        XCTAssertEqual(endpoint.sentEvents.last?.y ?? -1, 0.4, accuracy: 0.001)
+
+        coordinator.fabricPeerDidDisconnect("peer-1")
+        XCTAssertNil(coordinator.fabricControllerID)
+        XCTAssertFalse(coordinator.fabricControllerHasLease)
+        XCTAssertEqual(coordinator.activeInputControllerId, "local")
+    }
+
     func testReconnectResetsLeaseEpochWithNewGeneration() async throws {
         let coordinator = makeCoordinator()
         coordinator.beginConnection(to: .previewDevice)
@@ -92,7 +151,10 @@ final class SessionCoordinatorLeaseTests: XCTestCase {
         ))
     }
 
-    private func makeCoordinator() -> SessionCoordinator {
+    private func makeCoordinator(
+        fabric: (any IrohFabricInputRouting)? = nil,
+        endpoint: StubLeaseEndpoint? = nil
+    ) -> SessionCoordinator {
         let settings = AppSettings()
         settings.runtimeChoice = .wanixDesktop
         return SessionCoordinator(
@@ -101,7 +163,8 @@ final class SessionCoordinatorLeaseTests: XCTestCase {
             display: DisplayCoordinator(),
             cast: CastSessionCoordinator(adapter: StubLeaseCastAdapter()),
             entitlements: EntitlementManager(),
-            endpointFactory: { _ in StubLeaseEndpoint() }
+            fabric: fabric,
+            endpointFactory: { _ in endpoint ?? StubLeaseEndpoint() }
         )
     }
 
@@ -125,17 +188,29 @@ private final class StubLeaseEndpoint: RuntimeEndpoint {
     private(set) var state: RuntimeState = .ready
     let capabilities: RuntimeCapabilities = .wanixDesktop
     var onStateChange: ((RuntimeState) -> Void)?
+    private(set) var sentEvents: [InputEvent] = []
 
     func start(context: RuntimeContext) async throws {
         state = .ready
         onStateChange?(state)
     }
 
-    func send(_ event: InputEvent) {}
+    func send(_ event: InputEvent) { sentEvents.append(event) }
     func sendControl(_ control: RuntimeControl) {}
     func stop() async {
         state = .stopped
     }
+}
+
+@MainActor
+private final class StubLeaseFabric: IrohFabricInputRouting {
+    let isConnected: Bool
+
+    init(isConnected: Bool) {
+        self.isConnected = isConnected
+    }
+
+    func sendInput(_ event: InputEvent) -> Bool { true }
 }
 
 @MainActor

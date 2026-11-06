@@ -12,13 +12,15 @@ final class AppEnvironment: ObservableObject {
     let cast: CastSessionCoordinator
     let entitlements: EntitlementManager
     let haptics: Haptics
+    let fabric: IrohFabricPeer
     lazy var session: SessionCoordinator = {
         SessionCoordinator(
             settings: settings,
             diagnostics: diagnostics,
             display: display,
             cast: cast,
-            entitlements: entitlements
+            entitlements: entitlements,
+            fabric: fabric
         )
     }()
 
@@ -56,6 +58,7 @@ final class AppEnvironment: ObservableObject {
         cast = CastSessionCoordinator()
         entitlements = EntitlementManager()
         haptics = Haptics.shared
+        fabric = IrohFabricPeer()
     }
 
     func bootstrap() {
@@ -104,6 +107,66 @@ final class AppEnvironment: ObservableObject {
 
         cast.onInput = { [weak self] event in
             self?.session.castDidReceive(event)
+        }
+
+        fabric.onInputEvent = { [weak self] event in
+            self?.session.fabricDidReceive(event)
+        }
+        fabric.onMovementFrame = { [weak self] frame in
+            self?.session.fabricDidReceive(frame)
+        }
+        fabric.onPeerConnected = { [weak self] remoteEndpointID in
+            self?.session.fabricPeerDidConnect(remoteEndpointID)
+        }
+        fabric.onPeerDisconnected = { [weak self] remoteEndpointID in
+            self?.session.fabricPeerDidDisconnect(remoteEndpointID)
+        }
+
+        settings.$fabricEnabled
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] enabled in
+                Task { @MainActor in
+                    guard let self else { return }
+                    if enabled {
+                        await self.fabric.start(relayPolicy: self.settings.fabricRelayPolicy)
+                    } else {
+                        await self.fabric.stop()
+                    }
+                    self.session.fabricSettingsDidChange()
+                }
+            }
+            .store(in: &cancellables)
+
+        settings.$fabricInputForwardingEnabled
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.session.fabricSettingsDidChange()
+            }
+            .store(in: &cancellables)
+
+        fabric.$state
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.session.fabricSettingsDidChange()
+            }
+            .store(in: &cancellables)
+
+        session.$phase
+            .receive(on: RunLoop.main)
+            .sink { [weak self] phase in
+                guard let self, phase == .ready,
+                      let remoteEndpointID = self.fabric.remoteEndpointID else { return }
+                self.session.fabricPeerDidConnect(remoteEndpointID)
+            }
+            .store(in: &cancellables)
+
+        if settings.fabricEnabled {
+            Task { @MainActor in
+                await fabric.start(relayPolicy: settings.fabricRelayPolicy)
+                session.fabricSettingsDidChange()
+            }
         }
 
         entitlements.start()
@@ -165,6 +228,21 @@ final class AppEnvironment: ObservableObject {
         }
         NativeSmokeTest.runIfRequested(session: session)
         #endif
+    }
+
+    func applyFabricSettings() async {
+        let policy = settings.fabricRelayPolicy
+        if settings.fabricEnabled {
+            if fabric.state == .stopped || fabric.state == .failed {
+                await fabric.start(relayPolicy: policy)
+            } else if fabric.relayPolicyLabel != policy.diagnosticsLabel {
+                await fabric.stop()
+                await fabric.start(relayPolicy: policy)
+            }
+        } else {
+            await fabric.stop()
+        }
+        session.fabricSettingsDidChange()
     }
 
     private func bootstrapWorkspace() {

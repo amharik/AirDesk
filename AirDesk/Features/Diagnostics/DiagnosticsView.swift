@@ -12,6 +12,7 @@ struct DiagnosticsView: View {
         NavigationStack {
             Form {
                 sessionSection
+                fabricSection
                 performanceSection
                 runtimeSection
                 transitionsSection
@@ -53,11 +54,47 @@ struct DiagnosticsView: View {
             infoRow("Recovery", session.recoveryAttempts == 0 ? "None" : "\(session.recoveryAttempts) / \(session.recoveryMaximumAttempts)")
             infoRow("Display output", displayOutput)
             infoRow("External display", environment.display.isExternalDisplayConnected ? "Connected" : "Not connected")
-            infoRow("Input route", session.effectiveMode == .cast ? "Cast channel" : "Local surface bridge")
+            infoRow("Input route", inputRoute)
         } header: {
             sectionHeader("Session")
         }
         .listRowBackground(rowBackground)
+    }
+
+    private var inputRoute: String {
+        if environment.settings.fabricInputForwardingEnabled, environment.fabric.isConnected {
+            return "Iroh fabric"
+        }
+        return session.effectiveMode == .cast ? "Cast channel" : "Local surface bridge"
+    }
+
+    private var fabricSection: some View {
+        Section {
+            infoRow("Endpoint", environment.fabric.state.title)
+            infoRow("Peer", environment.fabric.remoteEndpointID ?? "None")
+            if let path = environment.fabric.selectedPath {
+                infoRow("Path", path.isRelay ? "Relay" : (path.isDirectIP ? "Direct IP" : "Direct"))
+                infoRow("RTT", "\(path.rttMs) ms")
+                infoRow("Address", path.remoteAddress)
+            } else {
+                infoRow("Path", "None")
+            }
+            infoRow("Relay policy", environment.fabric.relayPolicyLabel)
+            infoRow("Remote input", remoteInputState)
+            if let error = environment.fabric.lastError {
+                infoRow("Last error", error)
+            }
+        } header: {
+            sectionHeader("Iroh fabric")
+        } footer: {
+            Text("Path and RTT values come from the live endpoint. A relayed path is never reported as direct.")
+        }
+        .listRowBackground(rowBackground)
+    }
+
+    private var remoteInputState: String {
+        guard session.fabricControllerID != nil else { return "No peer" }
+        return session.fabricControllerHasLease ? "Lease granted" : "Lease not granted"
     }
 
     private var displayOutput: String {
@@ -205,6 +242,12 @@ struct DiagnosticsView: View {
         p95AckMs=\(String(format: "%.1f", diagnostics.p95Latency))
         castDemo=\(environment.cast.isDemo)
         receiverConfigured=\(CastConfiguration.hasRegisteredReceiver)
+        fabricState=\(environment.fabric.state.rawValue)
+        fabricPeer=\(environment.fabric.remoteEndpointID ?? "none")
+        fabricPath=\(environment.fabric.selectedPath?.isRelay == true ? "relay" : "direct-or-none")
+        fabricRTTms=\(environment.fabric.selectedPath?.rttMs ?? 0)
+        fabricRelayPolicy=\(environment.fabric.relayPolicyLabel)
+        fabricRemoteInput=\(remoteInputState)
         """
         UIPasteboard.general.string = report
         copied = true

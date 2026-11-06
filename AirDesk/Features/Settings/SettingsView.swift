@@ -19,6 +19,7 @@ struct SettingsView: View {
                 displaySection
                 cursorSection
                 runtimeSection
+                fabricSection
                 castSection
                 aboutSection
             }
@@ -365,6 +366,53 @@ struct SettingsView: View {
             Text("Runtime changes apply to the next session. Wanix Kernel loads wanix.wasm from the CDN and requires a network connection.")
         }
         .listRowBackground(rowBackground)
+    }
+
+    private var fabricSection: some View {
+        Section {
+            NavigationLink {
+                FabricSettingsView(fabric: environment.fabric)
+            } label: {
+                HStack(spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .fill(ADTheme.accent.opacity(0.12))
+                            .frame(width: 34, height: 34)
+                        Image(systemName: "point.3.connected.trianglepath.dotted")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(ADTheme.accent)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Iroh fabric")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.9))
+                        Text(fabricDetail)
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(ADTheme.textTertiary)
+                            .lineLimit(1)
+                    }
+                    Spacer()
+                    CapsuleBadge(
+                        text: environment.fabric.state.title,
+                        tint: environment.fabric.state == .connected ? ADTheme.accent : ADTheme.textTertiary
+                    )
+                }
+                .padding(.vertical, 2)
+            }
+        } header: {
+            sectionHeader("Native transport")
+        } footer: {
+            Text("Iroh provides the native peer data plane. WebSocket remains available for browser runtimes and as a fallback.")
+        }
+        .listRowBackground(rowBackground)
+    }
+
+    private var fabricDetail: String {
+        guard settings.fabricEnabled else { return "Disabled" }
+        if let path = environment.fabric.selectedPath {
+            return path.isRelay ? "\(path.rttMs) ms · relayed" : "\(path.rttMs) ms · direct"
+        }
+        return environment.fabric.isConnected ? "Connected" : "Waiting for peer"
     }
 
     private var castSection: some View {
