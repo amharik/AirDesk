@@ -26,11 +26,11 @@ RUN_DIR=""
 cleanup() {
     if [[ -n "$REMOTE" ]]; then
         if [[ -n "$TMUX_BIN" ]]; then
-            ssh -o BatchMode=yes "$REMOTE" \
+            ssh -o BatchMode=yes -o ConnectTimeout=10 "$REMOTE" \
                 "$TMUX_BIN kill-session -t '$SESSION' >/dev/null 2>&1 || true" \
                 >/dev/null 2>&1 || true
         fi
-        ssh -o BatchMode=yes "$REMOTE" \
+        ssh -o BatchMode=yes -o ConnectTimeout=10 "$REMOTE" \
             "if [ -f ~/.ssh/authorized_keys ]; then grep -v -F '$KEY_COMMENT' ~/.ssh/authorized_keys > ~/.ssh/authorized_keys.airdesk-s2; mv ~/.ssh/authorized_keys.airdesk-s2 ~/.ssh/authorized_keys; chmod 600 ~/.ssh/authorized_keys; fi" \
             >/dev/null 2>&1 || true
     fi
@@ -106,7 +106,7 @@ for tool in ssh ssh-keygen ssh-keyscan xcrun xcodebuild python3 git; do
     fi
 done
 
-TMUX_BIN="$(ssh -o BatchMode=yes "$REMOTE" 'command -v tmux' 2>/dev/null || true)"
+TMUX_BIN="$(ssh -o BatchMode=yes -o ConnectTimeout=10 "$REMOTE" 'command -v tmux' 2>/dev/null || true)"
 if [[ -z "$TMUX_BIN" ]]; then
     echo "tmux is not available on $REMOTE." >&2
     exit 1
@@ -121,7 +121,7 @@ fi
 
 ssh-keygen -q -t ed25519 -N "" -C "$KEY_COMMENT" -f "$WORK/client_key"
 PUBLIC_KEY="$(cat "$WORK/client_key.pub")"
-ssh -o BatchMode=yes "$REMOTE" \
+ssh -o BatchMode=yes -o ConnectTimeout=10 "$REMOTE" \
     "umask 077; mkdir -p ~/.ssh; touch ~/.ssh/authorized_keys; printf '%s\n' '$PUBLIC_KEY' >> ~/.ssh/authorized_keys"
 
 PRIVATE_KEY_B64="$(python3 - "$WORK/client_key" <<'PY'
@@ -170,6 +170,7 @@ if [[ "$MODE" == "second-device" ]]; then
     xcrun simctl shutdown "$SIMULATOR_ID_B" >/dev/null 2>&1 || true
     xcrun simctl boot "$SIMULATOR_ID_B" >/dev/null 2>&1 || true
     xcrun simctl bootstatus "$SIMULATOR_ID_B" -b
+    sleep 5
 fi
 
 cd "$ROOT"
@@ -235,6 +236,7 @@ if [[ "$MODE" == "second-device" ]]; then
     xcrun simctl spawn "$SIMULATOR_ID_B" defaults write com.airdesk.realsshsmoke baselineMarker "$PRIMARY_MARKER"
 
     echo "running S2 secondary controller on $SIMULATOR_ID_B (baseline $PRIMARY_MARKER)"
+    SECONDARY_ATTEMPTS=1
     set +e
     xcodebuild test-without-building \
         -project AirDesk.xcodeproj \
@@ -246,6 +248,23 @@ if [[ "$MODE" == "second-device" ]]; then
         >"$SECONDARY_LOG" 2>&1
     SECONDARY_STATUS=$?
     set -e
+    if [[ "$SECONDARY_STATUS" -ne 0 ]] && grep -q "Timed out waiting for AX loaded notification" "$SECONDARY_LOG"; then
+        cp "$SECONDARY_LOG" "$WORK/secondary.attempt1.log"
+        echo "secondary UI test could not initialize; retrying once" >&2
+        SECONDARY_ATTEMPTS=2
+        sleep 10
+        set +e
+        xcodebuild test-without-building \
+            -project AirDesk.xcodeproj \
+            -scheme AirDeskUITests \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_ID_B" \
+            -only-testing:AirDeskUITests/RemoteSSHReattachTests/testRemoteSSHSecondDeviceSecondary \
+            -parallel-testing-enabled NO \
+            CODE_SIGNING_ALLOWED=NO \
+            >"$SECONDARY_LOG" 2>&1
+        SECONDARY_STATUS=$?
+        set -e
+    fi
     if [[ "$SECONDARY_STATUS" -ne 0 ]]; then
         tail -n 160 "$SECONDARY_LOG" >&2
         exit "$SECONDARY_STATUS"
@@ -264,6 +283,10 @@ if [[ "$MODE" == "second-device" ]]; then
     {
         echo "PRIMARY"
         cat "$PRIMARY_LOG"
+        if [[ -f "$WORK/secondary.attempt1.log" ]]; then
+            echo "SECONDARY-ATTEMPT-1"
+            cat "$WORK/secondary.attempt1.log"
+        fi
         echo "SECONDARY"
         cat "$SECONDARY_LOG"
     } >"$TEST_LOG"
@@ -298,7 +321,7 @@ if [[ -e "$RUN_DIR" ]]; then
 fi
 mkdir -p "$RUN_DIR"
 
-grep -E 'AIRDESK_S2_|Test Suite|Test Case|error:|^PRIMARY$|^SECONDARY$' "$TEST_LOG" >"$RUN_DIR/test-summary.log" || true
+grep -E 'AIRDESK_S2_|Test Suite|Test Case|error:|^PRIMARY$|^SECONDARY$|^SECONDARY-ATTEMPT-1$' "$TEST_LOG" >"$RUN_DIR/test-summary.log" || true
 
 COMMIT="$(git -C "$ROOT" rev-parse --short=12 HEAD)"
 DIRTY="false"
@@ -310,9 +333,9 @@ HOST_ARCH="$(uname -m)"
 XCODE_VERSION="$(xcodebuild -version 2>/dev/null | tr '\n' ' ' | sed 's/  */ /g' | sed 's/ $//')"
 SIMULATOR_NAME="$(xcrun simctl list devices available | awk -v id="$SIMULATOR_ID" 'index($0, id) { sub(/^[[:space:]]*/, ""); sub(/ \([0-9A-F-]+\)$/, ""); print; exit }')"
 SIMULATOR_NAME_B="$(xcrun simctl list devices available | awk -v id="$SIMULATOR_ID_B" 'index($0, id) { sub(/^[[:space:]]*/, ""); sub(/ \([0-9A-F-]+\)$/, ""); print; exit }')"
-REMOTE_OS="$(ssh -o BatchMode=yes "$REMOTE" 'uname -srm')"
-REMOTE_TMUX_VERSION="$(ssh -o BatchMode=yes "$REMOTE" "$TMUX_BIN -V")"
-REMOTE_ID="$(ssh -o BatchMode=yes "$REMOTE" 'id -un')"
+REMOTE_OS="$(ssh -o BatchMode=yes -o ConnectTimeout=10 "$REMOTE" 'uname -srm')"
+REMOTE_TMUX_VERSION="$(ssh -o BatchMode=yes -o ConnectTimeout=10 "$REMOTE" "$TMUX_BIN -V")"
+REMOTE_ID="$(ssh -o BatchMode=yes -o ConnectTimeout=10 "$REMOTE" 'id -un')"
 PING_AVG="$(ping -c 3 "$REMOTE_HOST" 2>/dev/null | awk -F'/' '/round-trip/ {print $5}' || true)"
 if [[ -z "$PING_AVG" ]]; then
     PING_AVG="null"
@@ -344,6 +367,7 @@ export S2_SIMULATOR_ID_B="$SIMULATOR_ID_B"
 export S2_PRIMARY_MARKER="${PRIMARY_MARKER:-}"
 export S2_SECONDARY_MARKER="${SECONDARY_MARKER:-}"
 export S2_SECONDARY_CONNECT_MS="${SECONDARY_CONNECT_MS:-}"
+export S2_SECONDARY_ATTEMPTS="${SECONDARY_ATTEMPTS:-1}"
 export S2_REMOTE="$REMOTE"
 export S2_REMOTE_OS="$REMOTE_OS"
 export S2_REMOTE_TMUX="$REMOTE_TMUX_VERSION"
@@ -374,6 +398,7 @@ if mode == "second-device":
     primary_marker = int(os.environ["S2_PRIMARY_MARKER"])
     secondary_marker = int(os.environ["S2_SECONDARY_MARKER"])
     secondary_connect_ms = int(os.environ["S2_SECONDARY_CONNECT_MS"])
+    secondary_attempts = int(os.environ["S2_SECONDARY_ATTEMPTS"])
     primary_ready = "AIRDESK_S2_PRIMARY_READY=true" in log
     secondary_ready = "AIRDESK_S2_SECONDARY_READY=true" in log
     done = log.count("AIRDESK_S2_DONE=true") >= 2
@@ -402,6 +427,7 @@ if mode == "second-device":
     }
     metrics = {
         "secondary_connect_ms": secondary_connect_ms,
+        "secondary_attempts": secondary_attempts,
         "primary_marker": primary_marker,
         "secondary_marker": secondary_marker,
         "heartbeat_advanced": secondary_marker > primary_marker,
@@ -453,6 +479,7 @@ if mode == "second-device":
 | Secondary heartbeat marker | {secondary_marker} |
 | Heartbeat advanced after handoff | yes |
 | Secondary cold connect | {secondary_connect_ms} ms |
+| Secondary test attempts | {secondary_attempts} |
 | Remote process survived | yes |
 | Transcript truthful | yes |
 
