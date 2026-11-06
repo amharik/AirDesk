@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@noble/curves": "2.4.0",
+    "@noble/hashes": "2.4.0",
     "@wterm/core": "0.5.7",
     "@wterm/dom": "0.5.7",
     "@wterm/ghostty": "0.5.7",

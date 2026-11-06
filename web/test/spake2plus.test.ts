@@ -6,8 +6,12 @@ import {
   Spake2PlusSession,
   assertSpake2PlusConfirmation,
   bytesToHex,
+  canonicalSpake2PlusPasswordMaterial,
   computeSpake2PlusRegistrationRecord,
   computeSpake2PlusTranscript,
+  createSpake2PlusPasswordRegistration,
+  createSpake2PlusPasswordSalt,
+  deriveSpake2PlusPasswordScalars,
   hexToBytes,
   spake2PlusProverFinish,
   spake2PlusProverInit,
@@ -324,5 +328,106 @@ describe('SPAKE2+ interactive session', () => {
     await expect(
       verifier.verifierFinish(vectorInput(VECTOR.confirmP))
     ).rejects.toMatchObject({ code: 'invalid-state' });
+  });
+});
+
+describe('SPAKE2+ password PBKDF', () => {
+  const salt = hexToBytes(
+    '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f'
+  );
+  const input = {
+    password: 'correct horse battery staple',
+    salt,
+    idProver: 'client',
+    idVerifier: 'server'
+  } as const;
+
+  it('builds the RFC 9383 length-prefixed password material', () => {
+    expect(
+      bytesToHex(
+        canonicalSpake2PlusPasswordMaterial({
+          password: '123456',
+          salt,
+          idProver: 'client',
+          idVerifier: 'server'
+        })
+      )
+    ).toBe(
+      '0600000000000000313233343536' +
+        '0600000000000000636c69656e74' +
+        '0600000000000000736572766572'
+    );
+  });
+
+  it('derives deterministic P-256 scalars and a registration record', async () => {
+    const first = await createSpake2PlusPasswordRegistration(input);
+    const second = await createSpake2PlusPasswordRegistration(input);
+
+    expect(bytesToHex(first.w0)).toBe(bytesToHex(second.w0));
+    expect(bytesToHex(first.w1)).toBe(bytesToHex(second.w1));
+    expect(first.w0).toHaveLength(32);
+    expect(first.w1).toHaveLength(32);
+    expect(first.L).toEqual(computeSpake2PlusRegistrationRecord(first.w1));
+    expect(first.salt).toEqual(salt);
+    expect(createSpake2PlusPasswordSalt()).toHaveLength(32);
+    expect(first.profile).toMatchObject({ name: 'scrypt', N: 32768, r: 8, p: 1, dkLen: 80 });
+  });
+
+  it('binds the derived scalars to password, salt and identities', async () => {
+    const baseline = await deriveSpake2PlusPasswordScalars(input);
+    const changedPassword = await deriveSpake2PlusPasswordScalars({
+      ...input,
+      password: 'correct horse battery staple!'
+    });
+    const changedSalt = await deriveSpake2PlusPasswordScalars({
+      ...input,
+      salt: new Uint8Array(32).fill(7)
+    });
+    const changedIdentity = await deriveSpake2PlusPasswordScalars({
+      ...input,
+      idVerifier: 'server-2'
+    });
+
+    expect(bytesToHex(changedPassword.w0)).not.toBe(bytesToHex(baseline.w0));
+    expect(bytesToHex(changedSalt.w1)).not.toBe(bytesToHex(baseline.w1));
+    expect(bytesToHex(changedIdentity.w0)).not.toBe(bytesToHex(baseline.w0));
+  });
+
+  it('feeds an interactive session from password-derived registration', async () => {
+    const registration = await createSpake2PlusPasswordRegistration(input);
+    const prover = new Spake2PlusSession({
+      role: 'prover',
+      context: 'AD-PAIR-1',
+      idProver: 'client',
+      idVerifier: 'server',
+      w0: registration.w0,
+      w1: registration.w1
+    });
+    const verifier = new Spake2PlusSession({
+      role: 'verifier',
+      context: 'AD-PAIR-1',
+      idProver: 'client',
+      idVerifier: 'server',
+      w0: registration.w0,
+      L: registration.L
+    });
+
+    const response = await verifier.verifierRespond(prover.proverStart());
+    const proverResult = await prover.proverFinish(response.share, response.confirmation);
+    const verifierResult = await verifier.verifierFinish(proverResult.confirmation);
+
+    expect(verifierResult.exchange).toEqual(proverResult.exchange);
+  });
+
+  it('rejects empty passwords and invalid salt lengths', async () => {
+    await expect(
+      deriveSpake2PlusPasswordScalars({ password: '', salt })
+    ).rejects.toMatchObject({ code: 'invalid-input' });
+    await expect(
+      deriveSpake2PlusPasswordScalars({
+        password: 'short',
+        salt: new Uint8Array(15)
+      })
+    ).rejects.toMatchObject({ code: 'invalid-length' });
   });
 });

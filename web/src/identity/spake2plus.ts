@@ -1,4 +1,5 @@
 import { p256 } from '@noble/curves/nist.js';
+import { scryptAsync } from '@noble/hashes/scrypt.js';
 import {
   asBufferSource,
   bytesEqual,
@@ -320,6 +321,117 @@ export function computeSpake2PlusRegistrationRecord(
 ): Uint8Array {
   const { scalar: w1Value } = registrationScalar(w1, 'w1', false);
   return encodePoint(p256.Point.BASE.multiply(w1Value), 'L');
+}
+
+export const SPAKE2PLUS_P256_PBKDF_PROFILE = Object.freeze({
+  name: 'scrypt',
+  N: 32768,
+  r: 8,
+  p: 1,
+  dkLen: 80
+} as const);
+
+export interface Spake2PlusPasswordInput {
+  password: string | Uint8Array;
+  salt: Spake2PlusBytes;
+  idProver?: Spake2PlusBytes;
+  idVerifier?: Spake2PlusBytes;
+}
+
+export interface Spake2PlusPasswordScalars {
+  readonly w0: Uint8Array;
+  readonly w1: Uint8Array;
+}
+
+export interface Spake2PlusPasswordRegistration extends Spake2PlusPasswordScalars {
+  readonly salt: Uint8Array;
+  readonly L: Uint8Array;
+  readonly profile: typeof SPAKE2PLUS_P256_PBKDF_PROFILE;
+}
+
+export function createSpake2PlusPasswordSalt(source?: Crypto): Uint8Array {
+  return randomBytes(32, source);
+}
+
+function passwordBytes(password: string | Uint8Array): Uint8Array {
+  if (typeof password === 'string') {
+    const normalized = password.normalize('NFKC');
+    if (normalized.length === 0) {
+      throw new Spake2PlusError('invalid-input', 'password must not be empty');
+    }
+    return utf8(normalized);
+  }
+  if (password instanceof Uint8Array) {
+    if (password.length === 0) {
+      throw new Spake2PlusError('invalid-input', 'password must not be empty');
+    }
+    return new Uint8Array(password);
+  }
+  throw new Spake2PlusError('invalid-input', 'password must be a string or bytes');
+}
+
+function passwordSalt(value: Spake2PlusBytes): Uint8Array {
+  const salt = inputBytes(value, 'salt');
+  if (salt.length < 16 || salt.length > 64) {
+    throw new Spake2PlusError('invalid-length', 'salt must be 16 to 64 bytes');
+  }
+  return salt;
+}
+
+function wideScalar(bytes: Uint8Array): Uint8Array {
+  const reduced = BigInt(`0x${bytesToHex(bytes)}`) % P256_ORDER;
+  const result = new Uint8Array(SCALAR_BYTES);
+  let value = reduced;
+  for (let index = SCALAR_BYTES - 1; index >= 0; index -= 1) {
+    result[index] = Number(value & 0xffn);
+    value >>= 8n;
+  }
+  return result;
+}
+
+export function canonicalSpake2PlusPasswordMaterial(
+  input: Spake2PlusPasswordInput
+): Uint8Array {
+  return concatBytes(
+    lengthPrefixed(passwordBytes(input.password)),
+    lengthPrefixed(inputBytes(input.idProver ?? new Uint8Array(0), 'idProver')),
+    lengthPrefixed(inputBytes(input.idVerifier ?? new Uint8Array(0), 'idVerifier'))
+  );
+}
+
+export async function deriveSpake2PlusPasswordScalars(
+  input: Spake2PlusPasswordInput
+): Promise<Spake2PlusPasswordScalars> {
+  const material = canonicalSpake2PlusPasswordMaterial(input);
+  const salt = passwordSalt(input.salt);
+  const output = await scryptAsync(material, salt, SPAKE2PLUS_P256_PBKDF_PROFILE);
+  if (output.length !== SPAKE2PLUS_P256_PBKDF_PROFILE.dkLen) {
+    throw new Spake2PlusError('invalid-length', 'PBKDF output length mismatch');
+  }
+
+  const half = SPAKE2PLUS_P256_PBKDF_PROFILE.dkLen / 2;
+  const w0 = wideScalar(output.subarray(0, half));
+  const w1 = wideScalar(output.subarray(half));
+  if (registrationScalar(w1, 'w1', false).scalar === 0n) {
+    throw new Spake2PlusError('invalid-scalar', 'derived w1 must not be zero');
+  }
+  return { w0, w1 };
+}
+
+export async function createSpake2PlusPasswordRegistration(
+  input: Omit<Spake2PlusPasswordInput, 'salt'> & { salt?: Spake2PlusBytes }
+): Promise<Spake2PlusPasswordRegistration> {
+  const salt = input.salt === undefined
+    ? createSpake2PlusPasswordSalt()
+    : inputBytes(input.salt, 'salt');
+  const { w0, w1 } = await deriveSpake2PlusPasswordScalars({ ...input, salt });
+  return {
+    w0,
+    w1,
+    salt: new Uint8Array(salt),
+    L: computeSpake2PlusRegistrationRecord(w1),
+    profile: SPAKE2PLUS_P256_PBKDF_PROFILE
+  };
 }
 
 export interface Spake2PlusProverInitInput {
