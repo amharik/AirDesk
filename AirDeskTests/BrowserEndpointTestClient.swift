@@ -103,15 +103,10 @@ final class BrowserEndpointTestClient: @unchecked Sendable {
     func readHTTPResponse(timeout: TimeInterval = 5) async throws -> BrowserEndpointTestResponse {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
-            lock.lock()
-            let headerRange = buffer.range(of: Data("\r\n\r\n".utf8))
-            let closed = isClosed
-            lock.unlock()
-
-            if headerRange != nil {
+            if hasBufferedHeader() {
                 return try await consumeResponse()
             }
-            if closed {
+            if isClosedSnapshot() {
                 throw BrowserEndpointTestClientError.connectionClosed
             }
             try await Task.sleep(nanoseconds: 10_000_000)
@@ -122,22 +117,10 @@ final class BrowserEndpointTestClient: @unchecked Sendable {
     func nextFrame(timeout: TimeInterval = 5) async throws -> BrowserEndpointFrame {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
-            lock.lock()
-            do {
-                if let frame = try BrowserEndpointFrameParser.parse(
-                    from: &buffer,
-                    expectedMasked: false,
-                    maximumPayload: 1_048_576
-                ) {
-                    lock.unlock()
-                    return frame
-                }
-            } catch {
-                lock.unlock()
-                throw error
+            let (frame, closed) = try nextBufferedFrame()
+            if let frame {
+                return frame
             }
-            let closed = isClosed
-            lock.unlock()
             if closed {
                 throw BrowserEndpointTestClientError.connectionClosed
             }
@@ -191,10 +174,7 @@ final class BrowserEndpointTestClient: @unchecked Sendable {
     func waitUntilClosed(timeout: TimeInterval = 5) async throws {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
-            lock.lock()
-            let closed = isClosed
-            lock.unlock()
-            if closed { return }
+            if isClosedSnapshot() { return }
             try await Task.sleep(nanoseconds: 10_000_000)
         }
         throw BrowserEndpointTestClientError.timedOut
@@ -261,54 +241,90 @@ final class BrowserEndpointTestClient: @unchecked Sendable {
         sendRaw(frame.encoded(masked: true))
     }
 
+    private enum ResponseReadResult {
+        case complete(BrowserEndpointTestResponse)
+        case needMore
+        case malformed(String)
+    }
+
     private func consumeResponse() async throws -> BrowserEndpointTestResponse {
         let deadline = Date().addingTimeInterval(5)
         while Date() < deadline {
-            lock.lock()
-            guard let currentRange = buffer.range(of: Data("\r\n\r\n".utf8)) else {
-                lock.unlock()
-                throw BrowserEndpointTestClientError.protocolError("missing response headers")
-            }
-            let headerData = Data(buffer[..<currentRange.lowerBound])
-            guard let headerText = String(data: headerData, encoding: .utf8) else {
-                lock.unlock()
-                throw BrowserEndpointTestClientError.protocolError("invalid response headers")
-            }
-            let lines = headerText.components(separatedBy: "\r\n")
-            guard let statusLine = lines.first else {
-                lock.unlock()
-                throw BrowserEndpointTestClientError.protocolError("missing status line")
-            }
-            let statusParts = statusLine.split(separator: " ")
-            guard statusParts.count >= 2, let statusCode = Int(statusParts[1]) else {
-                lock.unlock()
-                throw BrowserEndpointTestClientError.protocolError("invalid status line")
-            }
-            var headers: [String: String] = [:]
-            for line in lines.dropFirst() {
-                guard let colon = line.firstIndex(of: ":") else { continue }
-                let name = String(line[..<colon]).lowercased()
-                let value = String(line[line.index(after: colon)...])
-                    .trimmingCharacters(in: .whitespaces)
-                headers[name] = value
-            }
-            let contentLength = Int(headers["content-length"] ?? "0") ?? 0
-            let totalLength = currentRange.upperBound + contentLength
-            if buffer.count < totalLength {
-                lock.unlock()
+            switch readBufferedResponse() {
+            case .complete(let response):
+                return response
+            case .malformed(let message):
+                throw BrowserEndpointTestClientError.protocolError(message)
+            case .needMore:
                 try await Task.sleep(nanoseconds: 10_000_000)
-                continue
             }
-            let bodyData = Data(buffer[currentRange.upperBound..<totalLength])
-            buffer.removeSubrange(buffer.startIndex..<totalLength)
-            lock.unlock()
-            return BrowserEndpointTestResponse(
+        }
+        throw BrowserEndpointTestClientError.timedOut
+    }
+
+    private func hasBufferedHeader() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return buffer.range(of: Data("\r\n\r\n".utf8)) != nil
+    }
+
+    private func isClosedSnapshot() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return isClosed
+    }
+
+    private func nextBufferedFrame() throws -> (BrowserEndpointFrame?, Bool) {
+        lock.lock()
+        defer { lock.unlock() }
+        let frame = try BrowserEndpointFrameParser.parse(
+            from: &buffer,
+            expectedMasked: false,
+            maximumPayload: 1_048_576
+        )
+        return (frame, isClosed)
+    }
+
+    private func readBufferedResponse() -> ResponseReadResult {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let currentRange = buffer.range(of: Data("\r\n\r\n".utf8)) else {
+            return .needMore
+        }
+        let headerData = Data(buffer[..<currentRange.lowerBound])
+        guard let headerText = String(data: headerData, encoding: .utf8) else {
+            return .malformed("invalid response headers")
+        }
+        let lines = headerText.components(separatedBy: "\r\n")
+        guard let statusLine = lines.first else {
+            return .malformed("missing status line")
+        }
+        let statusParts = statusLine.split(separator: " ")
+        guard statusParts.count >= 2, let statusCode = Int(statusParts[1]) else {
+            return .malformed("invalid status line")
+        }
+        var headers: [String: String] = [:]
+        for line in lines.dropFirst() {
+            guard let colon = line.firstIndex(of: ":") else { continue }
+            let name = String(line[..<colon]).lowercased()
+            let value = String(line[line.index(after: colon)...])
+                .trimmingCharacters(in: .whitespaces)
+            headers[name] = value
+        }
+        let contentLength = Int(headers["content-length"] ?? "0") ?? 0
+        let totalLength = currentRange.upperBound + contentLength
+        guard buffer.count >= totalLength else {
+            return .needMore
+        }
+        let bodyData = Data(buffer[currentRange.upperBound..<totalLength])
+        buffer.removeSubrange(buffer.startIndex..<totalLength)
+        return .complete(
+            BrowserEndpointTestResponse(
                 statusLine: statusLine,
                 statusCode: statusCode,
                 headers: headers,
                 body: String(decoding: bodyData, as: UTF8.self)
             )
-        }
-        throw BrowserEndpointTestClientError.timedOut
+        )
     }
 }
