@@ -23,11 +23,11 @@ The target runtime baseline is WASI 0.2 worlds; WASI 0.3 is an evaluation target
 | AirPlay / external display | Implemented |
 | Google Cast receiver | Development app |
 | iOS unit tests | 340 passing; 1 skipped |
-| Web tests | 167 passing across 21 files |
+| Web tests | 179 passing across 22 files |
 | Android unit tests | 49 passing; debug APK built, on-device install pending |
 | iPad UI suite | Passing; 1 opt-in test skipped |
 | Workspace model and orchestration | Implemented with tests |
-| Device identity, protocol and local registry | Foundations implemented; QR/PIN UI/native parity and signed capability leases pending |
+| Device identity, protocol and local registry | Foundations implemented; QR/PIN UI/native parity, capability proof-of-possession and revocation propagation pending |
 | Device capability catalog | iOS and Android advertise local capabilities; capture streaming, file transfer and remote invocation pending |
 | Browser endpoint, sync and collaboration | Loopback host service and app wiring implemented; production page and transport pending |
 | App Store release | Not yet |
@@ -136,7 +136,7 @@ Remote SSH is opt-in and uses the native SSH stack, not the web shell.
 - Transcript replay restores terminal text after a reload, but the Wanix shell process restarts. Byte-exact PTY reconnect and live process resumption are not implemented.
 - The real OpenSSH smoke test is opt-in because it needs a reachable SSH host and throwaway credentials. The default UI suite uses an in-process fixture.
 - Puter removal is tracked as `PUTER-01`; its adapter and assets are still present in this build but are not configured.
-- The workspace store, `WorkspaceOrchestrator`, workspace host handoff/degraded mode, runtime provider registry, local device registry and iOS/Android capability catalogs are implemented with tests. Signed capability leases, password/QR pairing, capture streaming, file transfer, remote invocation and production network transports are not.
+- The workspace store, `WorkspaceOrchestrator`, workspace host handoff/degraded mode, runtime provider registry, local device registry and iOS/Android capability catalogs are implemented with tests. Browser-side COSE_Sign1 capability grants, bounded delegation and scoped leases exist; capability proof-of-possession, revocation propagation, native password/QR parity, capture streaming, file transfer, remote invocation and production network transports are not.
 - The browser endpoint is a presentation endpoint. Its loopback client/state/policy, Swift host service, handshake/registration tests and app wiring exist, including a settings toggle, scoped endpoint URL and diagnostics; there is no production browser page yet, and it is not the workspace authority. See the [AD-PAIR-1](docs/protocols/ad-pair-1.md) and [browser endpoint](docs/protocols/browser-endpoint.md) notes.
 - The Android controller/display baseline builds and passes unit tests, but has not been installed on a physical device. Its presentation and protocol paths are not yet release-qualified.
 - The web identity layer has the AD-PAIR-1 transcript, signature/binding checks, SAS, HKDF key schedule, an interactive RFC 9383 P-256 SPAKE2+ session validated against the RFC vector, an scrypt password PBKDF for `w0`/`w1` registration, QR/PIN code envelopes with attempt limiting and QR-secret challenges. Native QR/PIN parity, the camera/UI flow and real binding acquisition are still pending.
@@ -231,7 +231,7 @@ cargo test --manifest-path ../protocol/rust/Cargo.toml
 ### Tests and CI
 
 - `AirDeskTests`: 340 unit tests covering input, runtime routing, SSH PTY, reconnect, terminal messages, identity, capabilities, canonical discovery records, workspace host handoff/degraded mode, browser endpoint hosting and service lifecycle, and entitlements.
-- `web/test`: 167 tests covering the desktop shell, protocol, browser identity/pairing, the RFC 9383 SPAKE2+ vector, interactive session, scrypt password registration, QR/PIN envelopes and attempt limiting, endpoint policy, sync conflict corpus/collaboration and remote placement.
+- `web/test`: 179 tests covering the desktop shell, protocol, browser identity/pairing, the RFC 9383 SPAKE2+ vector, interactive session, scrypt password registration, QR/PIN envelopes and attempt limiting, COSE_Sign1 grants and leases, endpoint policy, sync conflict corpus/collaboration and remote placement.
 - `android/app/src/test`: 49 Kotlin unit tests covering identity, pairing, capabilities, presentation and canonical ADFP integration.
 - `protocol/rust`: 10 tests covering movement/control fixtures and packed-frame handling.
 - `AirDeskUITests`: controller and desktop flows, terminal typing, resize, transcript replay, remote SSH, and WinBox lifecycle.
@@ -249,7 +249,7 @@ scripts/real-ssh-smoke.sh
 - No runtime CDN is required for Wanix, WTerm, fonts, or terminal cores.
 - Remote SSH uses the native SwiftNIO stack with a pinned OpenSSH host key.
 - Device identity keys are generated on-device and stored in the Keychain on iOS and the Android Keystore on Android. Pairing offers and device IDs are public; private keys are never logged or committed.
-- The browser implements the AD-PAIR-1 transcript, transcript signatures, required channel binding, SAS, HKDF key schedule, an interactive RFC 9383 P-256 SPAKE2+ prover/verifier session validated against the RFC vector, an scrypt password PBKDF for registration and QR/PIN challenge envelopes with attempt limiting. The QR/PIN camera/UI flow, native parity, real channel-binding acquisition and signed capability leases are not implemented yet; do not treat current pairing-offer validation as a completed trust protocol.
+- The browser implements the AD-PAIR-1 transcript, transcript signatures, required channel binding, SAS, HKDF key schedule, an interactive RFC 9383 P-256 SPAKE2+ prover/verifier session validated against the RFC vector, an scrypt password PBKDF for registration, QR/PIN challenge envelopes with attempt limiting, and CBOR/COSE_Sign1 capability grants with bounded delegation and scoped leases. The QR/PIN camera/UI flow, native parity, real channel-binding acquisition, `cnf` proof-of-possession and signed revocation propagation are not implemented yet; do not treat current pairing-offer validation as a completed trust protocol.
 - The browser endpoint host binds IPv4 loopback, requires a scoped token and exact loopback origin, rejects expired/duplicate credentials and never grants workspace write authority.
 - Passwords are stored in the device Keychain. SSH credentials and private keys are not bundled into the web shell or committed to the repository.
 - The `airdeskTerminal` bridge carries only PTY input, output, resize, and lifecycle messages.

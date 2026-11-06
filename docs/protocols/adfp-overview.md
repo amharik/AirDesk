@@ -47,7 +47,7 @@ The FlatBuffers schema is structural. It declares identity, pairing, binding and
 
 - `public_key` and channel-binding values are opaque encodings in the schema.
 - The browser has the AD-PAIR-1 canonical transcript, transcript signatures, binding enforcement, SAS and HKDF key schedule, plus an RFC 9383 P-256 SPAKE2+ primitive validated against the RFC vector; interactive pairing, QR/PIN exchange and channel-binding acquisition are not implemented.
-- Capability leases are not signed grants yet; `COSE_Sign1` issuance and verification remain pending.
+- Browser code implements compact `COSE_Sign1` grant issuance and verification with bounded delegation and scoped leases; native issuance, `cnf` proof-of-possession and signed revocation propagation remain pending.
 - `SyncRecord.payload_hash` is an opaque digest; no synchronization transport is implied.
 - A capability advertisement, pairing offer or lease payload never grants workspace ownership.
 
@@ -57,7 +57,7 @@ The FlatBuffers schema is structural. It declares identity, pairing, binding and
 | --- | --- | --- |
 | AD-WS | Active | Workspace desired state, placement and observed status |
 | AD-DEV | Early | Device identity, discovery, pairing and health; identity, local registry, the AD-PAIR-1 transcript/key schedule, interactive SPAKE2+ pairing and canonical DNS-SD advertisement records exist; the runtime discovery adapter and real channel binding remain pending |
-| AD-CAP | Early | Capability advertisement, leases, revocation and remote-application protocol descriptors; schema, Android advertisement and the iOS local capability catalog exist, signed grants and remote invocation remain pending |
+| AD-CAP | Early | Capability advertisement, leases, revocation and remote-application protocol descriptors; schema, Android advertisement, the iOS local capability catalog and browser `COSE_Sign1` grants/leases exist, while proof-of-possession, revocation propagation and remote invocation remain pending |
 | AD-RUNTIME | Active MVP | Runtime provider lifecycle, execution status and remote namespace role |
 | AD-RESOURCE | Active MVP | File and resource access |
 | AD-INPUT | Active MVP | Keyboard, pointer, touch and controller events |
