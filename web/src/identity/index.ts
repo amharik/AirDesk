@@ -5,4 +5,5 @@ export * from './pairing';
 export * from './pairing-payload';
 export * from './registry';
 export * from './replay';
+export * from './session-keys';
 export * from './transcript';

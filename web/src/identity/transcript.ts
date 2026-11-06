@@ -1,10 +1,59 @@
 import { base64UrlToBytes, bytesEqual, concatBytes, sha256, utf8 } from './encoding';
 import { PairingValidationError } from './pairing-payload';
-import type { PairingPayload } from './pairing-payload';
+import type { PairingChannelBinding, PairingPayload } from './pairing-payload';
 import type { Spake2PlusEvidence } from './pake';
+import type { DeviceSignatureVerifier } from './identity';
 
 export const AD_PAIR_TRANSCRIPT_DOMAIN = 'AD-PAIR-1';
 export const AD_PAIR_SAS_DOMAIN = 'AD-PAIR-1-SAS';
+
+const CERTIFICATE_HASH_PATTERN = /^[0-9a-fA-F]{64}$/;
+
+export function requireChannelBinding(value: unknown): PairingChannelBinding {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new PairingValidationError('missing-binding', 'channel binding is required');
+  }
+  const binding = value as Record<string, unknown>;
+  const kind = binding.kind;
+  if (kind === undefined || kind === 'none') {
+    throw new PairingValidationError('missing-binding', 'unbound pairing is not allowed');
+  }
+  if (kind !== 'exporter' && kind !== 'certificate-hash') {
+    throw new PairingValidationError('unsupported-binding', 'unsupported channel binding');
+  }
+  const bindingValue = binding.value;
+  if (typeof bindingValue !== 'string' || bindingValue.length === 0) {
+    throw new PairingValidationError('invalid-binding', 'channel binding value is required');
+  }
+  if (kind === 'certificate-hash') {
+    if (!CERTIFICATE_HASH_PATTERN.test(bindingValue)) {
+      throw new PairingValidationError('invalid-binding', 'invalid certificate hash');
+    }
+    return { kind, value: bindingValue.toLowerCase() };
+  }
+  let bytes: Uint8Array;
+  try {
+    bytes = base64UrlToBytes(bindingValue);
+  } catch {
+    throw new PairingValidationError('invalid-binding', 'invalid exporter binding');
+  }
+  if (bytes.length < 16) {
+    throw new PairingValidationError('invalid-binding', 'exporter binding is too short');
+  }
+  return { kind, value: bindingValue };
+}
+
+export function assertMatchingChannelBinding(
+  left: PairingChannelBinding,
+  right: PairingChannelBinding
+): void {
+  if (left.kind !== right.kind || left.value !== right.value) {
+    throw new PairingValidationError(
+      'channel-binding-mismatch',
+      'pairing channel binding mismatch'
+    );
+  }
+}
 
 export interface PairingTranscriptInput {
   offer: PairingPayload;
@@ -26,6 +75,7 @@ interface CanonicalPayload {
 }
 
 function canonicalPayload(payload: PairingPayload): CanonicalPayload {
+  const channelBinding = requireChannelBinding(payload.channelBinding);
   return {
     type: payload.type,
     deviceId: payload.deviceId,
@@ -36,10 +86,7 @@ function canonicalPayload(payload: PairingPayload): CanonicalPayload {
     endpointHint: payload.endpointHint ?? null,
     relayHint: payload.relayHint ?? null,
     capabilities: [...payload.capabilities].sort(),
-    channelBinding: {
-      kind: payload.channelBinding.kind,
-      value: payload.channelBinding.value
-    }
+    channelBinding
   };
 }
 
@@ -67,10 +114,14 @@ export function normalizedPakeEvidence(pake: Spake2PlusEvidence): Spake2PlusEvid
 
 export function canonicalPairingTranscript(input: PairingTranscriptInput): Uint8Array {
   const pake = normalizedPakeEvidence(input.pake);
+  const offerBinding = requireChannelBinding(input.offer.channelBinding);
+  const responseBinding = requireChannelBinding(input.response.channelBinding);
+  assertMatchingChannelBinding(offerBinding, responseBinding);
   const canonical = {
     domain: AD_PAIR_TRANSCRIPT_DOMAIN,
     protocol: input.offer.protocol,
     version: input.offer.version,
+    channelBinding: offerBinding,
     offer: canonicalPayload(input.offer),
     response: canonicalPayload(input.response),
     pake: {
@@ -81,6 +132,28 @@ export function canonicalPairingTranscript(input: PairingTranscriptInput): Uint8
     }
   };
   return concatBytes(utf8(`${AD_PAIR_TRANSCRIPT_DOMAIN}\n`), utf8(JSON.stringify(canonical)));
+}
+
+export async function signPairingTranscript(
+  signer: Pick<DeviceSignatureVerifier, 'deviceId'> & {
+    sign(data: Uint8Array): Promise<Uint8Array>;
+  },
+  transcript: Uint8Array
+): Promise<Uint8Array> {
+  return signer.sign(transcript);
+}
+
+export async function verifyPairingTranscriptSignature(
+  verifier: Pick<DeviceSignatureVerifier, 'verify'>,
+  transcript: Uint8Array,
+  signature: Uint8Array
+): Promise<boolean> {
+  if (signature.length === 0) return false;
+  try {
+    return await verifier.verify(transcript, signature);
+  } catch {
+    return false;
+  }
 }
 
 export async function computePairingTranscriptHash(

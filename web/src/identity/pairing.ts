@@ -8,15 +8,27 @@ import type {
   PairingParseOptions,
   PairingPayload
 } from './pairing-payload';
+import { base64UrlToBytes, bytesEqual } from './encoding';
+import {
+  createDeviceSignatureVerifier,
+  deriveDeviceId,
+  detectDeviceIdentityAlgorithm
+} from './identity';
+import type { DeviceSignatureVerifier } from './identity';
 import type { Spake2PlusPrimitive } from './pake';
 import { NonceReplayGuard } from './replay';
 import type { DeviceRegistry } from './registry';
+import { deriveAdPairSessionKeys } from './session-keys';
+import type { AdPairSessionKeys } from './session-keys';
 import {
+  assertMatchingChannelBinding,
   assertTranscriptHash,
   canonicalPairingTranscript,
   combineRequestedCapabilities,
   computePairingTranscriptHash,
-  deriveShortAuthenticationString
+  deriveShortAuthenticationString,
+  requireChannelBinding,
+  verifyPairingTranscriptSignature
 } from './transcript';
 
 export type AdPairState =
@@ -48,11 +60,20 @@ export interface AdPairSessionOptions {
   replayGuard?: NonceReplayGuard;
   registry?: DeviceRegistry;
   subtle?: SubtleCrypto;
+  initiatorVerifier?: DeviceSignatureVerifier;
+  responderVerifier?: DeviceSignatureVerifier;
 }
 
 export interface AdPairFinishInput {
   secret: Uint8Array;
   expectedTranscriptHash?: Uint8Array;
+  initiatorSignature?: Uint8Array;
+  responderSignature?: Uint8Array;
+}
+
+export interface AdPairSignatures {
+  initiator: Uint8Array;
+  responder: Uint8Array;
 }
 
 export interface AdPairResult {
@@ -64,6 +85,9 @@ export interface AdPairResult {
   shortAuthenticationString: string;
   channelBinding: PairingChannelBinding;
   requestedCapabilities: readonly string[];
+  signatures: AdPairSignatures;
+  sessionKeys: AdPairSessionKeys;
+  keyScheduleVersion: AdPairSessionKeys['version'];
   grants: PairingGrantBoundary;
 }
 
@@ -75,6 +99,73 @@ function parseRaw(raw: string | unknown, options: PairingParseOptions): PairingP
 
 function sameBinding(left: PairingChannelBinding, right: PairingChannelBinding): boolean {
   return left.kind === right.kind && left.value === right.value;
+}
+
+async function resolveVerifier(
+  role: 'initiator' | 'responder',
+  payload: PairingPayload,
+  verifier: DeviceSignatureVerifier | undefined,
+  subtle: SubtleCrypto
+): Promise<DeviceSignatureVerifier> {
+  let publicKeySpki: Uint8Array;
+  try {
+    publicKeySpki = base64UrlToBytes(payload.publicKey);
+  } catch {
+    throw new PairingValidationError('invalid-public-key', `${role} public key is invalid`);
+  }
+
+  const expectedDeviceId = await deriveDeviceId(publicKeySpki, subtle);
+  if (expectedDeviceId !== payload.deviceId) {
+    throw new PairingValidationError(
+      'signature-device-mismatch',
+      `${role} device id does not match its public key`
+    );
+  }
+
+  if (verifier) {
+    if (
+      verifier.deviceId !== expectedDeviceId ||
+      !bytesEqual(new Uint8Array(verifier.publicKeySpki), publicKeySpki)
+    ) {
+      throw new PairingValidationError(
+        'signature-device-mismatch',
+        `${role} verifier does not match the pairing payload`
+      );
+    }
+    return verifier;
+  }
+
+  const algorithm = detectDeviceIdentityAlgorithm(publicKeySpki);
+  if (!algorithm) {
+    throw new PairingValidationError(
+      'invalid-public-key',
+      `${role} public key algorithm is unsupported`
+    );
+  }
+  return createDeviceSignatureVerifier(publicKeySpki, algorithm, subtle);
+}
+
+function requireSignature(value: Uint8Array | undefined, role: string): Uint8Array {
+  if (!value || value.length === 0) {
+    throw new PairingValidationError('missing-signature', `${role} signature is required`);
+  }
+  return value;
+}
+
+function decodePakeSharedSecret(value: string): Uint8Array {
+  let bytes: Uint8Array;
+  try {
+    bytes = base64UrlToBytes(value);
+  } catch {
+    throw new PairingValidationError('invalid-pake-evidence', 'invalid PAKE shared secret');
+  }
+  if (bytes.length < 16 || bytes.length > 1024) {
+    throw new PairingValidationError(
+      'invalid-pake-evidence',
+      'PAKE shared secret length out of range'
+    );
+  }
+  return bytes;
 }
 
 export class AdPairSession {
@@ -176,6 +267,18 @@ export class AdPairSession {
 
       const offer = this.offerPayload;
       const response = this.responsePayload;
+      const subtle = this.options.subtle ?? crypto.subtle;
+
+      if (this.options.registry?.isRevoked(offer.deviceId)) {
+        throw new PairingValidationError('revoked-device', 'offer device has been revoked');
+      }
+      if (this.options.registry?.isRevoked(response.deviceId)) {
+        throw new PairingValidationError('revoked-device', 'response device has been revoked');
+      }
+
+      const channelBinding = requireChannelBinding(offer.channelBinding);
+      assertMatchingChannelBinding(channelBinding, requireChannelBinding(response.channelBinding));
+
       const pake = await this.options.pake.exchange({
         protocolVersion: offer.version,
         secret: input.secret,
@@ -184,20 +287,63 @@ export class AdPairSession {
       });
       const transcriptInput = { offer, response, pake };
       const transcript = canonicalPairingTranscript(transcriptInput);
-      const transcriptHash = await computePairingTranscriptHash(
-        transcriptInput,
-        this.options.subtle
-      );
+      const transcriptHash = await computePairingTranscriptHash(transcriptInput, subtle);
       if (input.expectedTranscriptHash) {
         assertTranscriptHash(input.expectedTranscriptHash, transcriptHash);
       }
+
+      const initiatorVerifier = await resolveVerifier(
+        'initiator',
+        offer,
+        this.options.initiatorVerifier,
+        subtle
+      );
+      const responderVerifier = await resolveVerifier(
+        'responder',
+        response,
+        this.options.responderVerifier,
+        subtle
+      );
+      const initiatorSignature = requireSignature(input.initiatorSignature, 'initiator');
+      const responderSignature = requireSignature(input.responderSignature, 'responder');
+      if (
+        !(await verifyPairingTranscriptSignature(
+          initiatorVerifier,
+          transcript,
+          initiatorSignature
+        ))
+      ) {
+        throw new PairingValidationError(
+          'invalid-signature',
+          'initiator transcript signature is invalid'
+        );
+      }
+      if (
+        !(await verifyPairingTranscriptSignature(
+          responderVerifier,
+          transcript,
+          responderSignature
+        ))
+      ) {
+        throw new PairingValidationError(
+          'invalid-signature',
+          'responder transcript signature is invalid'
+        );
+      }
+
       const shortAuthenticationString = await deriveShortAuthenticationString(
         transcriptHash,
-        this.options.subtle
+        subtle
       );
       const requestedCapabilities = Object.freeze(
         combineRequestedCapabilities(offer, response)
       );
+      const sessionKeys = await deriveAdPairSessionKeys({
+        pakeSharedSecret: decodePakeSharedSecret(pake.sharedSecret),
+        transcriptHash,
+        channelBinding,
+        subtle
+      });
       this.currentState = 'completed';
 
       return {
@@ -207,8 +353,14 @@ export class AdPairSession {
         transcript,
         transcriptHash,
         shortAuthenticationString,
-        channelBinding: { ...offer.channelBinding },
+        channelBinding,
         requestedCapabilities,
+        signatures: {
+          initiator: new Uint8Array(initiatorSignature),
+          responder: new Uint8Array(responderSignature)
+        },
+        sessionKeys,
+        keyScheduleVersion: sessionKeys.version,
         grants: PAIRING_GRANT_BOUNDARY
       };
     } catch (error) {

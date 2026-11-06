@@ -12,7 +12,16 @@ export interface Spake2PlusEvidence {
   responderConfirmation: string;
 }
 
+/**
+ * The PAKE implementation supplies the raw shared secret as base64url. The
+ * secret is deliberately kept out of the canonical transcript; only the public
+ * shares and confirmation tags are transcript inputs.
+ */
+export interface Spake2PlusExchangeResult extends Spake2PlusEvidence {
+  sharedSecret: string;
+}
+
 export interface Spake2PlusPrimitive {
   readonly suite: 'SPAKE2+-P256-SHA256';
-  exchange(input: Spake2PlusExchangeInput): Promise<Spake2PlusEvidence>;
+  exchange(input: Spake2PlusExchangeInput): Promise<Spake2PlusExchangeResult>;
 }

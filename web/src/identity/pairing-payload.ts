@@ -53,6 +53,9 @@ export type PairingValidationErrorCode =
   | 'channel-binding-mismatch'
   | 'transcript-mismatch'
   | 'invalid-pake-evidence'
+  | 'missing-signature'
+  | 'invalid-signature'
+  | 'signature-device-mismatch'
   | 'invalid-state';
 
 export class PairingValidationError extends Error {

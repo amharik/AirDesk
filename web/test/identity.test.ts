@@ -12,6 +12,7 @@ import {
   bytesEqual,
   bytesToBase64Url,
   bytesToHex,
+  canonicalPairingTranscript,
   computePairingTranscriptHash,
   createBrowserIdentity,
   deriveDeviceId,
@@ -20,12 +21,13 @@ import {
   parsePairingJson,
   selectIdentityAlgorithm,
   sha256,
+  signPairingTranscript,
   utf8,
   validatePairingPayload
 } from '../src/identity';
 import type {
   PairingPayload,
-  Spake2PlusEvidence,
+  Spake2PlusExchangeResult,
   Spake2PlusPrimitive
 } from '../src/identity';
 
@@ -75,11 +77,12 @@ function responsePayload(
   };
 }
 
-const PAKE_EVIDENCE: Spake2PlusEvidence = {
+const PAKE_EVIDENCE: Spake2PlusExchangeResult = {
   initiatorShare: bytesToBase64Url(new Uint8Array(65).fill(1)),
   responderShare: bytesToBase64Url(new Uint8Array(65).fill(2)),
   initiatorConfirmation: bytesToBase64Url(new Uint8Array(32).fill(5)),
-  responderConfirmation: bytesToBase64Url(new Uint8Array(32).fill(6))
+  responderConfirmation: bytesToBase64Url(new Uint8Array(32).fill(6)),
+  sharedSecret: bytesToBase64Url(new Uint8Array(32).fill(11))
 };
 
 const fakePake: Spake2PlusPrimitive = {
@@ -99,14 +102,47 @@ function failureCode(action: () => unknown): string {
   throw new Error('expected pairing failure');
 }
 
+let pairingIdentities:
+  | Promise<{ initiator: Awaited<ReturnType<typeof createBrowserIdentity>>; responder: Awaited<ReturnType<typeof createBrowserIdentity>> }>
+  | undefined;
+
+function getPairingIdentities() {
+  pairingIdentities ??= Promise.all([
+    createBrowserIdentity({ store: new MemoryKeyStore(), now: () => NOW }),
+    createBrowserIdentity({ store: new MemoryKeyStore(), now: () => NOW })
+  ]).then(([initiator, responder]) => ({ initiator, responder }));
+  return pairingIdentities;
+}
+
 async function finishPairing(
   offer: PairingPayload = offerPayload(),
   response: PairingPayload = responsePayload(offer)
 ) {
+  const { initiator, responder } = await getPairingIdentities();
+  const boundOffer: PairingPayload = {
+    ...offer,
+    deviceId: initiator.deviceId,
+    publicKey: bytesToBase64Url(initiator.publicKeySpki)
+  };
+  const boundResponse: PairingPayload = {
+    ...response,
+    deviceId: responder.deviceId,
+    publicKey: bytesToBase64Url(responder.publicKeySpki),
+    replyTo: boundOffer.nonce
+  };
   const session = new AdPairSession({ pake: fakePake, now: () => NOW });
-  session.acceptOffer(offer);
-  session.acceptResponse(response);
-  return session.finish({ secret: utf8('123456') });
+  session.acceptOffer(boundOffer);
+  session.acceptResponse(boundResponse);
+  const transcript = canonicalPairingTranscript({
+    offer: boundOffer,
+    response: boundResponse,
+    pake: PAKE_EVIDENCE
+  });
+  return session.finish({
+    secret: utf8('123456'),
+    initiatorSignature: await signPairingTranscript(initiator, transcript),
+    responderSignature: await signPairingTranscript(responder, transcript)
+  });
 }
 
 describe('browser device identity', () => {
