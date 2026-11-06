@@ -22,13 +22,14 @@ The target runtime baseline is WASI 0.2 worlds; WASI 0.3 is an evaluation target
 | Remote SSH PTY | Working, opt-in |
 | AirPlay / external display | Implemented |
 | Google Cast receiver | Development app |
-| iOS unit tests | 287 passing; 1 skipped |
-| Web tests | 125 passing |
+| iOS unit tests | 324 passing; 1 skipped |
+| Web tests | 140 passing across 19 files |
 | Android unit tests | 49 passing; debug APK built, on-device install pending |
 | iPad UI suite | Passing; 1 opt-in test skipped |
 | Workspace model and orchestration | Implemented with tests |
-| Device identity, protocol and local registry | Foundations implemented |
-| Browser endpoint, sync and collaboration | Foundations implemented; production transport pending |
+| Device identity, protocol and local registry | Foundations implemented; SPAKE2+ pairing and signed capability leases pending |
+| Device capability catalog | iOS and Android advertise local capabilities; capture streaming, file transfer and remote invocation pending |
+| Browser endpoint, sync and collaboration | Loopback host service and sync conflict corpus implemented; production page, app wiring and transport pending |
 | App Store release | Not yet |
 
 ## Features
@@ -135,9 +136,10 @@ Remote SSH is opt-in and uses the native SSH stack, not the web shell.
 - Transcript replay restores terminal text after a reload, but the Wanix shell process restarts. Byte-exact PTY reconnect and live process resumption are not implemented.
 - The real OpenSSH smoke test is opt-in because it needs a reachable SSH host and throwaway credentials. The default UI suite uses an in-process fixture.
 - Puter removal is tracked as `PUTER-01`; its adapter and assets are still present in this build but are not configured.
-- The workspace store, `WorkspaceOrchestrator`, runtime provider registry and local device registry are implemented with tests. Signed capability leases, AD-PAIR-1/SPAKE2+ pairing and production network transports are not.
-- The browser endpoint is a presentation endpoint. Its loopback client/state/policy foundations exist, but there is no production host service or page integration yet, and it is not the workspace authority.
+- The workspace store, `WorkspaceOrchestrator`, runtime provider registry, local device registry and iOS/Android capability catalogs are implemented with tests. Signed capability leases, SPAKE2+ pairing, capture streaming, file transfer, remote invocation and production network transports are not.
+- The browser endpoint is a presentation endpoint. Its loopback client/state/policy, Swift host service and handshake/registration tests exist, but there is no production browser page or app wiring yet, and it is not the workspace authority. See the [AD-PAIR-1](docs/protocols/ad-pair-1.md) and [browser endpoint](docs/protocols/browser-endpoint.md) notes.
 - The Android controller/display baseline builds and passes unit tests, but has not been installed on a physical device. Its presentation and protocol paths are not yet release-qualified.
+- The web identity layer has the AD-PAIR-1 transcript, signature/binding checks, SAS and HKDF key schedule; SPAKE2+ itself and real binding acquisition are still pending.
 
 ## Architecture at a glance
 
@@ -182,7 +184,8 @@ AirDesk/
   Runtime/             Wanix runtime adapter; Puter removal in progress
   Input/               Input schema, dispatcher, pointer ballistics
   Identity/            Device identity, registry, pairing offers
-  Web/                 Swift-to-JavaScript bridge, loopback asset server
+  Capabilities/        Local device capability catalog and status providers
+  Web/                 Swift-to-JavaScript bridge, loopback asset and browser endpoint hosts
   Security/            Origin and navigation policy
   Store/               StoreKit 2 entitlement manager
   Resources/
@@ -227,8 +230,8 @@ cargo test --manifest-path ../protocol/rust/Cargo.toml
 
 ### Tests and CI
 
-- `AirDeskTests`: 287 unit tests covering input, runtime routing, SSH PTY, reconnect, terminal messages, identity, capabilities, and entitlements.
-- `web/test`: 125 tests covering the desktop shell, protocol, browser identity/endpoint, sync/collaboration and remote placement.
+- `AirDeskTests`: 324 unit tests covering input, runtime routing, SSH PTY, reconnect, terminal messages, identity, capabilities, browser endpoint hosting, and entitlements.
+- `web/test`: 140 tests covering the desktop shell, protocol, browser identity/pairing, endpoint policy, sync conflict corpus/collaboration and remote placement.
 - `android/app/src/test`: 49 Kotlin unit tests covering identity, pairing, capabilities, presentation and canonical ADFP integration.
 - `protocol/rust`: 10 tests covering movement/control fixtures and packed-frame handling.
 - `AirDeskUITests`: controller and desktop flows, terminal typing, resize, transcript replay, remote SSH, and WinBox lifecycle.
@@ -246,7 +249,8 @@ scripts/real-ssh-smoke.sh
 - No runtime CDN is required for Wanix, WTerm, fonts, or terminal cores.
 - Remote SSH uses the native SwiftNIO stack with a pinned OpenSSH host key.
 - Device identity keys are generated on-device and stored in the Keychain on iOS and the Android Keystore on Android. Pairing offers and device IDs are public; private keys are never logged or committed.
-- AD-PAIR-1/SPAKE2+, channel-binding acquisition and signed capability leases are not implemented yet; do not treat current local pairing-offer validation as a completed trust protocol.
+- The browser implements the AD-PAIR-1 transcript, transcript signatures, required channel binding, SAS and HKDF key schedule. SPAKE2+ itself, real channel-binding acquisition and signed capability leases are not implemented yet; do not treat current pairing-offer validation as a completed trust protocol.
+- The browser endpoint host binds IPv4 loopback, requires a scoped token and exact loopback origin, rejects expired/duplicate credentials and never grants workspace write authority.
 - Passwords are stored in the device Keychain. SSH credentials and private keys are not bundled into the web shell or committed to the repository.
 - The `airdeskTerminal` bridge carries only PTY input, output, resize, and lifecycle messages.
 
@@ -291,6 +295,8 @@ scripts/real-ssh-smoke.sh
 - [ADFP overview](docs/protocols/adfp-overview.md)
 - [AD-RUNTIME](docs/protocols/ad-runtime.md)
 - [AD-RESOURCE](docs/protocols/ad-resource.md)
+- [AD-PAIR-1 transcript and key schedule](docs/protocols/ad-pair-1.md)
+- [Browser endpoint host protocol](docs/protocols/browser-endpoint.md)
 - [Protocol versioning](docs/protocols/protocol-versioning.md)
 - [Transport mapping](docs/protocols/transport-mapping.md)
 - [Release roadmap](docs/planning/release-roadmap.md)

@@ -46,7 +46,7 @@ Required behavior:
 The FlatBuffers schema is structural. It declares identity, pairing, binding and lease fields but does not implement or assert cryptography:
 
 - `public_key` and channel-binding values are opaque encodings in the schema.
-- AD-PAIR-1/SPAKE2+, QR/PIN exchange and channel-binding acquisition are not implemented.
+- The browser has the AD-PAIR-1 canonical transcript, transcript signatures, binding enforcement, SAS and HKDF key schedule; SPAKE2+ itself, QR/PIN exchange and channel-binding acquisition are not implemented.
 - Capability leases are not signed grants yet; `COSE_Sign1` issuance and verification remain pending.
 - `SyncRecord.payload_hash` is an opaque digest; no synchronization transport is implied.
 - A capability advertisement, pairing offer or lease payload never grants workspace ownership.
@@ -56,8 +56,8 @@ The FlatBuffers schema is structural. It declares identity, pairing, binding and
 | Module | Status | Purpose |
 | --- | --- | --- |
 | AD-WS | Active | Workspace desired state, placement and observed status |
-| AD-DEV | Early | Device identity, discovery, pairing and health; identity and local registry exist, pairing/discovery remain pending |
-| AD-CAP | Early | Capability advertisement, leases, revocation and remote-application protocol descriptors; schema and advertisement exist, signed grants remain pending |
+| AD-DEV | Early | Device identity, discovery, pairing and health; identity, local registry and the AD-PAIR-1 transcript/key schedule exist, SPAKE2+ and discovery remain pending |
+| AD-CAP | Early | Capability advertisement, leases, revocation and remote-application protocol descriptors; schema, Android advertisement and the iOS local capability catalog exist, signed grants and remote invocation remain pending |
 | AD-RUNTIME | Active MVP | Runtime provider lifecycle, execution status and remote namespace role |
 | AD-RESOURCE | Active MVP | File and resource access |
 | AD-INPUT | Active MVP | Keyboard, pointer, touch and controller events |
@@ -84,7 +84,9 @@ The FlatBuffers schema is structural. It declares identity, pairing, binding and
 
 ## Related documents
 
-- `ad-runtime.md`
-- `ad-resource.md`
-- `protocol-versioning.md`
-- `transport-mapping.md`
+- [ad-runtime.md](ad-runtime.md)
+- [ad-resource.md](ad-resource.md)
+- [protocol-versioning.md](protocol-versioning.md)
+- [transport-mapping.md](transport-mapping.md)
+- [ad-pair-1.md](ad-pair-1.md)
+- [browser-endpoint.md](browser-endpoint.md)
