@@ -245,6 +245,28 @@ describe('capability request authorization', () => {
     ).toBe('root-issuer-not-approved');
   });
 
+  it('rejects a lease revoked by a signed distributed snapshot', async () => {
+    const provider = await loadIdentity(fixture.initiator);
+    const controller = await loadIdentity(fixture.responder);
+    const revokedLeaseStore = await revocationStore(provider, [
+      {
+        ref: 'lease-auth-1',
+        kind: 'lease',
+        at: fixture.now,
+        reason: 'device-revoked'
+      }
+    ]);
+    const request = await authorizedRequest(provider, controller, {
+      revocations: revokedLeaseStore
+    });
+
+    expect(
+      await failureCode(() =>
+        authorizeCapabilityRequest(policy(provider), request.input)
+      )
+    ).toBe('revoked');
+  });
+
   it('rejects revoked grants, stale revocation state and out-of-scope requests', async () => {
     const provider = await loadIdentity(fixture.initiator);
     const controller = await loadIdentity(fixture.responder);

@@ -83,14 +83,24 @@ export async function authorizeCapabilityRequest(
     fail('operation-not-granted', 'requested capability does not match the grant');
   }
 
-  input.revocations.assertNotRevoked(grant.claims.jti, 'grant', {
+  const revocationFreshness = {
     issuer: policy.revocationIssuer,
     now,
     maxStalenessMs: policy.maxRevocationStalenessMs,
     ...(policy.maxFutureSkewMs === undefined
       ? {}
       : { maxFutureSkewMs: policy.maxFutureSkewMs })
-  });
+  };
+  input.revocations.assertNotRevoked(
+    grant.claims.jti,
+    'grant',
+    revocationFreshness
+  );
+  input.revocations.assertNotRevoked(
+    input.lease.leaseId,
+    'lease',
+    revocationFreshness
+  );
   validateCapabilityLease(input.lease, grant, {
     now,
     workspaceId: input.workspaceId,
