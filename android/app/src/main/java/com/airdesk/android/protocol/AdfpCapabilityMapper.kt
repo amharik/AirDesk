@@ -7,19 +7,17 @@ import com.airdesk.android.capabilities.Availability
 import com.airdesk.android.capabilities.CapabilityDescriptor as AndroidCapabilityDescriptor
 
 object AdfpCapabilityMapper {
-    const val CAPABILITY_VERSION: UInt = 1u
-
     fun toProtocol(descriptor: AndroidCapabilityDescriptor): AdfpCapabilityDescriptor =
         AdfpCapabilityDescriptor(
             capUri = descriptor.capUri,
-            version = CAPABILITY_VERSION,
+            version = descriptor.version.toUInt(),
             providerDeviceId = descriptor.providerDeviceId,
             availability = availabilityToProtocol(descriptor.availability),
             authorization = authorizationToProtocol(descriptor.authorization),
             permissions = descriptor.permissions,
-            execution = null,
-            transport = null,
-            constraints = descriptor.note,
+            execution = descriptor.execution.ifBlank { null },
+            transport = descriptor.transport.ifBlank { null },
+            constraints = descriptor.constraints,
         )
 
     fun availabilityToProtocol(value: Availability): UByte = when (value) {

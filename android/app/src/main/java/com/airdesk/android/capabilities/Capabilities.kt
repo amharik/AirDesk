@@ -16,12 +16,16 @@ enum class Authorization {
 
 data class CapabilityDescriptor(
     val capUri: String,
+    val version: Int = 1,
     val providerDeviceId: String,
     val label: String,
     val summary: String,
     val availability: Availability,
     val authorization: Authorization,
     val permissions: List<String>,
+    val execution: String = "",
+    val transport: String = "",
+    val constraints: String = "{}",
     val note: String,
 )
 
@@ -47,6 +51,9 @@ object CapabilityCatalog {
                 availability = Availability.AVAILABLE,
                 authorization = Authorization.UNGRANTED,
                 permissions = emptyList(),
+                execution = "local-presentation",
+                transport = "local-webview",
+                constraints = "{\"presentation\":\"local\",\"remoteTransport\":false}",
                 note = "Local WebView presentation works; remote display transport is deferred.",
             ),
             CapabilityDescriptor(
@@ -57,6 +64,9 @@ object CapabilityCatalog {
                 availability = Availability.AVAILABLE,
                 authorization = Authorization.UNGRANTED,
                 permissions = emptyList(),
+                execution = "local-input",
+                transport = "local-surface-bridge",
+                constraints = "{\"scope\":\"presentation-surface\",\"remoteInput\":false}",
                 note = "Local surface only; ADFP input routing is not connected.",
             ),
             CapabilityDescriptor(
@@ -67,6 +77,9 @@ object CapabilityCatalog {
                 availability = Availability.RESTRICTED,
                 authorization = Authorization.UNGRANTED,
                 permissions = emptyList(),
+                execution = "local-input",
+                transport = "local-surface-bridge",
+                constraints = "{\"scope\":\"presentation-surface\",\"remoteInput\":false}",
                 note = "Local text input exists; remote keyboard transport is not connected.",
             ),
             CapabilityDescriptor(
@@ -77,6 +90,9 @@ object CapabilityCatalog {
                 availability = cameraAvailability,
                 authorization = Authorization.UNGRANTED,
                 permissions = listOf(CAMERA_PERMISSION),
+                execution = "on-device-capture",
+                transport = "none",
+                constraints = "{\"hardwareAvailable\":$cameraHardware,\"streaming\":false,\"remoteInvocation\":false}",
                 note = if (cameraPermissionGranted) {
                     "Camera permission granted; capture transport is not implemented in this baseline."
                 } else {
@@ -91,6 +107,9 @@ object CapabilityCatalog {
                 availability = Availability.RESTRICTED,
                 authorization = Authorization.UNGRANTED,
                 permissions = emptyList(),
+                execution = "on-device-read",
+                transport = "none",
+                constraints = "{\"scope\":\"app-documents\",\"deviceWideAccess\":false,\"remoteTransfer\":false}",
                 note = "No device-wide filesystem. Remote file transport is not implemented.",
             ),
             CapabilityDescriptor(
@@ -101,6 +120,9 @@ object CapabilityCatalog {
                 availability = Availability.AVAILABLE,
                 authorization = Authorization.UNGRANTED,
                 permissions = emptyList(),
+                execution = "local-diagnostics",
+                transport = "none",
+                constraints = "{\"source\":\"local-diagnostics\",\"remoteSubscription\":false}",
                 note = "Health is displayed locally; remote health subscription is deferred.",
             ),
         )

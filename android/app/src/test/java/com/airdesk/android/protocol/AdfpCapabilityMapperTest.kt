@@ -66,10 +66,14 @@ class AdfpCapabilityMapperTest {
         val mapped = AdfpCapabilityMapper.toProtocol(camera)
 
         assertEquals(camera.capUri, mapped.capUri)
+        assertEquals(camera.version.toUInt(), mapped.version)
         assertEquals(provider, mapped.providerDeviceId)
         assertEquals(ProtocolAvailability.restricted, mapped.availability)
         assertEquals(ProtocolAuthorization.ungranted, mapped.authorization)
         assertEquals(camera.permissions, mapped.permissions)
+        assertEquals(camera.execution, mapped.execution)
+        assertEquals(camera.transport, mapped.transport)
+        assertEquals(camera.constraints, mapped.constraints)
 
         val decoded = AdfpProtocol.decode(
             AdfpProtocol.encodeCapabilityDescriptor(header, mapped),
