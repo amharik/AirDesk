@@ -22,9 +22,9 @@ The target runtime baseline is WASI 0.2 worlds; WASI 0.3 is an evaluation target
 | Remote SSH PTY | Working, opt-in |
 | AirPlay / external display | Implemented |
 | Google Cast receiver | Development app |
-| iOS unit tests | 347 passing; 1 skipped |
-| Web tests | 194 passing across 25 files |
-| Android unit tests | 53 passing; debug APK built, on-device install pending |
+| iOS unit tests | 348 passing; 1 skipped |
+| Web tests | 195 passing across 25 files |
+| Android unit tests | 54 passing; debug APK built, on-device install pending |
 | iPad UI suite | Passing; 1 opt-in test skipped |
 | Workspace model and orchestration | Implemented with tests |
 | Device identity, protocol and local registry | Foundations implemented; QR/PIN UI/native parity, capability revocation distribution and native invocation enforcement pending |
@@ -230,9 +230,9 @@ cargo test --manifest-path ../protocol/rust/Cargo.toml
 
 ### Tests and CI
 
-- `AirDeskTests`: 347 unit tests covering input, runtime routing, SSH PTY, reconnect, terminal messages, identity, capabilities, the native capability registry, canonical discovery records and the runtime Bonjour browser/publisher adapter, workspace host handoff/degraded mode, browser endpoint hosting and service lifecycle, and entitlements.
-- `web/test`: 194 tests covering the desktop shell, protocol, browser identity/pairing, the RFC 9383 SPAKE2+ vector, interactive session, scrypt password registration, QR/PIN envelopes and attempt limiting, COSE_Sign1 grants, leases, proof-of-possession, revocation snapshots, validated capability registry and provider authorization, endpoint policy, sync conflict corpus/collaboration and remote placement.
-- `android/app/src/test`: 49 Kotlin unit tests covering identity, pairing, capabilities, presentation and canonical ADFP integration.
+- `AirDeskTests`: 348 unit tests covering input, runtime routing, SSH PTY, reconnect, terminal messages, identity, capabilities, the native capability registry, canonical discovery records and the runtime Bonjour browser/publisher adapter, workspace host handoff/degraded mode, browser endpoint hosting and service lifecycle, and entitlements.
+- `web/test`: 195 tests covering the desktop shell, protocol, browser identity/pairing, the RFC 9383 SPAKE2+ vector, interactive session, scrypt password registration, QR/PIN envelopes and attempt limiting, COSE_Sign1 grants, leases, proof-of-possession, revocation snapshots, validated capability registry with revocation propagation and provider authorization, endpoint policy, sync conflict corpus/collaboration and remote placement.
+- `android/app/src/test`: 54 Kotlin unit tests covering identity, pairing, capabilities, presentation and canonical ADFP integration.
 - `protocol/rust`: 10 tests covering movement/control fixtures and packed-frame handling.
 - `AirDeskUITests`: controller and desktop flows, terminal typing, resize, transcript replay, remote SSH, and WinBox lifecycle.
 - `.github/workflows/ios.yml` runs the CI-equivalent checks on macOS through `scripts/ci-ios.sh`.
