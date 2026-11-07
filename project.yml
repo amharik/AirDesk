@@ -38,6 +38,9 @@ packages:
   SwiftCrypto:
     url: https://github.com/apple/swift-crypto.git
     exactVersion: 4.5.2
+  OpenSSL:
+    url: https://github.com/krzyzanowskim/OpenSSL-Package.git
+    exactVersion: 3.6.5000
 targets:
   AirDesk:
     type: application
@@ -79,6 +82,8 @@ targets:
         product: NIOSSH
       - package: SwiftCrypto
         product: Crypto
+      - package: OpenSSL
+        product: OpenSSL
   AirDeskTests:
     type: bundle.unit-test
     platform: iOS
