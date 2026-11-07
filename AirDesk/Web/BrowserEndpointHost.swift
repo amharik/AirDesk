@@ -339,13 +339,17 @@ final class BrowserEndpointHost: @unchecked Sendable {
         state: BrowserEndpointDisplayState
     ) -> BrowserEndpointRegistrationResult {
         stateLock.lock()
-        let duplicate = activeRegistrations.values.contains {
-            $0.workspaceId == state.workspaceId &&
-                $0.displaySessionId == state.displaySessionId
+        let previous = activeRegistrations.first {
+            $0.value.workspaceId == state.workspaceId &&
+                $0.value.displaySessionId == state.displaySessionId
         }
-        guard !duplicate else {
+        if let previous, state.generation <= previous.value.generation {
             stateLock.unlock()
             return .rejected(.invalidState, "Display session is already registered.")
+        }
+        let replacedConnection = previous.flatMap { connections[$0.key] }
+        if let previous {
+            activeRegistrations.removeValue(forKey: previous.key)
         }
         let registration = BrowserEndpointRegistration(
             connectionId: connectionId,
@@ -358,6 +362,7 @@ final class BrowserEndpointHost: @unchecked Sendable {
         activeRegistrations[connectionId] = registration
         stateLock.unlock()
 
+        replacedConnection?.forceCancel()
         onDisplayRegistered?(registration)
         return .accepted(registration)
     }

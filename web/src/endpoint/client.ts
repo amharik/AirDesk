@@ -207,6 +207,7 @@ export class BrowserEndpointClient {
         this.lastError = null;
       }
     }
+    this.state.generation += 1;
     await this.connect();
   }
 

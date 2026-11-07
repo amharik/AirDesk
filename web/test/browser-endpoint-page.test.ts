@@ -122,6 +122,33 @@ describe('browser endpoint presentation page', () => {
     ).toThrow('browser endpoint must use ws://127.0.0.1:<port>');
   });
 
+  it('connects with a single-threaded page profile', async () => {
+    const dom = new JSDOM(PAGE_HTML, { url: PAGE_URL, pretendToBeVisual: true });
+    const scope = dom.window as unknown as Record<string, unknown>;
+    delete scope.SharedArrayBuffer;
+    delete scope.Atomics;
+    scope.crossOriginIsolated = false;
+    const transport = new FakeTransport();
+    const controller = startEndpointPage(dom.window as unknown as Window, transport);
+    openPages.push(controller);
+    await settle();
+
+    expect(scope.SharedArrayBuffer).toBeUndefined();
+    expect(transport.latest().sent[0]).toMatchObject({
+      type: 'display.register',
+      workspaceId: 'workspace-alpha',
+      displaySessionId: 'display-1'
+    });
+
+    transport.latest().emitMessage({
+      type: 'display.registered',
+      workspaceId: 'workspace-alpha',
+      displaySessionId: 'display-1'
+    });
+    await settle();
+    expect(dom.window.document.getElementById('endpoint-status')?.textContent).toBe('Connected');
+  });
+
   it('registers, reports status and reconnects the same display session', async () => {
     const { dom, transport } = makePage();
     await settle();
@@ -160,7 +187,8 @@ describe('browser endpoint presentation page', () => {
     expect(transport.latest().sent[0]).toMatchObject({
       type: 'display.register',
       workspaceId: 'workspace-alpha',
-      displaySessionId: 'display-1'
+      displaySessionId: 'display-1',
+      generation: 1
     });
   });
 });

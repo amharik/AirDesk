@@ -112,12 +112,55 @@ final class BrowserEndpointHostTests: XCTestCase {
             origin: origin
         )
         defer { second.close() }
-        second.sendText(try registrationMessage(generation: 1))
+        second.sendText(try registrationMessage())
 
         let error = try json(from: try await second.nextText())
         XCTAssertEqual(error["type"] as? String, "display.error")
         XCTAssertEqual(error["code"] as? String, "invalid-state")
         XCTAssertEqual(host.registeredDisplays().count, 1)
+    }
+
+    func testNewerGenerationReplacesActiveDisplayWithoutChangingWorkspace() async throws {
+        let host = try makeHost()
+        defer { host.stop() }
+        let recorder = BrowserEndpointHostRecorder()
+        recorder.attach(to: host)
+        let address = try host.start()
+        let target = "/endpoint?token=\(token)"
+
+        let first = try await BrowserEndpointTestClient.connect(
+            port: address.port,
+            target: target,
+            origin: origin
+        )
+        first.sendText(try registrationMessage())
+        _ = try await first.nextText()
+        try await waitUntil { host.registeredDisplays().count == 1 }
+
+        let second = try await BrowserEndpointTestClient.connect(
+            port: address.port,
+            target: target,
+            origin: origin
+        )
+        defer { second.close() }
+        second.sendText(try registrationMessage(generation: 1))
+
+        let registered = try json(from: try await second.nextText())
+        XCTAssertEqual(registered["type"] as? String, "display.registered")
+        XCTAssertEqual(registered["workspaceId"] as? String, "workspace-alpha")
+        XCTAssertEqual(registered["displaySessionId"] as? String, "display-1")
+        XCTAssertEqual(registered["generation"] as? Int, 1)
+
+        try await first.waitUntilClosed()
+        first.close()
+        try await waitUntil {
+            host.registeredDisplays().count == 1 &&
+                host.registeredDisplays().first?.generation == 1
+        }
+        XCTAssertEqual(host.registeredDisplays().first?.workspaceId, "workspace-alpha")
+        try await waitUntil { recorder.registrations.count == 2 }
+        XCTAssertEqual(recorder.registrations.last?.displaySessionId, "display-1")
+        XCTAssertEqual(recorder.registrations.last?.workspaceId, "workspace-alpha")
     }
 
     func testRejectsWorkspaceAndDisplaySessionMismatches() async throws {
