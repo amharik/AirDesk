@@ -6,7 +6,8 @@
 - **Scope:** iOS pairing cryptography, dependency admission, native/browser parity
 - **Supersedes:** None
 - **Amends:** ADR-003 dependency admission for the OpenSSL binary distribution; ADR-011 native AD-PAIR-1 implementation
-- **Related:** ADR-011, ADR-012, ADR-021
+- **Amended by:** ADR-023 OpenSSL scrypt for native SPAKE2+ password registration
+- **Related:** ADR-011, ADR-012, ADR-021, ADR-023
 
 ## Context
 
@@ -45,7 +46,7 @@ The dependency is admitted only for P-256 group arithmetic:
 - The iOS binary gains the pinned OpenSSL framework slice and must include OpenSSL attribution.
 - Future OpenSSL upgrades require a new exact pin and a repeat of the RFC/browser vector tests.
 - OpenSSL is not a general-purpose dependency: new uses require an ADR-003 review.
-- Password-to-scalar scrypt registration, QR/PIN UI, channel-binding acquisition and the complete pairing session remain implementation work under ADR-011.
+- Native password-to-scalar scrypt registration is admitted separately by ADR-023; QR/PIN UI, channel-binding acquisition and the complete pairing session remain implementation work under ADR-011.
 
 ## Validation
 
