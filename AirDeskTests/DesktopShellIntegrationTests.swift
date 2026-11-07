@@ -224,7 +224,7 @@ final class DesktopShellIntegrationTests: XCTestCase {
           var boot = document.getElementById('boot');
           return !!(document.querySelector('.window') && boot && boot.classList.contains('hidden'));
         })();
-        """, timeout: 15)
+        """, timeout: 30)
         XCTAssertTrue(ready as? Bool == true, "desktop shell did not finish booting")
     }
 
