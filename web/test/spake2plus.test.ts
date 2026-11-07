@@ -365,6 +365,12 @@ describe('SPAKE2+ password PBKDF', () => {
 
     expect(bytesToHex(first.w0)).toBe(bytesToHex(second.w0));
     expect(bytesToHex(first.w1)).toBe(bytesToHex(second.w1));
+    expect(bytesToHex(first.w0)).toBe(
+      'b0ed4ba1a99c347e760babddd3847a9bbec14679eff683f533b4b30c6f51d942'
+    );
+    expect(bytesToHex(first.w1)).toBe(
+      '2617ed2ba8d280416fdf1a179ec1a6a103cf1309867dfeb90153bf88c7b26acd'
+    );
     expect(first.w0).toHaveLength(32);
     expect(first.w1).toHaveLength(32);
     expect(first.L).toEqual(computeSpake2PlusRegistrationRecord(first.w1));

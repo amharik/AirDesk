@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import OpenSSL
 
 enum Spake2PlusP256 {
     static let suite = "SPAKE2+-P256-SHA256-HKDF-SHA256-HMAC-SHA256"
@@ -7,12 +8,46 @@ enum Spake2PlusP256 {
     static let nCompressedHex = "03d8bbd6c639c62937b04d997f38c3770719c629d7014d49a24b4f98baa1292b49"
     static let scalarBytes = 32
     static let confirmationBytes = 32
+    static let passwordSaltBytes = 32
+    static let passwordPBKDFProfile = PasswordPBKDFProfile(
+        name: "scrypt",
+        n: 32768,
+        r: 8,
+        p: 1,
+        dkLen: 80
+    )
 
     struct Keys: Equatable {
         let kMain: Data
         let kConfirmP: Data
         let kConfirmV: Data
         let kShared: Data
+    }
+
+    struct PasswordPBKDFProfile: Equatable {
+        let name: String
+        let n: Int
+        let r: Int
+        let p: Int
+        let dkLen: Int
+    }
+
+    enum PasswordInput: Equatable {
+        case text(String)
+        case bytes(Data)
+    }
+
+    struct PasswordScalars: Equatable {
+        let w0: Data
+        let w1: Data
+    }
+
+    struct PasswordRegistration: Equatable {
+        let w0: Data
+        let w1: Data
+        let salt: Data
+        let L: Data
+        let profile: PasswordPBKDFProfile
     }
 
     struct ProverInit: Equatable {
@@ -71,6 +106,67 @@ enum Spake2PlusP256 {
             case .invalidState(let detail): return "InvalidState: \(detail)"
             }
         }
+    }
+
+    static func canonicalPasswordMaterial(
+        password: PasswordInput,
+        idProver: Data = Data(),
+        idVerifier: Data = Data()
+    ) throws -> Data {
+        lengthPrefixed(try canonicalPasswordBytes(password))
+            + lengthPrefixed(idProver)
+            + lengthPrefixed(idVerifier)
+    }
+
+    static func createPasswordSalt() -> Data {
+        SymmetricKey(size: .bits256).withUnsafeBytes { Data($0) }
+    }
+
+    static func derivePasswordScalars(
+        password: PasswordInput,
+        salt: Data,
+        idProver: Data = Data(),
+        idVerifier: Data = Data()
+    ) throws -> PasswordScalars {
+        guard (16...64).contains(salt.count) else {
+            throw Error.invalidLength("salt must be 16 to 64 bytes")
+        }
+        let material = try canonicalPasswordMaterial(
+            password: password,
+            idProver: idProver,
+            idVerifier: idVerifier
+        )
+        let output = try scryptPasswordMaterial(material, salt: salt)
+        let half = passwordPBKDFProfile.dkLen / 2
+        let group = try NativeP256Group()
+        let w0 = try group.reduceWideScalar(Data(output.prefix(half)))
+        let w1 = try group.reduceWideScalar(Data(output.suffix(half)))
+        guard w1.contains(where: { $0 != 0 }) else {
+            throw Error.invalidScalar("derived w1 must not be zero")
+        }
+        return PasswordScalars(w0: w0, w1: w1)
+    }
+
+    static func createPasswordRegistration(
+        password: PasswordInput,
+        salt: Data? = nil,
+        idProver: Data = Data(),
+        idVerifier: Data = Data()
+    ) throws -> PasswordRegistration {
+        let salt = salt ?? createPasswordSalt()
+        let scalars = try derivePasswordScalars(
+            password: password,
+            salt: salt,
+            idProver: idProver,
+            idVerifier: idVerifier
+        )
+        return PasswordRegistration(
+            w0: scalars.w0,
+            w1: scalars.w1,
+            salt: salt,
+            L: try registrationRecord(w1: scalars.w1),
+            profile: passwordPBKDFProfile
+        )
     }
 
     static func registrationRecord(w1: Data) throws -> Data {
@@ -350,6 +446,49 @@ enum Spake2PlusP256 {
         var length = UInt64(value.count).littleEndian
         let prefix = withUnsafeBytes(of: &length) { Data($0) }
         return prefix + value
+    }
+
+    private static func canonicalPasswordBytes(_ password: PasswordInput) throws -> Data {
+        switch password {
+        case .text(let value):
+            let normalized = value.precomposedStringWithCompatibilityMapping
+            guard !normalized.isEmpty else {
+                throw Error.invalidInput("password must not be empty")
+            }
+            return Data(normalized.utf8)
+        case .bytes(let value):
+            guard !value.isEmpty else {
+                throw Error.invalidInput("password must not be empty")
+            }
+            return value
+        }
+    }
+
+    private static func scryptPasswordMaterial(_ material: Data, salt: Data) throws -> Data {
+        let profile = passwordPBKDFProfile
+        var output = [UInt8](repeating: 0, count: profile.dkLen)
+        let result = material.withUnsafeBytes { materialBytes in
+            salt.withUnsafeBytes { saltBytes in
+                output.withUnsafeMutableBufferPointer { outputBytes in
+                    EVP_PBE_scrypt(
+                        materialBytes.bindMemory(to: CChar.self).baseAddress,
+                        materialBytes.count,
+                        saltBytes.bindMemory(to: UInt8.self).baseAddress,
+                        saltBytes.count,
+                        UInt64(profile.n),
+                        UInt64(profile.r),
+                        UInt64(profile.p),
+                        64 * 1024 * 1024,
+                        outputBytes.baseAddress,
+                        outputBytes.count
+                    )
+                }
+            }
+        }
+        guard result == 1 else {
+            throw Error.invalidInput("could not derive password scalars")
+        }
+        return Data(output)
     }
 
     private static func hexData(_ hex: String) throws -> Data {

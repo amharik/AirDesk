@@ -183,6 +183,30 @@ final class NativeP256Group {
         return NativeP256Point(group: self, point: raw)
     }
 
+    func reduceWideScalar(_ data: Data) throws -> Data {
+        guard !data.isEmpty else {
+            throw NativeP256Error.invalidLength("wide scalar must not be empty")
+        }
+        let bytes = [UInt8](data)
+        guard let value = bytes.withUnsafeBufferPointer({
+            BN_bin2bn($0.baseAddress, Int32(bytes.count), nil)
+        }) else {
+            throw NativeP256Error.operationFailed("could not allocate wide scalar")
+        }
+        defer { BN_clear_free(value) }
+        guard BN_div(nil, value, value, order, context) == 1 else {
+            throw NativeP256Error.operationFailed("could not reduce scalar modulo the P-256 order")
+        }
+        var output = [UInt8](repeating: 0, count: Self.scalarBytes)
+        let written = output.withUnsafeMutableBufferPointer { buffer in
+            BN_bn2binpad(value, buffer.baseAddress, Int32(Self.scalarBytes))
+        }
+        guard written == Self.scalarBytes else {
+            throw NativeP256Error.operationFailed("could not encode reduced P-256 scalar")
+        }
+        return Data(output)
+    }
+
     func linearCombination(
         generatorScalar: Data?,
         point: NativeP256Point?,

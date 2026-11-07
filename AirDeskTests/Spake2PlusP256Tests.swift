@@ -29,6 +29,149 @@ final class Spake2PlusP256Tests: XCTestCase {
         )
     }
 
+    func testCanonicalPasswordMaterialMatchesBrowserVector() throws {
+        let material = try Spake2PlusP256.canonicalPasswordMaterial(
+            password: .text("123456"),
+            idProver: Data("client".utf8),
+            idVerifier: Data("server".utf8)
+        )
+        XCTAssertEqual(
+            material,
+            try data(
+                "0600000000000000313233343536" +
+                    "0600000000000000636c69656e74" +
+                    "0600000000000000736572766572"
+            )
+        )
+    }
+
+    func testPasswordRegistrationMatchesCrossPlatformVector() throws {
+        let salt = try data("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f")
+        let registration = try Spake2PlusP256.createPasswordRegistration(
+            password: .text("correct horse battery staple"),
+            salt: salt,
+            idProver: Data("client".utf8),
+            idVerifier: Data("server".utf8)
+        )
+
+        XCTAssertEqual(
+            registration.w0,
+            try data("b0ed4ba1a99c347e760babddd3847a9bbec14679eff683f533b4b30c6f51d942")
+        )
+        XCTAssertEqual(
+            registration.w1,
+            try data("2617ed2ba8d280416fdf1a179ec1a6a103cf1309867dfeb90153bf88c7b26acd")
+        )
+        XCTAssertEqual(registration.salt, salt)
+        XCTAssertEqual(
+            registration.L,
+            try Spake2PlusP256.registrationRecord(w1: registration.w1)
+        )
+        XCTAssertEqual(
+            registration.profile,
+            Spake2PlusP256.PasswordPBKDFProfile(
+                name: "scrypt",
+                n: 32768,
+                r: 8,
+                p: 1,
+                dkLen: 80
+            )
+        )
+        XCTAssertEqual(Spake2PlusP256.createPasswordSalt().count, 32)
+    }
+
+    func testPasswordRegistrationBindsPasswordSaltAndIdentities() throws {
+        let salt = try data("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f")
+        let baseline = try Spake2PlusP256.derivePasswordScalars(
+            password: .text("correct horse battery staple"),
+            salt: salt,
+            idProver: Data("client".utf8),
+            idVerifier: Data("server".utf8)
+        )
+        let changedPassword = try Spake2PlusP256.derivePasswordScalars(
+            password: .text("correct horse battery staple!"),
+            salt: salt,
+            idProver: Data("client".utf8),
+            idVerifier: Data("server".utf8)
+        )
+        let changedSalt = try Spake2PlusP256.derivePasswordScalars(
+            password: .text("correct horse battery staple"),
+            salt: Data(repeating: 7, count: 32),
+            idProver: Data("client".utf8),
+            idVerifier: Data("server".utf8)
+        )
+        let changedIdentity = try Spake2PlusP256.derivePasswordScalars(
+            password: .text("correct horse battery staple"),
+            salt: salt,
+            idProver: Data("client".utf8),
+            idVerifier: Data("server-2".utf8)
+        )
+
+        XCTAssertNotEqual(changedPassword.w0, baseline.w0)
+        XCTAssertNotEqual(changedSalt.w1, baseline.w1)
+        XCTAssertNotEqual(changedIdentity.w0, baseline.w0)
+    }
+
+    func testPasswordRegistrationRejectsInvalidInput() {
+        let salt = Data(repeating: 0, count: 32)
+        XCTAssertThrowsError(
+            try Spake2PlusP256.derivePasswordScalars(password: .text(""), salt: salt)
+        ) { XCTAssertEqual(($0 as? Spake2PlusP256.Error)?.code, "invalid-input") }
+        XCTAssertThrowsError(
+            try Spake2PlusP256.derivePasswordScalars(password: .bytes(Data()), salt: salt)
+        ) { XCTAssertEqual(($0 as? Spake2PlusP256.Error)?.code, "invalid-input") }
+        XCTAssertThrowsError(
+            try Spake2PlusP256.derivePasswordScalars(
+                password: .text("short"),
+                salt: Data(repeating: 0, count: 15)
+            )
+        ) { XCTAssertEqual(($0 as? Spake2PlusP256.Error)?.code, "invalid-length") }
+        XCTAssertThrowsError(
+            try Spake2PlusP256.derivePasswordScalars(
+                password: .text("short"),
+                salt: Data(repeating: 0, count: 65)
+            )
+        ) { XCTAssertEqual(($0 as? Spake2PlusP256.Error)?.code, "invalid-length") }
+    }
+
+    func testPasswordRegistrationDrivesInteractiveSession() throws {
+        let registration = try Spake2PlusP256.createPasswordRegistration(
+            password: .text("123456"),
+            salt: Data(repeating: 9, count: 32),
+            idProver: idProver,
+            idVerifier: idVerifier
+        )
+        let prover = Spake2PlusP256Session(
+            role: .prover,
+            context: context,
+            idProver: idProver,
+            idVerifier: idVerifier,
+            w0: registration.w0,
+            w1: registration.w1
+        )
+        let verifier = Spake2PlusP256Session(
+            role: .verifier,
+            context: context,
+            idProver: idProver,
+            idVerifier: idVerifier,
+            w0: registration.w0,
+            L: registration.L
+        )
+
+        let shareP = try prover.proverStart()
+        let response = try verifier.verifierRespond(shareP: shareP)
+        let proverResult = try prover.proverFinish(
+            shareV: response.share,
+            confirmationV: response.confirmation
+        )
+        let verifierResult = try verifier.verifierFinish(
+            confirmationP: proverResult.confirmation
+        )
+
+        XCTAssertEqual(proverResult.keys.kShared, verifierResult.keys.kShared)
+        XCTAssertEqual(proverResult.transcript, verifierResult.transcript)
+    }
+
     func testProverInit() throws {
         let start = try Spake2PlusP256.proverInit(w0: data(w0), x: data(x))
         XCTAssertEqual(start.shareP, try data(shareP))
