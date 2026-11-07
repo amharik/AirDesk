@@ -22,8 +22,8 @@ The target runtime baseline is WASI 0.2 worlds; WASI 0.3 is an evaluation target
 | Remote SSH PTY | Working, opt-in |
 | AirPlay / external display | Implemented |
 | Google Cast receiver | Development app |
-| iOS unit tests | 350 passing; 1 skipped |
-| Web tests | 204 passing across 27 files |
+| iOS unit tests | 351 passing; 1 skipped |
+| Web tests | 205 passing across 27 files |
 | Android unit tests | 54 passing; debug APK built, on-device install pending |
 | iPad UI suite | Passing; 1 opt-in test skipped |
 | Workspace model and orchestration | Implemented with tests |
@@ -137,7 +137,7 @@ Remote SSH is opt-in and uses the native SSH stack, not the web shell.
 - The real OpenSSH smoke test is opt-in because it needs a reachable SSH host and throwaway credentials. The default UI suite uses an in-process fixture.
 - Puter removal is tracked as `PUTER-01`; its adapter and assets are still present in this build but are not configured.
 - The workspace store, `WorkspaceOrchestrator`, workspace host handoff/degraded mode, runtime provider registry, local device registry and iOS/Android capability catalogs are implemented with tests. Browser-side COSE_Sign1 capability grants, bounded delegation, scoped leases, `cnf` proof-of-possession, signed monotonic revocation snapshots and provider-side request authorization exist; revocation distribution, native invocation enforcement, native password/QR parity, capture streaming, file transfer, remote invocation and production network transports are not.
-- The browser endpoint is a presentation endpoint. Its loopback client/state/policy, real WebSocket transport, Swift host service, handshake/registration tests, bundled display page, reconnect UX and app wiring exist, including a settings toggle, scoped display link and diagnostics; workspace surface streaming is still pending, and the browser is not the workspace authority. See the [AD-PAIR-1](docs/protocols/ad-pair-1.md) and [browser endpoint](docs/protocols/browser-endpoint.md) notes.
+- The browser endpoint is a presentation endpoint. Its loopback client/state/policy, real WebSocket transport, Swift host service, handshake/registration tests, bundled display page, single-threaded page profile, generation-safe reconnect takeover and app wiring exist, including a settings toggle, scoped display link and diagnostics; workspace surface streaming is still pending, and the browser is not the workspace authority. See the [AD-PAIR-1](docs/protocols/ad-pair-1.md) and [browser endpoint](docs/protocols/browser-endpoint.md) notes.
 - The Android controller/display baseline builds and passes unit tests, but has not been installed on a physical device. Its presentation and protocol paths are not yet release-qualified.
 - The web identity layer has the AD-PAIR-1 transcript, signature/binding checks, SAS, HKDF key schedule, an interactive RFC 9383 P-256 SPAKE2+ session validated against the RFC vector, an scrypt password PBKDF for `w0`/`w1` registration, QR/PIN code envelopes with attempt limiting and QR-secret challenges. Native QR/PIN parity, the camera/UI flow and real binding acquisition are still pending.
 
@@ -230,8 +230,8 @@ cargo test --manifest-path ../protocol/rust/Cargo.toml
 
 ### Tests and CI
 
-- `AirDeskTests`: 350 unit tests covering input, runtime routing, SSH PTY, reconnect, terminal messages, identity, capabilities, the native capability registry, canonical discovery records and the runtime Bonjour browser/publisher adapter, workspace host handoff/degraded mode, browser endpoint hosting and service lifecycle, loopback asset isolation headers, bundled display links and entitlements.
-- `web/test`: 204 tests covering the desktop shell, protocol, the ADFP resource RPC surface (`Attach` through `Wstat` and `Qid` tuples), browser identity/pairing, the RFC 9383 SPAKE2+ vector, interactive session, scrypt password registration, QR/PIN envelopes and attempt limiting, COSE_Sign1 grants, leases, lease invalidation, proof-of-possession, revocation snapshots, validated capability registry with revocation propagation and provider authorization, endpoint policy, the real WebSocket transport, presentation page/reconnect UX, sync conflict corpus/collaboration and remote placement.
+- `AirDeskTests`: 351 unit tests covering input, runtime routing, SSH PTY, reconnect, terminal messages, identity, capabilities, the native capability registry, canonical discovery records and the runtime Bonjour browser/publisher adapter, workspace host handoff/degraded mode, browser endpoint hosting and service lifecycle, generation-safe display reconnect, loopback asset isolation headers, bundled display links and entitlements.
+- `web/test`: 205 tests covering the desktop shell, protocol, the ADFP resource RPC surface (`Attach` through `Wstat` and `Qid` tuples), browser identity/pairing, the RFC 9383 SPAKE2+ vector, interactive session, scrypt password registration, QR/PIN envelopes and attempt limiting, COSE_Sign1 grants, leases, lease invalidation, proof-of-possession, revocation snapshots, validated capability registry with revocation propagation and provider authorization, endpoint policy, the real WebSocket transport, presentation page/reconnect UX, single-threaded page startup, sync conflict corpus/collaboration and remote placement.
 - `android/app/src/test`: 54 Kotlin unit tests covering identity, pairing, capabilities, presentation and canonical ADFP integration.
 - `protocol/rust`: 10 tests covering movement/control fixtures and packed-frame handling.
 - `AirDeskUITests`: controller and desktop flows, terminal typing, resize, transcript replay, remote SSH, and WinBox lifecycle.

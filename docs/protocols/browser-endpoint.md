@@ -1,6 +1,6 @@
 # Browser endpoint host protocol
 
-Status: loopback host service, browser client/policy and app lifecycle wiring are implemented and tested behind [ADR-014](../adr/014-browser-endpoint-topology.md). A production browser page, reconnect UX, COOP/COEP isolation proof and non-loopback transport remain pending.
+Status: loopback host service, browser client/policy, production display page, single-threaded page profile, generation-safe reconnect and app lifecycle wiring are implemented and tested behind [ADR-014](../adr/014-browser-endpoint-topology.md). Workspace surface streaming and non-loopback transport remain pending.
 
 ## Topology
 
@@ -64,21 +64,19 @@ Every message must declare:
 
 Workspace and display-session identifiers are limited to 256 ASCII characters from `[A-Za-z0-9._:-]`. Viewport dimensions are finite and between 0 and 100,000; viewport updates must be positive. Focus targets are at most 512 bytes. A browser endpoint cannot claim authority or write workspace state.
 
-The host rejects workspace/session mismatches, duplicate registration, stale generations, malformed frames, oversized frames and protocol violations with typed wire errors. Registration and display updates are surfaced through `onDisplayRegistered` and `onDisplayUpdated`; closure is surfaced through `onConnectionClosed`.
+The host rejects workspace/session mismatches, duplicate registration at the same or older generation, stale updates, malformed frames, oversized frames and protocol violations with typed wire errors. A registration with a newer generation for the same workspace/display replaces the active connection, closes the stale connection and preserves the display-session identity. Registration and display updates are surfaced through `onDisplayRegistered` and `onDisplayUpdated`; closure is surfaced through `onConnectionClosed`.
 
 ## Heartbeat and lifecycle
 
-The host sends ping frames on the configured interval when heartbeats are enabled and closes a connection that misses the timeout. Server shutdown cancels the listener and all active connections. Reconnect is a new connection and registration; it does not create workspace state.
+The host sends ping frames on the configured interval when heartbeats are enabled and closes a connection that misses the timeout. Server shutdown cancels the listener and all active connections. Reconnect is a new connection and registration; the page increments its display generation, the host replaces any still-active connection for that display, and no workspace state is created or recreated.
 
 The iOS app starts the host only when the persisted browser-endpoint setting is enabled. It uses the local desktop asset server's loopback origin, generates a 32-byte token with a one-hour expiry, exposes the full WebSocket URL in Settings and Diagnostics, and stops the listener when the setting is disabled. The token rotates on every restart.
 
 ## Test coverage
 
-`AirDeskTests/BrowserEndpointProtocolTests.swift` covers URLs, origins, validation and codecs. `AirDeskTests/BrowserEndpointHostTests.swift` covers startup, handshake rejection, token expiry, origin mismatch, registration, viewport/focus updates, duplicate/stale state, heartbeat and closure. `AirDeskTests/BrowserEndpointServiceTests.swift` covers service startup, token rotation, restart and failure state. `web/test/browser-endpoint.test.ts` covers the client/policy side.
+`AirDeskTests/BrowserEndpointProtocolTests.swift` covers URLs, origins, validation and codecs. `AirDeskTests/BrowserEndpointHostTests.swift` covers startup, handshake rejection, token expiry, origin mismatch, registration, viewport/focus updates, duplicate/stale state, newer-generation takeover, heartbeat and closure. `AirDeskTests/BrowserEndpointServiceTests.swift` covers service startup, token rotation, restart, presentation links and failure state. `web/test/browser-endpoint.test.ts`, `browser-endpoint-websocket.test.ts` and `browser-endpoint-page.test.ts` cover the client/policy, transport, page lifecycle, single-threaded startup and reconnect UX.
 
 ## Pending
 
-- Build the browser page and presentation client.
-- Prove COOP/COEP and asset isolation for the single-threaded profile.
-- Add reconnect UX and complete scene lifecycle handling.
-- Evaluate a TLS/non-loopback transport only after the loopback baseline is qualified.
+- Stream workspace surfaces to the registered display page.
+- Complete scene lifecycle handling and evaluate a TLS/non-loopback transport only after the loopback baseline is qualified.
