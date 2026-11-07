@@ -50,6 +50,7 @@ It copies the APK back to `android/build-artifacts/AirDesk-debug.apk`.
 - Local pairing-offer JSON (`adfp` / `0.1` / `pairing-offer`) with a 5-minute expiry.
 - Strict offer parsing, P-256/device-ID matching, expiry and replay checks.
 - Capability descriptors for display, pointer, keyboard, camera, files/read and health.
+- Validated capability registry with strict flat-JSON constraints, replacement/removal and deterministic ordering.
 - Availability and authorization kept as separate axes; pairing grants nothing.
 - Real `CAMERA` permission request and hardware/permission reflection.
 - Diagnostics showing identity, key details, public key, capability counts and build data.
@@ -57,7 +58,8 @@ It copies the APK back to `android/build-artifacts/AirDesk-debug.apk`.
   `https://appassets.androidplatform.net/assets/DesktopShell/` with JavaScript and
   DOM storage enabled, file access disabled, and non-local navigation blocked.
 - JVM unit tests for device ID formatting, pairing validation/replay, offer creation,
-  registry revocation, and capability availability/authorization separation.
+  device-registry revocation, validated capability registration and capability
+  availability/authorization separation.
 
 ## Deferred / not claimed
 

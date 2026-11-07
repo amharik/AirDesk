@@ -24,7 +24,7 @@ The target runtime baseline is WASI 0.2 worlds; WASI 0.3 is an evaluation target
 | Google Cast receiver | Development app |
 | iOS unit tests | 347 passing; 1 skipped |
 | Web tests | 194 passing across 25 files |
-| Android unit tests | 49 passing; debug APK built, on-device install pending |
+| Android unit tests | 53 passing; debug APK built, on-device install pending |
 | iPad UI suite | Passing; 1 opt-in test skipped |
 | Workspace model and orchestration | Implemented with tests |
 | Device identity, protocol and local registry | Foundations implemented; QR/PIN UI/native parity, capability revocation distribution and native invocation enforcement pending |
