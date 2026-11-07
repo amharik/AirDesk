@@ -14,5 +14,6 @@ class FabricPayload private constructor() {
         const val DisplaySession: UByte = 6u
         const val SyncRecord: UByte = 7u
         const val GroupMember: UByte = 8u
+        const val ResourceRpc: UByte = 9u
     }
 }

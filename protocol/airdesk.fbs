@@ -223,6 +223,162 @@ table GroupMember {
   seq:ulong (id: 4);
 }
 
+// ADFP-local resource RPC op codes. These are not 9P2000 message types and
+// this path does not tunnel 9P2000 frames.
+enum ResourceOpCode : uint {
+  attach = 100,
+  attach_result = 101,
+  walk = 102,
+  walk_result = 103,
+  open = 104,
+  open_result = 105,
+  read = 106,
+  read_result = 107,
+  write = 108,
+  write_result = 109,
+  clunk = 110,
+  clunk_result = 111,
+  stat = 112,
+  stat_result = 113,
+  wstat = 114,
+  wstat_result = 115
+}
+
+enum BindMode : ubyte {
+  read_only = 0,
+  read_write = 1,
+  exec = 2,
+  append = 3
+}
+
+enum ResourceStatus : ubyte {
+  ok = 0,
+  not_found = 1,
+  unauthorized = 2,
+  revoked = 3,
+  unavailable = 4,
+  conflict = 5,
+  invalid = 6
+}
+
+// Field order matches the 9P Qid tuple. FlatBuffers struct alignment is not a
+// 9P2000 wire frame; interoperability requires a separate 9P adapter.
+struct Qid {
+  type:ubyte;
+  version:uint;
+  path:ulong;
+}
+
+table ResourceStat {
+  qid:Qid (id: 0);
+  mode:uint (id: 1);
+  length:ulong (id: 2);
+  name:string (id: 3); // cap at 256 bytes
+  modified_at:ulong (id: 4); // Unix epoch milliseconds
+}
+
+table ResourceAttach {
+  fid:uint (id: 0);
+  afid:uint (id: 1);
+  uname:string (id: 2); // cap at 128 bytes
+  aname:string (id: 3); // opfs, tarfs, tmpfs or hostfs
+  cose_token:[ubyte] (id: 4); // ADR-012 COSE_Sign1 token
+}
+
+table ResourceAttachResult {
+  fid:uint (id: 0);
+  qid:Qid (id: 1);
+}
+
+table ResourceWalk {
+  fid:uint (id: 0);
+  new_fid:uint (id: 1);
+  wnames:[string] (id: 2); // capability-relative path segments
+}
+
+table ResourceWalkResult {
+  wqids:[Qid] (id: 0);
+}
+
+table ResourceOpen {
+  fid:uint (id: 0);
+  mode:BindMode = read_only (id: 1);
+}
+
+table ResourceOpenResult {
+  qid:Qid (id: 0);
+  iounit:uint = 65536 (id: 1);
+}
+
+table ResourceRead {
+  fid:uint (id: 0);
+  offset:ulong (id: 1);
+  count:uint (id: 2);
+}
+
+table ResourceReadResult {
+  data:[ubyte] (id: 0);
+}
+
+table ResourceWrite {
+  fid:uint (id: 0);
+  offset:ulong (id: 1);
+  data:[ubyte] (id: 2);
+}
+
+table ResourceWriteResult {
+  count:uint (id: 0);
+}
+
+table ResourceClunk {
+  fid:uint (id: 0);
+}
+
+table ResourceClunkResult {
+  status:ResourceStatus = ok (id: 0);
+}
+
+table ResourceStatRequest {
+  fid:uint (id: 0);
+}
+
+table ResourceStatResult {
+  stat:ResourceStat (id: 0);
+}
+
+table ResourceWstat {
+  fid:uint (id: 0);
+  stat:ResourceStat (id: 1);
+}
+
+table ResourceWstatResult {
+  status:ResourceStatus = ok (id: 0);
+}
+
+union ResourceRpcPayload {
+  ResourceAttach,
+  ResourceAttachResult,
+  ResourceWalk,
+  ResourceWalkResult,
+  ResourceOpen,
+  ResourceOpenResult,
+  ResourceRead,
+  ResourceReadResult,
+  ResourceWrite,
+  ResourceWriteResult,
+  ResourceClunk,
+  ResourceClunkResult,
+  ResourceStatRequest,
+  ResourceStatResult,
+  ResourceWstat,
+  ResourceWstatResult
+}
+
+table ResourceRpc {
+  payload:ResourceRpcPayload (id: 1);
+  op_code:ResourceOpCode = attach (id: 2);
+}
+
 union MessagePayload {
   InputEvent,
   ControlMessage
@@ -238,7 +394,8 @@ union FabricPayload {
   CapabilityLease,
   DisplaySession,
   SyncRecord,
-  GroupMember
+  GroupMember,
+  ResourceRpc
 }
 
 table Envelope {

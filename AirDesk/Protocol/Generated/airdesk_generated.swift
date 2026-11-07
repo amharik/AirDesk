@@ -143,6 +143,95 @@ public enum AirDesk_Protocol__DeviceKind: UInt8, FlatbuffersVectorInitializable,
 }
 
 
+public enum AirDesk_Protocol__ResourceOpCode: UInt32, FlatbuffersVectorInitializable, Enum, Verifiable {
+  public typealias T = UInt32
+  public static var byteSize: Int { return MemoryLayout<UInt32>.size }
+  public var value: UInt32 { return self.rawValue }
+  case attach = 100
+  case attachResult = 101
+  case walk = 102
+  case walkResult = 103
+  case open_ = 104
+  case openResult = 105
+  case read = 106
+  case readResult = 107
+  case write = 108
+  case writeResult = 109
+  case clunk = 110
+  case clunkResult = 111
+  case stat = 112
+  case statResult = 113
+  case wstat = 114
+  case wstatResult = 115
+
+  public static var max: AirDesk_Protocol__ResourceOpCode { return .wstatResult }
+  public static var min: AirDesk_Protocol__ResourceOpCode { return .attach }
+}
+
+
+public enum AirDesk_Protocol__BindMode: UInt8, FlatbuffersVectorInitializable, Enum, Verifiable {
+  public typealias T = UInt8
+  public static var byteSize: Int { return MemoryLayout<UInt8>.size }
+  public var value: UInt8 { return self.rawValue }
+  case readOnly = 0
+  case readWrite = 1
+  case exec = 2
+  case append = 3
+
+  public static var max: AirDesk_Protocol__BindMode { return .append }
+  public static var min: AirDesk_Protocol__BindMode { return .readOnly }
+}
+
+
+public enum AirDesk_Protocol__ResourceStatus: UInt8, FlatbuffersVectorInitializable, Enum, Verifiable {
+  public typealias T = UInt8
+  public static var byteSize: Int { return MemoryLayout<UInt8>.size }
+  public var value: UInt8 { return self.rawValue }
+  case ok = 0
+  case notFound = 1
+  case unauthorized = 2
+  case revoked = 3
+  case unavailable = 4
+  case conflict = 5
+  case invalid = 6
+
+  public static var max: AirDesk_Protocol__ResourceStatus { return .invalid }
+  public static var min: AirDesk_Protocol__ResourceStatus { return .ok }
+}
+
+
+public enum AirDesk_Protocol__ResourceRpcPayload: UInt8, FlatbuffersVectorInitializable, UnionEnum {
+  public typealias T = UInt8
+
+  public init?(value: T) {
+    self.init(rawValue: value)
+  }
+
+  public static var byteSize: Int { return MemoryLayout<UInt8>.size }
+  public var value: UInt8 { return self.rawValue }
+  case none_ = 0
+  case resourceattach = 1
+  case resourceattachresult = 2
+  case resourcewalk = 3
+  case resourcewalkresult = 4
+  case resourceopen = 5
+  case resourceopenresult = 6
+  case resourceread = 7
+  case resourcereadresult = 8
+  case resourcewrite = 9
+  case resourcewriteresult = 10
+  case resourceclunk = 11
+  case resourceclunkresult = 12
+  case resourcestatrequest = 13
+  case resourcestatresult = 14
+  case resourcewstat = 15
+  case resourcewstatresult = 16
+
+  public static var max: AirDesk_Protocol__ResourceRpcPayload { return .resourcewstatresult }
+  public static var min: AirDesk_Protocol__ResourceRpcPayload { return .none_ }
+}
+
+
 public enum AirDesk_Protocol__MessagePayload: UInt8, FlatbuffersVectorInitializable, UnionEnum {
   public typealias T = UInt8
 
@@ -179,11 +268,60 @@ public enum AirDesk_Protocol__FabricPayload: UInt8, FlatbuffersVectorInitializab
   case displaysession = 6
   case syncrecord = 7
   case groupmember = 8
+  case resourcerpc = 9
 
-  public static var max: AirDesk_Protocol__FabricPayload { return .groupmember }
+  public static var max: AirDesk_Protocol__FabricPayload { return .resourcerpc }
   public static var min: AirDesk_Protocol__FabricPayload { return .none_ }
 }
 
+
+public struct AirDesk_Protocol__Qid: NativeStruct, FlatbuffersVectorInitializable, Verifiable, FlatbuffersInitializable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+
+  private var _type: UInt8
+  private var padding0__: UInt8 = 0
+  private var padding1__: UInt16 = 0
+  private var _version: UInt32
+  private var _path: UInt64
+
+  public init(_ bb: ByteBuffer, o: Int32) {
+    self = bb.read(def: Self.self, position: Int(o))
+  }
+
+  public init(type: UInt8, version: UInt32, path: UInt64) {
+    _type = type
+    _version = version
+    _path = path
+  }
+
+  public init() {
+    _type = 0
+    _version = 0
+    _path = 0
+  }
+
+  public var type: UInt8 { _type }
+  public var version: UInt32 { _version }
+  public var path: UInt64 { _path }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    try verifier.inBuffer(position: position, of: AirDesk_Protocol__Qid.self)
+  }
+}
+
+public struct AirDesk_Protocol__Qid_Mutable: FlatBufferStruct, FlatbuffersVectorInitializable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Struct
+
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Struct(bb: bb, position: o) }
+
+  public var type: UInt8 { return _accessor.readBuffer(of: UInt8.self, at: 0) }
+  public var version: UInt32 { return _accessor.readBuffer(of: UInt32.self, at: 4) }
+  public var path: UInt64 { return _accessor.readBuffer(of: UInt64.self, at: 8) }
+}
 
 public struct AirDesk_Protocol__InputEvent: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
 
@@ -1227,6 +1365,842 @@ public struct AirDesk_Protocol__GroupMember: FlatBufferTable, FlatbuffersVectorI
   }
 }
 
+public struct AirDesk_Protocol__ResourceStat: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__ResourceStat.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case qid = 4
+    case mode = 6
+    case length = 8
+    case name = 10
+    case modifiedAt = 12
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var qid: AirDesk_Protocol__Qid? { let o = _accessor.offset(VTOFFSET.qid.v); return o == 0 ? nil : _accessor.readBuffer(of: AirDesk_Protocol__Qid.self, at: o) }
+  public var mutableQid: AirDesk_Protocol__Qid_Mutable? { let o = _accessor.offset(VTOFFSET.qid.v); return o == 0 ? nil : AirDesk_Protocol__Qid_Mutable(_accessor.bb, o: o + _accessor.position) }
+  public var mode: UInt32 { let o = _accessor.offset(VTOFFSET.mode.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt32.self, at: o) }
+  public var length: UInt64 { let o = _accessor.offset(VTOFFSET.length.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt64.self, at: o) }
+  public var name: String? { let o = _accessor.offset(VTOFFSET.name.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var nameSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.name.v) }
+  public var modifiedAt: UInt64 { let o = _accessor.offset(VTOFFSET.modifiedAt.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt64.self, at: o) }
+  public static func startResourceStat(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 5) }
+  public static func add(qid: AirDesk_Protocol__Qid?, _ fbb: inout FlatBufferBuilder) { guard let qid = qid else { return }; fbb.create(struct: qid, position: VTOFFSET.qid.p) }
+  public static func add(mode: UInt32, _ fbb: inout FlatBufferBuilder) { fbb.add(element: mode, def: 0, at: VTOFFSET.mode.p) }
+  public static func add(length: UInt64, _ fbb: inout FlatBufferBuilder) { fbb.add(element: length, def: 0, at: VTOFFSET.length.p) }
+  public static func add(name: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: name, at: VTOFFSET.name.p) }
+  public static func add(modifiedAt: UInt64, _ fbb: inout FlatBufferBuilder) { fbb.add(element: modifiedAt, def: 0, at: VTOFFSET.modifiedAt.p) }
+  public static func endResourceStat(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createResourceStat(
+    _ fbb: inout FlatBufferBuilder,
+    qid: AirDesk_Protocol__Qid? = nil,
+    mode: UInt32 = 0,
+    length: UInt64 = 0,
+    nameOffset name: Offset = Offset(),
+    modifiedAt: UInt64 = 0
+  ) -> Offset {
+    let __start = AirDesk_Protocol__ResourceStat.startResourceStat(&fbb)
+    AirDesk_Protocol__ResourceStat.add(qid: qid, &fbb)
+    AirDesk_Protocol__ResourceStat.add(mode: mode, &fbb)
+    AirDesk_Protocol__ResourceStat.add(length: length, &fbb)
+    AirDesk_Protocol__ResourceStat.add(name: name, &fbb)
+    AirDesk_Protocol__ResourceStat.add(modifiedAt: modifiedAt, &fbb)
+    return AirDesk_Protocol__ResourceStat.endResourceStat(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.qid.p, fieldName: "qid", required: false, type: AirDesk_Protocol__Qid.self)
+    try _v.visit(field: VTOFFSET.mode.p, fieldName: "mode", required: false, type: UInt32.self)
+    try _v.visit(field: VTOFFSET.length.p, fieldName: "length", required: false, type: UInt64.self)
+    try _v.visit(field: VTOFFSET.name.p, fieldName: "name", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.modifiedAt.p, fieldName: "modifiedAt", required: false, type: UInt64.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__ResourceAttach: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__ResourceAttach.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case fid = 4
+    case afid = 6
+    case uname = 8
+    case aname = 10
+    case coseToken = 12
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var fid: UInt32 { let o = _accessor.offset(VTOFFSET.fid.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt32.self, at: o) }
+  public var afid: UInt32 { let o = _accessor.offset(VTOFFSET.afid.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt32.self, at: o) }
+  public var uname: String? { let o = _accessor.offset(VTOFFSET.uname.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var unameSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.uname.v) }
+  public var aname: String? { let o = _accessor.offset(VTOFFSET.aname.v); return o == 0 ? nil : _accessor.string(at: o) }
+  public var anameSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.aname.v) }
+  public var coseToken: FlatbufferVector<UInt8> { return _accessor.vector(at: VTOFFSET.coseToken.v, byteSize: 1) }
+  public func withUnsafePointerToCoseToken<T>(_ body: (UnsafeRawBufferPointer, Int) throws -> T) rethrows -> T? { return try _accessor.withUnsafePointerToSlice(at: VTOFFSET.coseToken.v, body: body) }
+  public static func startResourceAttach(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 5) }
+  public static func add(fid: UInt32, _ fbb: inout FlatBufferBuilder) { fbb.add(element: fid, def: 0, at: VTOFFSET.fid.p) }
+  public static func add(afid: UInt32, _ fbb: inout FlatBufferBuilder) { fbb.add(element: afid, def: 0, at: VTOFFSET.afid.p) }
+  public static func add(uname: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: uname, at: VTOFFSET.uname.p) }
+  public static func add(aname: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: aname, at: VTOFFSET.aname.p) }
+  public static func addVectorOf(coseToken: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: coseToken, at: VTOFFSET.coseToken.p) }
+  public static func endResourceAttach(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createResourceAttach(
+    _ fbb: inout FlatBufferBuilder,
+    fid: UInt32 = 0,
+    afid: UInt32 = 0,
+    unameOffset uname: Offset = Offset(),
+    anameOffset aname: Offset = Offset(),
+    coseTokenVectorOffset coseToken: Offset = Offset()
+  ) -> Offset {
+    let __start = AirDesk_Protocol__ResourceAttach.startResourceAttach(&fbb)
+    AirDesk_Protocol__ResourceAttach.add(fid: fid, &fbb)
+    AirDesk_Protocol__ResourceAttach.add(afid: afid, &fbb)
+    AirDesk_Protocol__ResourceAttach.add(uname: uname, &fbb)
+    AirDesk_Protocol__ResourceAttach.add(aname: aname, &fbb)
+    AirDesk_Protocol__ResourceAttach.addVectorOf(coseToken: coseToken, &fbb)
+    return AirDesk_Protocol__ResourceAttach.endResourceAttach(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.fid.p, fieldName: "fid", required: false, type: UInt32.self)
+    try _v.visit(field: VTOFFSET.afid.p, fieldName: "afid", required: false, type: UInt32.self)
+    try _v.visit(field: VTOFFSET.uname.p, fieldName: "uname", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.aname.p, fieldName: "aname", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.coseToken.p, fieldName: "coseToken", required: false, type: ForwardOffset<Vector<UInt8, UInt8>>.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__ResourceAttachResult: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__ResourceAttachResult.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case fid = 4
+    case qid = 6
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var fid: UInt32 { let o = _accessor.offset(VTOFFSET.fid.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt32.self, at: o) }
+  public var qid: AirDesk_Protocol__Qid? { let o = _accessor.offset(VTOFFSET.qid.v); return o == 0 ? nil : _accessor.readBuffer(of: AirDesk_Protocol__Qid.self, at: o) }
+  public var mutableQid: AirDesk_Protocol__Qid_Mutable? { let o = _accessor.offset(VTOFFSET.qid.v); return o == 0 ? nil : AirDesk_Protocol__Qid_Mutable(_accessor.bb, o: o + _accessor.position) }
+  public static func startResourceAttachResult(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 2) }
+  public static func add(fid: UInt32, _ fbb: inout FlatBufferBuilder) { fbb.add(element: fid, def: 0, at: VTOFFSET.fid.p) }
+  public static func add(qid: AirDesk_Protocol__Qid?, _ fbb: inout FlatBufferBuilder) { guard let qid = qid else { return }; fbb.create(struct: qid, position: VTOFFSET.qid.p) }
+  public static func endResourceAttachResult(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createResourceAttachResult(
+    _ fbb: inout FlatBufferBuilder,
+    fid: UInt32 = 0,
+    qid: AirDesk_Protocol__Qid? = nil
+  ) -> Offset {
+    let __start = AirDesk_Protocol__ResourceAttachResult.startResourceAttachResult(&fbb)
+    AirDesk_Protocol__ResourceAttachResult.add(fid: fid, &fbb)
+    AirDesk_Protocol__ResourceAttachResult.add(qid: qid, &fbb)
+    return AirDesk_Protocol__ResourceAttachResult.endResourceAttachResult(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.fid.p, fieldName: "fid", required: false, type: UInt32.self)
+    try _v.visit(field: VTOFFSET.qid.p, fieldName: "qid", required: false, type: AirDesk_Protocol__Qid.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__ResourceWalk: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__ResourceWalk.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case fid = 4
+    case newFid = 6
+    case wnames = 8
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var fid: UInt32 { let o = _accessor.offset(VTOFFSET.fid.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt32.self, at: o) }
+  public var newFid: UInt32 { let o = _accessor.offset(VTOFFSET.newFid.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt32.self, at: o) }
+  public var wnames: FlatbufferVector<String?> { return _accessor.vector(at: VTOFFSET.wnames.v, byteSize: 4) }
+  public static func startResourceWalk(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 3) }
+  public static func add(fid: UInt32, _ fbb: inout FlatBufferBuilder) { fbb.add(element: fid, def: 0, at: VTOFFSET.fid.p) }
+  public static func add(newFid: UInt32, _ fbb: inout FlatBufferBuilder) { fbb.add(element: newFid, def: 0, at: VTOFFSET.newFid.p) }
+  public static func addVectorOf(wnames: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: wnames, at: VTOFFSET.wnames.p) }
+  public static func endResourceWalk(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createResourceWalk(
+    _ fbb: inout FlatBufferBuilder,
+    fid: UInt32 = 0,
+    newFid: UInt32 = 0,
+    wnamesVectorOffset wnames: Offset = Offset()
+  ) -> Offset {
+    let __start = AirDesk_Protocol__ResourceWalk.startResourceWalk(&fbb)
+    AirDesk_Protocol__ResourceWalk.add(fid: fid, &fbb)
+    AirDesk_Protocol__ResourceWalk.add(newFid: newFid, &fbb)
+    AirDesk_Protocol__ResourceWalk.addVectorOf(wnames: wnames, &fbb)
+    return AirDesk_Protocol__ResourceWalk.endResourceWalk(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.fid.p, fieldName: "fid", required: false, type: UInt32.self)
+    try _v.visit(field: VTOFFSET.newFid.p, fieldName: "newFid", required: false, type: UInt32.self)
+    try _v.visit(field: VTOFFSET.wnames.p, fieldName: "wnames", required: false, type: ForwardOffset<Vector<ForwardOffset<String>, String>>.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__ResourceWalkResult: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__ResourceWalkResult.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case wqids = 4
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var wqids: FlatbufferVector<AirDesk_Protocol__Qid> { return _accessor.vector(at: VTOFFSET.wqids.v, byteSize: 16) }
+  public var mutableWqids: FlatbufferVector<AirDesk_Protocol__Qid_Mutable> { return _accessor.vector(at: VTOFFSET.wqids.v, byteSize: 16) }
+  public func withUnsafePointerToWqids<T>(_ body: (UnsafeRawBufferPointer, Int) throws -> T) rethrows -> T? { return try _accessor.withUnsafePointerToSlice(at: VTOFFSET.wqids.v, body: body) }
+  public static func startResourceWalkResult(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 1) }
+  public static func addVectorOf(wqids: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: wqids, at: VTOFFSET.wqids.p) }
+  public static func startVectorOfWqids(_ size: Int, in builder: inout FlatBufferBuilder) {
+    builder.startVector(size * MemoryLayout<AirDesk_Protocol__Qid>.size, elementSize: MemoryLayout<AirDesk_Protocol__Qid>.alignment)
+  }
+  public static func endResourceWalkResult(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createResourceWalkResult(
+    _ fbb: inout FlatBufferBuilder,
+    wqidsVectorOffset wqids: Offset = Offset()
+  ) -> Offset {
+    let __start = AirDesk_Protocol__ResourceWalkResult.startResourceWalkResult(&fbb)
+    AirDesk_Protocol__ResourceWalkResult.addVectorOf(wqids: wqids, &fbb)
+    return AirDesk_Protocol__ResourceWalkResult.endResourceWalkResult(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.wqids.p, fieldName: "wqids", required: false, type: ForwardOffset<Vector<AirDesk_Protocol__Qid, AirDesk_Protocol__Qid>>.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__ResourceOpen: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__ResourceOpen.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case fid = 4
+    case mode = 6
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var fid: UInt32 { let o = _accessor.offset(VTOFFSET.fid.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt32.self, at: o) }
+  public var mode: AirDesk_Protocol__BindMode { let o = _accessor.offset(VTOFFSET.mode.v); return o == 0 ? .readOnly : AirDesk_Protocol__BindMode(rawValue: _accessor.readBuffer(of: UInt8.self, at: o)) ?? .readOnly }
+  public static func startResourceOpen(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 2) }
+  public static func add(fid: UInt32, _ fbb: inout FlatBufferBuilder) { fbb.add(element: fid, def: 0, at: VTOFFSET.fid.p) }
+  public static func add(mode: AirDesk_Protocol__BindMode, _ fbb: inout FlatBufferBuilder) { fbb.add(element: mode.rawValue, def: 0, at: VTOFFSET.mode.p) }
+  public static func endResourceOpen(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createResourceOpen(
+    _ fbb: inout FlatBufferBuilder,
+    fid: UInt32 = 0,
+    mode: AirDesk_Protocol__BindMode = .readOnly
+  ) -> Offset {
+    let __start = AirDesk_Protocol__ResourceOpen.startResourceOpen(&fbb)
+    AirDesk_Protocol__ResourceOpen.add(fid: fid, &fbb)
+    AirDesk_Protocol__ResourceOpen.add(mode: mode, &fbb)
+    return AirDesk_Protocol__ResourceOpen.endResourceOpen(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.fid.p, fieldName: "fid", required: false, type: UInt32.self)
+    try _v.visit(field: VTOFFSET.mode.p, fieldName: "mode", required: false, type: AirDesk_Protocol__BindMode.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__ResourceOpenResult: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__ResourceOpenResult.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case qid = 4
+    case iounit = 6
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var qid: AirDesk_Protocol__Qid? { let o = _accessor.offset(VTOFFSET.qid.v); return o == 0 ? nil : _accessor.readBuffer(of: AirDesk_Protocol__Qid.self, at: o) }
+  public var mutableQid: AirDesk_Protocol__Qid_Mutable? { let o = _accessor.offset(VTOFFSET.qid.v); return o == 0 ? nil : AirDesk_Protocol__Qid_Mutable(_accessor.bb, o: o + _accessor.position) }
+  public var iounit: UInt32 { let o = _accessor.offset(VTOFFSET.iounit.v); return o == 0 ? 65536 : _accessor.readBuffer(of: UInt32.self, at: o) }
+  public static func startResourceOpenResult(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 2) }
+  public static func add(qid: AirDesk_Protocol__Qid?, _ fbb: inout FlatBufferBuilder) { guard let qid = qid else { return }; fbb.create(struct: qid, position: VTOFFSET.qid.p) }
+  public static func add(iounit: UInt32, _ fbb: inout FlatBufferBuilder) { fbb.add(element: iounit, def: 65536, at: VTOFFSET.iounit.p) }
+  public static func endResourceOpenResult(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createResourceOpenResult(
+    _ fbb: inout FlatBufferBuilder,
+    qid: AirDesk_Protocol__Qid? = nil,
+    iounit: UInt32 = 65536
+  ) -> Offset {
+    let __start = AirDesk_Protocol__ResourceOpenResult.startResourceOpenResult(&fbb)
+    AirDesk_Protocol__ResourceOpenResult.add(qid: qid, &fbb)
+    AirDesk_Protocol__ResourceOpenResult.add(iounit: iounit, &fbb)
+    return AirDesk_Protocol__ResourceOpenResult.endResourceOpenResult(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.qid.p, fieldName: "qid", required: false, type: AirDesk_Protocol__Qid.self)
+    try _v.visit(field: VTOFFSET.iounit.p, fieldName: "iounit", required: false, type: UInt32.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__ResourceRead: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__ResourceRead.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case fid = 4
+    case offset = 6
+    case count = 8
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var fid: UInt32 { let o = _accessor.offset(VTOFFSET.fid.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt32.self, at: o) }
+  public var offset: UInt64 { let o = _accessor.offset(VTOFFSET.offset.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt64.self, at: o) }
+  public var count: UInt32 { let o = _accessor.offset(VTOFFSET.count.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt32.self, at: o) }
+  public static func startResourceRead(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 3) }
+  public static func add(fid: UInt32, _ fbb: inout FlatBufferBuilder) { fbb.add(element: fid, def: 0, at: VTOFFSET.fid.p) }
+  public static func add(offset: UInt64, _ fbb: inout FlatBufferBuilder) { fbb.add(element: offset, def: 0, at: VTOFFSET.offset.p) }
+  public static func add(count: UInt32, _ fbb: inout FlatBufferBuilder) { fbb.add(element: count, def: 0, at: VTOFFSET.count.p) }
+  public static func endResourceRead(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createResourceRead(
+    _ fbb: inout FlatBufferBuilder,
+    fid: UInt32 = 0,
+    offset: UInt64 = 0,
+    count: UInt32 = 0
+  ) -> Offset {
+    let __start = AirDesk_Protocol__ResourceRead.startResourceRead(&fbb)
+    AirDesk_Protocol__ResourceRead.add(fid: fid, &fbb)
+    AirDesk_Protocol__ResourceRead.add(offset: offset, &fbb)
+    AirDesk_Protocol__ResourceRead.add(count: count, &fbb)
+    return AirDesk_Protocol__ResourceRead.endResourceRead(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.fid.p, fieldName: "fid", required: false, type: UInt32.self)
+    try _v.visit(field: VTOFFSET.offset.p, fieldName: "offset", required: false, type: UInt64.self)
+    try _v.visit(field: VTOFFSET.count.p, fieldName: "count", required: false, type: UInt32.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__ResourceReadResult: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__ResourceReadResult.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case data = 4
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var data: FlatbufferVector<UInt8> { return _accessor.vector(at: VTOFFSET.data.v, byteSize: 1) }
+  public func withUnsafePointerToData<T>(_ body: (UnsafeRawBufferPointer, Int) throws -> T) rethrows -> T? { return try _accessor.withUnsafePointerToSlice(at: VTOFFSET.data.v, body: body) }
+  public static func startResourceReadResult(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 1) }
+  public static func addVectorOf(data: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: data, at: VTOFFSET.data.p) }
+  public static func endResourceReadResult(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createResourceReadResult(
+    _ fbb: inout FlatBufferBuilder,
+    dataVectorOffset data: Offset = Offset()
+  ) -> Offset {
+    let __start = AirDesk_Protocol__ResourceReadResult.startResourceReadResult(&fbb)
+    AirDesk_Protocol__ResourceReadResult.addVectorOf(data: data, &fbb)
+    return AirDesk_Protocol__ResourceReadResult.endResourceReadResult(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.data.p, fieldName: "data", required: false, type: ForwardOffset<Vector<UInt8, UInt8>>.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__ResourceWrite: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__ResourceWrite.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case fid = 4
+    case offset = 6
+    case data = 8
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var fid: UInt32 { let o = _accessor.offset(VTOFFSET.fid.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt32.self, at: o) }
+  public var offset: UInt64 { let o = _accessor.offset(VTOFFSET.offset.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt64.self, at: o) }
+  public var data: FlatbufferVector<UInt8> { return _accessor.vector(at: VTOFFSET.data.v, byteSize: 1) }
+  public func withUnsafePointerToData<T>(_ body: (UnsafeRawBufferPointer, Int) throws -> T) rethrows -> T? { return try _accessor.withUnsafePointerToSlice(at: VTOFFSET.data.v, body: body) }
+  public static func startResourceWrite(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 3) }
+  public static func add(fid: UInt32, _ fbb: inout FlatBufferBuilder) { fbb.add(element: fid, def: 0, at: VTOFFSET.fid.p) }
+  public static func add(offset: UInt64, _ fbb: inout FlatBufferBuilder) { fbb.add(element: offset, def: 0, at: VTOFFSET.offset.p) }
+  public static func addVectorOf(data: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: data, at: VTOFFSET.data.p) }
+  public static func endResourceWrite(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createResourceWrite(
+    _ fbb: inout FlatBufferBuilder,
+    fid: UInt32 = 0,
+    offset: UInt64 = 0,
+    dataVectorOffset data: Offset = Offset()
+  ) -> Offset {
+    let __start = AirDesk_Protocol__ResourceWrite.startResourceWrite(&fbb)
+    AirDesk_Protocol__ResourceWrite.add(fid: fid, &fbb)
+    AirDesk_Protocol__ResourceWrite.add(offset: offset, &fbb)
+    AirDesk_Protocol__ResourceWrite.addVectorOf(data: data, &fbb)
+    return AirDesk_Protocol__ResourceWrite.endResourceWrite(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.fid.p, fieldName: "fid", required: false, type: UInt32.self)
+    try _v.visit(field: VTOFFSET.offset.p, fieldName: "offset", required: false, type: UInt64.self)
+    try _v.visit(field: VTOFFSET.data.p, fieldName: "data", required: false, type: ForwardOffset<Vector<UInt8, UInt8>>.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__ResourceWriteResult: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__ResourceWriteResult.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case count = 4
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var count: UInt32 { let o = _accessor.offset(VTOFFSET.count.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt32.self, at: o) }
+  public static func startResourceWriteResult(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 1) }
+  public static func add(count: UInt32, _ fbb: inout FlatBufferBuilder) { fbb.add(element: count, def: 0, at: VTOFFSET.count.p) }
+  public static func endResourceWriteResult(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createResourceWriteResult(
+    _ fbb: inout FlatBufferBuilder,
+    count: UInt32 = 0
+  ) -> Offset {
+    let __start = AirDesk_Protocol__ResourceWriteResult.startResourceWriteResult(&fbb)
+    AirDesk_Protocol__ResourceWriteResult.add(count: count, &fbb)
+    return AirDesk_Protocol__ResourceWriteResult.endResourceWriteResult(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.count.p, fieldName: "count", required: false, type: UInt32.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__ResourceClunk: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__ResourceClunk.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case fid = 4
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var fid: UInt32 { let o = _accessor.offset(VTOFFSET.fid.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt32.self, at: o) }
+  public static func startResourceClunk(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 1) }
+  public static func add(fid: UInt32, _ fbb: inout FlatBufferBuilder) { fbb.add(element: fid, def: 0, at: VTOFFSET.fid.p) }
+  public static func endResourceClunk(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createResourceClunk(
+    _ fbb: inout FlatBufferBuilder,
+    fid: UInt32 = 0
+  ) -> Offset {
+    let __start = AirDesk_Protocol__ResourceClunk.startResourceClunk(&fbb)
+    AirDesk_Protocol__ResourceClunk.add(fid: fid, &fbb)
+    return AirDesk_Protocol__ResourceClunk.endResourceClunk(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.fid.p, fieldName: "fid", required: false, type: UInt32.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__ResourceClunkResult: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__ResourceClunkResult.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case status = 4
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var status: AirDesk_Protocol__ResourceStatus { let o = _accessor.offset(VTOFFSET.status.v); return o == 0 ? .ok : AirDesk_Protocol__ResourceStatus(rawValue: _accessor.readBuffer(of: UInt8.self, at: o)) ?? .ok }
+  public static func startResourceClunkResult(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 1) }
+  public static func add(status: AirDesk_Protocol__ResourceStatus, _ fbb: inout FlatBufferBuilder) { fbb.add(element: status.rawValue, def: 0, at: VTOFFSET.status.p) }
+  public static func endResourceClunkResult(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createResourceClunkResult(
+    _ fbb: inout FlatBufferBuilder,
+    status: AirDesk_Protocol__ResourceStatus = .ok
+  ) -> Offset {
+    let __start = AirDesk_Protocol__ResourceClunkResult.startResourceClunkResult(&fbb)
+    AirDesk_Protocol__ResourceClunkResult.add(status: status, &fbb)
+    return AirDesk_Protocol__ResourceClunkResult.endResourceClunkResult(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.status.p, fieldName: "status", required: false, type: AirDesk_Protocol__ResourceStatus.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__ResourceStatRequest: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__ResourceStatRequest.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case fid = 4
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var fid: UInt32 { let o = _accessor.offset(VTOFFSET.fid.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt32.self, at: o) }
+  public static func startResourceStatRequest(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 1) }
+  public static func add(fid: UInt32, _ fbb: inout FlatBufferBuilder) { fbb.add(element: fid, def: 0, at: VTOFFSET.fid.p) }
+  public static func endResourceStatRequest(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createResourceStatRequest(
+    _ fbb: inout FlatBufferBuilder,
+    fid: UInt32 = 0
+  ) -> Offset {
+    let __start = AirDesk_Protocol__ResourceStatRequest.startResourceStatRequest(&fbb)
+    AirDesk_Protocol__ResourceStatRequest.add(fid: fid, &fbb)
+    return AirDesk_Protocol__ResourceStatRequest.endResourceStatRequest(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.fid.p, fieldName: "fid", required: false, type: UInt32.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__ResourceStatResult: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__ResourceStatResult.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case stat = 4
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var stat: AirDesk_Protocol__ResourceStat? { let o = _accessor.offset(VTOFFSET.stat.v); return o == 0 ? nil : AirDesk_Protocol__ResourceStat(_accessor.bb, o: _accessor.indirect(o + _accessor.position)) }
+  public static func startResourceStatResult(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 1) }
+  public static func add(stat: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: stat, at: VTOFFSET.stat.p) }
+  public static func endResourceStatResult(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createResourceStatResult(
+    _ fbb: inout FlatBufferBuilder,
+    statOffset stat: Offset = Offset()
+  ) -> Offset {
+    let __start = AirDesk_Protocol__ResourceStatResult.startResourceStatResult(&fbb)
+    AirDesk_Protocol__ResourceStatResult.add(stat: stat, &fbb)
+    return AirDesk_Protocol__ResourceStatResult.endResourceStatResult(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.stat.p, fieldName: "stat", required: false, type: ForwardOffset<AirDesk_Protocol__ResourceStat>.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__ResourceWstat: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__ResourceWstat.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case fid = 4
+    case stat = 6
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var fid: UInt32 { let o = _accessor.offset(VTOFFSET.fid.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt32.self, at: o) }
+  public var stat: AirDesk_Protocol__ResourceStat? { let o = _accessor.offset(VTOFFSET.stat.v); return o == 0 ? nil : AirDesk_Protocol__ResourceStat(_accessor.bb, o: _accessor.indirect(o + _accessor.position)) }
+  public static func startResourceWstat(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 2) }
+  public static func add(fid: UInt32, _ fbb: inout FlatBufferBuilder) { fbb.add(element: fid, def: 0, at: VTOFFSET.fid.p) }
+  public static func add(stat: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: stat, at: VTOFFSET.stat.p) }
+  public static func endResourceWstat(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createResourceWstat(
+    _ fbb: inout FlatBufferBuilder,
+    fid: UInt32 = 0,
+    statOffset stat: Offset = Offset()
+  ) -> Offset {
+    let __start = AirDesk_Protocol__ResourceWstat.startResourceWstat(&fbb)
+    AirDesk_Protocol__ResourceWstat.add(fid: fid, &fbb)
+    AirDesk_Protocol__ResourceWstat.add(stat: stat, &fbb)
+    return AirDesk_Protocol__ResourceWstat.endResourceWstat(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.fid.p, fieldName: "fid", required: false, type: UInt32.self)
+    try _v.visit(field: VTOFFSET.stat.p, fieldName: "stat", required: false, type: ForwardOffset<AirDesk_Protocol__ResourceStat>.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__ResourceWstatResult: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__ResourceWstatResult.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case status = 4
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var status: AirDesk_Protocol__ResourceStatus { let o = _accessor.offset(VTOFFSET.status.v); return o == 0 ? .ok : AirDesk_Protocol__ResourceStatus(rawValue: _accessor.readBuffer(of: UInt8.self, at: o)) ?? .ok }
+  public static func startResourceWstatResult(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 1) }
+  public static func add(status: AirDesk_Protocol__ResourceStatus, _ fbb: inout FlatBufferBuilder) { fbb.add(element: status.rawValue, def: 0, at: VTOFFSET.status.p) }
+  public static func endResourceWstatResult(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createResourceWstatResult(
+    _ fbb: inout FlatBufferBuilder,
+    status: AirDesk_Protocol__ResourceStatus = .ok
+  ) -> Offset {
+    let __start = AirDesk_Protocol__ResourceWstatResult.startResourceWstatResult(&fbb)
+    AirDesk_Protocol__ResourceWstatResult.add(status: status, &fbb)
+    return AirDesk_Protocol__ResourceWstatResult.endResourceWstatResult(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.status.p, fieldName: "status", required: false, type: AirDesk_Protocol__ResourceStatus.self)
+    _v.finish()
+  }
+}
+
+public struct AirDesk_Protocol__ResourceRpc: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  public var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  public static var id: String { "ADEN" }
+  public static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: AirDesk_Protocol__ResourceRpc.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  public init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case payloadType = 4
+    case payload = 6
+    case opCode = 8
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  public var payloadType: AirDesk_Protocol__ResourceRpcPayload { let o = _accessor.offset(VTOFFSET.payloadType.v); return o == 0 ? .none_ : AirDesk_Protocol__ResourceRpcPayload(rawValue: _accessor.readBuffer(of: UInt8.self, at: o)) ?? .none_ }
+  public func payload<T: FlatbuffersInitializable>(type: T.Type) -> T? { let o = _accessor.offset(VTOFFSET.payload.v); return o == 0 ? nil : _accessor.union(o) }
+  public var opCode: AirDesk_Protocol__ResourceOpCode { let o = _accessor.offset(VTOFFSET.opCode.v); return o == 0 ? .attach : AirDesk_Protocol__ResourceOpCode(rawValue: _accessor.readBuffer(of: UInt32.self, at: o)) ?? .attach }
+  public static func startResourceRpc(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 3) }
+  public static func add(payloadType: AirDesk_Protocol__ResourceRpcPayload, _ fbb: inout FlatBufferBuilder) { fbb.add(element: payloadType.rawValue, def: 0, at: VTOFFSET.payloadType.p) }
+  public static func add(payload: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: payload, at: VTOFFSET.payload.p) }
+  public static func add(opCode: AirDesk_Protocol__ResourceOpCode, _ fbb: inout FlatBufferBuilder) { fbb.add(element: opCode.rawValue, def: 100, at: VTOFFSET.opCode.p) }
+  public static func endResourceRpc(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  public static func createResourceRpc(
+    _ fbb: inout FlatBufferBuilder,
+    payloadType: AirDesk_Protocol__ResourceRpcPayload = .none_,
+    payloadOffset payload: Offset = Offset(),
+    opCode: AirDesk_Protocol__ResourceOpCode = .attach
+  ) -> Offset {
+    let __start = AirDesk_Protocol__ResourceRpc.startResourceRpc(&fbb)
+    AirDesk_Protocol__ResourceRpc.add(payloadType: payloadType, &fbb)
+    AirDesk_Protocol__ResourceRpc.add(payload: payload, &fbb)
+    AirDesk_Protocol__ResourceRpc.add(opCode: opCode, &fbb)
+    return AirDesk_Protocol__ResourceRpc.endResourceRpc(&fbb, start: __start)
+  }
+
+  public static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(unionKey: VTOFFSET.payloadType.p, unionField: VTOFFSET.payload.p, unionKeyName: "payloadType", fieldName: "payload", required: false, completion: { (verifier, key: AirDesk_Protocol__ResourceRpcPayload, pos) in
+      switch key {
+      case .none_:
+        break // NOTE - SWIFT doesnt support none
+      case .resourceattach:
+        try ForwardOffset<AirDesk_Protocol__ResourceAttach>.verify(&verifier, at: pos, of: AirDesk_Protocol__ResourceAttach.self)
+      case .resourceattachresult:
+        try ForwardOffset<AirDesk_Protocol__ResourceAttachResult>.verify(&verifier, at: pos, of: AirDesk_Protocol__ResourceAttachResult.self)
+      case .resourcewalk:
+        try ForwardOffset<AirDesk_Protocol__ResourceWalk>.verify(&verifier, at: pos, of: AirDesk_Protocol__ResourceWalk.self)
+      case .resourcewalkresult:
+        try ForwardOffset<AirDesk_Protocol__ResourceWalkResult>.verify(&verifier, at: pos, of: AirDesk_Protocol__ResourceWalkResult.self)
+      case .resourceopen:
+        try ForwardOffset<AirDesk_Protocol__ResourceOpen>.verify(&verifier, at: pos, of: AirDesk_Protocol__ResourceOpen.self)
+      case .resourceopenresult:
+        try ForwardOffset<AirDesk_Protocol__ResourceOpenResult>.verify(&verifier, at: pos, of: AirDesk_Protocol__ResourceOpenResult.self)
+      case .resourceread:
+        try ForwardOffset<AirDesk_Protocol__ResourceRead>.verify(&verifier, at: pos, of: AirDesk_Protocol__ResourceRead.self)
+      case .resourcereadresult:
+        try ForwardOffset<AirDesk_Protocol__ResourceReadResult>.verify(&verifier, at: pos, of: AirDesk_Protocol__ResourceReadResult.self)
+      case .resourcewrite:
+        try ForwardOffset<AirDesk_Protocol__ResourceWrite>.verify(&verifier, at: pos, of: AirDesk_Protocol__ResourceWrite.self)
+      case .resourcewriteresult:
+        try ForwardOffset<AirDesk_Protocol__ResourceWriteResult>.verify(&verifier, at: pos, of: AirDesk_Protocol__ResourceWriteResult.self)
+      case .resourceclunk:
+        try ForwardOffset<AirDesk_Protocol__ResourceClunk>.verify(&verifier, at: pos, of: AirDesk_Protocol__ResourceClunk.self)
+      case .resourceclunkresult:
+        try ForwardOffset<AirDesk_Protocol__ResourceClunkResult>.verify(&verifier, at: pos, of: AirDesk_Protocol__ResourceClunkResult.self)
+      case .resourcestatrequest:
+        try ForwardOffset<AirDesk_Protocol__ResourceStatRequest>.verify(&verifier, at: pos, of: AirDesk_Protocol__ResourceStatRequest.self)
+      case .resourcestatresult:
+        try ForwardOffset<AirDesk_Protocol__ResourceStatResult>.verify(&verifier, at: pos, of: AirDesk_Protocol__ResourceStatResult.self)
+      case .resourcewstat:
+        try ForwardOffset<AirDesk_Protocol__ResourceWstat>.verify(&verifier, at: pos, of: AirDesk_Protocol__ResourceWstat.self)
+      case .resourcewstatresult:
+        try ForwardOffset<AirDesk_Protocol__ResourceWstatResult>.verify(&verifier, at: pos, of: AirDesk_Protocol__ResourceWstatResult.self)
+      }
+    })
+    try _v.visit(field: VTOFFSET.opCode.p, fieldName: "opCode", required: false, type: AirDesk_Protocol__ResourceOpCode.self)
+    _v.finish()
+  }
+}
+
 public struct AirDesk_Protocol__Envelope: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable {
 
   static func validateVersion() { FlatBuffersVersion_25_12_19() }
@@ -1316,6 +2290,8 @@ public struct AirDesk_Protocol__Envelope: FlatBufferTable, FlatbuffersVectorInit
         try ForwardOffset<AirDesk_Protocol__SyncRecord>.verify(&verifier, at: pos, of: AirDesk_Protocol__SyncRecord.self)
       case .groupmember:
         try ForwardOffset<AirDesk_Protocol__GroupMember>.verify(&verifier, at: pos, of: AirDesk_Protocol__GroupMember.self)
+      case .resourcerpc:
+        try ForwardOffset<AirDesk_Protocol__ResourceRpc>.verify(&verifier, at: pos, of: AirDesk_Protocol__ResourceRpc.self)
       }
     })
     _v.finish()

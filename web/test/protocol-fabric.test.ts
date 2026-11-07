@@ -26,6 +26,12 @@ import { MergeClass } from '../src/protocol/generated/air-desk/protocol/merge-cl
 import { MessagePayload } from '../src/protocol/generated/air-desk/protocol/message-payload';
 import { PairingOffer } from '../src/protocol/generated/air-desk/protocol/pairing-offer';
 import { PairingResponse } from '../src/protocol/generated/air-desk/protocol/pairing-response';
+import { Qid } from '../src/protocol/generated/air-desk/protocol/qid';
+import { ResourceOpCode } from '../src/protocol/generated/air-desk/protocol/resource-op-code';
+import { ResourceRpc } from '../src/protocol/generated/air-desk/protocol/resource-rpc';
+import { ResourceRpcPayload } from '../src/protocol/generated/air-desk/protocol/resource-rpc-payload';
+import { ResourceWalk } from '../src/protocol/generated/air-desk/protocol/resource-walk';
+import { ResourceWalkResult } from '../src/protocol/generated/air-desk/protocol/resource-walk-result';
 import { SenderRole } from '../src/protocol/generated/air-desk/protocol/sender-role';
 import { SyncRecord } from '../src/protocol/generated/air-desk/protocol/sync-record';
 import { Viewport } from '../src/protocol/generated/air-desk/protocol/viewport';
@@ -452,6 +458,15 @@ function createGroupMember(
   );
 }
 
+function createResourceRpc(
+  builder: flatbuffers.Builder,
+  opCode: ResourceOpCode,
+  payloadType: ResourceRpcPayload,
+  payload: flatbuffers.Offset
+): flatbuffers.Offset {
+  return ResourceRpc.createResourceRpc(builder, payloadType, payload, opCode);
+}
+
 function encodeFabric(
   fabricType: FabricPayload,
   createPayload: (builder: flatbuffers.Builder) => flatbuffers.Offset,
@@ -818,6 +833,96 @@ describe('fabric envelope validation', () => {
     expect(() =>
       decodeFabric(encoded, FabricPayload.PairingOffer, new PairingOffer())
     ).toThrow(/version/);
+  });
+
+  it('round-trips resource RPC op codes and Qid tuples', () => {
+    expect({
+      attach: ResourceOpCode.attach,
+      attachResult: ResourceOpCode.attach_result,
+      walk: ResourceOpCode.walk,
+      walkResult: ResourceOpCode.walk_result,
+      open: ResourceOpCode.open,
+      openResult: ResourceOpCode.open_result,
+      read: ResourceOpCode.read,
+      readResult: ResourceOpCode.read_result,
+      write: ResourceOpCode.write,
+      writeResult: ResourceOpCode.write_result,
+      clunk: ResourceOpCode.clunk,
+      clunkResult: ResourceOpCode.clunk_result,
+      stat: ResourceOpCode.stat,
+      statResult: ResourceOpCode.stat_result,
+      wstat: ResourceOpCode.wstat,
+      wstatResult: ResourceOpCode.wstat_result
+    }).toEqual({
+      attach: 100,
+      attachResult: 101,
+      walk: 102,
+      walkResult: 103,
+      open: 104,
+      openResult: 105,
+      read: 106,
+      readResult: 107,
+      write: 108,
+      writeResult: 109,
+      clunk: 110,
+      clunkResult: 111,
+      stat: 112,
+      statResult: 113,
+      wstat: 114,
+      wstatResult: 115
+    });
+
+    const walkBytes = encodeFabric(FabricPayload.ResourceRpc, (builder) => {
+      const wnames = ResourceWalk.createWnamesVector(builder, [
+        builder.createString('etc'),
+        builder.createString('hosts')
+      ]);
+      return createResourceRpc(
+        builder,
+        ResourceOpCode.walk,
+        ResourceRpcPayload.ResourceWalk,
+        ResourceWalk.createResourceWalk(builder, 7, 8, wnames)
+      );
+    });
+    const walkRpc = decodeFabric(walkBytes, FabricPayload.ResourceRpc, new ResourceRpc())
+      .payload as ResourceRpc;
+    const walk = walkRpc.payload(new ResourceWalk()) as ResourceWalk | null;
+    expect(walkRpc.opCode()).toBe(ResourceOpCode.walk);
+    expect(walkRpc.payloadType()).toBe(ResourceRpcPayload.ResourceWalk);
+    expect(walk).not.toBeNull();
+    expect({
+      fid: walk!.fid(),
+      newFid: walk!.newFid(),
+      wnames: strings(walk!.wnamesLength(), (index) => walk!.wnames(index))
+    }).toEqual({ fid: 7, newFid: 8, wnames: ['etc', 'hosts'] });
+
+    const resultBytes = encodeFabric(FabricPayload.ResourceRpc, (builder) => {
+      ResourceWalkResult.startWqidsVector(builder, 2);
+      Qid.createQid(builder, 0x80, 3, 9n);
+      Qid.createQid(builder, 1, 2, 0x1122334455667788n);
+      const qids = builder.endVector();
+      return createResourceRpc(
+        builder,
+        ResourceOpCode.walk_result,
+        ResourceRpcPayload.ResourceWalkResult,
+        ResourceWalkResult.createResourceWalkResult(builder, qids)
+      );
+    });
+    const resultRpc = decodeFabric(
+      resultBytes,
+      FabricPayload.ResourceRpc,
+      new ResourceRpc()
+    ).payload as ResourceRpc;
+    const result = resultRpc.payload(new ResourceWalkResult()) as ResourceWalkResult | null;
+    expect(resultRpc.opCode()).toBe(ResourceOpCode.walk_result);
+    expect(result).not.toBeNull();
+    expect(result!.wqidsLength()).toBe(2);
+    expect([
+      result!.wqids(0, new Qid())!.type(),
+      result!.wqids(0, new Qid())!.version(),
+      result!.wqids(0, new Qid())!.path(),
+      result!.wqids(1, new Qid())!.type()
+    ]).toEqual([1, 2, 0x1122334455667788n, 0x80]);
   });
 
   it('rejects malformed envelopes', () => {

@@ -10,6 +10,7 @@ import { DisplaySession } from '../../air-desk/protocol/display-session.js';
 import { GroupMember } from '../../air-desk/protocol/group-member.js';
 import { PairingOffer } from '../../air-desk/protocol/pairing-offer.js';
 import { PairingResponse } from '../../air-desk/protocol/pairing-response.js';
+import { ResourceRpc } from '../../air-desk/protocol/resource-rpc.js';
 import { SyncRecord } from '../../air-desk/protocol/sync-record.js';
 
 
@@ -22,13 +23,14 @@ export enum FabricPayload {
   CapabilityLease = 5,
   DisplaySession = 6,
   SyncRecord = 7,
-  GroupMember = 8
+  GroupMember = 8,
+  ResourceRpc = 9
 }
 
 export function unionToFabricPayload(
   type: FabricPayload,
-  accessor: (obj:CapabilityDescriptor|CapabilityLease|DeviceIdentity|DisplaySession|GroupMember|PairingOffer|PairingResponse|SyncRecord) => CapabilityDescriptor|CapabilityLease|DeviceIdentity|DisplaySession|GroupMember|PairingOffer|PairingResponse|SyncRecord|null
-): CapabilityDescriptor|CapabilityLease|DeviceIdentity|DisplaySession|GroupMember|PairingOffer|PairingResponse|SyncRecord|null {
+  accessor: (obj:CapabilityDescriptor|CapabilityLease|DeviceIdentity|DisplaySession|GroupMember|PairingOffer|PairingResponse|ResourceRpc|SyncRecord) => CapabilityDescriptor|CapabilityLease|DeviceIdentity|DisplaySession|GroupMember|PairingOffer|PairingResponse|ResourceRpc|SyncRecord|null
+): CapabilityDescriptor|CapabilityLease|DeviceIdentity|DisplaySession|GroupMember|PairingOffer|PairingResponse|ResourceRpc|SyncRecord|null {
   switch(FabricPayload[type]) {
     case 'NONE': return null; 
     case 'DeviceIdentity': return accessor(new DeviceIdentity())! as DeviceIdentity;
@@ -39,15 +41,16 @@ export function unionToFabricPayload(
     case 'DisplaySession': return accessor(new DisplaySession())! as DisplaySession;
     case 'SyncRecord': return accessor(new SyncRecord())! as SyncRecord;
     case 'GroupMember': return accessor(new GroupMember())! as GroupMember;
+    case 'ResourceRpc': return accessor(new ResourceRpc())! as ResourceRpc;
     default: return null;
   }
 }
 
 export function unionListToFabricPayload(
   type: FabricPayload, 
-  accessor: (index: number, obj:CapabilityDescriptor|CapabilityLease|DeviceIdentity|DisplaySession|GroupMember|PairingOffer|PairingResponse|SyncRecord) => CapabilityDescriptor|CapabilityLease|DeviceIdentity|DisplaySession|GroupMember|PairingOffer|PairingResponse|SyncRecord|null, 
+  accessor: (index: number, obj:CapabilityDescriptor|CapabilityLease|DeviceIdentity|DisplaySession|GroupMember|PairingOffer|PairingResponse|ResourceRpc|SyncRecord) => CapabilityDescriptor|CapabilityLease|DeviceIdentity|DisplaySession|GroupMember|PairingOffer|PairingResponse|ResourceRpc|SyncRecord|null, 
   index: number
-): CapabilityDescriptor|CapabilityLease|DeviceIdentity|DisplaySession|GroupMember|PairingOffer|PairingResponse|SyncRecord|null {
+): CapabilityDescriptor|CapabilityLease|DeviceIdentity|DisplaySession|GroupMember|PairingOffer|PairingResponse|ResourceRpc|SyncRecord|null {
   switch(FabricPayload[type]) {
     case 'NONE': return null; 
     case 'DeviceIdentity': return accessor(index, new DeviceIdentity())! as DeviceIdentity;
@@ -58,6 +61,7 @@ export function unionListToFabricPayload(
     case 'DisplaySession': return accessor(index, new DisplaySession())! as DisplaySession;
     case 'SyncRecord': return accessor(index, new SyncRecord())! as SyncRecord;
     case 'GroupMember': return accessor(index, new GroupMember())! as GroupMember;
+    case 'ResourceRpc': return accessor(index, new ResourceRpc())! as ResourceRpc;
     default: return null;
   }
 }
