@@ -46,7 +46,7 @@ The research program starts from these implemented or documented assets:
 | Single-writer `WorkspaceHost` and `host_epoch` | Implemented | Baseline for handoff and multi-device authority experiments |
 | Desired/observed state separation | Implemented | Prevents research prototypes from corrupting workspace definitions |
 | Runtime provider registry and Wanix adapter | Implemented | Baseline for local and remote placement experiments |
-| Input protocol v2 and channel split | Implemented locally; production transport binding open | Baseline for transport latency experiments |
+| Input protocol v2 and channel split | Implemented over Iroh datagram/reliable channels and local endpoint routing | Baseline for transport latency experiments |
 | SSH PTY with pinned host key and tmux default | Implemented | Baseline for remote execution and reconnect experiments |
 | Local asset server with COOP/COEP | Implemented | Baseline for browser endpoint experiments |
 | External display and Cast development path | Partial | Baseline for presentation experiments |
