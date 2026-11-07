@@ -259,7 +259,7 @@ export class BrowserEndpointClient {
       assertBrowserTransport(BROWSER_ENDPOINT_TRANSPORT);
       validateSessionToken(this.options.token);
       const target = parseLoopbackEndpoint({ port: this.options.port });
-      const page = parseLoopbackOrigin(this.options.pageOrigin, this.options.port);
+      const page = parseLoopbackOrigin(this.options.pageOrigin);
       const connection = await this.options.transport.connect({
         url: target.url,
         origin: page.origin,

@@ -213,16 +213,14 @@ final class AppEnvironment: ObservableObject {
             }
         }
 
-        if settings.browserEndpointEnabled {
-            Task { @MainActor in
-                self.applyBrowserEndpointSettings()
-            }
-        }
-
         entitlements.start()
         Haptics.shared.prepare()
         diagnostics.mark("app.launch")
         bootstrapWorkspace()
+
+        if settings.browserEndpointEnabled {
+            applyBrowserEndpointSettings()
+        }
 
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
@@ -289,7 +287,11 @@ final class AppEnvironment: ObservableObject {
         do {
             let directory = try DesktopSurface.bundledDirectory()
             let baseURL = try LocalAssetServer.shared.start(rootDirectory: directory)
-            try browserEndpoint.start(allowedOrigin: baseURL.absoluteString)
+            try browserEndpoint.start(
+                allowedOrigin: baseURL.absoluteString,
+                presentationBaseURL: baseURL,
+                workspaceId: workspaceRestoreReport?.workspaceId ?? "workspace.local"
+            )
         } catch {
             browserEndpoint.markFailed(error)
         }

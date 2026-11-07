@@ -3,8 +3,14 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const shellRoot = resolve(process.cwd(), '../AirDesk/Resources/DesktopShell');
-const pages = ['index.html', 'wanix-live.html', 'winbox-preview.html', 'wterm-preview.html'];
-const offlineEntries = [...pages, 'wanix-shell.js', 'wanix-live.js'];
+const pages = [
+  'index.html',
+  'wanix-live.html',
+  'winbox-preview.html',
+  'wterm-preview.html',
+  'endpoint.html'
+];
+const offlineEntries = [...pages, 'wanix-shell.js', 'wanix-live.js', 'endpoint.js'];
 
 describe('offline DesktopShell assets', () => {
   it('ships the Wanix runtime, kernel, and rc shell locally', () => {

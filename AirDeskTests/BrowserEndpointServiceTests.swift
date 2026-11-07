@@ -34,6 +34,39 @@ final class BrowserEndpointServiceTests: XCTestCase {
         XCTAssertNil(service.lastError)
     }
 
+    func testBuildsBundledPresentationLink() throws {
+        let service = BrowserEndpointService()
+        defer { service.stop() }
+        let baseURL = try XCTUnwrap(URL(string: "http://127.0.0.1:51234/"))
+
+        try service.start(
+            allowedOrigin: baseURL.absoluteString,
+            presentationBaseURL: baseURL,
+            workspaceId: "workspace-alpha"
+        )
+
+        let presentationURL = try XCTUnwrap(service.presentationURL)
+        XCTAssertEqual(presentationURL.scheme, "http")
+        XCTAssertEqual(presentationURL.host, "127.0.0.1")
+        XCTAssertEqual(presentationURL.port, 51_234)
+        XCTAssertEqual(presentationURL.path, "/endpoint.html")
+
+        let items = try XCTUnwrap(
+            URLComponents(url: presentationURL, resolvingAgainstBaseURL: false)?.queryItems
+        )
+        let values = Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value ?? "") })
+        let endpointURL = try XCTUnwrap(URL(string: values["endpoint"] ?? ""))
+        XCTAssertEqual(endpointURL.scheme, "ws")
+        XCTAssertEqual(endpointURL.host, "127.0.0.1")
+        XCTAssertEqual(endpointURL.path, "/endpoint")
+        XCTAssertEqual(values["workspace"], "workspace-alpha")
+        let display = try XCTUnwrap(values["display"])
+        XCTAssertTrue(BrowserEndpointValidation.isValidIdentifier(display))
+        let token = try XCTUnwrap(values["token"])
+        XCTAssertEqual(token.count, 43)
+        XCTAssertTrue(BrowserEndpointValidation.isValidToken(token))
+    }
+
     func testRestartRotatesToken() throws {
         let service = BrowserEndpointService()
         defer { service.stop() }

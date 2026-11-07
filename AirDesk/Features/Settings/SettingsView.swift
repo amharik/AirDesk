@@ -578,14 +578,14 @@ private struct BrowserEndpointControls: View {
                 )
             }
 
-            if let endpointURL = service.endpointURL {
+            if let displayURL = service.presentationURL ?? service.endpointURL {
                 Button {
-                    UIPasteboard.general.string = endpointURL.absoluteString
+                    UIPasteboard.general.string = displayURL.absoluteString
                     copied = true
                 } label: {
                     VStack(alignment: .leading, spacing: 5) {
                         HStack {
-                            Text(copied ? "Endpoint copied" : "Copy endpoint URL")
+                            Text(copied ? "Display link copied" : "Copy display link")
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundStyle(ADTheme.accent)
                             Spacer()
@@ -593,7 +593,7 @@ private struct BrowserEndpointControls: View {
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(ADTheme.accent)
                         }
-                        Text(endpointURL.absoluteString)
+                        Text(displayURL.absoluteString)
                             .font(.system(size: 10.5, design: .monospaced))
                             .foregroundStyle(ADTheme.textTertiary)
                             .lineLimit(1)

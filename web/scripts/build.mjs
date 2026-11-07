@@ -9,13 +9,16 @@ const outputDirectory = resolve(repositoryRoot, 'AirDesk/Resources/DesktopShell'
 const check = process.argv.includes('--check');
 const ghosttyWasmSource = resolve(webRoot, 'node_modules/@wterm/ghostty/wasm/ghostty-vt.wasm');
 const ghosttyWasmOutput = resolve(outputDirectory, 'terminal-core.wasm');
+const endpointHtmlSource = resolve(webRoot, 'src/endpoint/page.html');
+const endpointHtmlOutput = resolve(outputDirectory, 'endpoint.html');
 
 const entries = [
   { name: 'bridge', entryPoint: resolve(webRoot, 'src/bridge/entry.ts') },
   { name: 'window-manager', entryPoint: resolve(webRoot, 'src/desktop/shell-entry.ts') },
   { name: 'terminal', entryPoint: resolve(webRoot, 'src/terminal/production-entry.ts') },
   { name: 'winbox-preview', entryPoint: resolve(webRoot, 'src/winbox-preview/entry.ts') },
-  { name: 'wterm-preview', entryPoint: resolve(webRoot, 'src/wterm-preview/entry.ts') }
+  { name: 'wterm-preview', entryPoint: resolve(webRoot, 'src/wterm-preview/entry.ts') },
+  { name: 'endpoint', entryPoint: resolve(webRoot, 'src/endpoint/entry.ts') }
 ];
 
 for (const { name, entryPoint } of entries) {
@@ -52,6 +55,13 @@ for (const { name, entryPoint } of entries) {
 }
 
 if (check) {
+  const endpointHtml = await readFile(endpointHtmlOutput, 'utf8');
+  if (endpointHtml !== (await readFile(endpointHtmlSource, 'utf8'))) {
+    console.error('Committed DesktopShell asset is stale: AirDesk/Resources/DesktopShell/endpoint.html');
+    process.exit(1);
+  }
+  console.log('Committed DesktopShell asset matches web/src: endpoint.html');
+
   const source = await readFile(ghosttyWasmSource);
   let committed;
   try {
@@ -66,6 +76,8 @@ if (check) {
   }
   console.log('Committed DesktopShell asset matches @wterm/ghostty: terminal-core.wasm');
 } else {
+  await copyFile(endpointHtmlSource, endpointHtmlOutput);
+  console.log('Copied endpoint page: endpoint.html');
   await copyFile(ghosttyWasmSource, ghosttyWasmOutput);
   console.log('Copied @wterm/ghostty WASM: terminal-core.wasm');
 }

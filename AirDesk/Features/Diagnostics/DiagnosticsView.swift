@@ -310,9 +310,9 @@ private struct BrowserEndpointDiagnosticsSection: View {
     var body: some View {
         Section {
             LabeledContent("Host", value: service.state.title)
-            LabeledContent("Page", value: "Not bundled")
-            if let endpointURL = service.endpointURL {
-                LabeledContent("Endpoint", value: endpointURL.absoluteString)
+            LabeledContent("Page", value: service.presentationURL == nil ? "Not bundled" : "Bundled")
+            if let displayURL = service.presentationURL ?? service.endpointURL {
+                LabeledContent("Display link", value: displayURL.absoluteString)
                     .lineLimit(2)
             }
             if let lastError = service.lastError {
