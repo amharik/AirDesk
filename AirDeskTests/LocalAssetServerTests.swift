@@ -1,9 +1,34 @@
+import Foundation
 import WebKit
 import XCTest
 @testable import AirDesk
 
 @MainActor
 final class LocalAssetServerTests: XCTestCase {
+    func testLoopbackServerSendsIsolationHeaders() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("AirDeskLocalAssetServerHeaders-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let html = "<!doctype html><html><body>local shell</body></html>"
+        try Data(html.utf8).write(to: directory.appendingPathComponent("index.html"))
+
+        let server = LocalAssetServer()
+        defer { server.stop() }
+        let baseURL = try server.start(rootDirectory: directory)
+
+        let (body, response) = try await URLSession.shared.data(from: baseURL)
+        let http = try XCTUnwrap(response as? HTTPURLResponse)
+        XCTAssertEqual(http.statusCode, 200)
+        XCTAssertEqual(String(decoding: body, as: UTF8.self), html)
+        XCTAssertEqual(http.value(forHTTPHeaderField: "Cross-Origin-Opener-Policy"), "same-origin")
+        XCTAssertEqual(http.value(forHTTPHeaderField: "Cross-Origin-Embedder-Policy"), "require-corp")
+        XCTAssertEqual(http.value(forHTTPHeaderField: "Cross-Origin-Resource-Policy"), "same-origin")
+        XCTAssertEqual(http.value(forHTTPHeaderField: "X-Content-Type-Options"), "nosniff")
+        XCTAssertEqual(http.value(forHTTPHeaderField: "Cache-Control"), "no-store")
+    }
+
     func testLoopbackServerEnablesCrossOriginIsolationAndOPFS() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("AirDeskLocalAssetServer-\(UUID().uuidString)", isDirectory: true)
