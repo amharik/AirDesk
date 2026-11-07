@@ -61,6 +61,23 @@ final class WorkspaceSyncSessionTests: XCTestCase {
         XCTAssertEqual(receiver.state.lastReceivedSeqBySender, ["dev-a": 1, "dev-b": 1])
     }
 
+    func testDecodeDoesNotAdvanceReplayStateUntilAccepted() throws {
+        let sender = try makeSession(senderDeviceId: "dev-a")
+        let receiver = try makeSession(senderDeviceId: "host")
+        let envelope = try sender.enqueue(plaintext: Data("patch".utf8))
+        let encoded = try JSONEncoder().encode(envelope)
+
+        let decoded = try receiver.decode(encoded)
+        XCTAssertEqual(String(decoding: decoded.plaintext, as: UTF8.self), "patch")
+        XCTAssertNil(receiver.state.lastReceivedSeqBySender["dev-a"])
+
+        try receiver.accept(decoded.envelope)
+        XCTAssertEqual(receiver.state.lastReceivedSeqBySender["dev-a"], 1)
+        XCTAssertThrowsError(try receiver.accept(decoded.envelope)) {
+            XCTAssertEqual(($0 as? WorkspaceSyncEnvelopeError)?.code, "StaleSequence")
+        }
+    }
+
     func testRejectsRevokedSenderAndCorruptOutbox() throws {
         let sender = try makeSession(senderDeviceId: "dev-a")
         let receiver = try makeSession(senderDeviceId: "host")

@@ -158,6 +158,12 @@ final class WorkspaceSyncSession {
 
     @discardableResult
     func receive(_ data: Data) throws -> (plaintext: Data, envelope: WorkspaceSyncEnvelope) {
+        let result = try decode(data)
+        try accept(result.envelope)
+        return result
+    }
+
+    func decode(_ data: Data) throws -> (plaintext: Data, envelope: WorkspaceSyncEnvelope) {
         let envelope: WorkspaceSyncEnvelope
         do {
             envelope = try JSONDecoder().decode(WorkspaceSyncEnvelope.self, from: data)
@@ -168,15 +174,23 @@ final class WorkspaceSyncSession {
         let plaintext = try WorkspaceSyncCrypto.decrypt(
             key: key,
             envelope: envelope,
-            expected: WorkspaceSyncExpectations(
-                workspaceId: workspaceId,
-                hostEpoch: hostEpoch,
-                revokedSenderDeviceIds: revokedSenderDeviceIds,
-                lastSyncSeq: lastReceivedSeqBySender[envelope.senderDeviceId]
-            )
+            expected: expectations(for: envelope)
         )
-        lastReceivedSeqBySender[envelope.senderDeviceId] = envelope.syncSeq
         return (plaintext, envelope)
+    }
+
+    func accept(_ envelope: WorkspaceSyncEnvelope) throws {
+        try WorkspaceSyncCrypto.validateMetadata(envelope, expected: expectations(for: envelope))
+        lastReceivedSeqBySender[envelope.senderDeviceId] = envelope.syncSeq
+    }
+
+    private func expectations(for envelope: WorkspaceSyncEnvelope) -> WorkspaceSyncExpectations {
+        WorkspaceSyncExpectations(
+            workspaceId: workspaceId,
+            hostEpoch: hostEpoch,
+            revokedSenderDeviceIds: revokedSenderDeviceIds,
+            lastSyncSeq: lastReceivedSeqBySender[envelope.senderDeviceId]
+        )
     }
 
     func persist(to url: URL, fileManager: FileManager = .default) throws {

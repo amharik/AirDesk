@@ -174,11 +174,10 @@ enum WorkspaceSyncCrypto {
         )
     }
 
-    static func decrypt(
-        key: SymmetricKey,
-        envelope: WorkspaceSyncEnvelope,
+    static func validateMetadata(
+        _ envelope: WorkspaceSyncEnvelope,
         expected: WorkspaceSyncExpectations
-    ) throws -> Data {
+    ) throws {
         guard envelope.version == WorkspaceSyncEnvelope.version else {
             throw WorkspaceSyncEnvelopeError.unsupportedVersion
         }
@@ -201,6 +200,14 @@ enum WorkspaceSyncCrypto {
         if let lastSyncSeq = expected.lastSyncSeq, envelope.syncSeq <= lastSyncSeq {
             throw WorkspaceSyncEnvelopeError.staleSequence
         }
+    }
+
+    static func decrypt(
+        key: SymmetricKey,
+        envelope: WorkspaceSyncEnvelope,
+        expected: WorkspaceSyncExpectations
+    ) throws -> Data {
+        try validateMetadata(envelope, expected: expected)
 
         guard let nonce = Data(base64Encoded: envelope.nonce) else {
             throw WorkspaceSyncEnvelopeError.invalidEnvelope("nonce is not valid base64.")
