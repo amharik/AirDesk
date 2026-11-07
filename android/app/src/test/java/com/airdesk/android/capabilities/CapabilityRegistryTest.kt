@@ -23,6 +23,7 @@ class CapabilityRegistryTest {
         label: String = "Camera capture",
         summary: String = "Camera permission and hardware state.",
         note: String = "Capture streaming is not implemented.",
+        authorizationRef: String? = null,
     ): CapabilityDescriptor = CapabilityDescriptor(
         capUri = capUri,
         version = version,
@@ -36,6 +37,7 @@ class CapabilityRegistryTest {
         transport = transport,
         constraints = constraints,
         note = note,
+        authorizationRef = authorizationRef,
     )
 
     private fun assertInvalid(
@@ -162,6 +164,11 @@ class CapabilityRegistryTest {
             registry,
             descriptor(note = ""),
         )
+        assertInvalid(
+            CapabilityRegistryError.Code.INVALID_AUTHORIZATION,
+            registry,
+            descriptor(authorizationRef = " "),
+        )
         assertEquals(0, registry.size)
     }
 
@@ -180,6 +187,37 @@ class CapabilityRegistryTest {
 
         assertFalse(registry.updateAvailability("dev-b", capUri, 1, Availability.BUSY))
         assertFalse(registry.updateAuthorization("dev-a", capUri, 2, Authorization.GRANTED))
+    }
+
+    @Test
+    fun propagatesRevocationReferencesWithoutChangingAvailability() {
+        val registry = CapabilityRegistry()
+        registry.register(descriptor(authorizationRef = "grant-1"))
+        registry.register(
+            descriptor(
+                capUri = "airdesk://health/status",
+                authorizationRef = "grant-2",
+            ),
+        )
+
+        assertEquals(1, registry.applyRevokedReferences(listOf("grant-1")))
+        assertEquals(0, registry.applyRevokedReferences(listOf("grant-1")))
+        val camera = registry.descriptor("dev-a", capUri, 1)
+        assertEquals(Availability.AVAILABLE, camera?.availability)
+        assertEquals(Authorization.REVOKED, camera?.authorization)
+        assertEquals(
+            Authorization.GRANTED,
+            registry.descriptor("dev-a", "airdesk://health/status", 1)?.authorization,
+        )
+
+        assertEquals(
+            1,
+            registry.applyRevokedReferences(listOf("grant-2", "lease-1")),
+        )
+        assertEquals(
+            Authorization.REVOKED,
+            registry.descriptor("dev-a", "airdesk://health/status", 1)?.authorization,
+        )
     }
 
     @Test

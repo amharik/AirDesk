@@ -10,10 +10,12 @@ import type {
   PlacementRequest,
   PlacementResult
 } from '../remote/placement';
+import type { CapabilityRevocationRecord } from './revocation';
 
 export interface RegisteredCapabilityDescriptor extends CapabilityDescriptor {
   permissions?: readonly string[];
   constraints?: Readonly<Record<string, string | number | boolean>>;
+  authorizationRef?: string;
 }
 
 export type CapabilityRegistryErrorCode =
@@ -160,6 +162,9 @@ export function validateCapabilityDescriptor(
   const latencyMs = finiteNumber(input.latencyMs, 'capability latency', MAX_LATENCY_MS);
   const permissions = validatePermissions(input.permissions);
   const constraints = validateConstraints(input.constraints);
+  const authorizationRef = input.authorizationRef === undefined
+    ? undefined
+    : requiredString(input.authorizationRef, 'capability authorization reference', 256);
 
   return Object.freeze({
     providerDeviceId,
@@ -172,7 +177,8 @@ export function validateCapabilityDescriptor(
     transport,
     latencyMs,
     ...(permissions === undefined ? {} : { permissions }),
-    ...(constraints === undefined ? {} : { constraints })
+    ...(constraints === undefined ? {} : { constraints }),
+    ...(authorizationRef === undefined ? {} : { authorizationRef })
   });
 }
 
@@ -240,6 +246,17 @@ export class CapabilityRegistry {
     return this.update(providerDeviceId, runtimeId, capUri, version, { authorization });
   }
 
+  descriptor(
+    providerDeviceId: string,
+    runtimeId: string,
+    capUri: string,
+    version: number
+  ): RegisteredCapabilityDescriptor | undefined {
+    return this.descriptorsByKey.get(
+      descriptorKey(providerDeviceId, runtimeId, capUri, version)
+    );
+  }
+
   list(): readonly RegisteredCapabilityDescriptor[] {
     return Object.freeze(
       [...this.descriptorsByKey.values()].sort(compareCapabilityDescriptors)
@@ -248,6 +265,34 @@ export class CapabilityRegistry {
 
   resolve(request: PlacementRequest): PlacementResult {
     return selectProvider(this.list(), request);
+  }
+
+  applyRevocation(record: Pick<CapabilityRevocationRecord, 'entries'>): number {
+    return this.applyRevokedReferences(
+      record.entries
+        .filter((entry) => entry.kind === 'grant')
+        .map((entry) => entry.ref)
+    );
+  }
+
+  applyRevokedReferences(references: Iterable<string>): number {
+    const revoked = new Set(references);
+    let updated = 0;
+    for (const [key, descriptor] of this.descriptorsByKey) {
+      if (
+        descriptor.authorization === 'revoked' ||
+        descriptor.authorizationRef === undefined ||
+        !revoked.has(descriptor.authorizationRef)
+      ) {
+        continue;
+      }
+      this.descriptorsByKey.set(
+        key,
+        validateCapabilityDescriptor({ ...descriptor, authorization: 'revoked' })
+      );
+      updated += 1;
+    }
+    return updated;
   }
 
   clear(): void {

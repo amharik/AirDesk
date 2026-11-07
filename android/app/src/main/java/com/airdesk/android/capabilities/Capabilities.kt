@@ -27,6 +27,7 @@ data class CapabilityDescriptor(
     val transport: String = "",
     val constraints: String = "{}",
     val note: String,
+    val authorizationRef: String? = null,
 )
 
 object CapabilityCatalog {

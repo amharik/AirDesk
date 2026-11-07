@@ -131,6 +131,29 @@ final class CapabilityRegistry {
         )]
     }
 
+    @discardableResult
+    func applyRevokedReferences(_ references: [String]) -> Int {
+        let revoked = Set(references)
+        let keys = entries.keys.filter { key in
+            guard let descriptor = entries[key],
+                  descriptor.authorization != .revoked,
+                  let authorizationRef = descriptor.authorizationRef else {
+                return false
+            }
+            return revoked.contains(authorizationRef)
+        }
+        var updated = 0
+        for key in keys {
+            guard let existing = entries[key],
+                  let validated = try? validate(replacing(existing, authorization: .revoked)) else {
+                continue
+            }
+            entries[key] = validated
+            updated += 1
+        }
+        return updated
+    }
+
     func descriptors() -> [CapabilityDescriptor] {
         entries.values.sorted { left, right in
             if left.capUri != right.capUri {
@@ -166,7 +189,20 @@ final class CapabilityRegistry {
             version: version
         )
         guard let existing = entries[key] else { return false }
-        let updated = CapabilityDescriptor(
+        entries[key] = try validate(replacing(
+            existing,
+            availability: availability,
+            authorization: authorization
+        ))
+        return true
+    }
+
+    private func replacing(
+        _ existing: CapabilityDescriptor,
+        availability: CapabilityAvailability? = nil,
+        authorization: CapabilityAuthorization? = nil
+    ) -> CapabilityDescriptor {
+        CapabilityDescriptor(
             capUri: existing.capUri,
             version: existing.version,
             providerDeviceId: existing.providerDeviceId,
@@ -178,10 +214,9 @@ final class CapabilityRegistry {
             authorization: authorization ?? existing.authorization,
             label: existing.label,
             summary: existing.summary,
-            note: existing.note
+            note: existing.note,
+            authorizationRef: existing.authorizationRef
         )
-        entries[key] = try validate(updated)
-        return true
     }
 
     private func validate(_ descriptor: CapabilityDescriptor) throws -> CapabilityDescriptor {
@@ -228,6 +263,10 @@ final class CapabilityRegistry {
         }
         guard isBounded(descriptor.note, maximum: 2_048) else {
             throw CapabilityRegistryError.invalidNote
+        }
+        if let authorizationRef = descriptor.authorizationRef,
+           !isBounded(authorizationRef, maximum: 256) {
+            throw CapabilityRegistryError.invalidAuthorization
         }
         return descriptor
     }

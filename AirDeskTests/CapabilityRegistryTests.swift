@@ -14,7 +14,8 @@ final class CapabilityRegistryTests: XCTestCase {
         authorization: CapabilityAuthorization = .granted,
         label: String = "Camera capture",
         summary: String = "Camera permission and hardware state.",
-        note: String = "Capture streaming is not implemented."
+        note: String = "Capture streaming is not implemented.",
+        authorizationRef: String? = nil
     ) -> CapabilityDescriptor {
         CapabilityDescriptor(
             capUri: capUri,
@@ -28,7 +29,8 @@ final class CapabilityRegistryTests: XCTestCase {
             authorization: authorization,
             label: label,
             summary: summary,
-            note: note
+            note: note,
+            authorizationRef: authorizationRef
         )
     }
 
@@ -82,7 +84,8 @@ final class CapabilityRegistryTests: XCTestCase {
             descriptor(authorization: .unknown),
             descriptor(label: ""),
             descriptor(summary: ""),
-            descriptor(note: "")
+            descriptor(note: ""),
+            descriptor(authorizationRef: " ")
         ]
 
         for descriptor in invalid {
@@ -129,6 +132,44 @@ final class CapabilityRegistryTests: XCTestCase {
         )) { error in
             XCTAssertEqual(error as? CapabilityRegistryError, .invalidAvailability)
         }
+    }
+
+    func testPropagatesRevocationReferencesWithoutChangingAvailability() throws {
+        let registry = CapabilityRegistry()
+        try registry.register(descriptor(authorizationRef: "grant-1"))
+        try registry.register(descriptor(
+            capUri: "airdesk://health/status",
+            authorizationRef: "grant-2"
+        ))
+
+        XCTAssertEqual(registry.applyRevokedReferences(["grant-1"]), 1)
+        XCTAssertEqual(registry.applyRevokedReferences(["grant-1"]), 0)
+        XCTAssertEqual(
+            registry.descriptor(
+                providerDeviceId: "dev-a",
+                capUri: "airdesk://media/camera/capture",
+                version: 1
+            ),
+            descriptor(authorization: .revoked, authorizationRef: "grant-1")
+        )
+        XCTAssertEqual(
+            registry.descriptor(
+                providerDeviceId: "dev-a",
+                capUri: "airdesk://health/status",
+                version: 1
+            )?.authorization,
+            .granted
+        )
+
+        XCTAssertEqual(registry.applyRevokedReferences(["grant-2", "lease-1"]), 1)
+        XCTAssertEqual(
+            registry.descriptor(
+                providerDeviceId: "dev-a",
+                capUri: "airdesk://health/status",
+                version: 1
+            )?.authorization,
+            .revoked
+        )
     }
 
     func testRemovesByVersionAndClearsRegistry() throws {

@@ -43,6 +43,7 @@ struct CapabilityDescriptor: Equatable, Identifiable {
     let label: String
     let summary: String
     let note: String
+    let authorizationRef: String?
 
     var id: String { capUri }
 
@@ -58,7 +59,8 @@ struct CapabilityDescriptor: Equatable, Identifiable {
         authorization: CapabilityAuthorization,
         label: String,
         summary: String,
-        note: String
+        note: String,
+        authorizationRef: String? = nil
     ) {
         self.capUri = capUri
         self.version = version
@@ -72,6 +74,7 @@ struct CapabilityDescriptor: Equatable, Identifiable {
         self.label = label
         self.summary = summary
         self.note = note
+        self.authorizationRef = authorizationRef
     }
 
     func adfpEncoded() -> Data {

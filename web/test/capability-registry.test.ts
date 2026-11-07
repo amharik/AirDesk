@@ -67,7 +67,8 @@ describe('capability registry', () => {
       { latencyMs: Number.NaN },
       { permissions: ['camera', 'camera'] },
       { constraints: ['not', 'a', 'map'] },
-      { constraints: { streaming: Number.POSITIVE_INFINITY } }
+      { constraints: { streaming: Number.POSITIVE_INFINITY } },
+      { authorizationRef: '' }
     ];
 
     for (const patch of invalid) {
@@ -112,6 +113,36 @@ describe('capability registry', () => {
 
     expect(registry.updateAvailability('dev-b', 'runtime-1', capUri, 1, 'busy')).toBe(false);
     expect(registry.updateAuthorization('dev-a', 'runtime-1', capUri, 2, 'granted')).toBe(false);
+  });
+
+  it('propagates revocation references without changing availability', () => {
+    const registry = new CapabilityRegistry();
+    registry.register(descriptor({ authorizationRef: 'grant-1' }));
+    registry.register(descriptor({
+      capUri: 'airdesk://health/status',
+      authorizationRef: 'grant-2'
+    }));
+
+    expect(registry.applyRevokedReferences(['grant-1'])).toBe(1);
+    expect(registry.applyRevokedReferences(['grant-1'])).toBe(0);
+    expect(registry.descriptor('dev-a', 'runtime-1', capUri, 1)).toMatchObject({
+      availability: 'available',
+      authorization: 'revoked'
+    });
+    expect(
+      registry.descriptor('dev-a', 'runtime-1', 'airdesk://health/status', 1)?.authorization
+    ).toBe('granted');
+
+    expect(registry.applyRevocation({
+      entries: [
+        { ref: 'grant-2', kind: 'grant', at: 1, reason: 'user-revoked' },
+        { ref: 'lease-1', kind: 'lease', at: 1, reason: 'user-revoked' }
+      ]
+    })).toBe(1);
+    expect(
+      registry.descriptor('dev-a', 'runtime-1', 'airdesk://health/status', 1)?.authorization
+    ).toBe('revoked');
+    expect(registry.resolve({ capUri }).ok).toBe(false);
   });
 
   it('resolves deterministically with explainable diagnostics', () => {

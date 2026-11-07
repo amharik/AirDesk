@@ -20,6 +20,7 @@ class CapabilityRegistryError(
         INVALID_LABEL,
         INVALID_SUMMARY,
         INVALID_NOTE,
+        INVALID_AUTHORIZATION,
     }
 }
 
@@ -85,6 +86,23 @@ class CapabilityRegistry {
         version: Int,
     ): CapabilityDescriptor? = entries[Key(providerDeviceId, capUri, version)]
 
+    fun applyRevokedReferences(references: Collection<String>): Int {
+        val revoked = references.toSet()
+        val keys = entries.keys.filter { key ->
+            val descriptor = entries[key] ?: return@filter false
+            descriptor.authorization != Authorization.REVOKED &&
+                descriptor.authorizationRef != null &&
+                descriptor.authorizationRef in revoked
+        }
+        var updated = 0
+        for (key in keys) {
+            val existing = entries[key] ?: continue
+            entries[key] = validate(existing.copy(authorization = Authorization.REVOKED))
+            updated += 1
+        }
+        return updated
+    }
+
     fun descriptors(): List<CapabilityDescriptor> =
         entries.values.sortedWith(
             compareBy<CapabilityDescriptor> { it.capUri }
@@ -149,6 +167,11 @@ class CapabilityRegistry {
         }
         if (!bounded(descriptor.note, 2048)) {
             fail(CapabilityRegistryError.Code.INVALID_NOTE)
+        }
+        descriptor.authorizationRef?.let {
+            if (!bounded(it, 256)) {
+                fail(CapabilityRegistryError.Code.INVALID_AUTHORIZATION)
+            }
         }
         return descriptor
     }
