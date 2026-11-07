@@ -22,7 +22,7 @@ The target runtime baseline is WASI 0.2 worlds; WASI 0.3 is an evaluation target
 | Remote SSH PTY | Working, opt-in |
 | AirPlay / external display | Implemented |
 | Google Cast receiver | Development app |
-| iOS unit tests | 340 passing; 1 skipped |
+| iOS unit tests | 343 passing; 1 skipped |
 | Web tests | 189 passing across 24 files |
 | Android unit tests | 49 passing; debug APK built, on-device install pending |
 | iPad UI suite | Passing; 1 opt-in test skipped |
@@ -230,7 +230,7 @@ cargo test --manifest-path ../protocol/rust/Cargo.toml
 
 ### Tests and CI
 
-- `AirDeskTests`: 340 unit tests covering input, runtime routing, SSH PTY, reconnect, terminal messages, identity, capabilities, canonical discovery records, workspace host handoff/degraded mode, browser endpoint hosting and service lifecycle, and entitlements.
+- `AirDeskTests`: 343 unit tests covering input, runtime routing, SSH PTY, reconnect, terminal messages, identity, capabilities, canonical discovery records and the runtime Bonjour browser/publisher adapter, workspace host handoff/degraded mode, browser endpoint hosting and service lifecycle, and entitlements.
 - `web/test`: 189 tests covering the desktop shell, protocol, browser identity/pairing, the RFC 9383 SPAKE2+ vector, interactive session, scrypt password registration, QR/PIN envelopes and attempt limiting, COSE_Sign1 grants, leases, proof-of-possession, revocation snapshots and provider authorization, endpoint policy, sync conflict corpus/collaboration and remote placement.
 - `android/app/src/test`: 49 Kotlin unit tests covering identity, pairing, capabilities, presentation and canonical ADFP integration.
 - `protocol/rust`: 10 tests covering movement/control fixtures and packed-frame handling.
