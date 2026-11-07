@@ -1,6 +1,6 @@
 # Browser endpoint host protocol
 
-Status: loopback host service, browser client/policy, production display page, single-threaded page profile, generation-safe reconnect and app lifecycle wiring are implemented and tested behind [ADR-014](../adr/014-browser-endpoint-topology.md). Workspace surface streaming and non-loopback transport remain pending.
+Status: loopback host service, browser client/policy, production display page, single-threaded page profile, generation-safe reconnect, one-second view-only surface streaming and app lifecycle wiring are implemented and tested behind [ADR-014](../adr/014-browser-endpoint-topology.md). Non-loopback transport remains pending.
 
 ## Topology
 
@@ -66,6 +66,26 @@ Workspace and display-session identifiers are limited to 256 ASCII characters fr
 
 The host rejects workspace/session mismatches, duplicate registration at the same or older generation, stale updates, malformed frames, oversized frames and protocol violations with typed wire errors. A registration with a newer generation for the same workspace/display replaces the active connection, closes the stale connection and preserves the display-session identity. Registration and display updates are surfaced through `onDisplayRegistered` and `onDisplayUpdated`; closure is surfaced through `onConnectionClosed`.
 
+## Surface frames
+
+When at least one display is registered, the iOS service captures the desktop `WKWebView` as a JPEG at most 1280 pixels wide (quality 0.45) once per second and sends it only to registered connections for the same workspace:
+
+```json
+{
+  "type": "display.surface",
+  "workspaceId": "...",
+  "displaySessionId": "...",
+  "generation": 0,
+  "revision": 1,
+  "width": 1280,
+  "height": 720,
+  "mimeType": "image/jpeg",
+  "data": "<base64>"
+}
+```
+
+The host accepts `image/jpeg` and `image/png`, positive dimensions up to 100,000 and base64 payloads up to 8 MiB. A surface frame is presentation data only: it never changes workspace state, grants authority or accepts browser input. The page validates the workspace/display session, MIME type and monotonic non-negative `revision`, renders the newest frame as a data URL and clears it when the connection closes. Surface streaming stops when the last display disconnects or the endpoint stops.
+
 ## Heartbeat and lifecycle
 
 The host sends ping frames on the configured interval when heartbeats are enabled and closes a connection that misses the timeout. Server shutdown cancels the listener and all active connections. Reconnect is a new connection and registration; the page increments its display generation, the host replaces any still-active connection for that display, and no workspace state is created or recreated.
@@ -74,9 +94,8 @@ The iOS app starts the host only when the persisted browser-endpoint setting is 
 
 ## Test coverage
 
-`AirDeskTests/BrowserEndpointProtocolTests.swift` covers URLs, origins, validation and codecs. `AirDeskTests/BrowserEndpointHostTests.swift` covers startup, handshake rejection, token expiry, origin mismatch, registration, viewport/focus updates, duplicate/stale state, newer-generation takeover, heartbeat and closure. `AirDeskTests/BrowserEndpointServiceTests.swift` covers service startup, token rotation, restart, presentation links and failure state. `web/test/browser-endpoint.test.ts`, `browser-endpoint-websocket.test.ts` and `browser-endpoint-page.test.ts` cover the client/policy, transport, page lifecycle, single-threaded startup and reconnect UX.
+`AirDeskTests/BrowserEndpointProtocolTests.swift` covers URLs, origins, validation and codecs. `AirDeskTests/BrowserEndpointHostTests.swift` covers startup, handshake rejection, token expiry, origin mismatch, registration, viewport/focus updates, duplicate/stale state, newer-generation takeover, workspace-scoped surface broadcasting, heartbeat and closure. `AirDeskTests/BrowserEndpointServiceTests.swift` covers service startup, token rotation, restart, presentation links and failure state. `web/test/browser-endpoint.test.ts`, `browser-endpoint-websocket.test.ts` and `browser-endpoint-page.test.ts` cover the client/policy, transport, page lifecycle, single-threaded startup, surface-frame validation/rendering and reconnect UX.
 
 ## Pending
 
-- Stream workspace surfaces to the registered display page.
 - Complete scene lifecycle handling and evaluate a TLS/non-loopback transport only after the loopback baseline is qualified.
