@@ -347,6 +347,22 @@
         this.fail(new BrowserEndpointError("protocol-error", "unexpected control message"));
         return;
       }
+      if (message.type === "display.surface") {
+        if (message.workspaceId !== this.state.workspaceId) {
+          this.fail(new BrowserEndpointError("workspace-mismatch", "workspace mismatch"));
+          return;
+        }
+        if (message.displaySessionId !== this.state.displaySessionId) {
+          this.fail(
+            new BrowserEndpointError("display-session-mismatch", "display session mismatch")
+          );
+          return;
+        }
+        if (message.mimeType !== "image/jpeg" && message.mimeType !== "image/png" || typeof message.data !== "string" || message.data.length === 0 || message.data.length > 11e6 || typeof message.revision !== "number" || !Number.isSafeInteger(message.revision) || message.revision < 0) {
+          this.fail(new BrowserEndpointError("protocol-error", "invalid surface frame"));
+          return;
+        }
+      }
       if (message.type === "display.update") {
         if (message.workspaceId !== void 0 && message.workspaceId !== this.state.workspaceId) {
           this.fail(new BrowserEndpointError("workspace-mismatch", "workspace mismatch"));
@@ -663,13 +679,21 @@
     const display = requireElement(document, "endpoint-display");
     const endpoint = requireElement(document, "endpoint-url");
     const indicator = requireElement(document, "endpoint-indicator");
+    const surface = requireElement(document, "endpoint-surface");
     let disposed = false;
     let reconnectTimer = null;
     let reconnectAttempts = 0;
+    let surfaceRevision = -1;
+    const clearSurface = () => {
+      surfaceRevision = -1;
+      surface.hidden = true;
+      surface.removeAttribute("src");
+    };
     const update = () => {
       const snapshot = client.snapshot();
+      if (snapshot.status !== "connected" && surfaceRevision >= 0) clearSurface();
       status.textContent = statusLabel(snapshot.status);
-      detail.textContent = snapshot.status === "connected" ? "Display registered. Waiting for workspace surface updates." : snapshot.status === "registering" ? "Waiting for the loopback host to confirm this display session." : snapshot.status === "connecting" ? "Dialing the loopback host." : "The display session is not connected.";
+      detail.textContent = snapshot.status === "connected" ? surfaceRevision >= 0 ? "Workspace surface live. This display is view-only." : "Display registered. Waiting for workspace surface frames." : snapshot.status === "registering" ? "Waiting for the loopback host to confirm this display session." : snapshot.status === "connecting" ? "Dialing the loopback host." : "The display session is not connected.";
       error.textContent = snapshot.lastError ? `${snapshot.lastError.code}: ${snapshot.lastError.message}` : "";
       reconnect.disabled = snapshot.status === "connecting" || snapshot.status === "registering" || snapshot.status === "connected";
       workspace.textContent = snapshot.workspaceId;
@@ -736,7 +760,17 @@
         update();
         if (next === "disconnected" || next === "failed") scheduleReconnect();
       }),
-      client.onError(() => update())
+      client.onError(() => update()),
+      client.onDisplayMessage((message) => {
+        if (message.type !== "display.surface") return;
+        if (typeof message.revision !== "number" || typeof message.mimeType !== "string" || typeof message.data !== "string" || message.revision <= surfaceRevision) {
+          return;
+        }
+        surfaceRevision = message.revision;
+        surface.src = `data:${message.mimeType};base64,${message.data}`;
+        surface.hidden = false;
+        update();
+      })
     ];
     const ResizeObserverConstructor = window2.ResizeObserver;
     const resizeObserver = typeof ResizeObserverConstructor === "function" ? new ResizeObserverConstructor(() => updateViewport()) : null;

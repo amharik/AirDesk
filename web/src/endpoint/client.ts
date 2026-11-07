@@ -353,6 +353,31 @@ export class BrowserEndpointClient {
       return;
     }
 
+    if (message.type === 'display.surface') {
+      if (message.workspaceId !== this.state.workspaceId) {
+        this.fail(new BrowserEndpointError('workspace-mismatch', 'workspace mismatch'));
+        return;
+      }
+      if (message.displaySessionId !== this.state.displaySessionId) {
+        this.fail(
+          new BrowserEndpointError('display-session-mismatch', 'display session mismatch')
+        );
+        return;
+      }
+      if (
+        (message.mimeType !== 'image/jpeg' && message.mimeType !== 'image/png') ||
+        typeof message.data !== 'string' ||
+        message.data.length === 0 ||
+        message.data.length > 11_000_000 ||
+        typeof message.revision !== 'number' ||
+        !Number.isSafeInteger(message.revision) ||
+        message.revision < 0
+      ) {
+        this.fail(new BrowserEndpointError('protocol-error', 'invalid surface frame'));
+        return;
+      }
+    }
+
     if (message.type === 'display.update') {
       if (
         message.workspaceId !== undefined &&

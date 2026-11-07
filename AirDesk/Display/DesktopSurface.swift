@@ -22,6 +22,12 @@ enum DesktopSurfaceError: LocalizedError, Equatable {
     }
 }
 
+struct DesktopSurfaceSnapshot: Sendable {
+    let jpegData: Data
+    let width: Int
+    let height: Int
+}
+
 @MainActor
 final class DesktopSurface {
     enum Destination: Equatable {
@@ -206,6 +212,38 @@ final class DesktopSurface {
 
     func attachPreview(to container: UIView) {
         attach(to: container, destination: .preview)
+    }
+
+    func captureBrowserSnapshot(
+        maxWidth: CGFloat = 1_280,
+        quality: CGFloat = 0.45
+    ) async -> DesktopSurfaceSnapshot? {
+        guard isReady, maxWidth >= 1 else { return nil }
+        let bounds = webView.bounds
+        guard bounds.width >= 1, bounds.height >= 1 else { return nil }
+
+        let configuration = WKSnapshotConfiguration()
+        configuration.rect = CGRect(origin: .zero, size: bounds.size)
+        configuration.snapshotWidth = NSNumber(value: Double(min(maxWidth, bounds.width)))
+
+        return await withCheckedContinuation { continuation in
+            webView.takeSnapshot(with: configuration) { image, error in
+                guard error == nil,
+                      let image,
+                      let data = image.jpegData(compressionQuality: max(0.1, min(1, quality))) else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                let scale = max(1, image.scale)
+                continuation.resume(
+                    returning: DesktopSurfaceSnapshot(
+                        jpegData: data,
+                        width: max(1, Int(image.size.width * scale)),
+                        height: max(1, Int(image.size.height * scale))
+                    )
+                )
+            }
+        }
     }
 
     func returnHome() {

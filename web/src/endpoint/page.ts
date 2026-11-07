@@ -106,17 +106,28 @@ export function startEndpointPage(
   const display = requireElement<HTMLElement>(document, 'endpoint-display');
   const endpoint = requireElement<HTMLElement>(document, 'endpoint-url');
   const indicator = requireElement<HTMLElement>(document, 'endpoint-indicator');
+  const surface = requireElement<HTMLImageElement>(document, 'endpoint-surface');
 
   let disposed = false;
   let reconnectTimer: number | null = null;
   let reconnectAttempts = 0;
+  let surfaceRevision = -1;
+
+  const clearSurface = (): void => {
+    surfaceRevision = -1;
+    surface.hidden = true;
+    surface.removeAttribute('src');
+  };
 
   const update = (): void => {
     const snapshot = client.snapshot();
+    if (snapshot.status !== 'connected' && surfaceRevision >= 0) clearSurface();
     status.textContent = statusLabel(snapshot.status);
     detail.textContent =
       snapshot.status === 'connected'
-        ? 'Display registered. Waiting for workspace surface updates.'
+        ? surfaceRevision >= 0
+          ? 'Workspace surface live. This display is view-only.'
+          : 'Display registered. Waiting for workspace surface frames.'
         : snapshot.status === 'registering'
           ? 'Waiting for the loopback host to confirm this display session.'
           : snapshot.status === 'connecting'
@@ -207,7 +218,22 @@ export function startEndpointPage(
       update();
       if (next === 'disconnected' || next === 'failed') scheduleReconnect();
     }),
-    client.onError(() => update())
+    client.onError(() => update()),
+    client.onDisplayMessage((message) => {
+      if (message.type !== 'display.surface') return;
+      if (
+        typeof message.revision !== 'number' ||
+        typeof message.mimeType !== 'string' ||
+        typeof message.data !== 'string' ||
+        message.revision <= surfaceRevision
+      ) {
+        return;
+      }
+      surfaceRevision = message.revision;
+      surface.src = `data:${message.mimeType};base64,${message.data}`;
+      surface.hidden = false;
+      update();
+    })
   ];
 
   const ResizeObserverConstructor = (

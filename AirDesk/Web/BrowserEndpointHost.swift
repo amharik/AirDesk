@@ -87,6 +87,15 @@ struct BrowserEndpointDisplayUpdate: Equatable, Sendable {
     let registration: BrowserEndpointRegistration
 }
 
+struct BrowserEndpointSurfaceFrame: Equatable, Sendable {
+    let workspaceId: String
+    let revision: UInt64
+    let width: Int
+    let height: Int
+    let mimeType: String
+    let payloadBase64: String
+}
+
 enum BrowserEndpointRegistrationResult {
     case accepted(BrowserEndpointRegistration)
     case rejected(BrowserEndpointWireErrorCode, String)
@@ -267,6 +276,49 @@ final class BrowserEndpointHost: @unchecked Sendable {
             }
             return $0.workspaceId < $1.workspaceId
         }
+    }
+
+    @discardableResult
+    func broadcastSurface(_ frame: BrowserEndpointSurfaceFrame) -> Int {
+        guard (1...100_000).contains(frame.width),
+              (1...100_000).contains(frame.height),
+              frame.mimeType == "image/jpeg" || frame.mimeType == "image/png",
+              !frame.payloadBase64.isEmpty,
+              frame.payloadBase64.utf8.count <= 8 * 1_024 * 1_024 else {
+            return 0
+        }
+
+        stateLock.lock()
+        let targets = activeRegistrations.values.compactMap { registration -> (BrowserEndpointRegistration, BrowserEndpointConnection)? in
+            guard registration.workspaceId == frame.workspaceId,
+                  let connection = connections[registration.connectionId] else {
+                return nil
+            }
+            return (registration, connection)
+        }
+        stateLock.unlock()
+
+        var delivered = 0
+        for (registration, connection) in targets {
+            let message: [String: Any] = [
+                "type": "display.surface",
+                "workspaceId": registration.workspaceId,
+                "displaySessionId": registration.displaySessionId,
+                "generation": registration.generation,
+                "revision": frame.revision,
+                "width": frame.width,
+                "height": frame.height,
+                "mimeType": frame.mimeType,
+                "data": frame.payloadBase64
+            ]
+            guard let encoded = try? JSONSerialization.data(withJSONObject: message),
+                  let text = String(data: encoded, encoding: .utf8) else {
+                continue
+            }
+            connection.sendText(text)
+            delivered += 1
+        }
+        return delivered
     }
 
     deinit {
@@ -518,6 +570,13 @@ private final class BrowserEndpointConnection: @unchecked Sendable {
                 return
             }
             self.sendCloseAndCancel(code: 1001, reason: "host-stop")
+        }
+    }
+
+    func sendText(_ text: String) {
+        queue.async {
+            guard !self.isClosed, self.phase == .registered else { return }
+            self.sendFrame(.text(Data(text.utf8)))
         }
     }
 

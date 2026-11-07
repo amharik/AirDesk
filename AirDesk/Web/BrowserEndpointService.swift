@@ -1,6 +1,12 @@
 import Foundation
 import Security
 
+struct BrowserEndpointSurfaceImage: Sendable {
+    let jpegData: Data
+    let width: Int
+    let height: Int
+}
+
 @MainActor
 final class BrowserEndpointService: ObservableObject {
     enum State: Equatable {
@@ -34,11 +40,18 @@ final class BrowserEndpointService: ObservableObject {
     @Published private(set) var endpointURL: URL?
     @Published private(set) var presentationURL: URL?
     @Published private(set) var lastError: String?
+    @Published private(set) var registeredDisplayCount = 0
+
+    var surfaceImageProvider: (@MainActor () async -> BrowserEndpointSurfaceImage?)?
 
     private let tokenLifetime: TimeInterval
     private let now: () -> Date
     private let displaySessionId: String
     private var host: BrowserEndpointHost?
+    private var workspaceId = "workspace.local"
+    private var surfaceTask: Task<Void, Never>?
+    private var surfaceTaskId: UUID?
+    private var surfaceRevision: UInt64 = 0
 
     init(
         tokenLifetime: TimeInterval = 3_600,
@@ -91,13 +104,30 @@ final class BrowserEndpointService: ObservableObject {
                     displaySessionId: displaySessionId
                 )
             }
+            host.onDisplayRegistered = { [weak self, weak host] _ in
+                Task { @MainActor [weak self, weak host] in
+                    guard let self, let host, self.host === host else { return }
+                    self.displayDidRegister()
+                }
+            }
+            host.onConnectionClosed = { [weak self, weak host] _ in
+                Task { @MainActor [weak self, weak host] in
+                    guard let self, let host, self.host === host else { return }
+                    self.displayDidClose()
+                }
+            }
             self.host = host
+            self.workspaceId = resolvedWorkspaceId
             self.endpointURL = endpointURL
             self.presentationURL = presentationURL
             state = .running
         } catch {
-            host?.stop()
+            stopSurfaceStream()
+            let currentHost = host
             host = nil
+            currentHost?.stop()
+            registeredDisplayCount = 0
+            surfaceRevision = 0
             endpointURL = nil
             presentationURL = nil
             lastError = error.localizedDescription
@@ -107,8 +137,12 @@ final class BrowserEndpointService: ObservableObject {
     }
 
     func stop() {
-        host?.stop()
+        stopSurfaceStream()
+        let currentHost = host
         host = nil
+        currentHost?.stop()
+        registeredDisplayCount = 0
+        surfaceRevision = 0
         endpointURL = nil
         presentationURL = nil
         lastError = nil
@@ -119,6 +153,68 @@ final class BrowserEndpointService: ObservableObject {
         stop()
         lastError = error.localizedDescription
         state = .failed(error.localizedDescription)
+    }
+
+    private func displayDidRegister() {
+        guard host != nil else { return }
+        registeredDisplayCount += 1
+        startSurfaceStreamIfNeeded()
+    }
+
+    private func displayDidClose() {
+        guard host != nil else { return }
+        registeredDisplayCount = max(0, registeredDisplayCount - 1)
+        if registeredDisplayCount == 0 {
+            stopSurfaceStream()
+        }
+    }
+
+    private func startSurfaceStreamIfNeeded() {
+        guard surfaceTask == nil,
+              registeredDisplayCount > 0,
+              surfaceImageProvider != nil else {
+            return
+        }
+        let taskId = UUID()
+        surfaceTaskId = taskId
+        surfaceTask = Task { @MainActor [weak self] in
+            defer {
+                if let self, self.surfaceTaskId == taskId {
+                    self.surfaceTask = nil
+                    self.surfaceTaskId = nil
+                }
+            }
+            while !Task.isCancelled {
+                guard let self,
+                      self.registeredDisplayCount > 0,
+                      let provider = self.surfaceImageProvider else {
+                    return
+                }
+                if let image = await provider(),
+                   !Task.isCancelled,
+                   self.surfaceTaskId == taskId,
+                   let host = self.host,
+                   self.registeredDisplayCount > 0 {
+                    self.surfaceRevision &+= 1
+                    let frame = BrowserEndpointSurfaceFrame(
+                        workspaceId: self.workspaceId,
+                        revision: self.surfaceRevision,
+                        width: image.width,
+                        height: image.height,
+                        mimeType: "image/jpeg",
+                        payloadBase64: image.jpegData.base64EncodedString()
+                    )
+                    _ = host.broadcastSurface(frame)
+                }
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+            }
+        }
+    }
+
+    private func stopSurfaceStream() {
+        surfaceTask?.cancel()
+        surfaceTask = nil
+        surfaceTaskId = nil
     }
 
     private static func makeEndpointURL(

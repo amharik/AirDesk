@@ -176,9 +176,30 @@ describe('browser endpoint presentation page', () => {
       'ws://127.0.0.1:51999/endpoint'
     );
 
+    transport.latest().emitMessage({
+      type: 'display.surface',
+      workspaceId: 'workspace-alpha',
+      displaySessionId: 'display-1',
+      generation: 0,
+      revision: 1,
+      width: 2,
+      height: 1,
+      mimeType: 'image/jpeg',
+      data: 'AQID'
+    });
+    await settle();
+    const surface = document.getElementById('endpoint-surface') as HTMLImageElement;
+    expect(surface.hidden).toBe(false);
+    expect(surface.getAttribute('src')).toBe('data:image/jpeg;base64,AQID');
+    expect(document.getElementById('endpoint-detail')?.textContent).toContain(
+      'Workspace surface live'
+    );
+
     transport.latest().emitClose();
     await settle();
     expect(document.getElementById('endpoint-status')?.textContent).toBe('Disconnected');
+    expect(surface.hidden).toBe(true);
+    expect(surface.hasAttribute('src')).toBe(false);
 
     document.getElementById('endpoint-reconnect')?.click();
     await settle();

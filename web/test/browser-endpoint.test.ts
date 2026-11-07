@@ -228,6 +228,7 @@ describe('browser endpoint display client', () => {
       type: 'display.register',
       workspaceId: 'workspace-alpha',
       displaySessionId: 'display-1',
+      generation: 2,
       viewport: { width: 1280, height: 720 }
     });
     second.emitMessage({
@@ -310,6 +311,33 @@ describe('browser endpoint display client', () => {
       status: 'failed',
       lastError: { code: 'display-session-mismatch' }
     });
+  });
+
+  it('rejects malformed surface frames', async () => {
+    const transport = new FakeTransport();
+    const client = makeClient(transport);
+    await client.start();
+    const connection = transport.latest();
+    connection.emitMessage({
+      type: 'display.registered',
+      workspaceId: 'workspace-alpha',
+      displaySessionId: 'display-1'
+    });
+
+    connection.emitMessage({
+      type: 'display.surface',
+      workspaceId: 'workspace-alpha',
+      displaySessionId: 'display-1',
+      revision: 1,
+      mimeType: 'text/html',
+      data: 'AQID'
+    });
+
+    expect(client.snapshot()).toMatchObject({
+      status: 'failed',
+      lastError: { code: 'protocol-error' }
+    });
+    expect(connection.closed).toBe(true);
   });
 });
 

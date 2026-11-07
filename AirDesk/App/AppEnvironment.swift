@@ -99,6 +99,18 @@ final class AppEnvironment: ObservableObject {
         guard !bootstrapped else { return }
         bootstrapped = true
 
+        browserEndpoint.surfaceImageProvider = { [weak self] in
+            guard let self,
+                  let snapshot = await self.session.desktopSurface.captureBrowserSnapshot() else {
+                return nil
+            }
+            return BrowserEndpointSurfaceImage(
+                jpegData: snapshot.jpegData,
+                width: snapshot.width,
+                height: snapshot.height
+            )
+        }
+
         display.setPresentationMode(settings.displayMode)
         display.onExternalDisplayConnected = { [weak self] container in
             self?.session.externalDisplayDidConnect(container)

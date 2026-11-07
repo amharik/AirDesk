@@ -90,6 +90,69 @@ final class BrowserEndpointHostTests: XCTestCase {
         XCTAssertEqual(recorder.updates.last?.registration.focusTarget, "editor")
     }
 
+    func testBroadcastsSurfaceFramesOnlyToMatchingWorkspaceDisplay() async throws {
+        let host = try makeHost()
+        defer { host.stop() }
+        let address = try host.start()
+
+        let client = try await BrowserEndpointTestClient.connect(
+            port: address.port,
+            target: "/endpoint?token=\(token)",
+            origin: origin
+        )
+        defer { client.close() }
+        client.sendText(try registrationMessage())
+        _ = try await client.nextText()
+        try await waitUntil { host.registeredDisplays().count == 1 }
+
+        let frame = BrowserEndpointSurfaceFrame(
+            workspaceId: "workspace-alpha",
+            revision: 7,
+            width: 640,
+            height: 480,
+            mimeType: "image/jpeg",
+            payloadBase64: "AQID"
+        )
+        XCTAssertEqual(host.broadcastSurface(frame), 1)
+
+        let surface = try json(from: try await client.nextText())
+        XCTAssertEqual(surface["type"] as? String, "display.surface")
+        XCTAssertEqual(surface["workspaceId"] as? String, "workspace-alpha")
+        XCTAssertEqual(surface["displaySessionId"] as? String, "display-1")
+        XCTAssertEqual(surface["revision"] as? Int, 7)
+        XCTAssertEqual(surface["width"] as? Int, 640)
+        XCTAssertEqual(surface["height"] as? Int, 480)
+        XCTAssertEqual(surface["mimeType"] as? String, "image/jpeg")
+        XCTAssertEqual(surface["data"] as? String, "AQID")
+
+        XCTAssertEqual(
+            host.broadcastSurface(
+                BrowserEndpointSurfaceFrame(
+                    workspaceId: "workspace-other",
+                    revision: 8,
+                    width: 1,
+                    height: 1,
+                    mimeType: "image/jpeg",
+                    payloadBase64: "AQID"
+                )
+            ),
+            0
+        )
+        XCTAssertEqual(
+            host.broadcastSurface(
+                BrowserEndpointSurfaceFrame(
+                    workspaceId: "workspace-alpha",
+                    revision: 9,
+                    width: 1,
+                    height: 1,
+                    mimeType: "text/html",
+                    payloadBase64: "AQID"
+                )
+            ),
+            0
+        )
+    }
+
     func testRejectsDuplicateActiveRegistration() async throws {
         let host = try makeHost()
         defer { host.stop() }
