@@ -370,6 +370,17 @@ final class AppEnvironment: ObservableObject {
         )
     }
 
+    func activateWorkspaceSync(pairingKeys: PairingKeySchedule.Keys) throws {
+        guard let report = workspaceRestoreReport else {
+            throw WorkspaceSyncControllerError.workspaceMissing
+        }
+        let key = try WorkspaceSyncCrypto.deriveKey(
+            secret: pairingKeys.transport.bytes,
+            workspaceId: report.workspaceId
+        )
+        try activateWorkspaceSync(key: key)
+    }
+
     private func configureWorkspaceSyncIfAvailable(
         bootstrapper: WorkspaceBootstrapper,
         report: WorkspaceRestoreReport
