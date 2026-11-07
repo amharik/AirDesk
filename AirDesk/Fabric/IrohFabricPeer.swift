@@ -36,6 +36,7 @@ final class IrohFabricPeer: ObservableObject {
 
     var onInputEvent: ((InputEvent) -> Void)?
     var onMovementFrame: ((PackedMovementFrame) -> Void)?
+    var onSyncEnvelope: ((Data) -> Void)?
     var onPeerConnected: ((String) -> Void)?
     var onPeerDisconnected: ((String) -> Void)?
 
@@ -189,6 +190,27 @@ final class IrohFabricPeer: ObservableObject {
         return true
     }
 
+    @discardableResult
+    func sendSync(_ payload: Data) -> Bool {
+        guard let connection = activeConnection else { return false }
+        guard !payload.isEmpty, payload.count <= IrohFabricFrame.maximumReliablePayload else {
+            lastError = IrohFabricError.frameTooLarge.localizedDescription
+            return false
+        }
+
+        let previous = sendChain
+        sendChain = Task { @MainActor [weak self, weak connection] in
+            _ = await previous?.value
+            guard let connection else { return }
+            do {
+                try await connection.send(payload, channel: .sync)
+            } catch {
+                self?.lastError = error.localizedDescription
+            }
+        }
+        return true
+    }
+
     private var activeConnection: IrohFabricConnection? {
         guard let activeRemoteID else { return nil }
         return connections[activeRemoteID]
@@ -231,7 +253,11 @@ final class IrohFabricPeer: ObservableObject {
         switch message {
         case .invalid(let reason):
             lastError = reason
-        case .reliable:
+        case .reliable(let channel, let payload):
+            if channel == .sync {
+                onSyncEnvelope?(payload)
+                return
+            }
             do {
                 guard let event = try IrohFabricInputCodec.decodeReliable(message) else { return }
                 onInputEvent?(event)

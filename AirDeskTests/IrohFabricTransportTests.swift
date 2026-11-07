@@ -11,6 +11,8 @@ final class IrohFabricTransportTests: XCTestCase {
     func testFrameEncodingAndValidation() throws {
         let frame = try IrohFabricFrame(channel: .control, payload: Data([1, 2, 3]))
         XCTAssertEqual(frame.encoded, Data([0, 0, 0, 0, 3, 1, 2, 3]))
+        XCTAssertTrue(IrohFabricChannel.sync.isReliable)
+        XCTAssertEqual(IrohFabricChannel.reliable(rawValue: IrohFabricChannel.sync.rawValue), .sync)
 
         let movement = Data(repeating: 0x7f, count: 16)
         XCTAssertEqual(try IrohFabricFrame(movement: movement).payload, movement)
@@ -85,6 +87,14 @@ final class IrohFabricTransportTests: XCTestCase {
             return XCTFail("Expected reliable runtime message")
         }
         XCTAssertEqual(receivedRuntime, runtime)
+
+        let sync = Data("sync-envelope".utf8)
+        try await controllerConnection.send(sync, channel: .sync)
+        let syncMessage = try await nextMessage(from: accepted)
+        guard case .reliable(channel: .sync, let receivedSync) = syncMessage else {
+            return XCTFail("Expected reliable sync message")
+        }
+        XCTAssertEqual(receivedSync, sync)
 
         let diagnostics = accepted.diagnostics()
         XCTAssertEqual(diagnostics.remoteEndpointID, controllerInfo.endpointID)

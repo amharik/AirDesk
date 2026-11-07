@@ -6,6 +6,7 @@ enum IrohFabricChannel: UInt8, CaseIterable, Sendable {
     case runtime = 2
     case resource = 3
     case display = 4
+    case sync = 5
     case inputEdges = 0x81
 
     var isReliable: Bool { self != .movement }
