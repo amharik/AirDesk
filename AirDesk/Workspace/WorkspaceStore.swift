@@ -29,6 +29,9 @@ final class NativeWorkspaceStore: WorkspaceStore {
 
     private(set) var lastRecoveryWarning: WorkspaceStoreError?
 
+    var storageDirectory: URL { directory }
+    var syncStateURL: URL { directory.appendingPathComponent("workspace.sync.json") }
+
     init(directory: URL, fileManager: FileManager = .default) throws {
         self.directory = directory
         self.manifestURL = directory.appendingPathComponent(Self.manifestFileName)

@@ -1,4 +1,5 @@
 import Combine
+import CryptoKit
 import Foundation
 import UIKit
 
@@ -51,6 +52,7 @@ final class AppEnvironment: ObservableObject {
     }
 
     private var workspaceBootstrapper: WorkspaceBootstrapper?
+    private(set) var workspaceSyncRuntime: WorkspaceSyncRuntime?
     private var bootstrapped = false
     private var cancellables = Set<AnyCancellable>()
     #if DEBUG
@@ -163,9 +165,13 @@ final class AppEnvironment: ObservableObject {
         }
         fabric.onPeerConnected = { [weak self] remoteEndpointID in
             self?.session.fabricPeerDidConnect(remoteEndpointID)
+            self?.workspaceSyncRuntime?.peerDidConnect()
         }
         fabric.onPeerDisconnected = { [weak self] remoteEndpointID in
             self?.session.fabricPeerDidDisconnect(remoteEndpointID)
+        }
+        fabric.onSyncEnvelope = { [weak self] data in
+            self?.workspaceSyncRuntime?.handleEnvelope(data)
         }
 
         settings.$fabricEnabled
@@ -344,9 +350,54 @@ final class AppEnvironment: ObservableObject {
                     createdAt: report.createdAt
                 )
             )
+            configureWorkspaceSyncIfAvailable(bootstrapper: bootstrapper, report: report)
         } catch {
             workspaceRestoreError = error.localizedDescription
         }
+    }
+
+    func activateWorkspaceSync(key: SymmetricKey) throws {
+        guard let workspaceBootstrapper,
+              let report = workspaceRestoreReport else {
+            throw WorkspaceSyncControllerError.workspaceMissing
+        }
+        let keyStore = KeychainWorkspaceSyncKeyStore()
+        try keyStore.saveKey(key, workspaceId: report.workspaceId)
+        try installWorkspaceSync(
+            key: key,
+            bootstrapper: workspaceBootstrapper,
+            report: report
+        )
+    }
+
+    private func configureWorkspaceSyncIfAvailable(
+        bootstrapper: WorkspaceBootstrapper,
+        report: WorkspaceRestoreReport
+    ) {
+        let keyStore = KeychainWorkspaceSyncKeyStore()
+        guard let key = try? keyStore.loadKey(workspaceId: report.workspaceId) else {
+            return
+        }
+        try? installWorkspaceSync(key: key, bootstrapper: bootstrapper, report: report)
+    }
+
+    private func installWorkspaceSync(
+        key: SymmetricKey,
+        bootstrapper: WorkspaceBootstrapper,
+        report: WorkspaceRestoreReport
+    ) throws {
+        let runtime = try WorkspaceSyncRuntime(
+            key: key,
+            workspaceId: report.workspaceId,
+            senderDeviceId: bootstrapper.host.deviceId,
+            hostEpoch: bootstrapper.host.hostEpoch ?? 1,
+            host: bootstrapper.host,
+            fabric: fabric,
+            stateURL: bootstrapper.store.syncStateURL
+        )
+        workspaceSyncRuntime = runtime
+        try runtime.publishLocalSnapshot()
+        runtime.peerDidConnect()
     }
 
     #if DEBUG
