@@ -64,7 +64,7 @@ The FlatBuffers schema is structural. It declares identity, pairing, binding and
 | AD-DISPLAY | Active MVP | Display capability, viewport and presentation status |
 | AD-APP | Early | Application lifecycle and launch requests |
 | AD-WINDOW | Early | Window and layout presentation messages |
-| AD-SYNC | Early | Encrypted workspace synchronization; merge/envelope foundations exist in the browser and iOS, with native envelopes carried over a reliable Iroh `.sync` channel; session/offline flushing and workspace-store integration remain pending |
+| AD-SYNC | Early | Encrypted workspace synchronization; merge/envelope foundations exist in the browser and iOS, with native envelopes carried over a reliable Iroh `.sync` channel and a persistent per-sender outbox with offline flush and replay guards; workspace-store integration remains pending |
 | AD-MEDIA | Later | Audio, video and media streams |
 | AD-AI | Later | Intent and agent operations |
 | AD-GROUP | Early | Shared workspace membership and collaboration; roles/audit foundations only |
