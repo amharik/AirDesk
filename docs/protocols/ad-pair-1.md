@@ -1,6 +1,6 @@
 # AD-PAIR-1 pairing transcript and key schedule
 
-Status: partial implementation behind [ADR-011](../adr/011-device-identity-discovery-pairing.md). The transcript, signature checks, channel-binding validation and key schedule are implemented in the browser identity layer. An interactive RFC 9383 SPAKE2+ P-256 prover/verifier session is implemented, validated against the RFC vector and integrated with `AdPairSession` confirmation evidence. An scrypt password PBKDF, salted registration record and browser QR/PIN challenge envelopes are implemented. The camera/UI flow, native parity and native/browser binding acquisition remain pending.
+Status: partial implementation behind [ADR-011](../adr/011-device-identity-discovery-pairing.md). The transcript, signature checks, channel-binding validation and key schedule are implemented in the browser identity layer. An interactive RFC 9383 SPAKE2+ P-256 prover/verifier session is implemented, validated against the RFC vector and integrated with `AdPairSession` confirmation evidence. An scrypt password PBKDF, salted registration record and browser QR/PIN challenge envelopes are implemented. iOS now matches the AD-PAIR-1 key schedule and implements native SPAKE2+ against the RFC vector using isolated OpenSSL P-256 group operations under [ADR-022](../adr/022-openssl-p256-group-arithmetic.md). The camera/UI flow, complete native pairing session, password registration and native/browser binding acquisition remain pending.
 
 ## Scope
 
@@ -54,7 +54,7 @@ Each side signs the canonical transcript bytes with its device key. Ed25519 is t
 
 `Spake2PlusSession` adapts the primitive to the interactive exchange: `proverStart()` emits the prover share, `verifierRespond()` returns the verifier share and confirmation, `proverFinish()` verifies the verifier confirmation and emits the prover confirmation, and `verifierFinish()` verifies the prover confirmation. The resulting base64url shares, confirmations and shared secret can be supplied to `AdPairSession` as `pakeExchange`; `AdPairFinishInput.secret` is then optional, and the session validates the exchange before signing the transcript.
 
-Native parity is still required before pairing can be called complete.
+`AirDesk/Identity/Spake2PlusP256.swift` ports the same primitive and interactive session to iOS. It uses `NativeP256Group`, an adapter over the audited OpenSSL 3.6.5 P-256 group operations admitted by ADR-022, while CryptoKit supplies SHA-256, HKDF and HMAC. `AirDeskTests/Spake2PlusP256Tests.swift` reproduces the RFC 9383 shares, `Z`, `V`, transcript, keys and confirmations, and verifies the interactive confirmation exchange. Native password registration, the pairing transcript/session and transport binding remain pending before pairing can be called complete.
 
 ## Password PBKDF
 
@@ -115,7 +115,7 @@ The transcript hash must be exactly 32 bytes. Missing or malformed channel bindi
 
 ## Pending
 
-- QR/PIN camera/scanning UI, native parity and user-verification integration.
+- QR/PIN camera/scanning UI, complete native pairing flow and user-verification integration.
 - TLS exporter and browser host-certificate hash acquisition.
-- Native iOS/Android implementation and cross-platform vectors.
-- Transport binding of the derived keys to ADFP or Iroh.
+- Native scrypt password registration and Android implementation.
+- Transport binding of the derived keys to ADFP or Iroh and automatic workspace-sync activation.

@@ -7,6 +7,8 @@ This index is the authoritative map of which decision is in force. An ADR's orig
 > **Execution note (2026-11-06):** User direction adopts Iroh for the native peer data plane under ADR-021. The browser endpoint remains WebSocket. Product release sequencing is still paused until R6; the Iroh adapter may be implemented and tested in parallel.
 >
 > **Execution note (2026-11-06):** User direction also authorized foundational implementation of Android, identity, ADFP, browser-endpoint, sync/collaboration and remote-placement work. Those changes remain behind the proposed ADRs and do not promote decisions, complete qualification gates or move work into Release 1 scope. The browser AD-PAIR-1 transcript/signature/key schedule, an interactive RFC 9383 SPAKE2+ P-256 session validated against the RFC vector, a loopback browser endpoint host service with app lifecycle wiring, workspace host handoff/degraded mode and an iOS capability catalog are now implemented and tested; browser QR/PIN challenge envelopes, attempt limiting, canonical DNS-SD advertisement records and browser-side COSE_Sign1 capability grants with bounded delegation/leases, `cnf` proof-of-possession, signed revocation snapshots and provider-side request authorization exist, while the QR/PIN UI/native flow, runtime discovery adapter, revocation distribution, native invocation enforcement, a production browser page, real network transports and remote execution are still pending.
+>
+> **Execution note (2026-11-07):** Native AD-PAIR-1 now uses the audited OpenSSL 3.6.5 P-256 group operations under ADR-022, reproduces the RFC 9383 SPAKE2+ vector and derives workspace sync keys from the pairing transport key. The native pairing session, QR/PIN UI, channel-binding acquisition and automatic sync activation remain pending under ADR-011/SYNC-01.
 
 | ADR | Decision | Decision status | Implementation status | Effective note |
 | --- | --- | --- | --- | --- |
@@ -31,6 +33,7 @@ This index is the authoritative map of which decision is in force. An ADR's orig
 | [019](019-application-model-and-lifecycle.md) | Application model and lifecycle | Proposed | Not started | Applications are provider-neutral; manifests pin WASI worlds; remote apps select protocols via AD-CAP |
 | [020](020-workspace-host-role-and-authority-handoff.md) | Workspace host role and authority handoff | Proposed | Partial | `WorkspaceHost` owns store commits, structural sequencing and orchestration; input leases stay at the display sink; handoff is explicit and `host_epoch`-fenced; quiesce/stage/activate/retire, force takeover and degraded mode are implemented and tested, while distributed transfer/lease gates remain pending |
 | [021](021-iroh-native-transport.md) | Iroh native transport adoption | Accepted | In progress | Official `IrohLib` 1.2.0, iOS 17.5, explicit self-hosted relay policy, browser remains WebSocket |
+| [022](022-openssl-p256-group-arithmetic.md) | OpenSSL P-256 group arithmetic for native AD-PAIR-1 | Accepted | Implemented | OpenSSL 3.6.5 via `OpenSSL-Package` 3.6.5000, isolated to P-256 group operations; CryptoKit remains the general crypto provider |
 
 ## Effective decisions
 
@@ -42,7 +45,7 @@ This index is the authoritative map of which decision is in force. An ADR's orig
 - **Transport:** WebSocket is the browser baseline; Iroh is the native peer data plane under ADR-021 with direct-first, explicit self-hosted relay policy; WebTransport remains an optional Baseline 2026 candidate.
 - **Persistence:** device-local first; fields declare `lww`, `append-log` or `manual`; encrypted cross-device synchronization is later; CRDTs are shared-document only.
 - **Display:** a display session, including a browser endpoint, presents a workspace but is not its authority; browser starts single-threaded.
-- **Identity:** Ed25519 default with P-256 fallback; device trust is not workspace ownership or collaboration; future user identity uses WebAuthn/FIDO2.
+- **Identity:** Ed25519 default with P-256 fallback; device trust is not workspace ownership or collaboration; future user identity uses WebAuthn/FIDO2; native AD-PAIR-1 uses isolated OpenSSL P-256 group operations under ADR-022.
 - **Capabilities:** scoped, time-bounded, revocable leases; advertisement is not permission.
 - **Input:** multiple controllers may attach; one keyboard focus owner at a time; this is not multi-user collaboration.
 
