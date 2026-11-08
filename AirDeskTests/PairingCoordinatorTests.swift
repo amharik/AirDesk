@@ -132,6 +132,107 @@ final class PairingCoordinatorTests: XCTestCase {
         }
     }
 
+    func testPairingRecordsPeersInRegistry() throws {
+        let hostIdentity = try DeviceIdentity()
+        let controllerIdentity = try DeviceIdentity()
+        let hostRegistry = try DeviceRegistry(storage: InMemoryDeviceRegistryStorage())
+        let controllerRegistry = try DeviceRegistry(storage: InMemoryDeviceRegistryStorage())
+        let host = AdPairCoordinator(
+            role: .initiator,
+            identity: hostIdentity,
+            registry: hostRegistry,
+            peerDisplayLabel: "Controller",
+            now: { self.now },
+            randomBytes: { Data(repeating: 6, count: $0) }
+        )
+        let controller = AdPairCoordinator(
+            role: .responder,
+            identity: controllerIdentity,
+            registry: controllerRegistry,
+            peerDisplayLabel: "Host",
+            now: { self.now }
+        )
+        let start = try host.startInitiator(mode: .pin, channelBinding: binding)
+        let pin = try XCTUnwrap(start.challenge.pin)
+        let join = try controller.joinResponder(
+            code: start.challenge.serialized,
+            pin: pin
+        )
+        let shareP = try host.acceptResponse(join.responseData)
+        let reply = try controller.respond(shareP: shareP)
+        let finished = try host.finishInitiator(
+            shareV: reply.share,
+            responderConfirmation: reply.confirmation,
+            responderSignature: reply.signature
+        )
+        _ = try controller.finishResponder(
+            initiatorConfirmation: finished.confirmation,
+            initiatorSignature: finished.signature
+        )
+
+        XCTAssertEqual(hostRegistry.peer(deviceId: controllerIdentity.deviceId)?.displayLabel, "Controller")
+        XCTAssertTrue(hostRegistry.isTrusted(deviceId: controllerIdentity.deviceId))
+        XCTAssertEqual(controllerRegistry.peer(deviceId: hostIdentity.deviceId)?.displayLabel, "Host")
+        XCTAssertTrue(controllerRegistry.isTrusted(deviceId: hostIdentity.deviceId))
+    }
+
+    func testRevokedPeersCannotJoinOrComplete() throws {
+        let offerRegistry = try DeviceRegistry(storage: InMemoryDeviceRegistryStorage())
+        let responseRegistry = try DeviceRegistry(storage: InMemoryDeviceRegistryStorage())
+        let hostIdentity = try DeviceIdentity()
+        let controllerIdentity = try DeviceIdentity()
+        try offerRegistry.upsert(
+            PairedPeerRecord(
+                deviceId: hostIdentity.deviceId,
+                displayLabel: "Host",
+                publicKeySPKI: hostIdentity.spki,
+                pairedAt: now
+            )
+        )
+        try offerRegistry.revoke(deviceId: hostIdentity.deviceId, at: now)
+        try responseRegistry.upsert(
+            PairedPeerRecord(
+                deviceId: controllerIdentity.deviceId,
+                displayLabel: "Controller",
+                publicKeySPKI: controllerIdentity.spki,
+                pairedAt: now
+            )
+        )
+        try responseRegistry.revoke(deviceId: controllerIdentity.deviceId, at: now)
+
+        let host = AdPairCoordinator(
+            role: .initiator,
+            identity: hostIdentity,
+            registry: responseRegistry,
+            now: { self.now },
+            randomBytes: { Data(repeating: 7, count: $0) }
+        )
+        let controller = AdPairCoordinator(
+            role: .responder,
+            identity: controllerIdentity,
+            registry: offerRegistry,
+            now: { self.now }
+        )
+        let start = try host.startInitiator(mode: .pin, channelBinding: binding)
+        let pin = try XCTUnwrap(start.challenge.pin)
+        XCTAssertThrowsError(
+            try controller.joinResponder(code: start.challenge.serialized, pin: pin)
+        ) { XCTAssertEqual(($0 as? AdPairError)?.code, "revoked-device") }
+
+        let cleanController = AdPairCoordinator(
+            role: .responder,
+            identity: controllerIdentity,
+            now: { self.now }
+        )
+        let join = try cleanController.joinResponder(
+            code: start.challenge.serialized,
+            pin: pin
+        )
+        XCTAssertThrowsError(try host.acceptResponse(join.responseData)) {
+            XCTAssertEqual(($0 as? AdPairError)?.code, "revoked-device")
+        }
+    }
+
     func testRejectsWrongRoleWrongStateAndExpiredCode() throws {
         let host = AdPairCoordinator(
             role: .initiator,

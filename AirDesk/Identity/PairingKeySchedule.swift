@@ -95,6 +95,8 @@ enum PairingKeySchedule {
             return "exporter"
         case .certificateSHA256:
             return "certificate-hash"
+        case .irohEndpoint:
+            return "iroh-endpoint"
         }
     }
 

@@ -15,6 +15,7 @@ enum PairingProtocol {
 enum PairingChannelBindingKind: String, Codable {
     case tlsExporter = "tls-exporter"
     case certificateSHA256 = "certificate-sha256"
+    case irohEndpoint = "iroh-endpoint"
 }
 
 struct PairingChannelBinding: Codable, Equatable {

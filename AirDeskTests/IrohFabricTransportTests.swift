@@ -13,6 +13,8 @@ final class IrohFabricTransportTests: XCTestCase {
         XCTAssertEqual(frame.encoded, Data([0, 0, 0, 0, 3, 1, 2, 3]))
         XCTAssertTrue(IrohFabricChannel.sync.isReliable)
         XCTAssertEqual(IrohFabricChannel.reliable(rawValue: IrohFabricChannel.sync.rawValue), .sync)
+        XCTAssertEqual(IrohFabricChannel.pairing.rawValue, 6)
+        XCTAssertEqual(IrohFabricChannel.reliable(rawValue: 6), .pairing)
 
         let movement = Data(repeating: 0x7f, count: 16)
         XCTAssertEqual(try IrohFabricFrame(movement: movement).payload, movement)

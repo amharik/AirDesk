@@ -195,6 +195,12 @@ final class DeviceRegistry {
         return records[deviceId]?.trustState == .trusted
     }
 
+    func isRevoked(deviceId: String) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return records[deviceId]?.trustState == .revoked
+    }
+
     func canEstablishSession(deviceId: String) -> Bool {
         isTrusted(deviceId: deviceId)
     }

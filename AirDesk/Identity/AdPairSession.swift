@@ -5,6 +5,7 @@ struct AdPairChannelBinding: Codable, Equatable {
     enum Kind: String, Codable {
         case exporter
         case certificateHash = "certificate-hash"
+        case irohEndpoint = "iroh-endpoint"
     }
 
     let kind: Kind
@@ -20,6 +21,13 @@ struct AdPairChannelBinding: Codable, Equatable {
             self.value = value.lowercased()
         case .exporter:
             guard let bytes = PairingEncoding.data(base64URL: value), bytes.count >= 16 else {
+                throw AdPairError.invalidBinding
+            }
+            self.kind = kind
+            self.value = value
+        case .irohEndpoint:
+            guard (1...256).contains(value.count),
+                  value == value.trimmingCharacters(in: .whitespacesAndNewlines) else {
                 throw AdPairError.invalidBinding
             }
             self.kind = kind
@@ -335,6 +343,7 @@ enum AdPairError: Swift.Error, Equatable, LocalizedError {
     case invalidSignature(String)
     case transcriptMismatch
     case replayedNonce
+    case revokedDevice
     case selfPairing
     case invalidCapabilities
     case invalidHint
@@ -359,6 +368,7 @@ enum AdPairError: Swift.Error, Equatable, LocalizedError {
         case .invalidSignature: return "invalid-signature"
         case .transcriptMismatch: return "transcript-mismatch"
         case .replayedNonce: return "replayed-nonce"
+        case .revokedDevice: return "revoked-device"
         case .selfPairing: return "self-pairing"
         case .invalidCapabilities: return "invalid-capabilities"
         case .invalidHint: return "invalid-hint"
@@ -385,6 +395,7 @@ enum AdPairError: Swift.Error, Equatable, LocalizedError {
         case .invalidSignature(let role): return "Invalid \(role) transcript signature."
         case .transcriptMismatch: return "Pairing transcript mismatch."
         case .replayedNonce: return "Pairing nonce has already been used."
+        case .revokedDevice: return "The pairing device has been revoked."
         case .selfPairing: return "A device cannot pair with itself."
         case .invalidCapabilities: return "Invalid pairing capabilities."
         case .invalidHint: return "Invalid pairing hint."
@@ -612,9 +623,7 @@ final class AdPairSession {
             pakeSharedSecret: input.sharedSecret,
             transcriptHash: transcriptHash,
             channelBinding: PairingChannelBinding(
-                kind: offer.channelBinding.kind == .certificateHash
-                    ? .certificateSHA256
-                    : .tlsExporter,
+                kind: keyScheduleBindingKind(offer.channelBinding.kind),
                 value: offer.channelBinding.value
             )
         )
@@ -634,6 +643,16 @@ final class AdPairSession {
             sessionKeys: sessionKeys,
             grant: .none
         )
+    }
+
+    private func keyScheduleBindingKind(
+        _ kind: AdPairChannelBinding.Kind
+    ) -> PairingChannelBindingKind {
+        switch kind {
+        case .exporter: return .tlsExporter
+        case .certificateHash: return .certificateSHA256
+        case .irohEndpoint: return .irohEndpoint
+        }
     }
 
     private func verify(

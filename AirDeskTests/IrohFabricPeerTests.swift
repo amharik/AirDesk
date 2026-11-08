@@ -18,6 +18,7 @@ final class IrohFabricPeerTests: XCTestCase {
         let inputReceived = expectation(description: "reliable input")
         let movementReceived = expectation(description: "movement")
         let syncReceived = expectation(description: "sync envelope")
+        let pairingReceived = expectation(description: "pairing message")
         host.onInputEvent = { event in
             if event.type == .keyDown, event.key == "a" {
                 inputReceived.fulfill()
@@ -31,6 +32,11 @@ final class IrohFabricPeerTests: XCTestCase {
         host.onSyncEnvelope = { payload in
             if payload == Data("sync-envelope".utf8) {
                 syncReceived.fulfill()
+            }
+        }
+        host.onPairingMessage = { payload in
+            if payload == Data("pairing-message".utf8) {
+                pairingReceived.fulfill()
             }
         }
 
@@ -67,5 +73,8 @@ final class IrohFabricPeerTests: XCTestCase {
 
         XCTAssertTrue(controller.sendSync(Data("sync-envelope".utf8)))
         await fulfillment(of: [syncReceived], timeout: 5)
+
+        XCTAssertTrue(controller.sendPairing(Data("pairing-message".utf8)))
+        await fulfillment(of: [pairingReceived], timeout: 5)
     }
 }

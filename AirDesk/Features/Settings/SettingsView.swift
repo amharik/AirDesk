@@ -19,6 +19,7 @@ struct SettingsView: View {
                 remoteTerminalSection
                 displaySection
                 browserEndpointSection
+                pairingSection
                 cursorSection
                 runtimeSection
                 fabricSection
@@ -244,6 +245,58 @@ struct SettingsView: View {
             sectionHeader("Browser presentation")
         } footer: {
             Text("The loopback host only accepts the configured local asset origin. A production browser presentation page is not bundled yet.")
+        }
+        .listRowBackground(rowBackground)
+    }
+
+    private var pairingSection: some View {
+        Section {
+            if let identity = environment.identity {
+                NavigationLink {
+                    PairingSettingsView(
+                        identity: identity,
+                        registry: environment.deviceRegistry,
+                        fabric: environment.fabric,
+                        relayPolicy: settings.fabricRelayPolicy
+                    )
+                } label: {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                .fill(ADTheme.accent.opacity(0.12))
+                                .frame(width: 34, height: 34)
+                            Image(systemName: "person.badge.key")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(ADTheme.accent)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Pair a device")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.9))
+                            Text(environment.deviceRegistry.map {
+                                "\($0.trustedCount) trusted · \($0.revokedCount) revoked"
+                            } ?? "Device registry unavailable")
+                                .font(.system(size: 11.5))
+                                .foregroundStyle(ADTheme.textTertiary)
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                        CapsuleBadge(
+                            text: environment.deviceRegistry == nil ? "Unavailable" : "Secure",
+                            tint: environment.deviceRegistry == nil ? ADTheme.textTertiary : ADTheme.accent
+                        )
+                    }
+                    .padding(.vertical, 2)
+                }
+            } else {
+                Text(environment.identityError ?? "Device identity is unavailable.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(ADTheme.textTertiary)
+            }
+        } header: {
+            sectionHeader("Identity")
+        } footer: {
+            Text("Pair over the native Iroh transport. Both devices must match the six-digit verification code before workspace sync keys are activated.")
         }
         .listRowBackground(rowBackground)
     }

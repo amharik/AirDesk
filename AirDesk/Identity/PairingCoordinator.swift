@@ -48,6 +48,8 @@ final class AdPairCoordinator {
 
     let role: Role
     let identity: DeviceIdentity
+    private let registry: DeviceRegistry?
+    private let peerDisplayLabel: String?
     private let now: () -> Date
     private let randomBytes: (Int) throws -> Data
     private var session: AdPairSession?
@@ -65,11 +67,15 @@ final class AdPairCoordinator {
     init(
         role: Role,
         identity: DeviceIdentity,
+        registry: DeviceRegistry? = nil,
+        peerDisplayLabel: String? = nil,
         now: @escaping () -> Date = Date.init,
         randomBytes: @escaping (Int) throws -> Data = { try PairingNonce.random(count: $0) }
     ) {
         self.role = role
         self.identity = identity
+        self.registry = registry
+        self.peerDisplayLabel = peerDisplayLabel
         self.now = now
         self.randomBytes = randomBytes
     }
@@ -127,6 +133,7 @@ final class AdPairCoordinator {
         guard offer.deviceId != identity.deviceId else {
             throw AdPairError.selfPairing
         }
+        try assertNotRevoked(offer.deviceId)
         let session = AdPairSession(now: now)
         _ = try session.acceptOffer(encode(offer))
 
@@ -184,6 +191,7 @@ final class AdPairCoordinator {
         guard response.deviceId != identity.deviceId else {
             throw AdPairError.selfPairing
         }
+        try assertNotRevoked(response.deviceId)
         let registration = try AdPairCodec.deriveRegistration(
             code: challenge.code,
             pin: challenge.pin,
@@ -275,6 +283,7 @@ final class AdPairCoordinator {
             pake: evidence
         )
         let signature = try identity.sign(transcript)
+        try assertNotRevoked(response.deviceId)
         let pairing = try session.finish(
             AdPairFinishInput(
                 pake: evidence,
@@ -288,6 +297,7 @@ final class AdPairCoordinator {
                 )
             )
         )
+        try recordPeer(response)
         state = .completed
         return InitiatorCompletion(
             result: pairing,
@@ -321,6 +331,7 @@ final class AdPairCoordinator {
             initiatorConfirmation: initiatorConfirmation,
             responderConfirmation: result.expectedConfirmation
         )
+        try assertNotRevoked(offer.deviceId)
         let pairing = try session.finish(
             AdPairFinishInput(
                 pake: evidence,
@@ -334,12 +345,38 @@ final class AdPairCoordinator {
                 )
             )
         )
+        try recordPeer(offer)
         state = .completed
         return ResponderCompletion(
             result: pairing,
             share: shareV,
             confirmation: result.expectedConfirmation,
             signature: responderSignature
+        )
+    }
+
+    private func assertNotRevoked(_ deviceId: String) throws {
+        guard registry?.isRevoked(deviceId: deviceId) != true else {
+            throw AdPairError.revokedDevice
+        }
+    }
+
+    private func recordPeer(_ payload: AdPairPayload) throws {
+        guard let registry else { return }
+        guard let spki = PairingEncoding.data(base64URL: payload.publicKey) else {
+            throw AdPairError.invalidPublicKey
+        }
+        let requested = peerDisplayLabel?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let existing = registry.peer(deviceId: payload.deviceId)?.displayLabel ?? ""
+        let label = [requested, existing].first { !$0.isEmpty } ?? "Paired device"
+        try registry.upsert(
+            PairedPeerRecord(
+                deviceId: payload.deviceId,
+                displayLabel: label,
+                publicKeySPKI: spki,
+                trustState: .trusted,
+                pairedAt: now()
+            )
         )
     }
 
