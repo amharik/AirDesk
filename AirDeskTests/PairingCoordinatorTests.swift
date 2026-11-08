@@ -132,7 +132,7 @@ final class PairingCoordinatorTests: XCTestCase {
         }
     }
 
-    func testPairingRecordsPeersInRegistry() throws {
+    func testPairingRecordsPendingPeersUntilUserTrusts() throws {
         let hostIdentity = try DeviceIdentity()
         let controllerIdentity = try DeviceIdentity()
         let hostRegistry = try DeviceRegistry(storage: InMemoryDeviceRegistryStorage())
@@ -171,8 +171,15 @@ final class PairingCoordinatorTests: XCTestCase {
         )
 
         XCTAssertEqual(hostRegistry.peer(deviceId: controllerIdentity.deviceId)?.displayLabel, "Controller")
-        XCTAssertTrue(hostRegistry.isTrusted(deviceId: controllerIdentity.deviceId))
+        XCTAssertEqual(hostRegistry.peer(deviceId: controllerIdentity.deviceId)?.trustState, .pending)
+        XCTAssertFalse(hostRegistry.isTrusted(deviceId: controllerIdentity.deviceId))
         XCTAssertEqual(controllerRegistry.peer(deviceId: hostIdentity.deviceId)?.displayLabel, "Host")
+        XCTAssertEqual(controllerRegistry.peer(deviceId: hostIdentity.deviceId)?.trustState, .pending)
+        XCTAssertFalse(controllerRegistry.isTrusted(deviceId: hostIdentity.deviceId))
+
+        try hostRegistry.trust(deviceId: controllerIdentity.deviceId, at: now)
+        try controllerRegistry.trust(deviceId: hostIdentity.deviceId, at: now)
+        XCTAssertTrue(hostRegistry.isTrusted(deviceId: controllerIdentity.deviceId))
         XCTAssertTrue(controllerRegistry.isTrusted(deviceId: hostIdentity.deviceId))
     }
 

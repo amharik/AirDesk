@@ -274,7 +274,7 @@ struct SettingsView: View {
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundStyle(.white.opacity(0.9))
                             Text(environment.deviceRegistry.map {
-                                "\($0.trustedCount) trusted · \($0.revokedCount) revoked"
+                                "\($0.trustedCount) trusted · \($0.pendingCount) pending · \($0.revokedCount) revoked"
                             } ?? "Device registry unavailable")
                                 .font(.system(size: 11.5))
                                 .foregroundStyle(ADTheme.textTertiary)

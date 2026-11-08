@@ -43,6 +43,10 @@ final class PairingLiveSessionTests: XCTestCase {
         XCTAssertEqual(host.peerDeviceId, controllerIdentity.deviceId)
         XCTAssertEqual(controller.peerDeviceId, hostIdentity.deviceId)
         XCTAssertEqual(host.state, .awaitingUserVerification)
+        XCTAssertEqual(hostRegistry.peer(deviceId: controllerIdentity.deviceId)?.trustState, .pending)
+        XCTAssertEqual(controllerRegistry.peer(deviceId: hostIdentity.deviceId)?.trustState, .pending)
+        XCTAssertFalse(hostRegistry.isTrusted(deviceId: controllerIdentity.deviceId))
+        XCTAssertFalse(controllerRegistry.isTrusted(deviceId: hostIdentity.deviceId))
 
         XCTAssertThrowsError(try host.confirmShortAuthenticationString("000000" == hostSAS ? "999999" : "000000")) {
             XCTAssertEqual($0 as? AdPairLiveError, .shortAuthenticationStringMismatch)
@@ -56,6 +60,8 @@ final class PairingLiveSessionTests: XCTestCase {
         XCTAssertEqual(controller.state, .completed)
         XCTAssertEqual(hostRegistry.peer(deviceId: controllerIdentity.deviceId)?.displayLabel, "Controller")
         XCTAssertEqual(controllerRegistry.peer(deviceId: hostIdentity.deviceId)?.displayLabel, "Host")
+        XCTAssertTrue(hostRegistry.isTrusted(deviceId: controllerIdentity.deviceId))
+        XCTAssertTrue(controllerRegistry.isTrusted(deviceId: hostIdentity.deviceId))
 
         await hostPeer.stop()
         await controllerPeer.stop()

@@ -76,7 +76,7 @@ struct FabricSettingsView: View {
         } header: {
             header("Device identity")
         } footer: {
-            Text("The long-term Ed25519 key is stored in the Keychain after first unlock, this device only, without iCloud sync. P-256 is the fallback identity algorithm; Secure Enclave Ed25519 is not claimed. Pairing offers require an out-of-band channel binding. The browser has AD-PAIR-1 and an RFC 9383 SPAKE2+ primitive; interactive pairing, QR scanning and transport binding are not implemented.")
+            Text("The long-term Ed25519 key is stored in the Keychain after first unlock, this device only, without iCloud sync. P-256 is the fallback identity algorithm; Secure Enclave Ed25519 is not claimed. Native devices pair over Iroh with PIN/QR codes, SAS verification and an authenticated endpoint binding. The browser has AD-PAIR-1 and an RFC 9383 SPAKE2+ primitive; live browser pairing and certificate/exporter binding acquisition are not implemented.")
         }
         .listRowBackground(rowBackground)
     }

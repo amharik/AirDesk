@@ -1,6 +1,7 @@
 import Foundation
 
 enum DeviceTrustState: String, Codable {
+    case pending
     case trusted
     case revoked
 }
@@ -143,6 +144,12 @@ final class DeviceRegistry {
         return records.values.filter { $0.trustState == .trusted }.count
     }
 
+    var pendingCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return records.values.filter { $0.trustState == .pending }.count
+    }
+
     var revokedCount: Int {
         lock.lock()
         defer { lock.unlock() }
@@ -161,13 +168,41 @@ final class DeviceRegistry {
         defer { lock.unlock() }
         if let existing = records[record.deviceId],
            existing.trustState == .revoked,
-           record.trustState == .trusted {
+           record.trustState != .revoked {
             throw DeviceRegistryError.invalidRecord(
                 "A revoked peer requires explicit re-pairing before trust is restored."
             )
         }
-        records[record.deviceId] = record
+        var stored = record
+        if let existing = records[record.deviceId],
+           existing.trustState == .trusted,
+           record.trustState == .pending {
+            stored.trustState = .trusted
+            stored.pairedAt = existing.pairedAt
+        }
+        records[record.deviceId] = stored
         try persistUnlocked()
+    }
+
+    @discardableResult
+    func trust(deviceId: String, at date: Date = Date()) throws -> PairedPeerRecord {
+        lock.lock()
+        defer { lock.unlock() }
+        guard var record = records[deviceId] else {
+            throw DeviceRegistryError.peerNotFound(deviceId)
+        }
+        guard record.trustState != .revoked else {
+            throw DeviceRegistryError.invalidRecord(
+                "A revoked peer requires explicit re-pairing before trust is restored."
+            )
+        }
+        record.trustState = .trusted
+        record.pairedAt = date
+        record.revokedAt = nil
+        record.revocationReason = nil
+        records[deviceId] = record
+        try persistUnlocked()
+        return record
     }
 
     @discardableResult

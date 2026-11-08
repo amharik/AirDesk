@@ -369,12 +369,15 @@ final class AdPairCoordinator {
         let requested = peerDisplayLabel?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let existing = registry.peer(deviceId: payload.deviceId)?.displayLabel ?? ""
         let label = [requested, existing].first { !$0.isEmpty } ?? "Paired device"
+        let trustState: DeviceTrustState = registry.isTrusted(deviceId: payload.deviceId)
+            ? .trusted
+            : .pending
         try registry.upsert(
             PairedPeerRecord(
                 deviceId: payload.deviceId,
                 displayLabel: label,
                 publicKeySPKI: spki,
-                trustState: .trusted,
+                trustState: trustState,
                 pairedAt: now()
             )
         )

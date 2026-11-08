@@ -157,6 +157,9 @@ final class AdPairLiveSession: ObservableObject {
         guard normalized == result.shortAuthenticationString else {
             throw AdPairLiveError.shortAuthenticationStringMismatch
         }
+        if let registry, let peerDeviceId {
+            try registry.trust(deviceId: peerDeviceId, at: now())
+        }
         state = .completed
         return result.sessionKeys
     }

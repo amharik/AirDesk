@@ -31,6 +31,53 @@ final class DeviceRegistryTests: XCTestCase {
         XCTAssertTrue(reloaded.isTrusted(deviceId: record.deviceId))
     }
 
+    func testPendingPeerBecomesTrustedOnlyAfterExplicitTrust() throws {
+        let storage = InMemoryDeviceRegistryStorage()
+        let registry = try DeviceRegistry(storage: storage)
+        var (_, record) = try makePeer()
+        record.trustState = .pending
+        try registry.upsert(record)
+
+        XCTAssertEqual(registry.pendingCount, 1)
+        XCTAssertEqual(registry.trustedCount, 0)
+        XCTAssertFalse(registry.isTrusted(deviceId: record.deviceId))
+        XCTAssertFalse(registry.canEstablishSession(deviceId: record.deviceId))
+
+        let trusted = try registry.trust(deviceId: record.deviceId, at: now)
+        XCTAssertEqual(trusted.trustState, .trusted)
+        XCTAssertEqual(trusted.pairedAt, now)
+        XCTAssertTrue(registry.isTrusted(deviceId: record.deviceId))
+        XCTAssertEqual(registry.trustedCount, 1)
+        XCTAssertEqual(registry.pendingCount, 0)
+
+        let reloaded = try DeviceRegistry(storage: storage)
+        XCTAssertTrue(reloaded.isTrusted(deviceId: record.deviceId))
+    }
+
+    func testPendingUpsertDoesNotDowngradeTrustedPeer() throws {
+        let registry = try DeviceRegistry(storage: InMemoryDeviceRegistryStorage())
+        var (_, record) = try makePeer()
+        try registry.upsert(record)
+
+        record.trustState = .pending
+        record.pairedAt = now.addingTimeInterval(60)
+        try registry.upsert(record)
+
+        XCTAssertTrue(registry.isTrusted(deviceId: record.deviceId))
+        XCTAssertEqual(registry.peer(deviceId: record.deviceId)?.pairedAt, now)
+    }
+
+    func testPendingUpsertCannotReviveRevokedPeer() throws {
+        let registry = try DeviceRegistry(storage: InMemoryDeviceRegistryStorage())
+        var (_, record) = try makePeer()
+        try registry.upsert(record)
+        try registry.revoke(deviceId: record.deviceId, at: now, reason: "Lost device")
+
+        record.trustState = .pending
+        XCTAssertThrowsError(try registry.upsert(record))
+        XCTAssertEqual(registry.peer(deviceId: record.deviceId)?.trustState, .revoked)
+    }
+
     func testRevocationInvalidatesTrustAndSessionCredential() throws {
         let storage = InMemoryDeviceRegistryStorage()
         let registry = try DeviceRegistry(storage: storage)
