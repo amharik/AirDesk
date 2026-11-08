@@ -370,6 +370,19 @@ final class AppEnvironment: ObservableObject {
         )
     }
 
+    @discardableResult
+    func revokePairedDevice(deviceId: String) throws -> PairedPeerRecord {
+        guard let deviceRegistry else {
+            throw DeviceRegistryError.peerNotFound(deviceId)
+        }
+        let record = try deviceRegistry.revoke(
+            deviceId: deviceId,
+            reason: "Revoked from Settings"
+        )
+        try workspaceSyncRuntime?.revokeSender(deviceId)
+        return record
+    }
+
     func activateWorkspaceSync(pairingKeys: PairingKeySchedule.Keys) throws {
         guard let report = workspaceRestoreReport else {
             throw WorkspaceSyncControllerError.workspaceMissing

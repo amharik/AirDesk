@@ -55,6 +55,10 @@ final class WorkspaceSyncController {
         try session.persist(to: url, fileManager: fileManager)
     }
 
+    func revokeSender(_ deviceId: String) {
+        session.revokeSender(deviceId)
+    }
+
     @discardableResult
     func receive(_ data: Data) throws -> WorkspaceSyncApplyResult {
         let decoded = try session.decode(data)

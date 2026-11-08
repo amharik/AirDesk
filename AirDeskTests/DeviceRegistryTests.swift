@@ -78,6 +78,29 @@ final class DeviceRegistryTests: XCTestCase {
         XCTAssertEqual(registry.peer(deviceId: record.deviceId)?.trustState, .revoked)
     }
 
+    func testOnlyUntrustedPeerRecordsCanBeRemoved() throws {
+        let storage = InMemoryDeviceRegistryStorage()
+        let registry = try DeviceRegistry(storage: storage)
+        var (_, record) = try makePeer(label: "Pending peer")
+        record.trustState = .pending
+        try registry.upsert(record)
+
+        try registry.remove(deviceId: record.deviceId)
+        XCTAssertNil(registry.peer(deviceId: record.deviceId))
+
+        let (_, trusted) = try makePeer(label: "Trusted peer")
+        try registry.upsert(trusted)
+        XCTAssertThrowsError(try registry.remove(deviceId: trusted.deviceId))
+        XCTAssertTrue(registry.isTrusted(deviceId: trusted.deviceId))
+
+        try registry.revoke(deviceId: trusted.deviceId, at: now, reason: "Lost device")
+        try registry.remove(deviceId: trusted.deviceId)
+        XCTAssertNil(registry.peer(deviceId: trusted.deviceId))
+
+        let reloaded = try DeviceRegistry(storage: storage)
+        XCTAssertEqual(reloaded.pairedCount, 0)
+    }
+
     func testRevocationInvalidatesTrustAndSessionCredential() throws {
         let storage = InMemoryDeviceRegistryStorage()
         let registry = try DeviceRegistry(storage: storage)

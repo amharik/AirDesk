@@ -205,6 +205,21 @@ final class DeviceRegistry {
         return record
     }
 
+    func remove(deviceId: String) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let record = records[deviceId] else {
+            throw DeviceRegistryError.peerNotFound(deviceId)
+        }
+        guard record.trustState != .trusted else {
+            throw DeviceRegistryError.invalidRecord(
+                "Revoke a trusted peer before removing its record."
+            )
+        }
+        records.removeValue(forKey: deviceId)
+        try persistUnlocked()
+    }
+
     @discardableResult
     func revoke(
         deviceId: String,

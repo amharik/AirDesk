@@ -21,6 +21,9 @@ struct PairingSettingsView: View {
     @State private var verificationCode = ""
     @State private var notice: String?
     @State private var errorMessage: String?
+    @State private var knownPeers: [PairedPeerRecord] = []
+    @State private var pendingRevocation: PairedPeerRecord?
+    @State private var pendingRemoval: PairedPeerRecord?
 
     init(
         identity: DeviceIdentity,
@@ -71,6 +74,8 @@ struct PairingSettingsView: View {
                 controllerSection
             }
 
+            knownDevicesSection
+
             if let notice {
                 Section {
                     Text(notice)
@@ -108,9 +113,92 @@ struct PairingSettingsView: View {
                 }
             }
         }
+        .confirmationDialog(
+            pendingRevocation.map { "Revoke \($0.displayLabel)?" } ?? "Revoke device?",
+            isPresented: Binding(
+                get: { pendingRevocation != nil },
+                set: { if !$0 { pendingRevocation = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Revoke trust", role: .destructive) {
+                if let record = pendingRevocation { revoke(record) }
+                pendingRevocation = nil
+            }
+            Button("Cancel", role: .cancel) { pendingRevocation = nil }
+        } message: {
+            Text("This device will no longer be trusted and its sync envelopes will be rejected.")
+        }
+        .confirmationDialog(
+            pendingRemoval.map { "Remove \($0.displayLabel)?" } ?? "Remove device?",
+            isPresented: Binding(
+                get: { pendingRemoval != nil },
+                set: { if !$0 { pendingRemoval = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Remove record", role: .destructive) {
+                if let record = pendingRemoval { remove(record) }
+                pendingRemoval = nil
+            }
+            Button("Cancel", role: .cancel) { pendingRemoval = nil }
+        } message: {
+            Text("This removes the local pairing record. It does not change trust on the other device.")
+        }
+        .onAppear {
+            refreshPeers()
+        }
         .onDisappear {
             hostSession.cancel()
             controllerSession.cancel()
+        }
+    }
+
+    @ViewBuilder
+    private var knownDevicesSection: some View {
+        Section {
+            if knownPeers.isEmpty {
+                Text("No paired devices yet.")
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(ADTheme.textTertiary)
+            }
+            ForEach(knownPeers, id: \.deviceId) { record in
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack {
+                        Text(record.displayLabel)
+                            .font(.system(size: 14, weight: .semibold))
+                        Spacer()
+                        Text(trustTitle(record.trustState))
+                            .font(.system(size: 11.5, weight: .medium))
+                            .foregroundStyle(trustTint(record.trustState))
+                    }
+                    Text(record.deviceId)
+                        .font(.system(size: 10.5, design: .monospaced))
+                        .foregroundStyle(ADTheme.textTertiary)
+                        .lineLimit(1)
+                    HStack {
+                        Text("Paired \(record.pairedAt.formatted(date: .abbreviated, time: .shortened))")
+                            .font(.system(size: 11))
+                            .foregroundStyle(ADTheme.textTertiary)
+                        Spacer()
+                        if record.trustState == .trusted {
+                            Button("Revoke", role: .destructive) {
+                                pendingRevocation = record
+                            }
+                        } else {
+                            Button("Remove", role: .destructive) {
+                                pendingRemoval = record
+                            }
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                }
+                .padding(.vertical, 2)
+            }
+        } header: {
+            Text("Known devices")
+        } footer: {
+            Text("Pending devices have completed the cryptographic exchange but not SAS verification.")
         }
     }
 
@@ -326,8 +414,54 @@ struct PairingSettingsView: View {
                 notice = "Pairing verified. Workspace sync is unavailable: \(error.localizedDescription)"
             }
             verificationCode = ""
+            refreshPeers()
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    private func revoke(_ record: PairedPeerRecord) {
+        do {
+            try environment.revokePairedDevice(deviceId: record.deviceId)
+            notice = "Trust revoked for \(record.displayLabel)."
+            errorMessage = nil
+            refreshPeers()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func remove(_ record: PairedPeerRecord) {
+        do {
+            guard let registry = environment.deviceRegistry else {
+                throw DeviceRegistryError.peerNotFound(record.deviceId)
+            }
+            try registry.remove(deviceId: record.deviceId)
+            notice = "Removed \(record.displayLabel) from this device."
+            errorMessage = nil
+            refreshPeers()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func refreshPeers() {
+        knownPeers = environment.deviceRegistry?.peers ?? []
+    }
+
+    private func trustTitle(_ state: DeviceTrustState) -> String {
+        switch state {
+        case .pending: return "Awaiting SAS"
+        case .trusted: return "Trusted"
+        case .revoked: return "Revoked"
+        }
+    }
+
+    private func trustTint(_ state: DeviceTrustState) -> Color {
+        switch state {
+        case .pending: return ADTheme.amber
+        case .trusted: return ADTheme.accent
+        case .revoked: return .red
         }
     }
 

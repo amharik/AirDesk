@@ -62,6 +62,12 @@ final class WorkspaceSyncRuntime {
         }
     }
 
+    func revokeSender(_ deviceId: String) throws {
+        controller.revokeSender(deviceId)
+        try persist()
+        lastError = nil
+    }
+
     @discardableResult
     func receive(_ data: Data) throws -> WorkspaceSyncApplyResult {
         let result = try controller.receive(data)
