@@ -36,6 +36,7 @@ data class AdPairOffer(
         const val PROTOCOL = "adfp"
         const val VERSION = "0.1"
         const val TYPE_OFFER = "offer"
+        const val TYPE_RESPONSE = "response"
     }
 }
 
