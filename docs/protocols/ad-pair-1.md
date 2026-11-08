@@ -121,6 +121,6 @@ The transcript hash must be exactly 32 bytes. Missing or malformed channel bindi
 ## Pending
 
 - Android password registration and QR/PIN challenge envelopes.
-- Wire the browser TLS exporter and DTLS certificate-hash helpers into a real pairing transport.
+- Wire the browser TLS exporter, DTLS certificate-hash and WebTransport server-certificate-hash helpers into a real pairing transport.
 - Automatic pairing key distribution; both sides currently activate sync from their local pairing result after SAS confirmation.
 - Embedding the derived keys in ADFP authorization instead of treating the pairing transcript as the complete trust decision.
