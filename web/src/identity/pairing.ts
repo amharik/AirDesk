@@ -68,6 +68,7 @@ export interface AdPairSessionOptions {
 
 export interface AdPairFinishInput {
   secret?: Uint8Array;
+  pakeExchange?: Spake2PlusExchangeResult;
   expectedTranscriptHash?: Uint8Array;
   initiatorSignature?: Uint8Array;
   responderSignature?: Uint8Array;
@@ -307,7 +308,9 @@ export class AdPairSession {
       assertMatchingChannelBinding(channelBinding, requireChannelBinding(response.channelBinding));
 
       let pake: Spake2PlusExchangeResult;
-      if (this.options.pakeExchange) {
+      if (input.pakeExchange) {
+        pake = validatePakeExchange(input.pakeExchange);
+      } else if (this.options.pakeExchange) {
         pake = validatePakeExchange(this.options.pakeExchange);
       } else {
         if (!this.options.pake) {

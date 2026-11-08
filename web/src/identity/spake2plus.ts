@@ -628,6 +628,7 @@ export interface Spake2PlusSessionOptions {
 export interface Spake2PlusVerifierResponse {
   readonly share: Uint8Array;
   readonly confirmation: Uint8Array;
+  readonly expectedConfirmation: Uint8Array;
 }
 
 export interface Spake2PlusSessionResult {
@@ -721,7 +722,8 @@ export class Spake2PlusSession {
     this.phase = 'awaiting-confirmation';
     return {
       share: new Uint8Array(result.shareV),
-      confirmation: new Uint8Array(result.confirmation)
+      confirmation: new Uint8Array(result.confirmation),
+      expectedConfirmation: new Uint8Array(result.expectedConfirmation)
     };
   }
 
