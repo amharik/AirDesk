@@ -420,9 +420,12 @@ class AdPairCoordinator(
                     ?: "Peer " + payload.deviceId.removePrefix(DeviceId.PREFIX).take(12),
                 pairedAtEpochSeconds = now() / 1000,
                 capabilities = payload.capabilities,
+                trusted = store.find(payload.deviceId)?.trusted == true,
             ),
         )
     }
+
+    fun trustPeer(deviceId: String): Boolean = registry?.trust(deviceId) == true
 
     private fun assertNotRevoked(peerDeviceId: String) {
         if (registry?.find(peerDeviceId)?.revoked == true) {

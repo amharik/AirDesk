@@ -83,12 +83,13 @@ fun DiagnosticsScreen(viewModel: AppViewModel) {
             title = "Pairing",
             subtitle = "Truthful baseline status. This is not a completed pairing protocol.",
         ) {
-            LabeledValue("AD-PAIR-1 / SPAKE2+", "not implemented")
-            LabeledValue("Session keys / channel binding", "not connected")
+            LabeledValue("AD-PAIR-1 / SPAKE2+", "primitive, coordinator and wire session ready")
+            LabeledValue("Session keys / channel binding", "derived; transport not connected")
             LabeledValue("Network transport", "none in this build")
             LabeledValue("Plaintext LAN fallback", "absent")
             LabeledValue("Peers recorded", viewModel.peers.size.toString())
-            LabeledValue("Active peers", viewModel.peers.count { !it.revoked }.toString())
+            LabeledValue("Trusted peers", viewModel.peers.count { !it.revoked && it.trusted }.toString())
+            LabeledValue("Pending peers", viewModel.peers.count { !it.revoked && !it.trusted }.toString())
             LabeledValue("Revoked peers", viewModel.peers.count { it.revoked }.toString())
         }
 

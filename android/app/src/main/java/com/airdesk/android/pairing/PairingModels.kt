@@ -21,6 +21,7 @@ data class PeerRecord(
     val displayName: String,
     val pairedAtEpochSeconds: Long,
     val capabilities: List<String>,
+    val trusted: Boolean = true,
     val revoked: Boolean = false,
     val revokedAtEpochSeconds: Long? = null,
 )

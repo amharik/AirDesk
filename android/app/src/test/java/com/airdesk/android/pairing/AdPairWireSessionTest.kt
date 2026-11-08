@@ -19,13 +19,14 @@ class AdPairWireSessionTest {
 
     @Test
     fun drivesFullWireExchangeAndSasGate() {
+        val registry = PeerRegistry(MemoryStore())
         val host = AdPairWireSession(
             AdPairWireSession.Role.HOST,
-            coordinator(hostKeys, AdPairCoordinator.Role.INITIATOR),
+            coordinator(hostKeys, AdPairCoordinator.Role.INITIATOR, registry),
         )
         val controller = AdPairWireSession(
             AdPairWireSession.Role.CONTROLLER,
-            coordinator(controllerKeys, AdPairCoordinator.Role.RESPONDER),
+            coordinator(controllerKeys, AdPairCoordinator.Role.RESPONDER, registry),
         )
         val challenge = host.startHost(AdPairCodec.MODE_PIN, binding, capabilities = listOf("display"))
         val response = controller.join(challenge.serialized, challenge.pin, capabilities = listOf("clipboard-read"))
@@ -48,6 +49,7 @@ class AdPairWireSessionTest {
         assertArrayEquals(hostKeysResult.transport.bytes, controllerKeysResult.transport.bytes)
         assertEquals(AdPairWireSession.State.COMPLETED, host.state)
         assertEquals(AdPairWireSession.State.COMPLETED, controller.state)
+        assertTrue(registry.all().all { it.trusted })
     }
 
     @Test
@@ -89,6 +91,7 @@ class AdPairWireSessionTest {
     private fun coordinator(
         keys: KeyPair,
         role: AdPairCoordinator.Role,
+        registry: PeerRegistry? = null,
     ): AdPairCoordinator {
         var counter = 1
         return AdPairCoordinator(
@@ -97,9 +100,18 @@ class AdPairWireSessionTest {
             publicKey = Base64Url.encode(keys.public.encoded),
             signer = AdPairSigner { data -> sign(keys, data) },
             verifier = AdPairSignatureVerifier { key, data, signature -> verify(key, data, signature) },
+            registry = registry,
             now = { 5_000_000L },
             randomBytes = { count -> ByteArray(count) { (counter++ and 0xff).toByte() } },
         )
+    }
+
+    private class MemoryStore : KeyValueStore {
+        private val values = mutableMapOf<String, String>()
+        override fun getString(key: String): String? = values[key]
+        override fun putString(key: String, value: String) {
+            values[key] = value
+        }
     }
 
     private fun keyPair(): KeyPair =

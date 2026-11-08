@@ -29,6 +29,15 @@ class PeerRegistry(
         return peer
     }
 
+    fun trust(deviceId: String): Boolean {
+        val peers = all().toMutableList()
+        val index = peers.indexOfFirst { it.deviceId == deviceId }
+        if (index < 0 || peers[index].revoked) return false
+        peers[index] = peers[index].copy(trusted = true)
+        save(peers)
+        return true
+    }
+
     fun revoke(deviceId: String, nowEpochSeconds: Long): Boolean {
         val peers = all().toMutableList()
         val index = peers.indexOfFirst { it.deviceId == deviceId }

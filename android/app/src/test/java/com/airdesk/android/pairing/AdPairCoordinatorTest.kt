@@ -58,6 +58,9 @@ class AdPairCoordinatorTest {
         )
         assertEquals(listOf("clipboard-read", "display"), initiatorResult.capabilities)
         assertEquals(2, registry.all().size)
+        assertTrue(registry.all().all { !it.trusted })
+        assertTrue(initiator.trustPeer(initiatorResult.response.deviceId))
+        assertTrue(registry.find(initiatorResult.response.deviceId)?.trusted == true)
         assertTrue(verify(initiatorKeys, initiatorResult.transcript, initiatorResult.initiatorSignature))
         assertTrue(verify(responderKeys, initiatorResult.transcript, initiatorResult.responderSignature))
     }

@@ -244,13 +244,17 @@ private fun PeerRow(peer: PeerRecord, onRevoke: () -> Unit) {
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.weight(1f),
             )
-            val badgeColor = if (peer.revoked) {
-                MaterialTheme.colorScheme.error
-            } else {
-                MaterialTheme.colorScheme.secondary
+            val badgeColor = when {
+                peer.revoked -> MaterialTheme.colorScheme.error
+                !peer.trusted -> MaterialTheme.colorScheme.tertiary
+                else -> MaterialTheme.colorScheme.secondary
             }
             StatusBadge(
-                text = if (peer.revoked) "Revoked" else "Active",
+                text = when {
+                    peer.revoked -> "Revoked"
+                    !peer.trusted -> "Pending SAS"
+                    else -> "Active"
+                },
                 containerColor = badgeColor.copy(alpha = 0.16f),
                 contentColor = badgeColor,
             )

@@ -169,6 +169,7 @@ class AdPairWireSession(
             fail(AdPairWireException("pairing verification code does not match"))
             throw AdPairWireException("pairing verification code does not match")
         }
+        peerDeviceId?.let { coordinator.trustPeer(it) }
         state = State.COMPLETED
         return result?.sessionKeys ?: invalidState("pairing result is missing")
     }
@@ -186,7 +187,11 @@ class AdPairWireSession(
     private fun complete(completion: AdPairCoordinator.Result) {
         result = completion
         shortAuthenticationString = completion.shortAuthenticationString
-        peerDeviceId = completion.response.deviceId
+        peerDeviceId = if (role == Role.HOST) {
+            completion.response.deviceId
+        } else {
+            completion.offer.deviceId
+        }
         state = State.AWAITING_USER_VERIFICATION
     }
 
