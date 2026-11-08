@@ -1,6 +1,6 @@
 # AD-PAIR-1 pairing transcript and key schedule
 
-Status: partial implementation behind [ADR-011](../adr/011-device-identity-discovery-pairing.md). The transcript, signature checks, channel-binding validation and key schedule are implemented in the browser identity layer. An interactive RFC 9383 SPAKE2+ P-256 prover/verifier session is implemented, validated against the RFC vector and integrated with `AdPairSession` confirmation evidence. An scrypt password PBKDF, salted registration record and browser QR/PIN challenge envelopes are implemented. iOS now matches the AD-PAIR-1 key schedule, implements native SPAKE2+ against the RFC vector using isolated OpenSSL P-256 group operations under [ADR-022](../adr/022-openssl-p256-group-arithmetic.md), matches the browser scrypt registration profile through OpenSSL `EVP_PBE_scrypt` under [ADR-023](../adr/023-openssl-scrypt-password-registration.md), implements a native AD-PAIR-1 transcript/signature/session flow that reproduces the browser fixture, matches the browser `ADPAIR1:` PIN/QR-secret challenge envelopes and PIN attempt limiting, and runs live PIN/QR pairing between native devices over Iroh with an authenticated `iroh-endpoint` binding, SAS entry, in-app QR scanning and pending-until-SAS device-registry trust. Browser certificate/exporter binding acquisition and automatic key distribution remain pending.
+Status: partial implementation behind [ADR-011](../adr/011-device-identity-discovery-pairing.md). The transcript, signature checks, channel-binding validation and key schedule are implemented in the browser identity layer. An interactive RFC 9383 SPAKE2+ P-256 prover/verifier session is implemented, validated against the RFC vector and integrated with `AdPairSession` confirmation evidence. An scrypt password PBKDF, salted registration record and browser QR/PIN challenge envelopes are implemented. iOS now matches the AD-PAIR-1 key schedule, implements native SPAKE2+ against the RFC vector using isolated OpenSSL P-256 group operations under [ADR-022](../adr/022-openssl-p256-group-arithmetic.md), matches the browser scrypt registration profile through OpenSSL `EVP_PBE_scrypt` under [ADR-023](../adr/023-openssl-scrypt-password-registration.md), implements a native AD-PAIR-1 transcript/signature/session flow that reproduces the browser fixture, matches the browser `ADPAIR1:` PIN/QR-secret challenge envelopes and PIN attempt limiting, and runs live PIN/QR pairing between native devices over Iroh with an authenticated `iroh-endpoint` binding, SAS entry, in-app QR scanning and pending-until-SAS device-registry trust. Browser binding construction exists for TLS exporter values and DTLS certificate hashes; real transport integration and automatic key distribution remain pending.
 
 ## Scope
 
@@ -36,7 +36,7 @@ Accepted kinds:
 | `exporter` | Base64url TLS exporter value, at least 16 bytes |
 | `iroh-endpoint` | Iroh endpoint ID, native-native extension |
 
-`none`, unknown kinds, mismatched bindings and malformed values fail closed. The browser does not yet acquire `certificate-hash` or `exporter` from a real pairing transport. Native pairing uses `iroh-endpoint`: the host puts its Iroh endpoint ID in the offer, the controller connects with the ticket in `endpointHint`, and the controller rejects the connection unless the authenticated remote endpoint ID matches. The session key schedule labels this binding `iroh-endpoint`; browsers must use one of the cross-platform binding kinds.
+`none`, unknown kinds, mismatched bindings and malformed values fail closed. The browser can construct `certificate-hash` from a DER certificate or the first remote certificate of a DTLS transport, and `exporter` from TLS exporter bytes; wiring those helpers to a real pairing transport is still pending. Native pairing uses `iroh-endpoint`: the host puts its Iroh endpoint ID in the offer, the controller connects with the ticket in `endpointHint`, and the controller rejects the connection unless the authenticated remote endpoint ID matches. The session key schedule labels this binding `iroh-endpoint`; browsers must use one of the cross-platform binding kinds.
 
 ## Signatures
 
@@ -121,6 +121,6 @@ The transcript hash must be exactly 32 bytes. Missing or malformed channel bindi
 ## Pending
 
 - Android password registration and QR/PIN challenge envelopes.
-- TLS exporter and browser host-certificate hash acquisition.
+- Wire the browser TLS exporter and DTLS certificate-hash helpers into a real pairing transport.
 - Automatic pairing key distribution; both sides currently activate sync from their local pairing result after SAS confirmation.
 - Embedding the derived keys in ADFP authorization instead of treating the pairing transcript as the complete trust decision.
