@@ -1,6 +1,6 @@
 # AD-PAIR-1 pairing transcript and key schedule
 
-Status: partial implementation behind [ADR-011](../adr/011-device-identity-discovery-pairing.md). The transcript, signature checks, channel-binding validation and key schedule are implemented in the browser identity layer. An interactive RFC 9383 SPAKE2+ P-256 prover/verifier session is implemented, validated against the RFC vector and integrated with `AdPairSession` confirmation evidence. An scrypt password PBKDF, salted registration record and browser QR/PIN challenge envelopes are implemented. iOS now matches the AD-PAIR-1 key schedule, implements native SPAKE2+ against the RFC vector using isolated OpenSSL P-256 group operations under [ADR-022](../adr/022-openssl-p256-group-arithmetic.md), matches the browser scrypt registration profile through OpenSSL `EVP_PBE_scrypt` under [ADR-023](../adr/023-openssl-scrypt-password-registration.md), implements a native AD-PAIR-1 transcript/signature/session flow that reproduces the browser fixture, and matches the browser `ADPAIR1:` PIN/QR-secret challenge envelopes and PIN attempt limiting. The camera/UI flow, live transport binding and native/browser binding acquisition remain pending.
+Status: partial implementation behind [ADR-011](../adr/011-device-identity-discovery-pairing.md). The transcript, signature checks, channel-binding validation and key schedule are implemented in the browser identity layer. An interactive RFC 9383 SPAKE2+ P-256 prover/verifier session is implemented, validated against the RFC vector and integrated with `AdPairSession` confirmation evidence. An scrypt password PBKDF, salted registration record and browser QR/PIN challenge envelopes are implemented. iOS now matches the AD-PAIR-1 key schedule, implements native SPAKE2+ against the RFC vector using isolated OpenSSL P-256 group operations under [ADR-022](../adr/022-openssl-p256-group-arithmetic.md), matches the browser scrypt registration profile through OpenSSL `EVP_PBE_scrypt` under [ADR-023](../adr/023-openssl-scrypt-password-registration.md), implements a native AD-PAIR-1 transcript/signature/session flow that reproduces the browser fixture, matches the browser `ADPAIR1:` PIN/QR-secret challenge envelopes and PIN attempt limiting, and runs live PIN/QR pairing between native devices over Iroh with an authenticated `iroh-endpoint` binding, SAS entry and device-registry recording. Camera scanning, browser certificate/exporter binding acquisition and automatic key distribution remain pending.
 
 ## Scope
 
@@ -34,8 +34,9 @@ Accepted kinds:
 | --- | --- |
 | `certificate-hash` | Lowercase 64-character SHA-256 hex |
 | `exporter` | Base64url TLS exporter value, at least 16 bytes |
+| `iroh-endpoint` | Iroh endpoint ID, native-native extension |
 
-`none`, unknown kinds, mismatched bindings and malformed values fail closed. The browser does not yet acquire either binding from a real pairing transport.
+`none`, unknown kinds, mismatched bindings and malformed values fail closed. The browser does not yet acquire `certificate-hash` or `exporter` from a real pairing transport. Native pairing uses `iroh-endpoint`: the host puts its Iroh endpoint ID in the offer, the controller connects with the ticket in `endpointHint`, and the controller rejects the connection unless the authenticated remote endpoint ID matches. The session key schedule labels this binding `iroh-endpoint`; browsers must use one of the cross-platform binding kinds.
 
 ## Signatures
 
@@ -81,7 +82,7 @@ The iOS implementation exposes `Spake2PlusP256.derivePasswordScalars`, `createPa
 - PIN attempts are limited in memory and fail closed on expiry or lockout
 - malformed modes, salts, identities, unknown fields, expired offers and replayed nonces are rejected
 
-`AirDesk/Identity/PairingCode.swift` matches the browser envelope: `AdPairCodec` serializes validated offers as `ADPAIR1:` base64url JSON, parses PIN/QR-secret challenges with mode, protocol/version, expiry and unknown-field checks, derives the same scrypt registration and keeps PIN attempts in a fail-closed guard. `AirDeskTests/PairingCodeTests.swift` covers round trips, non-serialization of the PIN, malformed/expired/unsupported codes, registration determinism, interactive SPAKE2+ from a QR secret and lockout/reset. The headless `AdPairCoordinator` drives the same offer/response/SPAKE2+/signature exchange in either initiator or responder role and yields matching `AdPairResult` session keys. The camera/scanning UI, live transport wiring and user SAS confirmation are pending. A QR code is a bootstrap carrier, not a trust decision; the AD-PAIR-1 transcript, signatures and channel binding still have to validate.
+`AirDesk/Identity/PairingCode.swift` matches the browser envelope: `AdPairCodec` serializes validated offers as `ADPAIR1:` base64url JSON, parses PIN/QR-secret challenges with mode, protocol/version, expiry and unknown-field checks, derives the same scrypt registration and keeps PIN attempts in a fail-closed guard. `AirDeskTests/PairingCodeTests.swift` covers round trips, non-serialization of the PIN, malformed/expired/unsupported codes, registration determinism, interactive SPAKE2+ from a QR secret and lockout/reset. The headless `AdPairCoordinator` drives the same offer/response/SPAKE2+/signature exchange in either initiator or responder role and yields matching `AdPairResult` session keys. `AdPairLiveSession` carries those steps over the Iroh `.pairing` channel using `AdPairWireMessage`, records verified peers in `DeviceRegistry`, and does not release workspace-sync keys until the user enters the six-digit SAS on both devices. `PairingSettingsView` provides the native PIN/QR-secret flow, QR image, copyable code and SAS confirmation. Camera scanning and automatic key distribution are pending. A QR code is a bootstrap carrier, not a trust decision; the AD-PAIR-1 transcript, signatures and channel binding still have to validate.
 
 ## SAS
 
@@ -119,7 +120,7 @@ The transcript hash must be exactly 32 bytes. Missing or malformed channel bindi
 
 ## Pending
 
-- QR/PIN camera/scanning UI, live native pairing flow and user-verification integration.
+- Camera-based QR scanning and Android password registration/QR/PIN envelopes.
 - TLS exporter and browser host-certificate hash acquisition.
-- Android password registration and QR/PIN challenge envelopes.
-- Transport binding of the derived keys to ADFP or Iroh, automatic workspace-sync activation and pairing key distribution.
+- Automatic pairing key distribution; both sides currently activate sync from their local pairing result after SAS confirmation.
+- Embedding the derived keys in ADFP authorization instead of treating the pairing transcript as the complete trust decision.
