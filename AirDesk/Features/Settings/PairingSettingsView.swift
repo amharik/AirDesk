@@ -16,6 +16,7 @@ struct PairingSettingsView: View {
     @State private var role: Role = .host
     @State private var mode: AdPairCode.Mode = .pin
     @State private var enteredCode = ""
+    @State private var isScanningQR = false
     @State private var enteredPin = ""
     @State private var verificationCode = ""
     @State private var notice: String?
@@ -91,6 +92,22 @@ struct PairingSettingsView: View {
         .navigationTitle("Pair a Device")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarColorScheme(.dark, for: .navigationBar)
+        .sheet(isPresented: $isScanningQR) {
+            NavigationStack {
+                QRCodeScannerView { code in
+                    enteredCode = code.trimmingCharacters(in: .whitespacesAndNewlines)
+                    isScanningQR = false
+                }
+                .ignoresSafeArea()
+                .navigationTitle("Scan Pairing Code")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { isScanningQR = false }
+                    }
+                }
+            }
+        }
         .onDisappear {
             hostSession.cancel()
             controllerSession.cancel()
@@ -179,12 +196,22 @@ struct PairingSettingsView: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
 
-            Button {
-                if let value = UIPasteboard.general.string {
-                    enteredCode = value
+            HStack {
+                Button {
+                    isScanningQR = true
+                } label: {
+                    Label("Scan QR code", systemImage: "qrcode.viewfinder")
                 }
-            } label: {
-                Label("Paste from clipboard", systemImage: "doc.on.clipboard")
+
+                Spacer()
+
+                Button {
+                    if let value = UIPasteboard.general.string {
+                        enteredCode = value
+                    }
+                } label: {
+                    Label("Paste", systemImage: "doc.on.clipboard")
+                }
             }
 
             TextField("Six-digit PIN, if requested", text: $enteredPin)
@@ -204,7 +231,7 @@ struct PairingSettingsView: View {
         } header: {
             Text("Enter pairing code")
         } footer: {
-            Text("Scanning with the camera is not enabled yet; paste the code shown on the host.")
+            Text("Scan the QR code shown on the host, or paste the pairing code.")
         }
 
         sessionStatusSection(controllerSession)
