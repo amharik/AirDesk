@@ -634,6 +634,16 @@ final class Spake2PlusP256Session {
         )
     }
 
+    func verifierConfirmationP() throws -> Data {
+        guard role == .verifier else {
+            throw Spake2PlusP256.Error.invalidState("only the verifier has a prover confirmation")
+        }
+        guard phase == .awaitingConfirmation, let verifierPending else {
+            throw Spake2PlusP256.Error.invalidState("verifier has not responded")
+        }
+        return verifierPending.finish.expectedConfirmation
+    }
+
     func verifierFinish(confirmationP: Data) throws -> Result {
         guard role == .verifier else {
             throw Spake2PlusP256.Error.invalidState("only the verifier finishes with a prover confirmation")
