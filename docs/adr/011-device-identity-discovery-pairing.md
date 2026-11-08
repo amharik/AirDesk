@@ -5,6 +5,7 @@
 - **Updated:** 2026-11-03 — device trust separated from workspace ownership and user identity
 - **Updated:** 2026-11-03 — peer review: RFC 9383 SPAKE2+ pairing bound to the TLS 1.3 exporter
 - **Updated:** 2026-11-03 — peer review round 3: browser pairing binds the host certificate hash; canonical DNS-SD records and TXT keys
+- **Updated:** 2026-11-07 — native SPAKE2+, scrypt registration and the canonical transcript/signature/session flow reproduce the browser fixture; live binding/UI remain pending
 - **Deciders:** Security owner, engineering lead
 - **Scope:** Device keys, identity lifecycle, local discovery, QR pairing, session authentication, revocation, trust boundaries
 - **Supersedes:** None
