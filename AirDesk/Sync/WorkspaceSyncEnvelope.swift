@@ -102,6 +102,18 @@ enum WorkspaceSyncCrypto {
         return SymmetricKey(data: rawKey)
     }
 
+    static func derivePairingKey(secret: Data) throws -> SymmetricKey {
+        guard secret.count >= minimumSecretBytes else {
+            throw WorkspaceSyncEnvelopeError.invalidKey("workspace sync key material is too short.")
+        }
+        return HKDF<SHA256>.deriveKey(
+            inputKeyMaterial: SymmetricKey(data: secret),
+            salt: Data("airdesk.sync.v1".utf8),
+            info: Data("pairing-workspace-sync".utf8),
+            outputByteCount: keyBytes
+        )
+    }
+
     static func deriveKey(secret: Data, workspaceId: String) throws -> SymmetricKey {
         guard secret.count >= minimumSecretBytes else {
             throw WorkspaceSyncEnvelopeError.invalidKey("workspace sync key material is too short.")

@@ -5,6 +5,7 @@ import type { PairingCodeMode } from './pairing-code';
 import type { DeviceRegistry } from './registry';
 import { AdPairCoordinator } from './pairing-coordinator';
 import type { AdPairResult } from './pairing';
+import { derivePairingWorkspaceSyncKey } from '../sync/envelope';
 import {
   decodePairingWireMessage,
   encodePairingWireMessage,
@@ -179,6 +180,13 @@ export class AdPairLiveSession {
     if (this.registry && this.peer) this.registry.trust(this.peer);
     this.currentState = 'completed';
     return this.pairingResult;
+  }
+
+  async workspaceSyncKey(): Promise<CryptoKey> {
+    if (this.currentState !== 'completed' || !this.pairingResult) {
+      throw new PairingLiveError('invalid-state', 'pairing is not verified');
+    }
+    return derivePairingWorkspaceSyncKey(this.pairingResult.sessionKeys.transport.bytes);
   }
 
   cancel(): void {

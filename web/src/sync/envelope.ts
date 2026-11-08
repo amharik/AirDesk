@@ -107,6 +107,36 @@ export async function importWorkspaceSyncKey(rawKey: Uint8Array): Promise<Crypto
   ]);
 }
 
+export const PAIRING_SYNC_SALT = 'airdesk.sync.v1';
+export const PAIRING_SYNC_INFO = 'pairing-workspace-sync';
+
+export async function derivePairingWorkspaceSyncKeyBytes(
+  secret: Uint8Array
+): Promise<Uint8Array> {
+  if (secret.length < SYNC_TAG_BYTES) {
+    throw new SyncKeyError('pairing sync key material is too short.');
+  }
+
+  const material = await crypto.subtle.importKey('raw', ownedBytes(secret), 'HKDF', false, [
+    'deriveBits'
+  ]);
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: 'HKDF',
+      hash: 'SHA-256',
+      salt: textEncoder.encode(PAIRING_SYNC_SALT),
+      info: textEncoder.encode(PAIRING_SYNC_INFO)
+    },
+    material,
+    SYNC_KEY_BYTES * 8
+  );
+  return new Uint8Array(bits);
+}
+
+export async function derivePairingWorkspaceSyncKey(secret: Uint8Array): Promise<CryptoKey> {
+  return importWorkspaceSyncKey(await derivePairingWorkspaceSyncKeyBytes(secret));
+}
+
 export async function deriveWorkspaceSyncKey(
   secret: Uint8Array,
   workspaceId: string

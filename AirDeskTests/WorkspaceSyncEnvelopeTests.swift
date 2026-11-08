@@ -130,6 +130,20 @@ final class WorkspaceSyncEnvelopeTests: XCTestCase {
         }
     }
 
+    func testDerivesAutomaticPairingWorkspaceKey() throws {
+        let secret = Data((0..<32).map(UInt8.init))
+        let key = try WorkspaceSyncCrypto.derivePairingKey(secret: secret)
+        let raw = key.withUnsafeBytes { Data($0) }
+        XCTAssertEqual(raw.base64EncodedString(), "CKSAQxNdKw4f9gblaQ7lt+pFezUlD+qRVbRJuyaAFSQ=")
+
+        let envelope = try makeEnvelope(key: key)
+        let expected = WorkspaceSyncExpectations(workspaceId: "ws-1", hostEpoch: 2)
+        XCTAssertNoThrow(try WorkspaceSyncCrypto.decrypt(key: key, envelope: envelope, expected: expected))
+        XCTAssertThrowsError(try WorkspaceSyncCrypto.derivePairingKey(secret: Data(repeating: 0, count: 15))) {
+            XCTAssertEqual(($0 as? WorkspaceSyncEnvelopeError)?.code, "InvalidSyncKey")
+        }
+    }
+
     func testImportsAndDerivesWorkspaceScopedKeys() throws {
         let secret = Data((0..<32).map(UInt8.init))
         let first = try WorkspaceSyncCrypto.deriveKey(secret: secret, workspaceId: "ws-1")

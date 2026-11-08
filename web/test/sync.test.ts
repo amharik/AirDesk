@@ -20,6 +20,8 @@ import {
   bytesToBase64,
   decodeSyncPlaintext,
   decryptSyncEnvelope,
+  derivePairingWorkspaceSyncKey,
+  derivePairingWorkspaceSyncKeyBytes,
   deriveWorkspaceSyncKey,
   encryptSyncEnvelope,
   importWorkspaceSyncKey
@@ -451,5 +453,35 @@ describe('encrypted sync envelopes', () => {
 
     await expect(importWorkspaceSyncKey(new Uint8Array(16))).rejects.toBeInstanceOf(SyncKeyError);
     expect(new SyncEnvelopeError('InvalidEnvelope', 'bad').message).toContain('InvalidEnvelope');
+  });
+
+  it('derives the automatic pairing workspace key from the transport secret', async () => {
+    const secret = Uint8Array.from({ length: 32 }, (_, index) => index);
+    const raw = await derivePairingWorkspaceSyncKeyBytes(secret);
+
+    expect(Buffer.from(raw).toString('hex')).toBe(
+      '08a48043135d2b0e1ff606e5690ee5b7ea457b35250fea9155b449bb26801524'
+    );
+
+    const key = await derivePairingWorkspaceSyncKey(secret);
+    const envelope = await encryptSyncEnvelope({
+      key,
+      workspaceId: 'ws-paired',
+      senderDeviceId: 'dev-a',
+      hostEpoch: 1,
+      syncSeq: 1,
+      plaintext: 'automatic pairing key'
+    });
+
+    await expect(
+      decryptSyncEnvelope({
+        key,
+        envelope,
+        expected: { workspaceId: 'ws-paired', hostEpoch: 1 }
+      })
+    ).resolves.toBeTruthy();
+    await expect(derivePairingWorkspaceSyncKey(new Uint8Array(15))).rejects.toBeInstanceOf(
+      SyncKeyError
+    );
   });
 });

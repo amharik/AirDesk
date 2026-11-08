@@ -387,9 +387,8 @@ final class AppEnvironment: ObservableObject {
         guard let report = workspaceRestoreReport else {
             throw WorkspaceSyncControllerError.workspaceMissing
         }
-        let key = try WorkspaceSyncCrypto.deriveKey(
-            secret: pairingKeys.transport.bytes,
-            workspaceId: report.workspaceId
+        let key = try WorkspaceSyncCrypto.derivePairingKey(
+            secret: pairingKeys.transport.bytes
         )
         try activateWorkspaceSync(key: key)
     }
