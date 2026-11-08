@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   AdPairLiveSession,
+  DeviceRegistry,
   MemoryKeyStore,
   bytesToBase64Url,
   createBrowserIdentity,
@@ -14,8 +15,16 @@ async function identity(): Promise<BrowserDeviceIdentity> {
 
 describe('browser live pairing session', () => {
   it('drives the native pairing-wire exchange to a matching SAS', async () => {
-    const host = new AdPairLiveSession('initiator', await identity());
-    const controller = new AdPairLiveSession('responder', await identity());
+    const hostIdentity = await identity();
+    const controllerIdentity = await identity();
+    const hostRegistry = new DeviceRegistry();
+    const controllerRegistry = new DeviceRegistry();
+    const host = new AdPairLiveSession('initiator', hostIdentity, {
+      registry: hostRegistry
+    });
+    const controller = new AdPairLiveSession('responder', controllerIdentity, {
+      registry: controllerRegistry
+    });
     const start = host.startInitiator(
       'pin',
       exporterChannelBinding(new Uint8Array(32).fill(7))
@@ -33,12 +42,16 @@ describe('browser live pairing session', () => {
     expect(host.state).toBe('awaiting-sas');
     expect(controller.state).toBe('awaiting-sas');
     expect(await host.receive(responderFinish!)).toEqual([]);
+    expect(hostRegistry.isTrusted(controllerIdentity.deviceId)).toBe(false);
+    expect(controllerRegistry.isTrusted(hostIdentity.deviceId)).toBe(false);
 
     const hostResult = host.confirmShortAuthenticationString(host.shortAuthenticationString!);
     const controllerResult = controller.confirmShortAuthenticationString(
       controller.shortAuthenticationString!
     );
 
+    expect(hostRegistry.isTrusted(controllerIdentity.deviceId)).toBe(true);
+    expect(controllerRegistry.isTrusted(hostIdentity.deviceId)).toBe(true);
     expect(hostResult.shortAuthenticationString).toBe(
       controllerResult.shortAuthenticationString
     );

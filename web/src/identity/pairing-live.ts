@@ -2,6 +2,7 @@ import { utf8 } from './encoding';
 import type { BrowserDeviceIdentity } from './identity';
 import type { PairingChannelBinding } from './pairing-payload';
 import type { PairingCodeMode } from './pairing-code';
+import type { DeviceRegistry } from './registry';
 import { AdPairCoordinator } from './pairing-coordinator';
 import type { AdPairResult } from './pairing';
 import {
@@ -48,6 +49,7 @@ export class AdPairLiveSession {
   readonly role: AdPairLiveRole;
 
   private readonly coordinator: AdPairCoordinator;
+  private readonly registry: DeviceRegistry | undefined;
   private currentState: AdPairLiveState = 'idle';
   private serializedCode: string | undefined;
   private personalIdentificationNumber: string | undefined;
@@ -59,13 +61,17 @@ export class AdPairLiveSession {
   constructor(
     role: AdPairLiveRole,
     identity: BrowserDeviceIdentity,
-    options: { now?: () => number } = {}
+    options: { now?: () => number; registry?: DeviceRegistry } = {}
   ) {
     this.role = role;
+    this.registry = options.registry;
     this.coordinator = new AdPairCoordinator(
       role === 'initiator' ? 'initiator' : 'responder',
       identity,
-      options.now === undefined ? {} : { now: options.now }
+      {
+        ...(options.now === undefined ? {} : { now: options.now }),
+        ...(options.registry === undefined ? {} : { registry: options.registry })
+      }
     );
   }
 
@@ -170,6 +176,7 @@ export class AdPairLiveSession {
         new PairingLiveError('sas-mismatch', 'pairing verification code does not match')
       );
     }
+    if (this.registry && this.peer) this.registry.trust(this.peer);
     this.currentState = 'completed';
     return this.pairingResult;
   }
@@ -255,11 +262,14 @@ export class AdPairLiveSession {
   }
 
   private complete(result: AdPairResult): void {
+    const peer = this.role === 'initiator' ? result.response : result.offer;
     this.pairingResult = result;
     this.sas = result.shortAuthenticationString;
-    this.peer = this.role === 'initiator'
-      ? result.response.deviceId
-      : result.offer.deviceId;
+    this.peer = peer.deviceId;
+    this.registry?.enrollPending({
+      deviceId: peer.deviceId,
+      publicKey: peer.publicKey
+    });
     this.currentState = 'awaiting-sas';
   }
 

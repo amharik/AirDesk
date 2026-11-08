@@ -7,7 +7,10 @@ export type DeviceRegistryErrorCode =
   | 'invalid-public-key'
   | 'invalid-ttl'
   | 'device-unknown'
-  | 'device-revoked';
+  | 'device-revoked'
+  | 'device-pending';
+
+export type DeviceTrustState = 'pending' | 'trusted' | 'revoked';
 
 export class DeviceRegistryError extends Error {
   readonly code: DeviceRegistryErrorCode;
@@ -24,6 +27,7 @@ export interface PairingEnrollment {
   publicKey: string;
   requestedCapabilities?: readonly string[];
   pairedAt?: number;
+  trustState?: 'pending' | 'trusted';
 }
 
 export interface PairedDeviceRecord {
@@ -31,6 +35,7 @@ export interface PairedDeviceRecord {
   publicKey: string;
   pairedAt: number;
   revokedAt: number | null;
+  trustState: DeviceTrustState;
   requestedCapabilities: readonly string[];
   epoch: number;
 }
@@ -84,6 +89,9 @@ export class DeviceRegistry {
       publicKey: enrollment.publicKey,
       pairedAt: enrollment.pairedAt ?? this.now(),
       revokedAt: null,
+      trustState: existing?.trustState === 'trusted'
+        ? 'trusted'
+        : (enrollment.trustState ?? 'trusted'),
       requestedCapabilities,
       epoch: existing?.epoch ?? 0
     };
@@ -91,10 +99,25 @@ export class DeviceRegistry {
     return cloneRecord(record);
   }
 
+  enrollPending(enrollment: Omit<PairingEnrollment, 'trustState'>): PairedDeviceRecord {
+    return this.pair({ ...enrollment, trustState: 'pending' });
+  }
+
+  trust(deviceId: string): PairedDeviceRecord {
+    const record = this.devices.get(deviceId);
+    if (!record) throw new DeviceRegistryError('device-unknown', 'device is not paired');
+    if (record.revokedAt !== null) {
+      throw new DeviceRegistryError('device-revoked', 'revoked device cannot be trusted');
+    }
+    record.trustState = 'trusted';
+    return cloneRecord(record);
+  }
+
   revoke(deviceId: string): boolean {
     const record = this.devices.get(deviceId);
     if (!record || record.revokedAt !== null) return false;
     record.revokedAt = this.now();
+    record.trustState = 'revoked';
     record.epoch += 1;
     return true;
   }
@@ -110,7 +133,7 @@ export class DeviceRegistry {
 
   isTrusted(deviceId: string): boolean {
     const record = this.devices.get(deviceId);
-    return Boolean(record && record.revokedAt === null);
+    return Boolean(record && record.revokedAt === null && record.trustState === 'trusted');
   }
 
   isRevoked(deviceId: string): boolean {
@@ -132,6 +155,9 @@ export class DeviceRegistry {
     if (record.revokedAt !== null) {
       throw new DeviceRegistryError('device-revoked', 'device has been revoked');
     }
+    if (record.trustState !== 'trusted') {
+      throw new DeviceRegistryError('device-pending', 'device has not been trusted');
+    }
 
     const issuedAt = this.now();
     return {
@@ -145,7 +171,7 @@ export class DeviceRegistry {
 
   validateLease(lease: DeviceSessionLease): boolean {
     const record = this.devices.get(lease.deviceId);
-    if (!record || record.revokedAt !== null) return false;
+    if (!record || record.revokedAt !== null || record.trustState !== 'trusted') return false;
     if (lease.epoch !== record.epoch) return false;
     return lease.expiresAt > this.now();
   }
