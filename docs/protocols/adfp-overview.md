@@ -46,7 +46,7 @@ Required behavior:
 The FlatBuffers schema is structural. It declares identity, pairing, binding and lease fields but does not implement or assert cryptography:
 
 - `public_key` and channel-binding values are opaque encodings in the schema.
-- The browser has the AD-PAIR-1 canonical transcript, transcript signatures, binding enforcement, SAS and HKDF key schedule, plus an RFC 9383 P-256 SPAKE2+ primitive validated against the RFC vector; interactive pairing, QR/PIN exchange and channel-binding acquisition are not implemented.
+- The browser has the AD-PAIR-1 canonical transcript, transcript signatures, binding enforcement, SAS and HKDF key schedule, plus an RFC 9383 P-256 SPAKE2+ primitive validated against the RFC vector; native PIN/QR pairing, SAS and Iroh endpoint binding are implemented, while live browser pairing and certificate/exporter acquisition are not.
 - Browser code implements compact `COSE_Sign1` grant issuance and verification with bounded delegation, scoped leases, `cnf` proof-of-possession, signed revocation snapshots and provider-side request authorization; native issuance, revocation distribution and native invocation enforcement remain pending.
 - `SyncRecord.payload_hash` is an opaque digest; no synchronization transport is implied.
 - A capability advertisement, pairing offer or lease payload never grants workspace ownership.

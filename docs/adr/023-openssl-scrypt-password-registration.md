@@ -44,7 +44,7 @@ The use is limited to native SPAKE2+ password registration:
 - Native PIN registration interoperates with the browser profile without a protocol fork.
 - The same OpenSSL attribution, pinning and upgrade-review requirements as ADR-022 apply.
 - A new OpenSSL use requires an ADR-003 review; this ADR admits only scrypt password derivation.
-- QR/PIN UI, channel binding and the complete pairing session remain implementation work under ADR-011.
+- Native PIN/QR pairing and SAS are implemented; browser certificate/exporter channel binding remains implementation work under ADR-011.
 
 ## Validation
 
