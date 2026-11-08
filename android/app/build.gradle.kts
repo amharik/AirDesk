@@ -67,6 +67,7 @@ dependencies {
     implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.webkit:webkit:1.12.1")
     implementation("com.google.flatbuffers:flatbuffers-java:25.12.19")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
