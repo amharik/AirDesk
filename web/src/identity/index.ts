@@ -14,3 +14,4 @@ export * from './replay';
 export * from './session-keys';
 export * from './spake2plus';
 export * from './transcript';
+export * from './pairing-webrtc';
