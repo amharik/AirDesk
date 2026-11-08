@@ -1,5 +1,5 @@
-// Pairing primitives only: offer payload validation, local registry and transcript hashing.
-// AD-PAIR-1 (SPAKE2+, QR/PIN, TLS exporter binding and network transport) is not implemented here.
+// Legacy pairing-offer primitives: payload validation, local registry and transcript hashing.
+// Canonical AD-PAIR-1 payloads, transcript, signatures and session live in AdPairSession.swift.
 import CryptoKit
 import Foundation
 import Security
@@ -450,6 +450,26 @@ struct PairingTranscript: Equatable {
 enum PairingEncoding {
     static func hexString(_ data: Data) -> String {
         data.map { String(format: "%02x", $0) }.joined()
+    }
+
+    static func base64URLString(_ data: Data) -> String {
+        data.base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+
+    static func data(base64URL value: String) -> Data? {
+        guard !value.isEmpty else { return nil }
+        var encoded = value
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        let remainder = encoded.count % 4
+        guard remainder != 1 else { return nil }
+        if remainder > 0 {
+            encoded += String(repeating: "=", count: 4 - remainder)
+        }
+        return Data(base64Encoded: encoded)
     }
 
     static func data(hex: String) -> Data? {
