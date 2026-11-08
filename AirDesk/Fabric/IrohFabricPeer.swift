@@ -50,6 +50,7 @@ final class IrohFabricPeer: ObservableObject {
     private var connections: [String: IrohFabricConnection] = [:]
     private var receiveTasks: [String: Task<Void, Never>] = [:]
     private var activeRemoteID: String?
+    private var pairingRemoteID: String?
     private var sendChain: Task<Void, Never>?
     private var diagnosticsTimer: Timer?
 
@@ -116,6 +117,7 @@ final class IrohFabricPeer: ObservableObject {
         receiveTasks.values.forEach { $0.cancel() }
         receiveTasks.removeAll()
         activeRemoteID = nil
+        pairingRemoteID = nil
         connectionCount = 0
         paths = []
         remoteEndpointID = nil
@@ -158,6 +160,7 @@ final class IrohFabricPeer: ObservableObject {
         receiveTasks.values.forEach { $0.cancel() }
         receiveTasks.removeAll()
         activeRemoteID = nil
+        pairingRemoteID = nil
         connectionCount = 0
         paths = []
         remoteEndpointID = nil
@@ -198,11 +201,18 @@ final class IrohFabricPeer: ObservableObject {
 
     @discardableResult
     func sendPairing(_ payload: Data) -> Bool {
-        sendReliable(payload, channel: .pairing)
+        sendReliable(payload, channel: .pairing, to: pairingRemoteID ?? activeRemoteID)
     }
 
-    private func sendReliable(_ payload: Data, channel: IrohFabricChannel) -> Bool {
-        guard let connection = activeConnection else { return false }
+    private func sendReliable(
+        _ payload: Data,
+        channel: IrohFabricChannel,
+        to remoteID: String? = nil
+    ) -> Bool {
+        guard let remoteID = remoteID ?? activeRemoteID,
+              let connection = connections[remoteID] else {
+            return false
+        }
         guard !payload.isEmpty, payload.count <= IrohFabricFrame.maximumReliablePayload else {
             lastError = IrohFabricError.frameTooLarge.localizedDescription
             return false
@@ -242,6 +252,9 @@ final class IrohFabricPeer: ObservableObject {
         if activeRemoteID == nil || isOutgoing {
             activeRemoteID = id
         }
+        if isOutgoing {
+            pairingRemoteID = id
+        }
         connectionCount = connections.count
         state = .connected
         refreshDiagnostics()
@@ -253,13 +266,13 @@ final class IrohFabricPeer: ObservableObject {
             guard let connection else { return }
             for await message in connection.messages {
                 guard let self else { return }
-                self.handle(message)
+                self.handle(message, from: id)
             }
             self?.removeConnection(id)
         }
     }
 
-    private func handle(_ message: IrohFabricMessage) {
+    private func handle(_ message: IrohFabricMessage, from remoteID: String) {
         switch message {
         case .invalid(let reason):
             lastError = reason
@@ -269,6 +282,7 @@ final class IrohFabricPeer: ObservableObject {
                 return
             }
             if channel == .pairing {
+                pairingRemoteID = remoteID
                 onPairingMessage?(payload)
                 return
             }
@@ -293,6 +307,9 @@ final class IrohFabricPeer: ObservableObject {
         connectionCount = connections.count
         if activeRemoteID == id {
             activeRemoteID = connections.keys.sorted().first
+        }
+        if pairingRemoteID == id {
+            pairingRemoteID = nil
         }
         refreshDiagnostics()
         onPeerDisconnected?(id)

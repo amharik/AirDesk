@@ -77,4 +77,49 @@ final class IrohFabricPeerTests: XCTestCase {
         XCTAssertTrue(controller.sendPairing(Data("pairing-message".utf8)))
         await fulfillment(of: [pairingReceived], timeout: 5)
     }
+
+    func testPairingRepliesToIncomingPeerWhileAnotherConnectionIsActive() async throws {
+        let host = IrohFabricPeer(identitySeed: Data(repeating: 0x55, count: 32))
+        let controller = IrohFabricPeer(identitySeed: Data(repeating: 0x66, count: 32))
+        let syncPeer = IrohFabricPeer(identitySeed: Data(repeating: 0x77, count: 32))
+        defer {
+            Task { @MainActor in
+                await host.stop()
+                await controller.stop()
+                await syncPeer.stop()
+            }
+        }
+
+        await host.start(relayPolicy: .directOnly)
+        await controller.start(relayPolicy: .directOnly)
+        await syncPeer.start(relayPolicy: .directOnly)
+
+        try await host.connect(to: syncPeer.ticket)
+
+        let incomingConnected = expectation(description: "controller connected to host")
+        host.onPeerConnected = { id in
+            if id == controller.endpointID {
+                incomingConnected.fulfill()
+            }
+        }
+        try await controller.connect(to: host.ticket)
+        await fulfillment(of: [incomingConnected], timeout: 10)
+
+        let requestReceived = expectation(description: "host received pairing request")
+        let replyReceived = expectation(description: "controller received pairing reply")
+        host.onPairingMessage = { payload in
+            if payload == Data("pairing-request".utf8) {
+                XCTAssertTrue(host.sendPairing(Data("pairing-reply".utf8)))
+                requestReceived.fulfill()
+            }
+        }
+        controller.onPairingMessage = { payload in
+            if payload == Data("pairing-reply".utf8) {
+                replyReceived.fulfill()
+            }
+        }
+
+        XCTAssertTrue(controller.sendPairing(Data("pairing-request".utf8)))
+        await fulfillment(of: [requestReceived, replyReceived], timeout: 5)
+    }
 }
