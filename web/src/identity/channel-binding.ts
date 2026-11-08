@@ -84,3 +84,32 @@ export function webTransportHashChannelBinding(
   }
   return { kind: 'certificate-hash', value: bytesToHex(value) };
 }
+
+export function dtlsFingerprintChannelBinding(sdp: string): PairingChannelBinding {
+  const pattern = /^a=fingerprint:([A-Za-z0-9-]+)[ \t]+([0-9A-Fa-f:]+)[ \t]*$/gim;
+  const hashes = new Set<string>();
+  for (const match of sdp.matchAll(pattern)) {
+    const algorithm = match[1]!.toLowerCase();
+    if (algorithm !== 'sha-256') {
+      throw new PairingValidationError(
+        'invalid-binding',
+        'DTLS fingerprint must use SHA-256'
+      );
+    }
+    const value = match[2]!.replace(/:/g, '').toLowerCase();
+    if (!/^[0-9a-f]{64}$/.test(value)) {
+      throw new PairingValidationError('invalid-binding', 'invalid DTLS fingerprint');
+    }
+    hashes.add(value);
+  }
+  if (hashes.size === 0) {
+    throw new PairingValidationError('missing-binding', 'SDP has no DTLS fingerprint');
+  }
+  if (hashes.size !== 1) {
+    throw new PairingValidationError(
+      'invalid-binding',
+      'SDP has conflicting DTLS fingerprints'
+    );
+  }
+  return { kind: 'certificate-hash', value: [...hashes][0]! };
+}

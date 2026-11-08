@@ -4,6 +4,7 @@ import {
   base64UrlToBytes,
   certificateHashChannelBinding,
   dtlsCertificateChannelBinding,
+  dtlsFingerprintChannelBinding,
   exporterChannelBinding,
   webTransportHashChannelBinding
 } from '../src/identity';
@@ -92,5 +93,44 @@ describe('browser pairing channel bindings', () => {
     expect(() =>
       webTransportHashChannelBinding([{ algorithm: 'sha-256', value: new Uint8Array(31) }])
     ).toThrowError(expect.objectContaining({ code: 'invalid-binding' }));
+  });
+});
+
+describe('DTLS SDP fingerprints', () => {
+  const hex = 'ab'.repeat(32);
+  const colon = hex.match(/../g)!.join(':');
+
+  it('maps the SDP SHA-256 fingerprint to a certificate-hash binding', () => {
+    const sdp = [
+      'v=0',
+      'a=fingerprint:sha-256 ' + colon.toUpperCase(),
+      'a=fingerprint:sha-256 ' + colon,
+      'a=setup:actpass'
+    ].join('\r\n');
+
+    expect(dtlsFingerprintChannelBinding(sdp)).toEqual({
+      kind: 'certificate-hash',
+      value: hex
+    });
+  });
+
+  it('rejects missing, malformed and unsupported fingerprints', () => {
+    expect(() => dtlsFingerprintChannelBinding('v=0\r\n')).toThrowError(
+      expect.objectContaining({ code: 'missing-binding' })
+    );
+    expect(() =>
+      dtlsFingerprintChannelBinding('a=fingerprint:sha-256 aa:bb\r\n')
+    ).toThrowError(expect.objectContaining({ code: 'invalid-binding' }));
+    expect(() =>
+      dtlsFingerprintChannelBinding(`a=fingerprint:sha-384 ${colon}\r\n`)
+    ).toThrowError(expect.objectContaining({ code: 'invalid-binding' }));
+  });
+
+  it('rejects conflicting fingerprints in one SDP', () => {
+    const other = 'cd'.repeat(32).match(/../g)!.join(':');
+    const sdp = `a=fingerprint:sha-256 ${colon}\r\na=fingerprint:sha-256 ${other}\r\n`;
+    expect(() => dtlsFingerprintChannelBinding(sdp)).toThrowError(
+      expect.objectContaining({ code: 'invalid-binding' })
+    );
   });
 });

@@ -6,6 +6,7 @@ export * from './pairing';
 export * from './pairing-code';
 export * from './pairing-coordinator';
 export * from './pairing-live';
+export * from './pairing-transport';
 export * from './pairing-payload';
 export * from './pairing-wire';
 export * from './registry';
