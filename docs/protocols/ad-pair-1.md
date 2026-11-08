@@ -1,6 +1,6 @@
 # AD-PAIR-1 pairing transcript and key schedule
 
-Status: partial implementation behind [ADR-011](../adr/011-device-identity-discovery-pairing.md). The transcript, signature checks, channel-binding validation and key schedule are implemented in the browser identity layer. An interactive RFC 9383 SPAKE2+ P-256 prover/verifier session is implemented, validated against the RFC vector and integrated with `AdPairSession` confirmation evidence. An scrypt password PBKDF, salted registration record and browser QR/PIN challenge envelopes are implemented. iOS now matches the AD-PAIR-1 key schedule, implements native SPAKE2+ against the RFC vector using isolated OpenSSL P-256 group operations under [ADR-022](../adr/022-openssl-p256-group-arithmetic.md), matches the browser scrypt registration profile through OpenSSL `EVP_PBE_scrypt` under [ADR-023](../adr/023-openssl-scrypt-password-registration.md), and implements a native AD-PAIR-1 transcript/signature/session flow that reproduces the browser fixture. The camera/UI flow, live transport binding and native/browser binding acquisition remain pending.
+Status: partial implementation behind [ADR-011](../adr/011-device-identity-discovery-pairing.md). The transcript, signature checks, channel-binding validation and key schedule are implemented in the browser identity layer. An interactive RFC 9383 SPAKE2+ P-256 prover/verifier session is implemented, validated against the RFC vector and integrated with `AdPairSession` confirmation evidence. An scrypt password PBKDF, salted registration record and browser QR/PIN challenge envelopes are implemented. iOS now matches the AD-PAIR-1 key schedule, implements native SPAKE2+ against the RFC vector using isolated OpenSSL P-256 group operations under [ADR-022](../adr/022-openssl-p256-group-arithmetic.md), matches the browser scrypt registration profile through OpenSSL `EVP_PBE_scrypt` under [ADR-023](../adr/023-openssl-scrypt-password-registration.md), implements a native AD-PAIR-1 transcript/signature/session flow that reproduces the browser fixture, and matches the browser `ADPAIR1:` PIN/QR-secret challenge envelopes and PIN attempt limiting. The camera/UI flow, live transport binding and native/browser binding acquisition remain pending.
 
 ## Scope
 
@@ -81,7 +81,7 @@ The iOS implementation exposes `Spake2PlusP256.derivePasswordScalars`, `createPa
 - PIN attempts are limited in memory and fail closed on expiry or lockout
 - malformed modes, salts, identities, unknown fields, expired offers and replayed nonces are rejected
 
-The camera/scanning UI and native pairing envelope/session integration are pending. A QR code is a bootstrap carrier, not a trust decision; the AD-PAIR-1 transcript, signatures and channel binding still have to validate.
+`AirDesk/Identity/PairingCode.swift` matches the browser envelope: `AdPairCodec` serializes validated offers as `ADPAIR1:` base64url JSON, parses PIN/QR-secret challenges with mode, protocol/version, expiry and unknown-field checks, derives the same scrypt registration and keeps PIN attempts in a fail-closed guard. `AirDeskTests/PairingCodeTests.swift` covers round trips, non-serialization of the PIN, malformed/expired/unsupported codes, registration determinism, interactive SPAKE2+ from a QR secret and lockout/reset. The camera/scanning UI and live native pairing integration are pending. A QR code is a bootstrap carrier, not a trust decision; the AD-PAIR-1 transcript, signatures and channel binding still have to validate.
 
 ## SAS
 
@@ -121,5 +121,5 @@ The transcript hash must be exactly 32 bytes. Missing or malformed channel bindi
 
 - QR/PIN camera/scanning UI, live native pairing flow and user-verification integration.
 - TLS exporter and browser host-certificate hash acquisition.
-- Android password registration and native QR/PIN challenge envelopes.
+- Android password registration and QR/PIN challenge envelopes.
 - Transport binding of the derived keys to ADFP or Iroh, automatic workspace-sync activation and pairing key distribution.

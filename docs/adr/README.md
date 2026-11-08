@@ -46,7 +46,7 @@ This index is the authoritative map of which decision is in force. An ADR's orig
 - **Transport:** WebSocket is the browser baseline; Iroh is the native peer data plane under ADR-021 with direct-first, explicit self-hosted relay policy; WebTransport remains an optional Baseline 2026 candidate.
 - **Persistence:** device-local first; fields declare `lww`, `append-log` or `manual`; encrypted cross-device synchronization is later; CRDTs are shared-document only.
 - **Display:** a display session, including a browser endpoint, presents a workspace but is not its authority; browser starts single-threaded.
-- **Identity:** Ed25519 default with P-256 fallback; device trust is not workspace ownership or collaboration; future user identity uses WebAuthn/FIDO2; native AD-PAIR-1 uses isolated OpenSSL P-256 group operations under ADR-022.
+- **Identity:** Ed25519 default with P-256 fallback; device trust is not workspace ownership or collaboration; future user identity uses WebAuthn/FIDO2; native AD-PAIR-1 uses isolated OpenSSL P-256 group operations under ADR-022, with browser-compatible QR/PIN challenge envelopes and PIN attempt limiting in `PairingCode.swift`.
 - **Capabilities:** scoped, time-bounded, revocable leases; advertisement is not permission.
 - **Input:** multiple controllers may attach; one keyboard focus owner at a time; this is not multi-user collaboration.
 
