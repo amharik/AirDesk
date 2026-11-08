@@ -1,3 +1,4 @@
+export * from './channel-binding';
 export * from './encoding';
 export * from './identity';
 export * from './pake';
