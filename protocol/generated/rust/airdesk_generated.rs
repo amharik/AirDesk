@@ -841,10 +841,10 @@ impl ::flatbuffers::SimpleToVerifyInSlice for DeviceKind {}
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 pub const ENUM_MIN_RESOURCE_OP_CODE: u32 = 100;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MAX_RESOURCE_OP_CODE: u32 = 115;
+pub const ENUM_MAX_RESOURCE_OP_CODE: u32 = 117;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 #[allow(non_camel_case_types)]
-pub const ENUM_VALUES_RESOURCE_OP_CODE: [ResourceOpCode; 16] = [
+pub const ENUM_VALUES_RESOURCE_OP_CODE: [ResourceOpCode; 18] = [
   ResourceOpCode::attach,
   ResourceOpCode::attach_result,
   ResourceOpCode::walk,
@@ -861,6 +861,8 @@ pub const ENUM_VALUES_RESOURCE_OP_CODE: [ResourceOpCode; 16] = [
   ResourceOpCode::stat_result,
   ResourceOpCode::wstat,
   ResourceOpCode::wstat_result,
+  ResourceOpCode::compound,
+  ResourceOpCode::compound_result,
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -884,9 +886,11 @@ impl ResourceOpCode {
   pub const stat_result: Self = Self(113);
   pub const wstat: Self = Self(114);
   pub const wstat_result: Self = Self(115);
+  pub const compound: Self = Self(116);
+  pub const compound_result: Self = Self(117);
 
   pub const ENUM_MIN: u32 = 100;
-  pub const ENUM_MAX: u32 = 115;
+  pub const ENUM_MAX: u32 = 117;
   pub const ENUM_VALUES: &'static [Self] = &[
     Self::attach,
     Self::attach_result,
@@ -904,6 +908,8 @@ impl ResourceOpCode {
     Self::stat_result,
     Self::wstat,
     Self::wstat_result,
+    Self::compound,
+    Self::compound_result,
   ];
   /// Returns the variant's name or "" if unknown.
   pub fn variant_name(self) -> Option<&'static str> {
@@ -924,6 +930,8 @@ impl ResourceOpCode {
       Self::stat_result => Some("stat_result"),
       Self::wstat => Some("wstat"),
       Self::wstat_result => Some("wstat_result"),
+      Self::compound => Some("compound"),
+      Self::compound_result => Some("compound_result"),
       _ => None,
     }
   }
@@ -978,6 +986,86 @@ impl<'a> ::flatbuffers::Verifiable for ResourceOpCode {
 }
 
 impl ::flatbuffers::SimpleToVerifyInSlice for ResourceOpCode {}
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+pub const ENUM_MIN_BLOB_ALGORITHM: u8 = 1;
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+pub const ENUM_MAX_BLOB_ALGORITHM: u8 = 1;
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+#[allow(non_camel_case_types)]
+pub const ENUM_VALUES_BLOB_ALGORITHM: [BlobAlgorithm; 1] = [
+  BlobAlgorithm::blake3,
+];
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[repr(transparent)]
+pub struct BlobAlgorithm(pub u8);
+#[allow(non_upper_case_globals)]
+impl BlobAlgorithm {
+  pub const blake3: Self = Self(1);
+
+  pub const ENUM_MIN: u8 = 1;
+  pub const ENUM_MAX: u8 = 1;
+  pub const ENUM_VALUES: &'static [Self] = &[
+    Self::blake3,
+  ];
+  /// Returns the variant's name or "" if unknown.
+  pub fn variant_name(self) -> Option<&'static str> {
+    match self {
+      Self::blake3 => Some("blake3"),
+      _ => None,
+    }
+  }
+}
+impl ::core::fmt::Debug for BlobAlgorithm {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+    if let Some(name) = self.variant_name() {
+      f.write_str(name)
+    } else {
+      f.write_fmt(format_args!("<UNKNOWN {:?}>", self.0))
+    }
+  }
+}
+impl<'a> ::flatbuffers::Follow<'a> for BlobAlgorithm {
+  type Inner = Self;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    let b = unsafe { ::flatbuffers::read_scalar_at::<u8>(buf, loc) };
+    Self(b)
+  }
+}
+
+impl ::flatbuffers::Push for BlobAlgorithm {
+    type Output = BlobAlgorithm;
+    #[inline]
+    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
+        unsafe { ::flatbuffers::emplace_scalar::<u8>(dst, self.0) };
+    }
+}
+
+impl ::flatbuffers::EndianScalar for BlobAlgorithm {
+  type Scalar = u8;
+  #[inline]
+  fn to_little_endian(self) -> u8 {
+    self.0.to_le()
+  }
+  #[inline]
+  #[allow(clippy::wrong_self_convention)]
+  fn from_little_endian(v: u8) -> Self {
+    let b = u8::from_le(v);
+    Self(b)
+  }
+}
+
+impl<'a> ::flatbuffers::Verifiable for BlobAlgorithm {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    u8::run_verifier(v, pos)
+  }
+}
+
+impl ::flatbuffers::SimpleToVerifyInSlice for BlobAlgorithm {}
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 pub const ENUM_MIN_BIND_MODE: u8 = 0;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
@@ -1177,10 +1265,10 @@ impl ::flatbuffers::SimpleToVerifyInSlice for ResourceStatus {}
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 pub const ENUM_MIN_RESOURCE_RPC_PAYLOAD: u8 = 0;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MAX_RESOURCE_RPC_PAYLOAD: u8 = 16;
+pub const ENUM_MAX_RESOURCE_RPC_PAYLOAD: u8 = 18;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 #[allow(non_camel_case_types)]
-pub const ENUM_VALUES_RESOURCE_RPC_PAYLOAD: [ResourceRpcPayload; 17] = [
+pub const ENUM_VALUES_RESOURCE_RPC_PAYLOAD: [ResourceRpcPayload; 19] = [
   ResourceRpcPayload::NONE,
   ResourceRpcPayload::ResourceAttach,
   ResourceRpcPayload::ResourceAttachResult,
@@ -1198,6 +1286,8 @@ pub const ENUM_VALUES_RESOURCE_RPC_PAYLOAD: [ResourceRpcPayload; 17] = [
   ResourceRpcPayload::ResourceStatResult,
   ResourceRpcPayload::ResourceWstat,
   ResourceRpcPayload::ResourceWstatResult,
+  ResourceRpcPayload::ResourceCompoundRequest,
+  ResourceRpcPayload::ResourceCompoundResult,
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -1222,9 +1312,11 @@ impl ResourceRpcPayload {
   pub const ResourceStatResult: Self = Self(14);
   pub const ResourceWstat: Self = Self(15);
   pub const ResourceWstatResult: Self = Self(16);
+  pub const ResourceCompoundRequest: Self = Self(17);
+  pub const ResourceCompoundResult: Self = Self(18);
 
   pub const ENUM_MIN: u8 = 0;
-  pub const ENUM_MAX: u8 = 16;
+  pub const ENUM_MAX: u8 = 18;
   pub const ENUM_VALUES: &'static [Self] = &[
     Self::NONE,
     Self::ResourceAttach,
@@ -1243,6 +1335,8 @@ impl ResourceRpcPayload {
     Self::ResourceStatResult,
     Self::ResourceWstat,
     Self::ResourceWstatResult,
+    Self::ResourceCompoundRequest,
+    Self::ResourceCompoundResult,
   ];
   /// Returns the variant's name or "" if unknown.
   pub fn variant_name(self) -> Option<&'static str> {
@@ -1264,6 +1358,8 @@ impl ResourceRpcPayload {
       Self::ResourceStatResult => Some("ResourceStatResult"),
       Self::ResourceWstat => Some("ResourceWstat"),
       Self::ResourceWstatResult => Some("ResourceWstatResult"),
+      Self::ResourceCompoundRequest => Some("ResourceCompoundRequest"),
+      Self::ResourceCompoundResult => Some("ResourceCompoundResult"),
       _ => None,
     }
   }
@@ -5411,6 +5507,170 @@ impl ::core::fmt::Debug for ResourceRead<'_> {
       ds.finish()
   }
 }
+pub enum BlobHandleOffset {}
+#[derive(Copy, Clone, PartialEq)]
+
+pub struct BlobHandle<'a> {
+  pub _tab: ::flatbuffers::Table<'a>,
+}
+
+impl<'a> ::flatbuffers::Follow<'a> for BlobHandle<'a> {
+  type Inner = BlobHandle<'a>;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }
+  }
+}
+
+impl<'a> BlobHandle<'a> {
+  pub const VT_VERSION: ::flatbuffers::VOffsetT = 4;
+  pub const VT_ALGORITHM: ::flatbuffers::VOffsetT = 6;
+  pub const VT_DIGEST: ::flatbuffers::VOffsetT = 8;
+  pub const VT_LENGTH: ::flatbuffers::VOffsetT = 10;
+  pub const VT_EXPIRES_AT: ::flatbuffers::VOffsetT = 12;
+
+  #[inline]
+  pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
+    BlobHandle { _tab: table }
+  }
+  #[allow(unused_mut)]
+  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
+    _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
+    args: &'args BlobHandleArgs<'args>
+  ) -> ::flatbuffers::WIPOffset<BlobHandle<'bldr>> {
+    let mut builder = BlobHandleBuilder::new(_fbb);
+    builder.add_expires_at(args.expires_at);
+    builder.add_length(args.length);
+    if let Some(x) = args.digest { builder.add_digest(x); }
+    builder.add_version(args.version);
+    builder.add_algorithm(args.algorithm);
+    builder.finish()
+  }
+
+
+  #[inline]
+  pub fn version(&self) -> u32 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u32>(BlobHandle::VT_VERSION, Some(1)).unwrap()}
+  }
+  #[inline]
+  pub fn algorithm(&self) -> BlobAlgorithm {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<BlobAlgorithm>(BlobHandle::VT_ALGORITHM, Some(BlobAlgorithm::blake3)).unwrap()}
+  }
+  #[inline]
+  pub fn digest(&self) -> Option<::flatbuffers::Vector<'a, u8>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, u8>>>(BlobHandle::VT_DIGEST, None)}
+  }
+  #[inline]
+  pub fn length(&self) -> u64 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u64>(BlobHandle::VT_LENGTH, Some(0)).unwrap()}
+  }
+  #[inline]
+  pub fn expires_at(&self) -> u64 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u64>(BlobHandle::VT_EXPIRES_AT, Some(0)).unwrap()}
+  }
+}
+
+impl ::flatbuffers::Verifiable for BlobHandle<'_> {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    v.visit_table(pos)?
+     .visit_field::<u32>("version", Self::VT_VERSION, false)?
+     .visit_field::<BlobAlgorithm>("algorithm", Self::VT_ALGORITHM, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, u8>>>("digest", Self::VT_DIGEST, false)?
+     .visit_field::<u64>("length", Self::VT_LENGTH, false)?
+     .visit_field::<u64>("expires_at", Self::VT_EXPIRES_AT, false)?
+     .finish();
+    Ok(())
+  }
+}
+pub struct BlobHandleArgs<'a> {
+    pub version: u32,
+    pub algorithm: BlobAlgorithm,
+    pub digest: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, u8>>>,
+    pub length: u64,
+    pub expires_at: u64,
+}
+impl<'a> Default for BlobHandleArgs<'a> {
+  #[inline]
+  fn default() -> Self {
+    BlobHandleArgs {
+      version: 1,
+      algorithm: BlobAlgorithm::blake3,
+      digest: None,
+      length: 0,
+      expires_at: 0,
+    }
+  }
+}
+
+pub struct BlobHandleBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
+  fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
+  start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
+}
+impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> BlobHandleBuilder<'a, 'b, A> {
+  #[inline]
+  pub fn add_version(&mut self, version: u32) {
+    self.fbb_.push_slot::<u32>(BlobHandle::VT_VERSION, version, 1);
+  }
+  #[inline]
+  pub fn add_algorithm(&mut self, algorithm: BlobAlgorithm) {
+    self.fbb_.push_slot::<BlobAlgorithm>(BlobHandle::VT_ALGORITHM, algorithm, BlobAlgorithm::blake3);
+  }
+  #[inline]
+  pub fn add_digest(&mut self, digest: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , u8>>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(BlobHandle::VT_DIGEST, digest);
+  }
+  #[inline]
+  pub fn add_length(&mut self, length: u64) {
+    self.fbb_.push_slot::<u64>(BlobHandle::VT_LENGTH, length, 0);
+  }
+  #[inline]
+  pub fn add_expires_at(&mut self, expires_at: u64) {
+    self.fbb_.push_slot::<u64>(BlobHandle::VT_EXPIRES_AT, expires_at, 0);
+  }
+  #[inline]
+  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> BlobHandleBuilder<'a, 'b, A> {
+    let start = _fbb.start_table();
+    BlobHandleBuilder {
+      fbb_: _fbb,
+      start_: start,
+    }
+  }
+  #[inline]
+  pub fn finish(self) -> ::flatbuffers::WIPOffset<BlobHandle<'a>> {
+    let o = self.fbb_.end_table(self.start_);
+    ::flatbuffers::WIPOffset::new(o.value())
+  }
+}
+
+impl ::core::fmt::Debug for BlobHandle<'_> {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+    let mut ds = f.debug_struct("BlobHandle");
+      ds.field("version", &self.version());
+      ds.field("algorithm", &self.algorithm());
+      ds.field("digest", &self.digest());
+      ds.field("length", &self.length());
+      ds.field("expires_at", &self.expires_at());
+      ds.finish()
+  }
+}
 pub enum ResourceReadResultOffset {}
 #[derive(Copy, Clone, PartialEq)]
 
@@ -5428,6 +5688,7 @@ impl<'a> ::flatbuffers::Follow<'a> for ResourceReadResult<'a> {
 
 impl<'a> ResourceReadResult<'a> {
   pub const VT_DATA: ::flatbuffers::VOffsetT = 4;
+  pub const VT_BLOB: ::flatbuffers::VOffsetT = 6;
 
   #[inline]
   pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
@@ -5439,6 +5700,7 @@ impl<'a> ResourceReadResult<'a> {
     args: &'args ResourceReadResultArgs<'args>
   ) -> ::flatbuffers::WIPOffset<ResourceReadResult<'bldr>> {
     let mut builder = ResourceReadResultBuilder::new(_fbb);
+    if let Some(x) = args.blob { builder.add_blob(x); }
     if let Some(x) = args.data { builder.add_data(x); }
     builder.finish()
   }
@@ -5451,6 +5713,13 @@ impl<'a> ResourceReadResult<'a> {
     // which contains a valid value in this slot
     unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, u8>>>(ResourceReadResult::VT_DATA, None)}
   }
+  #[inline]
+  pub fn blob(&self) -> Option<BlobHandle<'a>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<BlobHandle>>(ResourceReadResult::VT_BLOB, None)}
+  }
 }
 
 impl ::flatbuffers::Verifiable for ResourceReadResult<'_> {
@@ -5460,18 +5729,21 @@ impl ::flatbuffers::Verifiable for ResourceReadResult<'_> {
   ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
     v.visit_table(pos)?
      .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, u8>>>("data", Self::VT_DATA, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<BlobHandle>>("blob", Self::VT_BLOB, false)?
      .finish();
     Ok(())
   }
 }
 pub struct ResourceReadResultArgs<'a> {
     pub data: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, u8>>>,
+    pub blob: Option<::flatbuffers::WIPOffset<BlobHandle<'a>>>,
 }
 impl<'a> Default for ResourceReadResultArgs<'a> {
   #[inline]
   fn default() -> Self {
     ResourceReadResultArgs {
       data: None,
+      blob: None,
     }
   }
 }
@@ -5484,6 +5756,10 @@ impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> ResourceReadResultBuilder<'a,
   #[inline]
   pub fn add_data(&mut self, data: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , u8>>) {
     self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(ResourceReadResult::VT_DATA, data);
+  }
+  #[inline]
+  pub fn add_blob(&mut self, blob: ::flatbuffers::WIPOffset<BlobHandle<'b >>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<BlobHandle>>(ResourceReadResult::VT_BLOB, blob);
   }
   #[inline]
   pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> ResourceReadResultBuilder<'a, 'b, A> {
@@ -5504,6 +5780,7 @@ impl ::core::fmt::Debug for ResourceReadResult<'_> {
   fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
     let mut ds = f.debug_struct("ResourceReadResult");
       ds.field("data", &self.data());
+      ds.field("blob", &self.blob());
       ds.finish()
   }
 }
@@ -6326,6 +6603,436 @@ impl ::core::fmt::Debug for ResourceWstatResult<'_> {
       ds.finish()
   }
 }
+pub enum ResourceCompoundRequestOffset {}
+#[derive(Copy, Clone, PartialEq)]
+
+pub struct ResourceCompoundRequest<'a> {
+  pub _tab: ::flatbuffers::Table<'a>,
+}
+
+impl<'a> ::flatbuffers::Follow<'a> for ResourceCompoundRequest<'a> {
+  type Inner = ResourceCompoundRequest<'a>;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }
+  }
+}
+
+impl<'a> ResourceCompoundRequest<'a> {
+  pub const VT_REQUEST_ID: ::flatbuffers::VOffsetT = 4;
+  pub const VT_FID: ::flatbuffers::VOffsetT = 6;
+  pub const VT_NEW_FID: ::flatbuffers::VOffsetT = 8;
+  pub const VT_WNAMES: ::flatbuffers::VOffsetT = 10;
+  pub const VT_OPEN_MODE: ::flatbuffers::VOffsetT = 12;
+  pub const VT_READ_OFFSET: ::flatbuffers::VOffsetT = 14;
+  pub const VT_READ_COUNT: ::flatbuffers::VOffsetT = 16;
+  pub const VT_CLUNK: ::flatbuffers::VOffsetT = 18;
+
+  #[inline]
+  pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
+    ResourceCompoundRequest { _tab: table }
+  }
+  #[allow(unused_mut)]
+  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
+    _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
+    args: &'args ResourceCompoundRequestArgs<'args>
+  ) -> ::flatbuffers::WIPOffset<ResourceCompoundRequest<'bldr>> {
+    let mut builder = ResourceCompoundRequestBuilder::new(_fbb);
+    builder.add_read_offset(args.read_offset);
+    builder.add_request_id(args.request_id);
+    builder.add_read_count(args.read_count);
+    if let Some(x) = args.wnames { builder.add_wnames(x); }
+    builder.add_new_fid(args.new_fid);
+    builder.add_fid(args.fid);
+    builder.add_clunk(args.clunk);
+    builder.add_open_mode(args.open_mode);
+    builder.finish()
+  }
+
+
+  #[inline]
+  pub fn request_id(&self) -> u64 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u64>(ResourceCompoundRequest::VT_REQUEST_ID, Some(0)).unwrap()}
+  }
+  #[inline]
+  pub fn fid(&self) -> u32 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u32>(ResourceCompoundRequest::VT_FID, Some(0)).unwrap()}
+  }
+  #[inline]
+  pub fn new_fid(&self) -> u32 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u32>(ResourceCompoundRequest::VT_NEW_FID, Some(0)).unwrap()}
+  }
+  #[inline]
+  pub fn wnames(&self) -> Option<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<&'a str>>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<&'a str>>>>(ResourceCompoundRequest::VT_WNAMES, None)}
+  }
+  #[inline]
+  pub fn open_mode(&self) -> BindMode {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<BindMode>(ResourceCompoundRequest::VT_OPEN_MODE, Some(BindMode::read_only)).unwrap()}
+  }
+  #[inline]
+  pub fn read_offset(&self) -> u64 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u64>(ResourceCompoundRequest::VT_READ_OFFSET, Some(0)).unwrap()}
+  }
+  #[inline]
+  pub fn read_count(&self) -> u32 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u32>(ResourceCompoundRequest::VT_READ_COUNT, Some(0)).unwrap()}
+  }
+  #[inline]
+  pub fn clunk(&self) -> bool {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<bool>(ResourceCompoundRequest::VT_CLUNK, Some(true)).unwrap()}
+  }
+}
+
+impl ::flatbuffers::Verifiable for ResourceCompoundRequest<'_> {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    v.visit_table(pos)?
+     .visit_field::<u64>("request_id", Self::VT_REQUEST_ID, false)?
+     .visit_field::<u32>("fid", Self::VT_FID, false)?
+     .visit_field::<u32>("new_fid", Self::VT_NEW_FID, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, ::flatbuffers::ForwardsUOffset<&'_ str>>>>("wnames", Self::VT_WNAMES, false)?
+     .visit_field::<BindMode>("open_mode", Self::VT_OPEN_MODE, false)?
+     .visit_field::<u64>("read_offset", Self::VT_READ_OFFSET, false)?
+     .visit_field::<u32>("read_count", Self::VT_READ_COUNT, false)?
+     .visit_field::<bool>("clunk", Self::VT_CLUNK, false)?
+     .finish();
+    Ok(())
+  }
+}
+pub struct ResourceCompoundRequestArgs<'a> {
+    pub request_id: u64,
+    pub fid: u32,
+    pub new_fid: u32,
+    pub wnames: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, ::flatbuffers::ForwardsUOffset<&'a str>>>>,
+    pub open_mode: BindMode,
+    pub read_offset: u64,
+    pub read_count: u32,
+    pub clunk: bool,
+}
+impl<'a> Default for ResourceCompoundRequestArgs<'a> {
+  #[inline]
+  fn default() -> Self {
+    ResourceCompoundRequestArgs {
+      request_id: 0,
+      fid: 0,
+      new_fid: 0,
+      wnames: None,
+      open_mode: BindMode::read_only,
+      read_offset: 0,
+      read_count: 0,
+      clunk: true,
+    }
+  }
+}
+
+pub struct ResourceCompoundRequestBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
+  fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
+  start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
+}
+impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> ResourceCompoundRequestBuilder<'a, 'b, A> {
+  #[inline]
+  pub fn add_request_id(&mut self, request_id: u64) {
+    self.fbb_.push_slot::<u64>(ResourceCompoundRequest::VT_REQUEST_ID, request_id, 0);
+  }
+  #[inline]
+  pub fn add_fid(&mut self, fid: u32) {
+    self.fbb_.push_slot::<u32>(ResourceCompoundRequest::VT_FID, fid, 0);
+  }
+  #[inline]
+  pub fn add_new_fid(&mut self, new_fid: u32) {
+    self.fbb_.push_slot::<u32>(ResourceCompoundRequest::VT_NEW_FID, new_fid, 0);
+  }
+  #[inline]
+  pub fn add_wnames(&mut self, wnames: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , ::flatbuffers::ForwardsUOffset<&'b  str>>>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(ResourceCompoundRequest::VT_WNAMES, wnames);
+  }
+  #[inline]
+  pub fn add_open_mode(&mut self, open_mode: BindMode) {
+    self.fbb_.push_slot::<BindMode>(ResourceCompoundRequest::VT_OPEN_MODE, open_mode, BindMode::read_only);
+  }
+  #[inline]
+  pub fn add_read_offset(&mut self, read_offset: u64) {
+    self.fbb_.push_slot::<u64>(ResourceCompoundRequest::VT_READ_OFFSET, read_offset, 0);
+  }
+  #[inline]
+  pub fn add_read_count(&mut self, read_count: u32) {
+    self.fbb_.push_slot::<u32>(ResourceCompoundRequest::VT_READ_COUNT, read_count, 0);
+  }
+  #[inline]
+  pub fn add_clunk(&mut self, clunk: bool) {
+    self.fbb_.push_slot::<bool>(ResourceCompoundRequest::VT_CLUNK, clunk, true);
+  }
+  #[inline]
+  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> ResourceCompoundRequestBuilder<'a, 'b, A> {
+    let start = _fbb.start_table();
+    ResourceCompoundRequestBuilder {
+      fbb_: _fbb,
+      start_: start,
+    }
+  }
+  #[inline]
+  pub fn finish(self) -> ::flatbuffers::WIPOffset<ResourceCompoundRequest<'a>> {
+    let o = self.fbb_.end_table(self.start_);
+    ::flatbuffers::WIPOffset::new(o.value())
+  }
+}
+
+impl ::core::fmt::Debug for ResourceCompoundRequest<'_> {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+    let mut ds = f.debug_struct("ResourceCompoundRequest");
+      ds.field("request_id", &self.request_id());
+      ds.field("fid", &self.fid());
+      ds.field("new_fid", &self.new_fid());
+      ds.field("wnames", &self.wnames());
+      ds.field("open_mode", &self.open_mode());
+      ds.field("read_offset", &self.read_offset());
+      ds.field("read_count", &self.read_count());
+      ds.field("clunk", &self.clunk());
+      ds.finish()
+  }
+}
+pub enum ResourceCompoundResultOffset {}
+#[derive(Copy, Clone, PartialEq)]
+
+pub struct ResourceCompoundResult<'a> {
+  pub _tab: ::flatbuffers::Table<'a>,
+}
+
+impl<'a> ::flatbuffers::Follow<'a> for ResourceCompoundResult<'a> {
+  type Inner = ResourceCompoundResult<'a>;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }
+  }
+}
+
+impl<'a> ResourceCompoundResult<'a> {
+  pub const VT_REQUEST_ID: ::flatbuffers::VOffsetT = 4;
+  pub const VT_STATUS: ::flatbuffers::VOffsetT = 6;
+  pub const VT_QID: ::flatbuffers::VOffsetT = 8;
+  pub const VT_IOUNIT: ::flatbuffers::VOffsetT = 10;
+  pub const VT_DATA: ::flatbuffers::VOffsetT = 12;
+  pub const VT_BLOB: ::flatbuffers::VOffsetT = 14;
+  pub const VT_STAT: ::flatbuffers::VOffsetT = 16;
+  pub const VT_CLUNK_STATUS: ::flatbuffers::VOffsetT = 18;
+
+  #[inline]
+  pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
+    ResourceCompoundResult { _tab: table }
+  }
+  #[allow(unused_mut)]
+  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
+    _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
+    args: &'args ResourceCompoundResultArgs<'args>
+  ) -> ::flatbuffers::WIPOffset<ResourceCompoundResult<'bldr>> {
+    let mut builder = ResourceCompoundResultBuilder::new(_fbb);
+    builder.add_request_id(args.request_id);
+    if let Some(x) = args.stat { builder.add_stat(x); }
+    if let Some(x) = args.blob { builder.add_blob(x); }
+    if let Some(x) = args.data { builder.add_data(x); }
+    builder.add_iounit(args.iounit);
+    if let Some(x) = args.qid { builder.add_qid(x); }
+    builder.add_clunk_status(args.clunk_status);
+    builder.add_status(args.status);
+    builder.finish()
+  }
+
+
+  #[inline]
+  pub fn request_id(&self) -> u64 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u64>(ResourceCompoundResult::VT_REQUEST_ID, Some(0)).unwrap()}
+  }
+  #[inline]
+  pub fn status(&self) -> ResourceStatus {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<ResourceStatus>(ResourceCompoundResult::VT_STATUS, Some(ResourceStatus::ok)).unwrap()}
+  }
+  #[inline]
+  pub fn qid(&self) -> Option<&'a Qid> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<Qid>(ResourceCompoundResult::VT_QID, None)}
+  }
+  #[inline]
+  pub fn iounit(&self) -> u32 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u32>(ResourceCompoundResult::VT_IOUNIT, Some(65536)).unwrap()}
+  }
+  #[inline]
+  pub fn data(&self) -> Option<::flatbuffers::Vector<'a, u8>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, u8>>>(ResourceCompoundResult::VT_DATA, None)}
+  }
+  #[inline]
+  pub fn blob(&self) -> Option<BlobHandle<'a>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<BlobHandle>>(ResourceCompoundResult::VT_BLOB, None)}
+  }
+  #[inline]
+  pub fn stat(&self) -> Option<ResourceStat<'a>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<ResourceStat>>(ResourceCompoundResult::VT_STAT, None)}
+  }
+  #[inline]
+  pub fn clunk_status(&self) -> ResourceStatus {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<ResourceStatus>(ResourceCompoundResult::VT_CLUNK_STATUS, Some(ResourceStatus::ok)).unwrap()}
+  }
+}
+
+impl ::flatbuffers::Verifiable for ResourceCompoundResult<'_> {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    v.visit_table(pos)?
+     .visit_field::<u64>("request_id", Self::VT_REQUEST_ID, false)?
+     .visit_field::<ResourceStatus>("status", Self::VT_STATUS, false)?
+     .visit_field::<Qid>("qid", Self::VT_QID, false)?
+     .visit_field::<u32>("iounit", Self::VT_IOUNIT, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, u8>>>("data", Self::VT_DATA, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<BlobHandle>>("blob", Self::VT_BLOB, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<ResourceStat>>("stat", Self::VT_STAT, false)?
+     .visit_field::<ResourceStatus>("clunk_status", Self::VT_CLUNK_STATUS, false)?
+     .finish();
+    Ok(())
+  }
+}
+pub struct ResourceCompoundResultArgs<'a> {
+    pub request_id: u64,
+    pub status: ResourceStatus,
+    pub qid: Option<&'a Qid>,
+    pub iounit: u32,
+    pub data: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, u8>>>,
+    pub blob: Option<::flatbuffers::WIPOffset<BlobHandle<'a>>>,
+    pub stat: Option<::flatbuffers::WIPOffset<ResourceStat<'a>>>,
+    pub clunk_status: ResourceStatus,
+}
+impl<'a> Default for ResourceCompoundResultArgs<'a> {
+  #[inline]
+  fn default() -> Self {
+    ResourceCompoundResultArgs {
+      request_id: 0,
+      status: ResourceStatus::ok,
+      qid: None,
+      iounit: 65536,
+      data: None,
+      blob: None,
+      stat: None,
+      clunk_status: ResourceStatus::ok,
+    }
+  }
+}
+
+pub struct ResourceCompoundResultBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
+  fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
+  start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
+}
+impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> ResourceCompoundResultBuilder<'a, 'b, A> {
+  #[inline]
+  pub fn add_request_id(&mut self, request_id: u64) {
+    self.fbb_.push_slot::<u64>(ResourceCompoundResult::VT_REQUEST_ID, request_id, 0);
+  }
+  #[inline]
+  pub fn add_status(&mut self, status: ResourceStatus) {
+    self.fbb_.push_slot::<ResourceStatus>(ResourceCompoundResult::VT_STATUS, status, ResourceStatus::ok);
+  }
+  #[inline]
+  pub fn add_qid(&mut self, qid: &Qid) {
+    self.fbb_.push_slot_always::<&Qid>(ResourceCompoundResult::VT_QID, qid);
+  }
+  #[inline]
+  pub fn add_iounit(&mut self, iounit: u32) {
+    self.fbb_.push_slot::<u32>(ResourceCompoundResult::VT_IOUNIT, iounit, 65536);
+  }
+  #[inline]
+  pub fn add_data(&mut self, data: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , u8>>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(ResourceCompoundResult::VT_DATA, data);
+  }
+  #[inline]
+  pub fn add_blob(&mut self, blob: ::flatbuffers::WIPOffset<BlobHandle<'b >>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<BlobHandle>>(ResourceCompoundResult::VT_BLOB, blob);
+  }
+  #[inline]
+  pub fn add_stat(&mut self, stat: ::flatbuffers::WIPOffset<ResourceStat<'b >>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<ResourceStat>>(ResourceCompoundResult::VT_STAT, stat);
+  }
+  #[inline]
+  pub fn add_clunk_status(&mut self, clunk_status: ResourceStatus) {
+    self.fbb_.push_slot::<ResourceStatus>(ResourceCompoundResult::VT_CLUNK_STATUS, clunk_status, ResourceStatus::ok);
+  }
+  #[inline]
+  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> ResourceCompoundResultBuilder<'a, 'b, A> {
+    let start = _fbb.start_table();
+    ResourceCompoundResultBuilder {
+      fbb_: _fbb,
+      start_: start,
+    }
+  }
+  #[inline]
+  pub fn finish(self) -> ::flatbuffers::WIPOffset<ResourceCompoundResult<'a>> {
+    let o = self.fbb_.end_table(self.start_);
+    ::flatbuffers::WIPOffset::new(o.value())
+  }
+}
+
+impl ::core::fmt::Debug for ResourceCompoundResult<'_> {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+    let mut ds = f.debug_struct("ResourceCompoundResult");
+      ds.field("request_id", &self.request_id());
+      ds.field("status", &self.status());
+      ds.field("qid", &self.qid());
+      ds.field("iounit", &self.iounit());
+      ds.field("data", &self.data());
+      ds.field("blob", &self.blob());
+      ds.field("stat", &self.stat());
+      ds.field("clunk_status", &self.clunk_status());
+      ds.finish()
+  }
+}
 pub enum ResourceRpcOffset {}
 #[derive(Copy, Clone, PartialEq)]
 
@@ -6624,6 +7331,36 @@ impl<'a> ResourceRpc<'a> {
     }
   }
 
+  #[inline]
+  #[allow(non_snake_case)]
+  pub fn payload_as_resource_compound_request(&self) -> Option<ResourceCompoundRequest<'a>> {
+    if self.payload_type() == ResourceRpcPayload::ResourceCompoundRequest {
+      self.payload().map(|t| {
+       // Safety:
+       // Created from a valid Table for this object
+       // Which contains a valid union in this slot
+       unsafe { ResourceCompoundRequest::init_from_table(t) }
+     })
+    } else {
+      None
+    }
+  }
+
+  #[inline]
+  #[allow(non_snake_case)]
+  pub fn payload_as_resource_compound_result(&self) -> Option<ResourceCompoundResult<'a>> {
+    if self.payload_type() == ResourceRpcPayload::ResourceCompoundResult {
+      self.payload().map(|t| {
+       // Safety:
+       // Created from a valid Table for this object
+       // Which contains a valid union in this slot
+       unsafe { ResourceCompoundResult::init_from_table(t) }
+     })
+    } else {
+      None
+    }
+  }
+
 }
 
 impl ::flatbuffers::Verifiable for ResourceRpc<'_> {
@@ -6650,6 +7387,8 @@ impl ::flatbuffers::Verifiable for ResourceRpc<'_> {
           ResourceRpcPayload::ResourceStatResult => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<ResourceStatResult>>("ResourceRpcPayload::ResourceStatResult", pos),
           ResourceRpcPayload::ResourceWstat => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<ResourceWstat>>("ResourceRpcPayload::ResourceWstat", pos),
           ResourceRpcPayload::ResourceWstatResult => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<ResourceWstatResult>>("ResourceRpcPayload::ResourceWstatResult", pos),
+          ResourceRpcPayload::ResourceCompoundRequest => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<ResourceCompoundRequest>>("ResourceRpcPayload::ResourceCompoundRequest", pos),
+          ResourceRpcPayload::ResourceCompoundResult => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<ResourceCompoundResult>>("ResourceRpcPayload::ResourceCompoundResult", pos),
           _ => Ok(()),
         }
      })?
@@ -6818,6 +7557,20 @@ impl ::core::fmt::Debug for ResourceRpc<'_> {
         },
         ResourceRpcPayload::ResourceWstatResult => {
           if let Some(x) = self.payload_as_resource_wstat_result() {
+            ds.field("payload", &x)
+          } else {
+            ds.field("payload", &"InvalidFlatbuffer: Union discriminant does not match value.")
+          }
+        },
+        ResourceRpcPayload::ResourceCompoundRequest => {
+          if let Some(x) = self.payload_as_resource_compound_request() {
+            ds.field("payload", &x)
+          } else {
+            ds.field("payload", &"InvalidFlatbuffer: Union discriminant does not match value.")
+          }
+        },
+        ResourceRpcPayload::ResourceCompoundResult => {
+          if let Some(x) = self.payload_as_resource_compound_result() {
             ds.field("payload", &x)
           } else {
             ds.field("payload", &"InvalidFlatbuffer: Union discriminant does not match value.")

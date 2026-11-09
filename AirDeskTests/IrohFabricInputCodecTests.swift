@@ -2,6 +2,18 @@ import XCTest
 @testable import AirDesk
 
 final class IrohFabricInputCodecTests: XCTestCase {
+    private func header() -> ADFPHeader {
+        ADFPHeader(
+            messageId: "codec-message",
+            senderDeviceId: "codec-device",
+            senderRole: .controller,
+            correlationId: "ads-codec",
+            idempotencyKey: nil,
+            expiresAtEpochMillis: 4_102_444_800_000,
+            cancellationId: nil
+        )
+    }
+
     func testPointerMoveUsesMovementDatagram() throws {
         let event = InputEvent.make(
             .pointerMove,
@@ -44,13 +56,22 @@ final class IrohFabricInputCodecTests: XCTestCase {
             modifiers: [InputModifier.shift.rawValue]
         )
 
-        let packet = try IrohFabricInputCodec.encode(event)
+        let packet = try IrohFabricInputCodec.encode(event, header: header())
         XCTAssertEqual(packet.channel, .inputEdges)
+        XCTAssertEqual(Array(packet.payload[4..<8]), [0x41, 0x44, 0x45, 0x4E])
 
-        let decoded = try IrohFabricInputCodec.decodeReliable(
-            .reliable(channel: .inputEdges, payload: packet.payload)
+        let decoded = try XCTUnwrap(
+            try IrohFabricInputCodec.decodeReliable(
+                .reliable(channel: .inputEdges, payload: packet.payload)
+            )
         )
-        XCTAssertEqual(decoded, event)
+        XCTAssertEqual(decoded.type, event.type)
+        XCTAssertEqual(decoded.sessionId, event.sessionId)
+        XCTAssertEqual(decoded.generation, event.generation)
+        XCTAssertEqual(decoded.seq, event.seq)
+        XCTAssertEqual(decoded.key, event.key)
+        XCTAssertEqual(decoded.code, event.code)
+        XCTAssertEqual(decoded.modifiers, event.modifiers)
     }
 
     func testControlEventsUseControlChannel() throws {
@@ -63,14 +84,29 @@ final class IrohFabricInputCodecTests: XCTestCase {
             height: 1080
         )
 
-        let packet = try IrohFabricInputCodec.encode(event)
+        let packet = try IrohFabricInputCodec.encode(event, header: header())
         XCTAssertEqual(packet.channel, .control)
-        XCTAssertEqual(
+        let decoded = try XCTUnwrap(
             try IrohFabricInputCodec.decodeReliable(
                 .reliable(channel: .control, payload: packet.payload)
-            ),
-            event
+            )
         )
+        XCTAssertEqual(decoded.type, event.type)
+        XCTAssertEqual(decoded.width, event.width)
+        XCTAssertEqual(decoded.height, event.height)
+    }
+
+    func testReliableEventsRequireADFPHeader() {
+        let event = InputEvent.make(
+            .keyUp,
+            sessionId: "ads-codec",
+            generation: 1,
+            seq: 11,
+            key: "a"
+        )
+        XCTAssertThrowsError(try IrohFabricInputCodec.encode(event)) { error in
+            XCTAssertEqual(error as? ADFPEnvelopeError, .headerMissing)
+        }
     }
 
     func testMovementRejectsMissingCoordinates() {

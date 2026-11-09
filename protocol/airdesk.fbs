@@ -241,7 +241,13 @@ enum ResourceOpCode : uint {
   stat = 112,
   stat_result = 113,
   wstat = 114,
-  wstat_result = 115
+  wstat_result = 115,
+  compound = 116,
+  compound_result = 117
+}
+
+enum BlobAlgorithm : ubyte {
+  blake3 = 1
 }
 
 enum BindMode : ubyte {
@@ -316,8 +322,17 @@ table ResourceRead {
   count:uint (id: 2);
 }
 
+table BlobHandle {
+  version:uint = 1 (id: 0);
+  algorithm:BlobAlgorithm = blake3 (id: 1);
+  digest:[ubyte] (id: 2); // 32-byte BLAKE3 digest
+  length:ulong (id: 3);
+  expires_at:ulong (id: 4); // Unix epoch milliseconds; 0 means no expiry
+}
+
 table ResourceReadResult {
   data:[ubyte] (id: 0);
+  blob:BlobHandle (id: 1);
 }
 
 table ResourceWrite {
@@ -355,6 +370,28 @@ table ResourceWstatResult {
   status:ResourceStatus = ok (id: 0);
 }
 
+table ResourceCompoundRequest {
+  request_id:ulong (id: 0);
+  fid:uint (id: 1);
+  new_fid:uint (id: 2);
+  wnames:[string] (id: 3);
+  open_mode:BindMode = read_only (id: 4);
+  read_offset:ulong (id: 5);
+  read_count:uint (id: 6);
+  clunk:bool = true (id: 7);
+}
+
+table ResourceCompoundResult {
+  request_id:ulong (id: 0);
+  status:ResourceStatus = ok (id: 1);
+  qid:Qid (id: 2);
+  iounit:uint = 65536 (id: 3);
+  data:[ubyte] (id: 4);
+  blob:BlobHandle (id: 5);
+  stat:ResourceStat (id: 6);
+  clunk_status:ResourceStatus = ok (id: 7);
+}
+
 union ResourceRpcPayload {
   ResourceAttach,
   ResourceAttachResult,
@@ -371,7 +408,9 @@ union ResourceRpcPayload {
   ResourceStatRequest,
   ResourceStatResult,
   ResourceWstat,
-  ResourceWstatResult
+  ResourceWstatResult,
+  ResourceCompoundRequest,
+  ResourceCompoundResult
 }
 
 table ResourceRpc {

@@ -1,0 +1,34 @@
+{
+  "name": "resource-blob-v1",
+  "nowEpochMillis": "1700000000000",
+  "inlineLimitBytes": 65536,
+  "blob": {
+    "version": 1,
+    "algorithm": "blake3",
+    "digestHex": "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262",
+    "length": "131072",
+    "expiresAt": "1700000600000",
+    "hex": "140000000000000000000a0010000f00080004000a0000006b000000100000000000000808000a0000000400080000001400000000000e0018000000000014000c0004000e000000c08feecf8b01000000000200000000000400000020000000af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"
+  },
+  "smallRead": {
+    "dataHex": "736d616c6c207061796c6f6164",
+    "hex": "1000000000000a000e000d00080004000a0000006b0000000c000000000806000800040006000000040000000d000000736d616c6c207061796c6f6164000000"
+  },
+  "invalid": [
+    {
+      "name": "inline-too-large",
+      "dataBytes": 65537,
+      "expectedError": "inline read result exceeds 64 KiB"
+    },
+    {
+      "name": "both-data-and-blob",
+      "dataBytes": 1,
+      "expectedError": "read result cannot carry both data and a blob handle"
+    },
+    {
+      "name": "unknown-algorithm",
+      "algorithm": 9,
+      "expectedError": "unsupported blob digest algorithm"
+    }
+  ]
+}

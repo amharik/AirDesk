@@ -1,4 +1,7 @@
-import { dtlsFingerprintChannelBinding } from './channel-binding';
+import {
+  certificateHashChannelBinding,
+  dtlsFingerprintChannelBinding
+} from './channel-binding';
 import type { PairingChannelBinding } from './pairing-payload';
 import {
   rtcDataChannelPairingTransport,
@@ -76,6 +79,8 @@ export type PairingLinkErrorCode =
   | 'invalid-signal'
   | 'invalid-state'
   | 'missing-fingerprint'
+  | 'binding-mismatch'
+  | 'invalid-certificate'
   | 'channel-not-open';
 
 export class PairingLinkError extends Error {
@@ -168,6 +173,123 @@ function requireFingerprint(description: RtcSessionDescriptionLike | null): Pair
   }
 }
 
+export interface RtcCertificateFingerprintLike {
+  algorithm: string;
+  value: string;
+}
+
+export interface RtcCertificateLike {
+  getFingerprints?(): readonly RtcCertificateFingerprintLike[];
+}
+
+export type RtcCertificateValue = ArrayBuffer | ArrayBufferView | RtcCertificateLike;
+
+export interface RtcCertificateSource {
+  getCertificates?():
+    | RtcCertificateValue
+    | readonly RtcCertificateValue[]
+    | Promise<RtcCertificateValue | readonly RtcCertificateValue[]>;
+  getRemoteCertificates?():
+    | RtcCertificateValue
+    | readonly RtcCertificateValue[];
+}
+
+export interface RtcCertificateAcquisitionOptions {
+  prefer?: 'local' | 'remote';
+  subtle?: SubtleCrypto;
+}
+
+function certificateValues(
+  value: RtcCertificateValue | readonly RtcCertificateValue[]
+): readonly RtcCertificateValue[] {
+  if (Array.isArray(value)) return value;
+  return [value as RtcCertificateValue];
+}
+
+async function certificateBindingFromValue(
+  value: RtcCertificateValue,
+  subtle: SubtleCrypto
+): Promise<PairingChannelBinding | undefined> {
+  if (value instanceof ArrayBuffer) {
+    return certificateHashChannelBinding(new Uint8Array(value), subtle);
+  }
+  if (ArrayBuffer.isView(value)) {
+    return certificateHashChannelBinding(
+      new Uint8Array(value.buffer, value.byteOffset, value.byteLength),
+      subtle
+    );
+  }
+  const fingerprints = (value as RtcCertificateLike).getFingerprints?.();
+  if (!fingerprints) return undefined;
+  const sha256 = fingerprints.find(
+    (fingerprint) => fingerprint.algorithm.toLowerCase() === 'sha-256'
+  );
+  if (!sha256) {
+    throw new PairingLinkError('missing-fingerprint', 'certificate has no SHA-256 fingerprint');
+  }
+  const hash = sha256.value.replace(/:/g, '').toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(hash)) {
+    throw new PairingLinkError('invalid-certificate', 'certificate fingerprint is invalid');
+  }
+  return { kind: 'certificate-hash', value: hash };
+}
+
+export async function acquireRtcCertificateBinding(
+  source: RtcCertificateSource,
+  options: RtcCertificateAcquisitionOptions = {}
+): Promise<PairingChannelBinding | undefined> {
+  const subtle = options.subtle ?? crypto.subtle;
+  const prefer = options.prefer ?? 'remote';
+  const readers = prefer === 'remote'
+    ? [source.getRemoteCertificates?.bind(source), source.getCertificates?.bind(source)]
+    : [source.getCertificates?.bind(source), source.getRemoteCertificates?.bind(source)];
+  for (const read of readers) {
+    if (!read) continue;
+    let value: RtcCertificateValue | readonly RtcCertificateValue[];
+    try {
+      value = await read();
+    } catch {
+      continue;
+    }
+    for (const certificate of certificateValues(value)) {
+      const binding = await certificateBindingFromValue(certificate, subtle);
+      if (binding) return binding;
+    }
+  }
+  return undefined;
+}
+
+function sameChannelBinding(
+  left: PairingChannelBinding,
+  right: PairingChannelBinding
+): boolean {
+  if (left.kind !== right.kind) return false;
+  return left.kind === 'certificate-hash'
+    ? left.value.toLowerCase() === right.value.toLowerCase()
+    : left.value === right.value;
+}
+
+export function assertRtcChannelBinding(
+  expected: PairingChannelBinding,
+  actual: PairingChannelBinding | undefined
+): asserts actual is PairingChannelBinding {
+  if (!actual || !sameChannelBinding(expected, actual)) {
+    throw new PairingLinkError(
+      'binding-mismatch',
+      'pairing channel binding does not match the negotiated transport'
+    );
+  }
+}
+
+export function rtcCertificateSource(value: unknown): RtcCertificateSource | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const source = value as Record<string, unknown>;
+  const hasLocal = typeof source.getCertificates === 'function';
+  const hasRemote = typeof source.getRemoteCertificates === 'function';
+  if (!hasLocal && !hasRemote) return undefined;
+  return value as RtcCertificateSource;
+}
+
 export interface RtcPairingLinkOptions {
   role: RtcPairingRole;
   peerConnection: RtcPeerConnectionLike;
@@ -184,6 +306,10 @@ export class RtcPairingLink {
   private channel: RtcPairingDataChannel | undefined;
   private binding: PairingChannelBinding | undefined;
   private currentState: RtcPairingState = 'idle';
+  private readonly transportWaiters: Array<{
+    resolve: (transport: PairingWireTransport) => void;
+    reject: (error: unknown) => void;
+  }> = [];
   private readonly iceHandler = (event: { candidate: RtcIceCandidateLike | null }): void => {
     if (event.candidate) this.onSignal({ kind: 'candidate', candidate: event.candidate });
   };
@@ -281,6 +407,20 @@ export class RtcPairingLink {
     return rtcDataChannelPairingTransport(this.channel);
   }
 
+  waitForTransport(): Promise<PairingWireTransport> {
+    if (this.channel?.readyState === 'open' && this.currentState === 'open') {
+      return Promise.resolve(this.transport());
+    }
+    if (this.currentState === 'closed' || this.currentState === 'failed') {
+      return Promise.reject(
+        new PairingLinkError('invalid-state', 'pairing link is not connectable')
+      );
+    }
+    return new Promise((resolve, reject) => {
+      this.transportWaiters.push({ resolve, reject });
+    });
+  }
+
   close(): void {
     this.peerConnection.removeEventListener('icecandidate', this.iceHandler);
     if (this.role === 'controller') {
@@ -288,6 +428,9 @@ export class RtcPairingLink {
     }
     this.peerConnection.close();
     this.currentState = 'closed';
+    this.rejectTransportWaiters(
+      new PairingLinkError('invalid-state', 'pairing link was closed')
+    );
   }
 
   private installChannel(channel: RtcPairingDataChannel): void {
@@ -295,20 +438,66 @@ export class RtcPairingLink {
     this.channel = channel;
     channel.addEventListener('open', () => {
       this.currentState = 'open';
+      this.resolveTransportWaiters();
     });
     channel.addEventListener('close', () => {
       this.currentState = 'closed';
+      this.rejectTransportWaiters(
+        new PairingLinkError('invalid-state', 'pairing data channel was closed')
+      );
     });
     channel.addEventListener('error', () => {
       this.currentState = 'failed';
+      this.rejectTransportWaiters(
+        new PairingLinkError('invalid-state', 'pairing data channel failed')
+      );
     });
-    if (channel.readyState === 'open') this.currentState = 'open';
-    else if (this.currentState !== 'creating-offer') this.currentState = 'connecting';
+    if (channel.readyState === 'open') {
+      this.currentState = 'open';
+      this.resolveTransportWaiters();
+    } else if (this.currentState !== 'creating-offer') {
+      this.currentState = 'connecting';
+    }
+  }
+
+  private resolveTransportWaiters(): void {
+    if (this.currentState !== 'open') return;
+    const waiters = this.transportWaiters.splice(0);
+    for (const waiter of waiters) {
+      try {
+        waiter.resolve(this.transport());
+      } catch (error) {
+        waiter.reject(error);
+      }
+    }
+  }
+
+  private rejectTransportWaiters(error: unknown): void {
+    const waiters = this.transportWaiters.splice(0);
+    for (const waiter of waiters) waiter.reject(error);
   }
 
   private fail(error: unknown): void {
     this.currentState = 'failed';
+    this.rejectTransportWaiters(error);
     if (error instanceof PairingLinkError) return;
     throw error;
   }
+}
+
+export interface RtcChannelBindingVerificationOptions extends RtcCertificateAcquisitionOptions {
+  certificateSource?: RtcCertificateSource;
+}
+
+export async function verifyRtcChannelBinding(
+  link: RtcPairingLink,
+  expected: PairingChannelBinding,
+  options: RtcChannelBindingVerificationOptions = {}
+): Promise<PairingChannelBinding> {
+  assertRtcChannelBinding(expected, link.channelBinding);
+  const certificate = options.certificateSource
+    ? await acquireRtcCertificateBinding(options.certificateSource, options)
+    : undefined;
+  if (certificate) assertRtcChannelBinding(expected, certificate);
+  return certificate ?? link.channelBinding;
 }

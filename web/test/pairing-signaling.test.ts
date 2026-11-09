@@ -88,4 +88,37 @@ describe('pairing signaling transport', () => {
     expect(errors[0]).toBeInstanceOf(Error);
     detach();
   });
+
+  it('reports closed signaling, malformed and duplicate signals', async () => {
+    const socket = new FakeSocket();
+    const transport = webSocketPairingSignalTransport(socket);
+    const signal: PairingLinkSignal = {
+      kind: 'candidate',
+      candidate: { candidate: 'candidate:1 1 udp 1 127.0.0.1 9 typ host' }
+    };
+
+    socket.readyState = 0;
+    expect(() => sendPairingLinkSignal(transport, signal)).toThrow('not open');
+    socket.readyState = 1;
+
+    const handled: PairingLinkSignal[] = [];
+    const errors: unknown[] = [];
+    const link = {
+      handleSignal: vi.fn(async (next: PairingLinkSignal) => {
+        handled.push(next);
+        if (handled.length > 1) throw new Error('duplicate signal');
+      })
+    } as unknown as RtcPairingLink;
+    const detach = attachRtcPairingLink(link, transport, (error) => errors.push(error));
+    const raw = encodePairingLinkSignal(signal);
+    socket.emit(raw);
+    socket.emit(raw);
+    socket.emit('{');
+    await Promise.resolve();
+
+    expect(handled).toEqual([signal, signal]);
+    expect(errors).toHaveLength(2);
+    expect(errors[0]).toBeInstanceOf(Error);
+    detach();
+  });
 });

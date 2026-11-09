@@ -1,4 +1,11 @@
 import * as flatbuffers from 'flatbuffers';
+import type { ADFPHeader, DecodedADFPHeader } from './adfp';
+import {
+  assertADFPEnvelopeSize,
+  createADFPHeader,
+  decodeADFPHeader,
+  validateADFPHeader
+} from './adfp';
 import { Envelope } from './generated/air-desk/protocol/envelope';
 import { EventType } from './generated/air-desk/protocol/event-type';
 import { InputEvent } from './generated/air-desk/protocol/input-event';
@@ -30,6 +37,7 @@ export interface DecodedInput extends InputPayload {
   generation: number;
   seq: number;
   modifiers: string[];
+  header: DecodedADFPHeader | null;
 }
 
 export class InputProtocolError extends Error {
@@ -111,8 +119,9 @@ function validate(payload: InputPayload): void {
   }
 }
 
-export function encodeInput(payload: InputPayload): Uint8Array {
+export function encodeInput(payload: InputPayload, header?: ADFPHeader): Uint8Array {
   validate(payload);
+  if (header) validateADFPHeader(header);
   const builder = new flatbuffers.Builder(256);
   const sessionId = builder.createString(payload.sessionId);
   const key = stringOffset(builder, payload.key);
@@ -151,12 +160,22 @@ export function encodeInput(payload: InputPayload): Uint8Array {
     optionalNumber(payload.height),
     target
   );
-  const envelope = Envelope.createEnvelope(builder, 1, MessagePayload.InputEvent, input);
+  const headerOffset = header ? createADFPHeader(builder, header) : 0;
+  const envelope = Envelope.createEnvelope(
+    builder,
+    1,
+    MessagePayload.InputEvent,
+    input,
+    headerOffset
+  );
   Envelope.finishEnvelopeBuffer(builder, envelope);
-  return builder.asUint8Array();
+  const bytes = builder.asUint8Array();
+  assertADFPEnvelopeSize(bytes);
+  return bytes;
 }
 
-export function decodeInput(bytes: Uint8Array): DecodedInput {
+export function decodeInput(bytes: Uint8Array, nowEpochMillis = BigInt(Date.now())): DecodedInput {
+  assertADFPEnvelopeSize(bytes);
   const buffer = new flatbuffers.ByteBuffer(bytes);
   if (!Envelope.bufferHasIdentifier(buffer)) throw new InputProtocolError('missing envelope identifier');
   const envelope = Envelope.getRootAsEnvelope(buffer);
@@ -164,6 +183,8 @@ export function decodeInput(bytes: Uint8Array): DecodedInput {
   if (envelope.payloadType() !== MessagePayload.InputEvent) throw new InputProtocolError('not an input event');
   const input = envelope.payload(new InputEvent()) as InputEvent | null;
   if (!input) throw new InputProtocolError('missing input payload');
+  const rawHeader = envelope.header();
+  const header = rawHeader ? decodeADFPHeader(rawHeader, nowEpochMillis) : null;
 
   const sessionId = input.sessionId();
   if (!sessionId) throw new InputProtocolError('missing session id');
@@ -191,6 +212,7 @@ export function decodeInput(bytes: Uint8Array): DecodedInput {
     text: input.text() ?? undefined,
     width: input.width(),
     height: input.height(),
-    target: input.target() ?? undefined
+    target: input.target() ?? undefined,
+    header
   };
 }

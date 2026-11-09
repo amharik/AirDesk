@@ -5,6 +5,9 @@
 
 import * as flatbuffers from 'flatbuffers';
 
+import { BlobHandle } from '../../air-desk/protocol/blob-handle.js';
+
+
 export class ResourceReadResult {
   bb: flatbuffers.ByteBuffer|null = null;
   bb_pos = 0;
@@ -38,8 +41,13 @@ dataArray():Uint8Array|null {
   return offset ? new Uint8Array(this.bb!.bytes().buffer, this.bb!.bytes().byteOffset + this.bb!.__vector(this.bb_pos + offset), this.bb!.__vector_len(this.bb_pos + offset)) : null;
 }
 
+blob(obj?:BlobHandle):BlobHandle|null {
+  const offset = this.bb!.__offset(this.bb_pos, 6);
+  return offset ? (obj || new BlobHandle()).__init(this.bb!.__indirect(this.bb_pos + offset), this.bb!) : null;
+}
+
 static startResourceReadResult(builder:flatbuffers.Builder) {
-  builder.startObject(1);
+  builder.startObject(2);
 }
 
 static addData(builder:flatbuffers.Builder, dataOffset:flatbuffers.Offset) {
@@ -58,14 +66,13 @@ static startDataVector(builder:flatbuffers.Builder, numElems:number) {
   builder.startVector(1, numElems, 1);
 }
 
+static addBlob(builder:flatbuffers.Builder, blobOffset:flatbuffers.Offset) {
+  builder.addFieldOffset(1, blobOffset, 0);
+}
+
 static endResourceReadResult(builder:flatbuffers.Builder):flatbuffers.Offset {
   const offset = builder.endObject();
   return offset;
 }
 
-static createResourceReadResult(builder:flatbuffers.Builder, dataOffset:flatbuffers.Offset):flatbuffers.Offset {
-  ResourceReadResult.startResourceReadResult(builder);
-  ResourceReadResult.addData(builder, dataOffset);
-  return ResourceReadResult.endResourceReadResult(builder);
-}
 }

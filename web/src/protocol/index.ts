@@ -1,7 +1,10 @@
+export * from './adfp';
 export * from './channels';
 export * from './control';
 export * from './input';
 export * from './movement';
 export * from './packed';
+export * from './resource';
 export { ControlType } from './generated/air-desk/protocol/control-type';
 export { EventType } from './generated/air-desk/protocol/event-type';
+export { SenderRole } from './generated/air-desk/protocol/sender-role';

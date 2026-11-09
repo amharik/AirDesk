@@ -19,5 +19,7 @@ export enum ResourceOpCode {
   stat = 112,
   stat_result = 113,
   wstat = 114,
-  wstat_result = 115
+  wstat_result = 115,
+  compound = 116,
+  compound_result = 117
 }

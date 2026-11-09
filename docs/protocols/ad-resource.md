@@ -64,11 +64,20 @@ These names and numbers are **ADFP-local op codes**, not 9P2000 message types. A
 | `Attach` / `AttachResult` | 100 / 101 | `fid:u32`, `afid:u32`, `uname:string`, `aname:string`, `cose_token:[ubyte]` | Validate the ADR-012 `COSE_Sign1` token against `aname` (`opfs`, `tarfs`, `tmpfs`, `hostfs`) and bind the root handle |
 | `Walk` / `WalkResult` | 102 / 103 | `fid:u32`, `new_fid:u32`, `wnames:[string] -> wqids:[Qid]` | Traverse path segments relative to `fid`; reject `..` escapes outside the capability root; return `Qid` tuples |
 | `Open` / `OpenResult` | 104 / 105 | `fid:u32`, `mode:BindMode -> qid:Qid`, `iounit:u32` | Open under Wanix bind mode (`READ_ONLY`, `READ_WRITE`, `EXEC`, `APPEND`); default `iounit` is 65536 bytes |
-| `Read` / `ReadResult` | 106 / 107 | `fid:u32`, `offset:u64`, `count:u32 -> data:[ubyte]` | Read up to `count` bytes from the underlying Wanix or native descriptor |
+| `Read` / `ReadResult` | 106 / 107 | `fid:u32`, `offset:u64`, `count:u32 -> data:[ubyte]`, `blob:BlobHandle` | Read up to `count` bytes; results above 64 KiB may return a versioned BLAKE3 handle instead of inline data |
 | `Write` / `WriteResult` | 108 / 109 | `fid:u32`, `offset:u64`, `data:[ubyte] -> count:u32` | Write at `offset`; rejected immediately for a read-only attenuated token |
 | `Clunk` / `ClunkResult` | 110 / 111 | `fid:u32 -> status:ubyte` | Release `fid` deterministically on close, task exit or lease revocation (ADR-015) |
+| `Compound` / `CompoundResult` | 116 / 117 | `request_id:u64`, `fid:u32`, `new_fid:u32`, `wnames:[string]`, `open_mode:BindMode`, `read_offset:u64`, `read_count:u32`, `clunk:bool -> request_id:u64`, `status:ResourceStatus`, `qid:Qid`, `iounit:u32`, `data:[ubyte]`, `blob:BlobHandle`, `stat:ResourceStat`, `clunk_status:ResourceStatus` | One-RTT bounded Walk/Open/Read/optional Stat/Clunk sequence; path segments are confined to the capability root |
 
 `Qid` carries the 9P field order as `type:u8`, `version:u32`, `path:u64`; FlatBuffers struct alignment pads the inline representation, so this is a typed ADFP layout, not a 9P2000 wire frame. `Stat`/`StatResult` and `Wstat`/`WstatResult` (112–115) expose and update bounded metadata; they never expose host paths outside the mount root.
+
+### Compound bounds and blob handles
+
+- Compound path lists carry at most 32 segments; each segment is 1–255 UTF-8 bytes and rejects empty, `.`, `..` and `/`.
+- `CompoundResult.data` and `ReadResult.data` are limited to 64 KiB (65536 bytes). Larger results must use `blob`.
+- `BlobHandle` is versioned (`version = 1`) with `algorithm = blake3`, a 32-byte digest, a nonzero length and an optional expiry in Unix epoch milliseconds (`0` means no expiry). Unsupported versions, algorithms, digest lengths or zero lengths fail typed.
+- A result must not carry both non-empty inline `data` and `blob`; that is an ambiguous payload and fails closed.
+- The fixture paths are `protocol/fixtures/resource-compound/walk-open-read-clunk-v1.json` and `protocol/fixtures/resource-blob/blake3-handle-v1.json`.
 
 ## Streaming
 

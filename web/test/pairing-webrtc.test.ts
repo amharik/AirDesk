@@ -1,9 +1,14 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
   PairingLinkError,
   RtcPairingLink,
+  acquireRtcCertificateBinding,
+  assertRtcChannelBinding,
   decodePairingLinkSignal,
   encodePairingLinkSignal,
+  rtcCertificateSource,
+  verifyRtcChannelBinding,
   type PairingLinkSignal,
   type RtcIceCandidateLike,
   type RtcPairingDataChannel,
@@ -220,5 +225,61 @@ describe('browser WebRTC pairing link', () => {
     await expect(controller.acceptOffer(bad)).rejects.toMatchObject({ code: 'missing-fingerprint' });
     expect(controller.state).toBe('failed');
     expect(() => controller.transport()).toThrowError(PairingLinkError);
+  });
+
+  it('rejects out-of-order descriptions and keeps duplicate signals fail-closed', async () => {
+    const { host } = linkedPair();
+    const answer: RtcSessionDescriptionLike = {
+      type: 'answer',
+      sdp: sdp(CONTROLLER_FINGERPRINT)
+    };
+
+    await expect(
+      host.handleSignal({ kind: 'description', description: answer })
+    ).rejects.toMatchObject({ code: 'invalid-state' });
+    expect(host.state).toBe('failed');
+  });
+
+  it('acquires certificate fingerprints and rejects binding mismatches', async () => {
+    const certificate = {
+      getFingerprints: () => [{ algorithm: 'sha-256', value: HOST_FINGERPRINT }]
+    };
+    const binding = await acquireRtcCertificateBinding({
+      getCertificates: () => [certificate]
+    });
+    expect(binding).toEqual({ kind: 'certificate-hash', value: 'aa'.repeat(32) });
+
+    expect(rtcCertificateSource({ getCertificates: () => [] })).toBeDefined();
+    expect(rtcCertificateSource({})).toBeUndefined();
+    expect(() =>
+      assertRtcChannelBinding(
+        { kind: 'certificate-hash', value: 'bb'.repeat(32) },
+        binding
+      )
+    ).toThrowError(expect.objectContaining({ code: 'binding-mismatch' }));
+  });
+
+  it('falls back to the SDP fingerprint only after comparing it with the expected binding', async () => {
+    const { host } = linkedPair();
+    const offer = await host.startHost();
+
+    await expect(
+      verifyRtcChannelBinding(host, { kind: 'certificate-hash', value: 'bb'.repeat(32) })
+    ).rejects.toMatchObject({ code: 'binding-mismatch' });
+    await expect(verifyRtcChannelBinding(host, offer.binding)).resolves.toEqual(offer.binding);
+  });
+
+  it('rejects a certificate whose SHA-256 hash does not match the expected binding', async () => {
+    const certificate = new Uint8Array([0x30, 0x82, 0x03, 0x01]);
+    const certificateHash = createHash('sha256').update(certificate).digest('hex');
+    const { host } = linkedPair();
+    const offer = await host.startHost();
+
+    expect(certificateHash).not.toBe(offer.binding.value);
+    await expect(
+      verifyRtcChannelBinding(host, offer.binding, {
+        certificateSource: { getCertificates: () => [certificate.buffer] }
+      })
+    ).rejects.toMatchObject({ code: 'binding-mismatch' });
   });
 });

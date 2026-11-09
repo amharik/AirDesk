@@ -1,4 +1,11 @@
 import * as flatbuffers from 'flatbuffers';
+import type { ADFPHeader, DecodedADFPHeader } from './adfp';
+import {
+  assertADFPEnvelopeSize,
+  createADFPHeader,
+  decodeADFPHeader,
+  validateADFPHeader
+} from './adfp';
 import { ControlMessage } from './generated/air-desk/protocol/control-message';
 import type { ControlType } from './generated/air-desk/protocol/control-type';
 import { Envelope } from './generated/air-desk/protocol/envelope';
@@ -22,6 +29,7 @@ export interface DecodedControl extends ControlPayload {
   timestamp: bigint;
   generation: number;
   seq: number;
+  header: DecodedADFPHeader | null;
 }
 
 export class ControlProtocolError extends Error {
@@ -74,8 +82,9 @@ function validate(payload: ControlPayload): void {
   if (payload.height !== undefined) finite(payload.height, 'height');
 }
 
-export function encodeControl(payload: ControlPayload): Uint8Array {
+export function encodeControl(payload: ControlPayload, header?: ADFPHeader): Uint8Array {
   validate(payload);
+  if (header) validateADFPHeader(header);
   const builder = new flatbuffers.Builder(256);
   const sessionId = builder.createString(payload.sessionId);
   const appearance = stringOffset(builder, payload.appearance);
@@ -97,12 +106,22 @@ export function encodeControl(payload: ControlPayload): Uint8Array {
     finite(payload.height, 'height'),
     code
   );
-  const envelope = Envelope.createEnvelope(builder, 1, MessagePayload.ControlMessage, control);
+  const headerOffset = header ? createADFPHeader(builder, header) : 0;
+  const envelope = Envelope.createEnvelope(
+    builder,
+    1,
+    MessagePayload.ControlMessage,
+    control,
+    headerOffset
+  );
   Envelope.finishEnvelopeBuffer(builder, envelope);
-  return builder.asUint8Array();
+  const bytes = builder.asUint8Array();
+  assertADFPEnvelopeSize(bytes);
+  return bytes;
 }
 
-export function decodeControl(bytes: Uint8Array): DecodedControl {
+export function decodeControl(bytes: Uint8Array, nowEpochMillis = BigInt(Date.now())): DecodedControl {
+  assertADFPEnvelopeSize(bytes);
   const buffer = new flatbuffers.ByteBuffer(bytes);
   if (!Envelope.bufferHasIdentifier(buffer)) throw new ControlProtocolError('missing envelope identifier');
   const envelope = Envelope.getRootAsEnvelope(buffer);
@@ -112,6 +131,8 @@ export function decodeControl(bytes: Uint8Array): DecodedControl {
   }
   const control = envelope.payload(new ControlMessage()) as ControlMessage | null;
   if (!control) throw new ControlProtocolError('missing control payload');
+  const rawHeader = envelope.header();
+  const header = rawHeader ? decodeADFPHeader(rawHeader, nowEpochMillis) : null;
 
   const sessionId = control.sessionId();
   if (!sessionId) throw new ControlProtocolError('missing session id');
@@ -127,6 +148,7 @@ export function decodeControl(bytes: Uint8Array): DecodedControl {
     action: control.action() ?? undefined,
     width: control.width(),
     height: control.height(),
-    code: control.code() ?? undefined
+    code: control.code() ?? undefined,
+    header
   };
 }

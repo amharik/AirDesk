@@ -34,6 +34,8 @@ final class IrohFabricPeer: ObservableObject {
     @Published private(set) var lastError: String?
     @Published private(set) var connectionCount: Int = 0
 
+    var adfpSenderRole: AirDesk_Protocol__SenderRole = .controller
+    var adfpHeaderLifetimeMillis: UInt64 = 30_000
     var onInputEvent: ((InputEvent) -> Void)?
     var onMovementFrame: ((PackedMovementFrame) -> Void)?
     var onSyncEnvelope: ((Data) -> Void)?
@@ -175,7 +177,16 @@ final class IrohFabricPeer: ObservableObject {
 
         let packet: IrohFabricInputPacket
         do {
-            packet = try IrohFabricInputCodec.encode(event)
+            let header = ADFPHeader(
+                messageId: UUID().uuidString.lowercased(),
+                senderDeviceId: endpointID,
+                senderRole: adfpSenderRole,
+                correlationId: event.sessionId,
+                idempotencyKey: "\(event.sessionId):\(event.generation ?? 0):\(event.seq)",
+                expiresAtEpochMillis: UInt64(Date().timeIntervalSince1970 * 1000) + adfpHeaderLifetimeMillis,
+                cancellationId: nil
+            )
+            packet = try IrohFabricInputCodec.encode(event, header: header)
         } catch {
             lastError = error.localizedDescription
             return false

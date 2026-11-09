@@ -7,6 +7,8 @@ import { ResourceAttach } from '../../air-desk/protocol/resource-attach.js';
 import { ResourceAttachResult } from '../../air-desk/protocol/resource-attach-result.js';
 import { ResourceClunk } from '../../air-desk/protocol/resource-clunk.js';
 import { ResourceClunkResult } from '../../air-desk/protocol/resource-clunk-result.js';
+import { ResourceCompoundRequest } from '../../air-desk/protocol/resource-compound-request.js';
+import { ResourceCompoundResult } from '../../air-desk/protocol/resource-compound-result.js';
 import { ResourceOpen } from '../../air-desk/protocol/resource-open.js';
 import { ResourceOpenResult } from '../../air-desk/protocol/resource-open-result.js';
 import { ResourceRead } from '../../air-desk/protocol/resource-read.js';
@@ -38,13 +40,15 @@ export enum ResourceRpcPayload {
   ResourceStatRequest = 13,
   ResourceStatResult = 14,
   ResourceWstat = 15,
-  ResourceWstatResult = 16
+  ResourceWstatResult = 16,
+  ResourceCompoundRequest = 17,
+  ResourceCompoundResult = 18
 }
 
 export function unionToResourceRpcPayload(
   type: ResourceRpcPayload,
-  accessor: (obj:ResourceAttach|ResourceAttachResult|ResourceClunk|ResourceClunkResult|ResourceOpen|ResourceOpenResult|ResourceRead|ResourceReadResult|ResourceStatRequest|ResourceStatResult|ResourceWalk|ResourceWalkResult|ResourceWrite|ResourceWriteResult|ResourceWstat|ResourceWstatResult) => ResourceAttach|ResourceAttachResult|ResourceClunk|ResourceClunkResult|ResourceOpen|ResourceOpenResult|ResourceRead|ResourceReadResult|ResourceStatRequest|ResourceStatResult|ResourceWalk|ResourceWalkResult|ResourceWrite|ResourceWriteResult|ResourceWstat|ResourceWstatResult|null
-): ResourceAttach|ResourceAttachResult|ResourceClunk|ResourceClunkResult|ResourceOpen|ResourceOpenResult|ResourceRead|ResourceReadResult|ResourceStatRequest|ResourceStatResult|ResourceWalk|ResourceWalkResult|ResourceWrite|ResourceWriteResult|ResourceWstat|ResourceWstatResult|null {
+  accessor: (obj:ResourceAttach|ResourceAttachResult|ResourceClunk|ResourceClunkResult|ResourceCompoundRequest|ResourceCompoundResult|ResourceOpen|ResourceOpenResult|ResourceRead|ResourceReadResult|ResourceStatRequest|ResourceStatResult|ResourceWalk|ResourceWalkResult|ResourceWrite|ResourceWriteResult|ResourceWstat|ResourceWstatResult) => ResourceAttach|ResourceAttachResult|ResourceClunk|ResourceClunkResult|ResourceCompoundRequest|ResourceCompoundResult|ResourceOpen|ResourceOpenResult|ResourceRead|ResourceReadResult|ResourceStatRequest|ResourceStatResult|ResourceWalk|ResourceWalkResult|ResourceWrite|ResourceWriteResult|ResourceWstat|ResourceWstatResult|null
+): ResourceAttach|ResourceAttachResult|ResourceClunk|ResourceClunkResult|ResourceCompoundRequest|ResourceCompoundResult|ResourceOpen|ResourceOpenResult|ResourceRead|ResourceReadResult|ResourceStatRequest|ResourceStatResult|ResourceWalk|ResourceWalkResult|ResourceWrite|ResourceWriteResult|ResourceWstat|ResourceWstatResult|null {
   switch(ResourceRpcPayload[type]) {
     case 'NONE': return null; 
     case 'ResourceAttach': return accessor(new ResourceAttach())! as ResourceAttach;
@@ -63,15 +67,17 @@ export function unionToResourceRpcPayload(
     case 'ResourceStatResult': return accessor(new ResourceStatResult())! as ResourceStatResult;
     case 'ResourceWstat': return accessor(new ResourceWstat())! as ResourceWstat;
     case 'ResourceWstatResult': return accessor(new ResourceWstatResult())! as ResourceWstatResult;
+    case 'ResourceCompoundRequest': return accessor(new ResourceCompoundRequest())! as ResourceCompoundRequest;
+    case 'ResourceCompoundResult': return accessor(new ResourceCompoundResult())! as ResourceCompoundResult;
     default: return null;
   }
 }
 
 export function unionListToResourceRpcPayload(
   type: ResourceRpcPayload, 
-  accessor: (index: number, obj:ResourceAttach|ResourceAttachResult|ResourceClunk|ResourceClunkResult|ResourceOpen|ResourceOpenResult|ResourceRead|ResourceReadResult|ResourceStatRequest|ResourceStatResult|ResourceWalk|ResourceWalkResult|ResourceWrite|ResourceWriteResult|ResourceWstat|ResourceWstatResult) => ResourceAttach|ResourceAttachResult|ResourceClunk|ResourceClunkResult|ResourceOpen|ResourceOpenResult|ResourceRead|ResourceReadResult|ResourceStatRequest|ResourceStatResult|ResourceWalk|ResourceWalkResult|ResourceWrite|ResourceWriteResult|ResourceWstat|ResourceWstatResult|null, 
+  accessor: (index: number, obj:ResourceAttach|ResourceAttachResult|ResourceClunk|ResourceClunkResult|ResourceCompoundRequest|ResourceCompoundResult|ResourceOpen|ResourceOpenResult|ResourceRead|ResourceReadResult|ResourceStatRequest|ResourceStatResult|ResourceWalk|ResourceWalkResult|ResourceWrite|ResourceWriteResult|ResourceWstat|ResourceWstatResult) => ResourceAttach|ResourceAttachResult|ResourceClunk|ResourceClunkResult|ResourceCompoundRequest|ResourceCompoundResult|ResourceOpen|ResourceOpenResult|ResourceRead|ResourceReadResult|ResourceStatRequest|ResourceStatResult|ResourceWalk|ResourceWalkResult|ResourceWrite|ResourceWriteResult|ResourceWstat|ResourceWstatResult|null, 
   index: number
-): ResourceAttach|ResourceAttachResult|ResourceClunk|ResourceClunkResult|ResourceOpen|ResourceOpenResult|ResourceRead|ResourceReadResult|ResourceStatRequest|ResourceStatResult|ResourceWalk|ResourceWalkResult|ResourceWrite|ResourceWriteResult|ResourceWstat|ResourceWstatResult|null {
+): ResourceAttach|ResourceAttachResult|ResourceClunk|ResourceClunkResult|ResourceCompoundRequest|ResourceCompoundResult|ResourceOpen|ResourceOpenResult|ResourceRead|ResourceReadResult|ResourceStatRequest|ResourceStatResult|ResourceWalk|ResourceWalkResult|ResourceWrite|ResourceWriteResult|ResourceWstat|ResourceWstatResult|null {
   switch(ResourceRpcPayload[type]) {
     case 'NONE': return null; 
     case 'ResourceAttach': return accessor(index, new ResourceAttach())! as ResourceAttach;
@@ -90,6 +96,8 @@ export function unionListToResourceRpcPayload(
     case 'ResourceStatResult': return accessor(index, new ResourceStatResult())! as ResourceStatResult;
     case 'ResourceWstat': return accessor(index, new ResourceWstat())! as ResourceWstat;
     case 'ResourceWstatResult': return accessor(index, new ResourceWstatResult())! as ResourceWstatResult;
+    case 'ResourceCompoundRequest': return accessor(index, new ResourceCompoundRequest())! as ResourceCompoundRequest;
+    case 'ResourceCompoundResult': return accessor(index, new ResourceCompoundResult())! as ResourceCompoundResult;
     default: return null;
   }
 }

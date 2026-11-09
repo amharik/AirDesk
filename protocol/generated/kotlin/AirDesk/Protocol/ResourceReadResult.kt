@@ -42,6 +42,15 @@ class ResourceReadResult : Table() {
         }
     val dataAsByteBuffer : ByteBuffer? get() = __vector_as_bytebuffer(4, 1)
     fun dataInByteBuffer(_bb: ByteBuffer) : ByteBuffer? = __vector_in_bytebuffer(_bb, 4, 1)
+    val blob : AirDesk.Protocol.BlobHandle? get() = blob(AirDesk.Protocol.BlobHandle())
+    fun blob(obj: AirDesk.Protocol.BlobHandle) : AirDesk.Protocol.BlobHandle? {
+        val o = __offset(6)
+        return if (o != 0) {
+            obj.__assign(__indirect(o + bb_pos), bb)
+        } else {
+            null
+        }
+    }
     companion object {
         fun validateVersion() = Constants.FLATBUFFERS_25_12_19()
         fun getRootAsResourceReadResult(_bb: ByteBuffer): ResourceReadResult = getRootAsResourceReadResult(_bb, ResourceReadResult())
@@ -49,12 +58,13 @@ class ResourceReadResult : Table() {
             _bb.order(ByteOrder.LITTLE_ENDIAN)
             return (obj.__assign(_bb.getInt(_bb.position()) + _bb.position(), _bb))
         }
-        fun createResourceReadResult(builder: FlatBufferBuilder, dataOffset: Int) : Int {
-            builder.startTable(1)
+        fun createResourceReadResult(builder: FlatBufferBuilder, dataOffset: Int, blobOffset: Int) : Int {
+            builder.startTable(2)
+            addBlob(builder, blobOffset)
             addData(builder, dataOffset)
             return endResourceReadResult(builder)
         }
-        fun startResourceReadResult(builder: FlatBufferBuilder) = builder.startTable(1)
+        fun startResourceReadResult(builder: FlatBufferBuilder) = builder.startTable(2)
         fun addData(builder: FlatBufferBuilder, data: Int) = builder.addOffset(0, data, 0)
         @kotlin.ExperimentalUnsignedTypes
         fun createDataVector(builder: FlatBufferBuilder, data: UByteArray) : Int {
@@ -65,6 +75,7 @@ class ResourceReadResult : Table() {
             return builder.endVector()
         }
         fun startDataVector(builder: FlatBufferBuilder, numElems: Int) = builder.startVector(1, numElems, 1)
+        fun addBlob(builder: FlatBufferBuilder, blob: Int) = builder.addOffset(1, blob, 0)
         fun endResourceReadResult(builder: FlatBufferBuilder) : Int {
             val o = builder.endTable()
             return o

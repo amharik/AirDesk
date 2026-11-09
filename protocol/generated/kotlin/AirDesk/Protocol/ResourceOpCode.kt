@@ -21,5 +21,7 @@ class ResourceOpCode private constructor() {
         const val stat_result: UInt = 113u
         const val wstat: UInt = 114u
         const val wstat_result: UInt = 115u
+        const val compound: UInt = 116u
+        const val compound_result: UInt = 117u
     }
 }

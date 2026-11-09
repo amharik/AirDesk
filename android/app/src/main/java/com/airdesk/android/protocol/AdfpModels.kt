@@ -9,6 +9,11 @@ enum class AdfpError {
     MALFORMED,
     UNSUPPORTED_PAYLOAD,
     ROUND_TRIP,
+    HEADER_EXPIRED,
+    INVALID_PATH,
+    INLINE_TOO_LARGE,
+    AMBIGUOUS_PAYLOAD,
+    UNSUPPORTED_BLOB,
 }
 
 class AdfpException(

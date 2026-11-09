@@ -6,6 +6,8 @@
 export { Authorization } from './protocol/authorization.js';
 export { Availability } from './protocol/availability.js';
 export { BindMode } from './protocol/bind-mode.js';
+export { BlobAlgorithm } from './protocol/blob-algorithm.js';
+export { BlobHandle } from './protocol/blob-handle.js';
 export { CapabilityDescriptor } from './protocol/capability-descriptor.js';
 export { CapabilityLease } from './protocol/capability-lease.js';
 export { ChannelBindingKind } from './protocol/channel-binding-kind.js';
@@ -29,6 +31,8 @@ export { ResourceAttach } from './protocol/resource-attach.js';
 export { ResourceAttachResult } from './protocol/resource-attach-result.js';
 export { ResourceClunk } from './protocol/resource-clunk.js';
 export { ResourceClunkResult } from './protocol/resource-clunk-result.js';
+export { ResourceCompoundRequest } from './protocol/resource-compound-request.js';
+export { ResourceCompoundResult } from './protocol/resource-compound-result.js';
 export { ResourceOpCode } from './protocol/resource-op-code.js';
 export { ResourceOpen } from './protocol/resource-open.js';
 export { ResourceOpenResult } from './protocol/resource-open-result.js';

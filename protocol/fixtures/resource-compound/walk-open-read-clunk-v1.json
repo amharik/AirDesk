@@ -1,0 +1,82 @@
+{
+  "name": "resource-compound-v1",
+  "nowEpochMillis": "1700000000000",
+  "inlineLimitBytes": 65536,
+  "request": {
+    "opCode": "compound",
+    "requestId": "42",
+    "fid": 7,
+    "newFid": 8,
+    "wnames": [
+      "documents",
+      "notes.txt"
+    ],
+    "openMode": "read_only",
+    "readOffset": "0",
+    "readCount": 32,
+    "clunk": true,
+    "hex": "140000000000000000000a000e000d00080004000a0000007400000018000000001112002000140010000c00080000000000040012000000200000001800000008000000070000002a0000000000000000000000020000001800000004000000090000006e6f7465732e74787400000009000000646f63756d656e7473000000"
+  },
+  "result": {
+    "opCode": "compound_result",
+    "requestId": "42",
+    "status": "ok",
+    "qid": {
+      "type": 0,
+      "version": 3,
+      "path": "987654321"
+    },
+    "iounit": 65536,
+    "dataHex": "68656c6c6f2066726f6d20636f6d706f756e6420726561640a",
+    "clunkStatus": "ok",
+    "stat": {
+      "qid": {
+        "type": 0,
+        "version": 3,
+        "path": "987654321"
+      },
+      "mode": 33188,
+      "length": "25",
+      "name": "notes.txt",
+      "modifiedAt": "1700000000123"
+    },
+    "hex": "140000000000000000000a000e000d00080004000a0000007500000018000000001212002a001c0000000c0000000800000004001200000034000000740000000000000003000000b168de3a000000002a000000000000000000000000000e003400240020001400100004000e0000007b68e5cf8b0100000000000024000000190000000000000000000000a48100000000000003000000b168de3a00000000090000006e6f7465732e7478740000001900000068656c6c6f2066726f6d20636f6d706f756e6420726561640a000000"
+  },
+  "blobResult": {
+    "opCode": "compound_result",
+    "requestId": "43",
+    "status": "ok",
+    "qid": {
+      "type": 0,
+      "version": 4,
+      "path": "987654322"
+    },
+    "iounit": 65536,
+    "blob": {
+      "version": 1,
+      "algorithm": "blake3",
+      "digestHex": "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262",
+      "length": "131072",
+      "expiresAt": "1700000600000"
+    },
+    "clunkStatus": "ok",
+    "hex": "1000000000000a0010000f00080004000a0000007500000018000000000000121000260018000000080000000000040010000000300000000000000004000000b268de3a000000002b000000000000000000000000000e0018000000000014000c0004000e000000c08feecf8b01000000000200000000000400000020000000af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"
+  },
+  "invalid": [
+    {
+      "name": "inline-too-large",
+      "dataBytes": 65537,
+      "expectedError": "inline result exceeds 64 KiB; return a blob handle"
+    },
+    {
+      "name": "both-data-and-blob",
+      "dataBytes": 1,
+      "expectedError": "result cannot carry both inline data and a blob handle"
+    },
+    {
+      "name": "short-digest",
+      "digestBytes": 31,
+      "expectedError": "blake3 digest must be 32 bytes"
+    }
+  ]
+}

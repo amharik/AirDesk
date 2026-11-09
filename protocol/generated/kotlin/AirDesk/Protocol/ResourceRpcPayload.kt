@@ -22,5 +22,7 @@ class ResourceRpcPayload private constructor() {
         const val ResourceStatResult: UByte = 14u
         const val ResourceWstat: UByte = 15u
         const val ResourceWstatResult: UByte = 16u
+        const val ResourceCompoundRequest: UByte = 17u
+        const val ResourceCompoundResult: UByte = 18u
     }
 }

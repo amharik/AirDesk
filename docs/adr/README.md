@@ -13,6 +13,8 @@ This index is the authoritative map of which decision is in force. An ADR's orig
 >
 > **Execution note (2026-11-08):** Native PIN/QR pairing now runs end to end over a dedicated Iroh `.pairing` channel, uses an authenticated `iroh-endpoint` binding for native-native sessions, records peers as pending until SAS confirmation before releasing workspace-sync keys and exposes a Settings pairing flow. `iroh-endpoint` is an extension; browser TLS exporter and DTLS certificate binding helpers exist, and both native and browser peers now derive the workspace sync key automatically from the pairing transport key after SAS, while the browser now has a concrete WebSocket signaling transport and still needs a deployed signaling service under ADR-011/SYNC-01.
 > **Execution note (2026-11-09):** Android now runs native-native AD-PAIR-1 over a direct Iroh endpoint using `computer.iroh:iroh-android:1.2.0`, `relayMode = RelayMode.disabled()`, an `iroh-endpoint` channel binding, SAS confirmation and the Connect-tab host/controller flow. The binary WebSocket transport remains a fallback; no relay deployment is required for Android-iOS direct pairing. iOS already defaults to `.directOnly` with `presetMinimal`.
+>
+> **Execution note (2026-11-09):** ADR-024 is proposed for an additive shared Rust core behind UniFFI/WASM. No existing codec, crypto or platform implementation has moved; native paths remain until fixture equality, platform tests and rollback are demonstrated.
 
 | ADR | Decision | Decision status | Implementation status | Effective note |
 | --- | --- | --- | --- | --- |
@@ -39,6 +41,7 @@ This index is the authoritative map of which decision is in force. An ADR's orig
 | [021](021-iroh-native-transport.md) | Iroh native transport adoption | Accepted | In progress | Official `IrohLib` 1.2.0, iOS 17.5, explicit self-hosted relay policy, browser remains WebSocket |
 | [022](022-openssl-p256-group-arithmetic.md) | OpenSSL P-256 group arithmetic for native AD-PAIR-1 | Accepted | Implemented | OpenSSL 3.6.5 via `OpenSSL-Package` 3.6.5000, isolated to P-256 group operations; CryptoKit remains the general crypto provider |
 | [023](023-openssl-scrypt-password-registration.md) | OpenSSL scrypt for native SPAKE2+ password registration | Accepted | Implemented | Same pinned OpenSSL distribution; fixed scrypt profile `N=32768, r=8, p=1, dkLen=80`, browser-compatible material and P-256 reduction |
+| [024](024-shared-core-and-ffi-boundary.md) | Shared core and FFI boundary | Proposed | Not started | Additive Rust core; native implementations remain until fixture equality, platform tests and rollback are proven |
 
 ## Effective decisions
 
