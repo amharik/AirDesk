@@ -163,16 +163,19 @@ jobs:
       - name: Publish GitHub debug release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
-          mkdir -p release
-          cp artifacts/android-debug/app-debug.apk "release/AirDesk-${TAG}-android-debug.apk"
-          cp artifacts/ios-debug/AirDesk-ios-simulator.zip "release/AirDesk-${TAG}-ios-simulator.zip"
-          if [ -f artifacts/ios-debug/AirDesk-ios-device-unsigned.ipa ]; then
-            cp artifacts/ios-debug/AirDesk-ios-device-unsigned.ipa "release/AirDesk-${TAG}-ios-device-unsigned.ipa"
-          fi
-          cat > release-notes.md <<EOF
+          log="${RUNNER_TEMP}/release.log"
+          if {
+            mkdir -p release
+            cp artifacts/android-debug/app-debug.apk "release/AirDesk-${TAG}-android-debug.apk"
+            cp artifacts/ios-debug/AirDesk-ios-simulator.zip "release/AirDesk-${TAG}-ios-simulator.zip"
+            if [ -f artifacts/ios-debug/AirDesk-ios-device-unsigned.ipa ]; then
+              cp artifacts/ios-debug/AirDesk-ios-device-unsigned.ipa "release/AirDesk-${TAG}-ios-device-unsigned.ipa"
+            fi
+            cat > release-notes.md <<EOF
           Debug builds for testing only. These are not App Store or signed distribution builds.
 
           - Android: installable debug APK.
@@ -181,11 +184,22 @@ jobs:
 
           Commit: ${GITHUB_SHA}
           EOF
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" release/* --clobber
+            if gh release view "$TAG" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+              gh release upload "$TAG" release/* --repo "${GITHUB_REPOSITORY}" --clobber
+            else
+              gh release create "$TAG" release/* \
+                --repo "${GITHUB_REPOSITORY}" \
+                --title "AirDesk debug build ${TAG#debug-}" \
+                --notes-file release-notes.md \
+                --prerelease
+            fi
+          } >"${log}" 2>&1; then
+            cat "${log}"
           else
-            gh release create "$TAG" release/* \
-              --title "AirDesk debug build ${TAG#debug-}" \
-              --notes-file release-notes.md \
-              --prerelease
+            rc=$?
+            tail -40 "${log}" | while IFS= read -r line; do
+              echo "::error title=Release publish::${line}"
+            done
+            tail -200 "${log}"
+            exit "${rc}"
           fi
