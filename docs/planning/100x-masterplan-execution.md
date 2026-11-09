@@ -134,7 +134,7 @@ Effort is in engineer-weeks and is approximate. Status is `Partial`, `Pending`, 
 | P0-01 | Verify and land browser WebRTC pairing orchestration | `web/src/identity/pairing-webrtc-session.ts`, `pairing-webrtc.ts`, `index.ts`; `web/test/pairing-webrtc-session.test.ts`, `pairing-webrtc.test.ts`, `pairing-signaling.test.ts` | Full-checkout `npm run check` passes; binding mismatch rejects before SAS; malformed/duplicate/out-of-order signals covered; no live signaling server claimed | — | Verified, uncommitted |
 | P0-02 | Verify or revert Android fabric/ADFP partials | `android/.../fabric/FabricTransport.kt`, `IrohFabricTransportAdapter.kt`, `protocol/AdfpFabricSession.kt`; `android/app/src/test/.../IrohFabricTransportAdapterTest.kt`, `AdfpFabricSessionTest.kt` | Remote `testDebugUnitTest`, `lintDebug`, `assembleDebug` pass; 1 MiB cap and channel routing enforced; pairing path unchanged | P0-04 | Verified, uncommitted |
 | P0-03 | Verify or revert namespace partial | `AirDesk/Namespace/NamespaceImportService.swift`; `AirDeskTests/NamespaceImportServiceTests.swift` | Compiles in AirDeskTests; path/symlink/lease/fid tests pass; not wired into production | — | Verified, uncommitted |
-| P0-04 | Add Android CI | `.github/workflows/android.yml`, `android/gradle.properties` if needed | JDK 17 + Android SDK 35; `testDebugUnitTest`, `lintDebug`, `assembleDebug` on push/PR paths | — | Added; first GitHub Actions run pending |
+| P0-04 | Add Android CI | `.github/workflows/android.yml`, `android/gradle.properties` if needed | JDK 17 + Android SDK 35; `testDebugUnitTest`, `lintDebug`, `assembleDebug` on push/PR paths | — | Verified, first run green |
 | P0-05 | Add shared-core boundary ADR | `docs/adr/024-shared-core-and-ffi-boundary.md`, `docs/adr/README.md` | ADR is `Proposed`; defines what may move into Rust, compatibility fixtures, rollback and ownership | P0-01..03 | Proposed |
 | P0-06 | Freeze Phase 1 contracts | `protocol/fixtures/**`, `docs/planning/100x-masterplan-execution.md`, `milestones.md` | ADFP envelope, remote runtime, DeviceAgent and WIT contracts have named owners and fixture paths | P0-01..05 | Contract paths frozen; ADFP and ResourceCompound/blob fixtures verified, others pending P1-05/P2-01/P2-04 |
 
@@ -299,6 +299,7 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - Rust: `cargo test` passed; 18 tests, 0 failures, including compound request, inline result, BLAKE3 blob result, read result and bounds validation.
 - Compound validation is shared across languages: at most 32 path segments, 255 UTF-8 bytes per segment, no empty/`.`/`..`/`/`; inline data cap 64 KiB; blob handle version 1, BLAKE3 only, 32-byte digest, nonzero length; inline data plus blob is rejected as ambiguous.
 - FlatBuffers struct bug found during Kotlin verification: `Qid` must be created after `start*` and added immediately via `addQid`; creating it before `start*` fails with `struct must be serialized inline`. Fixed in compound result, stat, attach result and open result writers.
+- GitHub Actions: Protocol, Android, DesktopShell and iOS passed for the combined change. iOS failed twice with exit code 65 and passed on rerun of the same tests; the workflow now supports `workflow_dispatch` and annotates filtered failure lines for faster triage. Android's first CI run passed.
 
 ### Environment notes
 
@@ -335,12 +336,10 @@ These are not code-level tasks and must not be marked done from simulator or loo
 
 ## 10. Immediate next sprint
 
-1. Review and commit the green P0-01..P0-03, P1-03 and P1-04 work, or revert any part that does not belong in the product path.
-2. Run `.github/workflows/android.yml` once on GitHub and confirm the first Android CI result after the commit.
-3. P1-05/P1-06: add the remote runtime provider and placement diagnostics behind an explicit registration path.
-4. P2-01: write the `DeviceAgent` contract and canonical capability fixture before adding capture or transfer code.
-5. P5-01: write the host capture platform decision; do not start with ScreenCaptureKit on the current iOS target.
-6. Keep `milestones.md` unchanged until a task actually passes its gate.
+1. P1-05/P1-06: add the remote runtime provider and placement diagnostics behind an explicit registration path.
+2. P2-01: write the `DeviceAgent` contract and canonical capability fixture before adding capture or transfer code.
+3. P5-01: write the host capture platform decision; do not start with ScreenCaptureKit on the current iOS target.
+4. Keep `milestones.md` unchanged until a task actually passes its gate.
 
 ## 11. ADR and documentation updates
 
