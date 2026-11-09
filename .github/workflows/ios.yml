@@ -28,4 +28,13 @@ jobs:
         with:
           xcode-version: "16.4"
       - run: brew install xcodegen
-      - run: ./scripts/ci-ios.sh
+      - name: Run iOS tests
+        run: |
+          set -o pipefail
+          ./scripts/ci-ios.sh 2>&1 | tee /tmp/ci-ios.log
+      - name: Report iOS failures
+        if: failure()
+        run: |
+          grep -E "error:|FAILED|The following build commands failed|Testing failed|Test Case .* failed|Assertion failed" /tmp/ci-ios.log | tail -40 | while IFS= read -r line; do
+            printf '::error::%s\n' "${line//$'\n'/ }"
+          done
