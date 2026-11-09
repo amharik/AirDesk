@@ -96,7 +96,5 @@
 	<false/>
 	<key>AirDeskCastReceiverApplicationID</key>
 	<string>$(AIRDESK_CAST_RECEIVER_APP_ID)</string>
-	<key>AirDeskRuntimeBaseURL</key>
-	<string></string>
 </dict>
 </plist>

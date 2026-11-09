@@ -25,6 +25,5 @@ final class ProAccessTests: XCTestCase {
     func testWanixKernelRequiresPro() {
         XCTAssertTrue(RuntimeChoice.wanixKernel.requiresPro)
         XCTAssertFalse(RuntimeChoice.wanixDesktop.requiresPro)
-        XCTAssertFalse(RuntimeChoice.puter.requiresPro)
     }
 }

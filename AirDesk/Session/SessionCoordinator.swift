@@ -1308,8 +1308,6 @@ final class SessionCoordinator: ObservableObject {
             switch surfaceError {
             case .readyTimeout:
                 return "The Wanix desktop did not report readiness. Check the network and try again."
-            case .remoteRuntimeNotConfigured:
-                return "This runtime needs a configured remote URL before it can launch."
             case .processTerminated:
                 return "The desktop process stopped unexpectedly. Retry to restore the workspace."
             case .missingResource(let name):

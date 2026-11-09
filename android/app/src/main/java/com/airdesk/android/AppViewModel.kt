@@ -176,13 +176,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var irohRoleLabel by mutableStateOf<String?>(null)
         private set
+    var irohPin by mutableStateOf<String?>(null)
+        private set
+    var irohPairingMode by mutableStateOf(AdPairCodec.MODE_QR_SECRET)
+        private set
+    var irohJoinPin by mutableStateOf("")
+        private set
 
     private var irohTransport: AdPairIrohTransport? = null
 
-    fun startIrohHost() {
+    fun startIrohHost(mode: String = AdPairCodec.MODE_QR_SECRET) {
         val current = identity ?: return
         cancelIrohPairing()
         irohRoleLabel = "Host"
+        irohPairingMode = mode
         irohStatus = "Starting direct Iroh endpoint..."
         irohStatusIsError = false
         viewModelScope.launch {
@@ -195,15 +202,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 val transport = AdPairIrohTransport(session, container.irohPeer)
                 irohTransport = transport
                 val challenge = session.startHost(
-                    mode = AdPairCodec.MODE_QR_SECRET,
+                    mode = mode,
                     channelBinding = AdPairChannelBinding("iroh-endpoint", endpoint.endpointId),
                     endpointHint = endpoint.ticket,
                     capabilities = capabilities.map { it.capUri },
                 )
                 irohCode = challenge.serialized
+                irohPin = challenge.pin
                 irohVerificationCode = ""
                 irohShortAuthenticationString = null
-                irohStatus = "Waiting for the other device to join over Iroh..."
+                irohStatus = if (mode == AdPairCodec.MODE_PIN) {
+                    "Share the pairing code and six-digit PIN with the other device."
+                } else {
+                    "Waiting for the other device to scan or paste the QR code over Iroh..."
+                }
                 launch {
                     runCatching {
                         transport.accept { refreshIrohState(it) }
@@ -211,6 +223,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }.onFailure { reportIrohError(it) }
         }
+    }
+
+    fun updateIrohJoinPin(value: String) {
+        irohJoinPin = value.filter(Char::isDigit).take(6)
     }
 
     fun joinIrohPairing(code: String, pin: String? = null) {
@@ -244,6 +260,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 val transport = AdPairIrohTransport(session, container.irohPeer)
                 irohTransport = transport
                 irohCode = null
+                irohPin = null
                 irohVerificationCode = ""
                 irohShortAuthenticationString = null
                 transport.connect(
@@ -275,9 +292,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         irohTransport?.close()
         irohTransport = null
         irohCode = null
+        irohPin = null
         irohShortAuthenticationString = null
         irohRoleLabel = null
         irohVerificationCode = ""
+        irohJoinPin = ""
         irohStatus = "Iroh pairing cancelled"
         irohStatusIsError = false
     }

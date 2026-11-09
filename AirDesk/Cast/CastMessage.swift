@@ -60,8 +60,4 @@ struct CastConfiguration {
     static var hasRegisteredReceiver: Bool {
         !receiverApplicationID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
-
-    static var runtimeBaseURL: String {
-        (Bundle.main.object(forInfoDictionaryKey: "AirDeskRuntimeBaseURL") as? String) ?? ""
-    }
 }

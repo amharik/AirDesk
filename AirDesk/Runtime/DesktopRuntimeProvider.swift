@@ -58,7 +58,6 @@ final class DesktopRuntimeProviderRegistry {
     static func standard() -> DesktopRuntimeProviderRegistry {
         let registry = DesktopRuntimeProviderRegistry()
         try? registry.register(WanixDesktopRuntimeProvider())
-        try? registry.register(PuterDesktopRuntimeProvider())
         return registry
     }
 }
@@ -92,30 +91,6 @@ final class WanixDesktopRuntimeProvider: DesktopRuntimeProvider {
                 appearance: appearance,
                 capabilities: .wanixKernel
             )
-        case .puter:
-            throw RuntimeProviderError.unsupportedWorld(providerId: descriptor.id, world: .browser)
         }
-    }
-}
-
-@MainActor
-final class PuterDesktopRuntimeProvider: DesktopRuntimeProvider {
-    let descriptor = RuntimeProviderDescriptor(
-        id: "puter",
-        displayName: "Puter",
-        location: .phone,
-        version: "1.0",
-        supportedWorlds: [.browser],
-        architectures: ["wasm32"],
-        capabilities: .puter,
-        threadingProfiles: [.singleThreaded]
-    )
-    let choices: Set<RuntimeChoice> = [.puter]
-
-    func makeRuntime(choice: RuntimeChoice, appearance: String) throws -> any DesktopRuntime {
-        guard choice == .puter else {
-            throw RuntimeProviderError.unsupportedWorld(providerId: descriptor.id, world: .wasip1)
-        }
-        return PuterRuntimeAdapter(appearance: appearance)
     }
 }

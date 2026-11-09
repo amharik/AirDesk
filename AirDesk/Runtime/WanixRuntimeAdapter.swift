@@ -45,7 +45,7 @@ final class WanixRuntimeAdapter: DesktopRuntime {
             #else
             let readyTimeout: TimeInterval = 35
             #endif
-            try await PuterRuntimeAdapter.waitForReady(on: surface, timeout: readyTimeout)
+            try await Self.waitForReady(on: surface, timeout: readyTimeout)
             state = .ready
             logger.info("Wanix runtime ready: \(self.identifier, privacy: .public)")
         } catch {
@@ -79,5 +79,17 @@ final class WanixRuntimeAdapter: DesktopRuntime {
     func shutdown() async {
         surface?.sendControl(type: "shutdown")
         state = .stopped
+    }
+
+    static func waitForReady(on surface: DesktopSurface, timeout: TimeInterval) async throws {
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask { try await surface.waitUntilReady() }
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                throw DesktopSurfaceError.readyTimeout
+            }
+            try await group.next()
+            group.cancelAll()
+        }
     }
 }

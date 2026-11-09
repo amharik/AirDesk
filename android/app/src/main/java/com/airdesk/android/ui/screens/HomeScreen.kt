@@ -3,12 +3,15 @@ package com.airdesk.android.ui.screens
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -28,13 +31,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.airdesk.android.AppViewModel
+import com.airdesk.android.pairing.AdPairCodec
 import com.airdesk.android.pairing.PairingValidator
 import com.airdesk.android.pairing.PeerRecord
+import com.google.zxing.BarcodeFormat
+import com.journeyapps.barcodescanner.BarcodeEncoder
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import com.airdesk.android.ui.components.LabeledValue
 import com.airdesk.android.ui.components.SectionCard
 import com.airdesk.android.ui.components.StatusBadge
@@ -48,6 +57,13 @@ fun HomeScreen(viewModel: AppViewModel) {
     var pastedOffer by rememberSaveable { mutableStateOf("") }
     var peerLabel by rememberSaveable { mutableStateOf("") }
     var irohCodeInput by rememberSaveable { mutableStateOf("") }
+    var irohPinInput by rememberSaveable { mutableStateOf("") }
+    val qrScanner = rememberLauncherForActivityResult(ScanContract()) { result ->
+        result.contents?.let { scanned ->
+            irohCodeInput = scanned
+            irohPinInput = ""
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -134,6 +150,23 @@ fun HomeScreen(viewModel: AppViewModel) {
                 )
             }
             if (directCode != null) {
+                val pin = viewModel.irohPin
+                if (pin != null) {
+                    LabeledValue(
+                        label = "Pairing PIN",
+                        value = pin,
+                        monospace = true,
+                    )
+                    OutlinedButton(
+                        onClick = {
+                            copyToClipboard(context, "AirDesk pairing PIN", pin)
+                        },
+                    ) {
+                        Text("Copy pairing PIN")
+                    }
+                } else {
+                    QrCodeImage(directCode)
+                }
                 LabeledValue(
                     label = "Pairing code",
                     value = "Share this code with the other device",
@@ -172,12 +205,18 @@ fun HomeScreen(viewModel: AppViewModel) {
                 ) {
                     Text("Confirm and trust peer")
                 }
-            } else {
+            } else if (directCode == null) {
                 OutlinedButton(
-                    onClick = viewModel::startIrohHost,
+                    onClick = { viewModel.startIrohHost(AdPairCodec.MODE_QR_SECRET) },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("Create direct pairing code (host)")
+                    Text("Create QR pairing code (host)")
+                }
+                OutlinedButton(
+                    onClick = { viewModel.startIrohHost(AdPairCodec.MODE_PIN) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Create PIN pairing code (host)")
                 }
             }
             OutlinedTextField(
@@ -187,12 +226,46 @@ fun HomeScreen(viewModel: AppViewModel) {
                 minLines = 3,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Button(
-                onClick = { viewModel.joinIrohPairing(irohCodeInput) },
-                enabled = irohCodeInput.isNotBlank() && sas == null,
+            OutlinedTextField(
+                value = irohPinInput,
+                onValueChange = {
+                    irohPinInput = it.filter(Char::isDigit).take(6)
+                },
+                label = { Text("Six-digit PIN (PIN pairing codes only)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Join direct pairing (controller)")
+                OutlinedButton(
+                    onClick = {
+                        qrScanner.launch(
+                            ScanOptions().apply {
+                                setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                                setPrompt("Scan the AirDesk pairing QR code")
+                                setBeepEnabled(false)
+                                setOrientationLocked(false)
+                            },
+                        )
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Scan QR")
+                }
+                Button(
+                    onClick = {
+                        viewModel.joinIrohPairing(
+                            irohCodeInput,
+                            irohPinInput.takeIf { it.isNotBlank() },
+                        )
+                    },
+                    enabled = irohCodeInput.isNotBlank() && sas == null,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Join pairing")
+                }
             }
             Text(
                 viewModel.irohStatus,
@@ -373,6 +446,28 @@ private fun PeerRow(peer: PeerRecord, onRevoke: () -> Unit) {
                 overflow = TextOverflow.Ellipsis,
             )
         }
+    }
+}
+
+@Composable
+private fun QrCodeImage(value: String) {
+    val bitmap = remember(value) {
+        runCatching {
+            BarcodeEncoder().encodeBitmap(value, BarcodeFormat.QR_CODE, 720, 720)
+        }.getOrNull()
+    }
+    if (bitmap == null) {
+        Text(
+            "Could not render the QR code. Use the copyable code below.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+    } else {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = "AirDesk direct pairing QR code",
+            modifier = Modifier.size(220.dp),
+        )
     }
 }
 

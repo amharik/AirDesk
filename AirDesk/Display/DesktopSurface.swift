@@ -9,7 +9,6 @@ enum DesktopSurfaceError: LocalizedError, Equatable {
     case navigationFailed(String)
     case readyTimeout
     case processTerminated
-    case remoteRuntimeNotConfigured
 
     var errorDescription: String? {
         switch self {
@@ -17,7 +16,6 @@ enum DesktopSurfaceError: LocalizedError, Equatable {
         case .navigationFailed(let reason): return "The desktop failed to load: \(reason)"
         case .readyTimeout: return "The desktop runtime did not report readiness."
         case .processTerminated: return "The desktop web process terminated unexpectedly."
-        case .remoteRuntimeNotConfigured: return "The remote runtime URL is not configured."
         }
     }
 }
@@ -136,13 +134,6 @@ final class DesktopSurface {
         case .wanixKernel:
             let url = try localAssetURL(name: "wanix-live", extension: "html", request: request)
             configurePolicy(for: url, origins: [Self.origin(of: url)].compactMap { $0 })
-            webView.load(URLRequest(url: url))
-        case .puter:
-            let raw = Bundle.main.object(forInfoDictionaryKey: "AirDeskRuntimeBaseURL") as? String ?? ""
-            guard let url = URL(string: raw), url.scheme == "https" else {
-                throw DesktopSurfaceError.remoteRuntimeNotConfigured
-            }
-            configurePolicy(for: url, origins: [url.host ?? ""])
             webView.load(URLRequest(url: url))
         }
     }

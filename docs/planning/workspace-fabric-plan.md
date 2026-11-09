@@ -72,7 +72,7 @@ These decisions are recorded in ADR-001 through ADR-020. Implementation must not
 | APP-03 | Pin runtime world and version in manifests | 2 | APP-02, RT-05 | Unsupported worlds fail closed; Preview 1 and WASIX are explicit |
 | UX-01 | Add truthful restore report | 2 | WS-03 | UI states what was restored, restarted, reconnected or lost |
 | A11Y-01 | Accessibility baseline | 3 | GOV-01 | VoiceOver, keyboard focus, Dynamic Type, reduced motion and IME text commit |
-| PUTER-01 | Remove Puter entirely | 3 | — | Adapter, enum, UI, labels, Pro copy and tests removed; build and tests pass |
+| PUTER-01 | Remove Puter entirely — Done 2026-11-09 | 3 | — | Adapter, enum, UI, labels, Pro copy and tests removed; build and tests pass |
 
 **Exit gate:** Workspace survives shell close and runtime/application failure; future or corrupt schemas are rejected safely; Wanix failure is visible; Puter is gone; no workspace credential is stored in the manifest.
 

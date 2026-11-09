@@ -8,7 +8,6 @@ final class DesktopRuntimeProviderTests: XCTestCase {
 
         XCTAssertEqual(try registry.provider(for: .wanixDesktop).descriptor.id, "wanix")
         XCTAssertEqual(try registry.provider(for: .wanixKernel).descriptor.id, "wanix")
-        XCTAssertEqual(try registry.provider(for: .puter).descriptor.id, "puter")
     }
 
     func testRegistryRejectsDuplicateAndMissingProviders() throws {
@@ -30,8 +29,6 @@ final class DesktopRuntimeProviderTests: XCTestCase {
 
         let kernel = try provider.makeRuntime(choice: .wanixKernel, appearance: "light")
         XCTAssertEqual(kernel.capabilities, .wanixKernel)
-
-        XCTAssertThrowsError(try provider.makeRuntime(choice: .puter, appearance: "dark"))
     }
 }
 

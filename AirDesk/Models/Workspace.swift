@@ -17,7 +17,6 @@ struct Workspace: Identifiable, Codable, Hashable, Sendable {
 enum RuntimeChoice: String, CaseIterable, Identifiable, Codable, Sendable {
     case wanixDesktop
     case wanixKernel
-    case puter
 
     var id: String { rawValue }
 
@@ -25,7 +24,6 @@ enum RuntimeChoice: String, CaseIterable, Identifiable, Codable, Sendable {
         switch self {
         case .wanixDesktop: return "Wanix Desktop"
         case .wanixKernel: return "Wanix Kernel"
-        case .puter: return "Puter (experimental)"
         }
     }
 
@@ -33,7 +31,6 @@ enum RuntimeChoice: String, CaseIterable, Identifiable, Codable, Sendable {
         switch self {
         case .wanixDesktop: return "Bundled macOS-style workspace. Works offline."
         case .wanixKernel: return "Live wanix.wasm shell loaded from the CDN."
-        case .puter: return "Cloud desktop loaded from puter.com. Requires network."
         }
     }
 
@@ -41,7 +38,6 @@ enum RuntimeChoice: String, CaseIterable, Identifiable, Codable, Sendable {
         switch self {
         case .wanixDesktop: return "Offline"
         case .wanixKernel: return "CDN"
-        case .puter: return "Web"
         }
     }
 
@@ -53,7 +49,7 @@ enum RuntimeChoice: String, CaseIterable, Identifiable, Codable, Sendable {
         switch self {
         case .wanixKernel:
             return true
-        case .wanixDesktop, .puter:
+        case .wanixDesktop:
             return false
         }
     }

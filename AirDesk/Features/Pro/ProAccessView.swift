@@ -7,7 +7,6 @@ struct ProAccessView: View {
     private let features: [ProFeature] = [
         ProFeature(icon: "terminal.fill", title: "Live Wanix Kernel", detail: "Boot the real wanix.wasm workspace from the CDN."),
         ProFeature(icon: "display", title: "Independent display", detail: "Keep the controller and desktop on separate screens."),
-        ProFeature(icon: "network", title: "Self-hosted Puter", detail: "Connect your own Puter origin for a private cloud desktop."),
         ProFeature(icon: "cursorarrow.motionlines", title: "Advanced input", detail: "Pointer tuning and motion controls for precise navigation."),
         ProFeature(icon: "person.2.fill", title: "Family sharing", detail: "Share the annual family plan with your household."),
         ProFeature(icon: "heart.fill", title: "Support AirDesk", detail: "Fund continued work on the open desktop controller.")
@@ -56,7 +55,7 @@ struct ProAccessView: View {
                     .font(.system(size: 27, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
-                Text("Wanix Desktop stays free. AirDesk Pro unlocks the live kernel, private origins, and the best display experience.")
+                Text("Wanix Desktop stays free. AirDesk Pro unlocks the live kernel and the best display experience.")
                     .font(.system(size: 13.5))
                     .foregroundStyle(ADTheme.textSecondary)
                     .multilineTextAlignment(.center)

@@ -60,17 +60,6 @@ struct RuntimeCapabilities: Equatable, Sendable {
         taskExecution: true
     )
 
-    static let puter = RuntimeCapabilities(
-        desktopWindows: true,
-        terminal: false,
-        filesystem: true,
-        workbench: false,
-        browser: true,
-        persistentStorage: true,
-        liveKernel: false,
-        taskExecution: false
-    )
-
     var labels: [String] {
         var result: [String] = []
         if desktopWindows { result.append("Windows") }
