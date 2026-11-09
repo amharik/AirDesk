@@ -15,3 +15,4 @@ export * from './session-keys';
 export * from './spake2plus';
 export * from './transcript';
 export * from './pairing-webrtc';
+export * from './pairing-signaling';

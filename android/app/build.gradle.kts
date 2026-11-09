@@ -69,6 +69,7 @@ dependencies {
     implementation("com.google.flatbuffers:flatbuffers-java:25.12.19")
     implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 
