@@ -23,20 +23,23 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - name: Build Android debug APK
-        working-directory: android
+      - name: Install Gradle 8.9
         run: |
           set -euo pipefail
-          for attempt in 1 2 3; do
-            echo "Android build attempt ${attempt}"
-            if ./gradlew testDebugUnitTest lintDebug assembleDebug --console=plain; then
-              exit 0
-            fi
-            if [ "${attempt}" -lt 3 ]; then
-              sleep 20
+          archive="${RUNNER_TEMP}/gradle-8.9-bin.zip"
+          for url in \
+            "https://mirrors.cloud.tencent.com/gradle/gradle-8.9-bin.zip" \
+            "https://mirrors.huaweicloud.com/gradle/gradle-8.9-bin.zip"; do
+            if curl -fsSL --retry 3 --retry-delay 5 "${url}" -o "${archive}"; then
+              break
             fi
           done
-          exit 1
+          echo "d725d707bfabd4dfdc958c624003b3c80accc03f7037b5122c4b1d0ef15cecab  ${archive}" | sha256sum -c -
+          unzip -q "${archive}" -d "${RUNNER_TEMP}"
+          echo "${RUNNER_TEMP}/gradle-8.9/bin" >> "${GITHUB_PATH}"
+      - name: Build Android debug APK
+        working-directory: android
+        run: gradle testDebugUnitTest lintDebug assembleDebug --console=plain
       - uses: actions/upload-artifact@v4
         with:
           name: android-debug
@@ -53,6 +56,39 @@ jobs:
       - run: brew install xcodegen
       - name: Generate Xcode project
         run: xcodegen generate
+      - name: Seed Swift package binary artifacts
+        run: |
+          set -euo pipefail
+          cache_dir="${HOME}/Library/Caches/org.swift.swiftpm/artifacts"
+          mkdir -p "${cache_dir}"
+          seed() {
+            name="$1"
+            url="$2"
+            checksum="$3"
+            dest="${cache_dir}/${name}"
+            if [ -f "${dest}" ]; then
+              return 0
+            fi
+            tmp="$(mktemp)"
+            for prefix in "https://ghproxy.net/" "https://ghfast.top/" ""; do
+              if curl -fsSL --retry 3 --retry-delay 5 -o "${tmp}" "${prefix}${url}"; then
+                if echo "${checksum}  ${tmp}" | shasum -a 256 -c - >/dev/null; then
+                  mv "${tmp}" "${dest}"
+                  return 0
+                fi
+              fi
+              rm -f "${tmp}"
+            done
+            return 1
+          }
+          seed \
+            "https___github_com_n0_computer_iroh_ffi_releases_download_v1_2_0_IrohLib_xcframework_zip" \
+            "https://github.com/n0-computer/iroh-ffi/releases/download/v1.2.0/IrohLib.xcframework.zip" \
+            "4a97b06ecb1d418e17a96a45b6c7e5d063a12a6dfb6600389a7b5b2ae21ae18a"
+          seed \
+            "https___github_com_krzyzanowskim_OpenSSL_releases_download_3_6_5000_OpenSSL_xcframework_zip" \
+            "https://github.com/krzyzanowskim/OpenSSL/releases/download/3.6.5000/OpenSSL.xcframework.zip" \
+            "f50188506490c643715489217d32e458d06cee5579399ff616f0ce2038169fea"
       - name: Resolve Swift packages
         run: xcodebuild -resolvePackageDependencies -project AirDesk.xcodeproj
       - name: Build iOS simulator app
