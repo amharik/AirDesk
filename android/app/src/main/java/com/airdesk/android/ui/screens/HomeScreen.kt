@@ -47,6 +47,7 @@ fun HomeScreen(viewModel: AppViewModel) {
     val offer = viewModel.localOffer
     var pastedOffer by rememberSaveable { mutableStateOf("") }
     var peerLabel by rememberSaveable { mutableStateOf("") }
+    var irohCodeInput by rememberSaveable { mutableStateOf("") }
 
     Column(
         modifier = Modifier
@@ -64,13 +65,13 @@ fun HomeScreen(viewModel: AppViewModel) {
         )
 
         SectionCard(
-            title = "Pairing baseline, not AD-PAIR-1",
-            subtitle = "The offer format and local peer registry are implemented. " +
-                "AD-PAIR-1 / SPAKE2+ is not connected, and this build does not claim a secure pairing session.",
+            title = "Pairing status",
+            subtitle = "AD-PAIR-1 now runs over direct Iroh with SAS confirmation. " +
+                "The legacy local offer remains for diagnostics only.",
         ) {
             Text(
-                "No session keys, no channel binding and no LAN transport are active. " +
-                    "Pairing here only records a validated peer offer locally.",
+                "Direct pairing uses authenticated Iroh endpoint binding, no relay. " +
+                    "Use the direct pairing section below for a secure session.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -118,6 +119,97 @@ fun HomeScreen(viewModel: AppViewModel) {
             }
         }
 
+        SectionCard(
+            title = "Direct pairing over Iroh",
+            subtitle = "AD-PAIR-1 runs over an encrypted, direct Iroh endpoint with " +
+                "no relay dependency. Compare the six-digit code on both devices before trusting.",
+        ) {
+            val directCode = viewModel.irohCode
+            val sas = viewModel.irohShortAuthenticationString
+            viewModel.irohRoleLabel?.let { role ->
+                Text(
+                    "Role: $role",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (directCode != null) {
+                LabeledValue(
+                    label = "Pairing code",
+                    value = "Share this code with the other device",
+                    monospace = false,
+                )
+                SelectionContainer {
+                    Text(
+                        directCode,
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    )
+                }
+                OutlinedButton(
+                    onClick = {
+                        copyToClipboard(context, "AirDesk direct pairing code", directCode)
+                    },
+                ) {
+                    Text("Copy pairing code")
+                }
+            }
+            if (sas != null) {
+                Text(
+                    "Verification code: $sas",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                OutlinedTextField(
+                    value = viewModel.irohVerificationCode,
+                    onValueChange = viewModel::updateIrohVerificationCode,
+                    label = { Text("Confirm code shown on the other device") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Button(
+                    onClick = viewModel::confirmIrohShortAuthenticationString,
+                    enabled = viewModel.irohVerificationCode.length == 6,
+                ) {
+                    Text("Confirm and trust peer")
+                }
+            } else {
+                OutlinedButton(
+                    onClick = viewModel::startIrohHost,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Create direct pairing code (host)")
+                }
+            }
+            OutlinedTextField(
+                value = irohCodeInput,
+                onValueChange = { irohCodeInput = it },
+                label = { Text("Paste pairing code from the host") },
+                minLines = 3,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Button(
+                onClick = { viewModel.joinIrohPairing(irohCodeInput) },
+                enabled = irohCodeInput.isNotBlank() && sas == null,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Join direct pairing (controller)")
+            }
+            Text(
+                viewModel.irohStatus,
+                color = if (viewModel.irohStatusIsError) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                style = MaterialTheme.typography.bodySmall,
+            )
+            OutlinedButton(
+                onClick = viewModel::cancelIrohPairing,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Cancel direct pairing")
+            }
+        }
         SectionCard(
             title = "Local pairing offer",
             subtitle = "Human-readable UI JSON (adfp / version 0.1 / kind pairing-offer). " +

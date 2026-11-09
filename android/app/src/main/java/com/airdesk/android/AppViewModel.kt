@@ -8,15 +8,24 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import com.airdesk.android.capabilities.CapabilityCatalog
 import com.airdesk.android.capabilities.CapabilityDescriptor
 import com.airdesk.android.identity.DeviceIdentity
+import com.airdesk.android.pairing.AdPairChannelBinding
+import com.airdesk.android.pairing.AdPairCodec
+import com.airdesk.android.pairing.AdPairCoordinator
+import com.airdesk.android.pairing.AdPairIrohTransport
+import com.airdesk.android.pairing.AdPairWireSession
+import com.airdesk.android.pairing.AndroidAdPairSigner
+import com.airdesk.android.pairing.AndroidAdPairVerifier
 import com.airdesk.android.pairing.LocalOffer
 import com.airdesk.android.pairing.LocalOfferFactory
 import com.airdesk.android.pairing.PairingResult
 import com.airdesk.android.pairing.PeerRecord
 import com.airdesk.android.protocol.AdfpProtocol
 import com.airdesk.android.protocol.AdfpSelfTestResult
+import kotlinx.coroutines.launch
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as AirDeskApplication).container
@@ -153,5 +162,173 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         pairingMessageIsError = !revoked
         refreshPeers()
+    }
+
+    var irohCode by mutableStateOf<String?>(null)
+        private set
+    var irohShortAuthenticationString by mutableStateOf<String?>(null)
+        private set
+    var irohStatus by mutableStateOf("Iroh endpoint not started")
+        private set
+    var irohStatusIsError by mutableStateOf(false)
+        private set
+    var irohVerificationCode by mutableStateOf("")
+        private set
+    var irohRoleLabel by mutableStateOf<String?>(null)
+        private set
+
+    private var irohTransport: AdPairIrohTransport? = null
+
+    fun startIrohHost() {
+        val current = identity ?: return
+        cancelIrohPairing()
+        irohRoleLabel = "Host"
+        irohStatus = "Starting direct Iroh endpoint..."
+        irohStatusIsError = false
+        viewModelScope.launch {
+            runCatching {
+                val endpoint = container.irohPeer.start()
+                val session = AdPairWireSession(
+                    AdPairWireSession.Role.HOST,
+                    pairingCoordinator(current, AdPairCoordinator.Role.INITIATOR),
+                )
+                val transport = AdPairIrohTransport(session, container.irohPeer)
+                irohTransport = transport
+                val challenge = session.startHost(
+                    mode = AdPairCodec.MODE_QR_SECRET,
+                    channelBinding = AdPairChannelBinding("iroh-endpoint", endpoint.endpointId),
+                    endpointHint = endpoint.ticket,
+                    capabilities = capabilities.map { it.capUri },
+                )
+                irohCode = challenge.serialized
+                irohVerificationCode = ""
+                irohShortAuthenticationString = null
+                irohStatus = "Waiting for the other device to join over Iroh..."
+                launch {
+                    runCatching {
+                        transport.accept { refreshIrohState(it) }
+                    }.onFailure { reportIrohError(it) }
+                }
+            }.onFailure { reportIrohError(it) }
+        }
+    }
+
+    fun joinIrohPairing(code: String, pin: String? = null) {
+        val current = identity ?: return
+        cancelIrohPairing()
+        irohRoleLabel = "Controller"
+        irohStatus = "Connecting over Iroh..."
+        irohStatusIsError = false
+        viewModelScope.launch {
+            runCatching {
+                val parsed = AdPairCodec.parse(
+                    code.trim(),
+                    nowEpochMillis = System.currentTimeMillis(),
+                    localDeviceId = current.deviceId,
+                )
+                val binding = parsed.offer.channelBinding
+                require(binding.kind == "iroh-endpoint") { "pairing code does not use an Iroh endpoint binding" }
+                val ticket = parsed.offer.endpointHint
+                    ?: error("pairing code does not include an Iroh ticket")
+                val endpoint = container.irohPeer.start()
+                val session = AdPairWireSession(
+                    AdPairWireSession.Role.CONTROLLER,
+                    pairingCoordinator(current, AdPairCoordinator.Role.RESPONDER),
+                )
+                val response = session.join(
+                    code = code.trim(),
+                    pin = pin,
+                    endpointHint = endpoint.ticket,
+                    capabilities = capabilities.map { it.capUri },
+                )
+                val transport = AdPairIrohTransport(session, container.irohPeer)
+                irohTransport = transport
+                irohCode = null
+                irohVerificationCode = ""
+                irohShortAuthenticationString = null
+                transport.connect(
+                    ticket = ticket,
+                    expectedEndpointId = binding.value,
+                    initialMessage = response,
+                ) { refreshIrohState(it) }
+                irohStatus = "Connected over Iroh; compare the verification code."
+            }.onFailure { reportIrohError(it) }
+        }
+    }
+
+    fun updateIrohVerificationCode(value: String) {
+        irohVerificationCode = value.filter(Char::isDigit).take(6)
+    }
+
+    fun confirmIrohShortAuthenticationString() {
+        val transport = irohTransport ?: return
+        runCatching {
+            transport.confirmShortAuthenticationString(irohVerificationCode)
+        }.onSuccess {
+            irohStatus = "Direct pairing complete"
+            irohStatusIsError = false
+            refreshPeers()
+        }.onFailure { reportIrohError(it) }
+    }
+
+    fun cancelIrohPairing() {
+        irohTransport?.close()
+        irohTransport = null
+        irohCode = null
+        irohShortAuthenticationString = null
+        irohRoleLabel = null
+        irohVerificationCode = ""
+        irohStatus = "Iroh pairing cancelled"
+        irohStatusIsError = false
+    }
+
+    override fun onCleared() {
+        irohTransport?.close()
+        irohTransport = null
+        super.onCleared()
+    }
+
+    private fun pairingCoordinator(
+        current: DeviceIdentity,
+        role: AdPairCoordinator.Role,
+    ): AdPairCoordinator = AdPairCoordinator(
+        role = role,
+        deviceId = current.deviceId,
+        publicKey = current.publicKeyBase64Url,
+        signer = AndroidAdPairSigner(container.identityStore),
+        verifier = AndroidAdPairVerifier(),
+        registry = container.peerRegistry,
+        peerDisplayLabel = null,
+    )
+
+    private fun refreshIrohState(transport: AdPairIrohTransport) {
+        viewModelScope.launch {
+            irohShortAuthenticationString = transport.shortAuthenticationString
+            irohStatus = when (transport.state) {
+                AdPairWireSession.State.AWAITING_USER_VERIFICATION ->
+                    "Pairing transcript verified; compare the 6-digit code on both devices."
+                AdPairWireSession.State.COMPLETED -> "Direct pairing complete"
+                AdPairWireSession.State.FAILED ->
+                    "Pairing failed: ${transport.lastError ?: "unknown error"}"
+                AdPairWireSession.State.WAITING_FOR_CONTROLLER ->
+                    "Waiting for the other device to join over Iroh..."
+                AdPairWireSession.State.AWAITING_SHARE,
+                AdPairWireSession.State.AWAITING_VERIFIER_RESPONSE,
+                AdPairWireSession.State.AWAITING_INITIATOR_FINISH,
+                -> "Exchanging authenticated pairing messages over Iroh..."
+                AdPairWireSession.State.IDLE -> "Iroh pairing idle"
+            }
+            irohStatusIsError = transport.state == AdPairWireSession.State.FAILED
+            if (transport.state == AdPairWireSession.State.COMPLETED) {
+                refreshPeers()
+            }
+        }
+    }
+
+    private fun reportIrohError(error: Throwable) {
+        viewModelScope.launch {
+            irohStatus = error.message ?: error.javaClass.simpleName
+            irohStatusIsError = true
+        }
     }
 }
