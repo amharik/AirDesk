@@ -6,7 +6,6 @@ options:
   createIntermediateGroups: true
   developmentLanguage: en
   xcodeVersion: "16.4"
-  schemePathPrefix: "../../../"
 settings:
   base:
     SWIFT_VERSION: "5.0"
