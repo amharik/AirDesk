@@ -1,5 +1,6 @@
 package com.airdesk.android.pairing
 
+import com.airdesk.android.identity.DeviceId
 import java.io.Closeable
 import java.util.concurrent.TimeUnit
 import okhttp3.OkHttpClient
@@ -19,7 +20,7 @@ interface PairingSocketConnector {
 }
 
 interface PairingSocketListener {
-    fun onOpen()
+    fun onOpen(certificateSha256: String?)
     fun onBinary(data: ByteArray)
     fun onClosed(code: Int, reason: String)
     fun onFailure(error: Throwable)
@@ -34,7 +35,10 @@ class OkHttpPairingSocketConnector(
     override fun connect(url: String, listener: PairingSocketListener): PairingSocketConnection {
         val request = Request.Builder().url(url).build()
         val socket = client.newWebSocket(request, object : WebSocketListener() {
-            override fun onOpen(webSocket: WebSocket, response: Response) = listener.onOpen()
+            override fun onOpen(webSocket: WebSocket, response: Response) =
+                listener.onOpen(response.handshake?.peerCertificates?.firstOrNull()?.let { certificate ->
+                    DeviceId.hexLowercase(java.security.MessageDigest.getInstance("SHA-256").digest(certificate.encoded))
+                })
             override fun onMessage(webSocket: WebSocket, bytes: ByteString) =
                 listener.onBinary(bytes.toByteArray())
             override fun onMessage(webSocket: WebSocket, text: String) =
@@ -81,11 +85,20 @@ class AdPairSocketTransport(
     fun connect(
         url: String,
         initialMessage: ByteArray? = null,
+        expectedCertificateSha256: String? = null,
         onUpdate: (AdPairSocketTransport) -> Unit = {},
     ) {
         check(connection == null) { "pairing socket is already connected" }
         val listener = object : PairingSocketListener {
-            override fun onOpen() {
+            override fun onOpen(certificateSha256: String?) {
+                if (expectedCertificateSha256 != null &&
+                    !certificateSha256.equals(expectedCertificateSha256, ignoreCase = true)
+                ) {
+                    lastError = "pairing channel certificate does not match the pairing binding"
+                    connection?.close()
+                    onUpdate(this@AdPairSocketTransport)
+                    return
+                }
                 initialMessage?.let(::send)
                 onUpdate(this@AdPairSocketTransport)
             }

@@ -44,6 +44,20 @@ class AdPairSocketTransportTest {
         hostTransport.close()
     }
 
+    @Test
+    fun rejectsCertificateThatDoesNotMatchBinding() {
+        val hub = LoopbackHub().apply { certificate = "ff".repeat(32) }
+        val host = session(Role.HOST)
+        host.startHost(mode = "pin", channelBinding = binding())
+        val transport = AdPairSocketTransport(host, hub)
+        hub.nextName = "host"
+        transport.connect("wss://relay.example/room", expectedCertificateSha256 = "ab".repeat(32))
+        hub.openAll()
+        assertEquals("pairing channel certificate does not match the pairing binding", transport.lastError)
+        assertEquals(State.WAITING_FOR_CONTROLLER, host.state)
+        transport.close()
+    }
+
     private fun session(role: Role): AdPairWireSession {
         val keyPair = KeyPairGenerator.getInstance("EC").apply {
             initialize(ECGenParameterSpec("secp256r1"))
@@ -68,6 +82,7 @@ class AdPairSocketTransportTest {
         var nextName: String = ""
         private val listeners = mutableMapOf<String, PairingSocketListener>()
         private val opens = ArrayDeque<PairingSocketListener>()
+        var certificate: String? = null
 
         override fun connect(url: String, listener: PairingSocketListener): PairingSocketConnection {
             listeners[nextName] = listener
@@ -76,7 +91,7 @@ class AdPairSocketTransportTest {
         }
 
         fun openAll() {
-            while (opens.isNotEmpty()) opens.removeFirst().onOpen()
+            while (opens.isNotEmpty()) opens.removeFirst().onOpen(certificate)
         }
 
         fun route(from: String, data: ByteArray) {
