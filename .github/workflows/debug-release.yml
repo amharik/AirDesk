@@ -25,7 +25,18 @@ jobs:
           java-version: "17"
       - name: Build Android debug APK
         working-directory: android
-        run: ./gradlew testDebugUnitTest lintDebug assembleDebug --console=plain
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            echo "Android build attempt ${attempt}"
+            if ./gradlew testDebugUnitTest lintDebug assembleDebug --console=plain; then
+              exit 0
+            fi
+            if [ "${attempt}" -lt 3 ]; then
+              sleep 20
+            fi
+          done
+          exit 1
       - uses: actions/upload-artifact@v4
         with:
           name: android-debug
@@ -40,42 +51,67 @@ jobs:
         with:
           xcode-version: "16.4"
       - run: brew install xcodegen
-      - name: Build unsigned iOS debug artifacts
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Resolve Swift packages
+        run: xcodebuild -resolvePackageDependencies -project AirDesk.xcodeproj
+      - name: Build iOS simulator app
         run: |
           set -euo pipefail
-          xcodegen generate
-          xcodebuild build \
-            -project AirDesk.xcodeproj \
-            -scheme AirDesk \
-            -configuration Debug \
-            -sdk iphoneos \
-            -destination "generic/platform=iOS" \
-            -derivedDataPath build/ios-device \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY=""
-          mkdir -p build/ios-ipa/Payload
-          cp -R build/ios-device/Build/Products/Debug-iphoneos/AirDesk.app build/ios-ipa/Payload/
-          (cd build/ios-ipa && zip -qry ../AirDesk-ios-device-unsigned.ipa Payload)
-          xcodebuild build \
+          log="${RUNNER_TEMP}/ios-simulator.log"
+          if xcodebuild build \
             -project AirDesk.xcodeproj \
             -scheme AirDesk \
             -configuration Debug \
             -sdk iphonesimulator \
             -destination "generic/platform=iOS Simulator" \
-            -derivedDataPath build/ios-simulator \
+            -derivedDataPath "${GITHUB_WORKSPACE}/build/ios-simulator" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY=""
-          ditto -c -k --keepParent \
-            build/ios-simulator/Build/Products/Debug-iphonesimulator/AirDesk.app \
-            build/AirDesk-ios-simulator.zip
+            CODE_SIGN_IDENTITY="" >"${log}" 2>&1; then
+            ditto -c -k --keepParent \
+              "${GITHUB_WORKSPACE}/build/ios-simulator/Build/Products/Debug-iphonesimulator/AirDesk.app" \
+              "${GITHUB_WORKSPACE}/build/AirDesk-ios-simulator.zip"
+          else
+            rc=$?
+            tail -40 "${log}" | while IFS= read -r line; do
+              echo "::error title=iOS simulator build::${line}"
+            done
+            tail -200 "${log}"
+            exit "${rc}"
+          fi
+      - name: Build unsigned iOS device IPA
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          log="${RUNNER_TEMP}/ios-device.log"
+          if xcodebuild build \
+            -project AirDesk.xcodeproj \
+            -scheme AirDesk \
+            -configuration Debug \
+            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath "${GITHUB_WORKSPACE}/build/ios-device" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" >"${log}" 2>&1; then
+            mkdir -p "${GITHUB_WORKSPACE}/build/ios-ipa/Payload"
+            cp -R \
+              "${GITHUB_WORKSPACE}/build/ios-device/Build/Products/Debug-iphoneos/AirDesk.app" \
+              "${GITHUB_WORKSPACE}/build/ios-ipa/Payload/"
+            (cd "${GITHUB_WORKSPACE}/build/ios-ipa" && zip -qry ../AirDesk-ios-device-unsigned.ipa Payload)
+          else
+            rc=$?
+            tail -40 "${log}" | while IFS= read -r line; do
+              echo "::error title=iOS unsigned device build::${line}"
+            done
+            tail -200 "${log}"
+            exit "${rc}"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: ios-debug
-          path: |
-            build/AirDesk-ios-device-unsigned.ipa
-            build/AirDesk-ios-simulator.zip
+          path: build/AirDesk-ios-*
           if-no-files-found: error
 
   release:
@@ -96,14 +132,16 @@ jobs:
           set -euo pipefail
           mkdir -p release
           cp artifacts/android-debug/app-debug.apk "release/AirDesk-${TAG}-android-debug.apk"
-          cp artifacts/ios-debug/AirDesk-ios-device-unsigned.ipa "release/AirDesk-${TAG}-ios-device-unsigned.ipa"
           cp artifacts/ios-debug/AirDesk-ios-simulator.zip "release/AirDesk-${TAG}-ios-simulator.zip"
+          if [ -f artifacts/ios-debug/AirDesk-ios-device-unsigned.ipa ]; then
+            cp artifacts/ios-debug/AirDesk-ios-device-unsigned.ipa "release/AirDesk-${TAG}-ios-device-unsigned.ipa"
+          fi
           cat > release-notes.md <<EOF
           Debug builds for testing only. These are not App Store or signed distribution builds.
 
           - Android: installable debug APK.
-          - iOS device: unsigned debug IPA. Re-sign with your own development certificate and provisioning profile before installing.
           - iOS simulator: zipped debug app. Install with \`xcrun simctl install booted AirDesk.app\`.
+          - iOS device: unsigned debug IPA when included. Re-sign with your own development certificate and provisioning profile before installing.
 
           Commit: ${GITHUB_SHA}
           EOF
@@ -111,7 +149,7 @@ jobs:
             gh release upload "$TAG" release/* --clobber
           else
             gh release create "$TAG" release/* \
-              --title "AirDesk debug ${TAG}" \
+              --title "AirDesk debug build ${TAG#debug-}" \
               --notes-file release-notes.md \
               --prerelease
           fi
