@@ -58,7 +58,7 @@ CapabilityHostABI
 - It is versioned independently of ADFP wire versions and runtime versions.
 - Unsupported operations fail closed with a typed error.
 
-The normative ABI is the WASI 0.2 Component Model package `airdesk:host-abi@0.1.0`, expressed in WIT and layered on `wasi:io/streams@0.2.0`, `wasi:filesystem/types@0.2.0` and `wasi:cli/run@0.2.0`. It defines at least:
+The normative ABI is the WASI 0.2 Component Model package `airdesk:host-abi@0.2.0`, expressed in WIT in `protocol/abi/wit/airdesk-host-abi.wit` and layered on `wasi:io/streams@0.2.0`. Native runtime worlds may also import `wasi:filesystem/types@0.2.0` and `wasi:cli/run@0.2.0`. It defines at least:
 
 - `vfs-service` for AD-RESOURCE mounts, with path canonicalization and no `..` escape;
 - `pty-service` for AD-RUNTIME PTY sessions with a 256 KiB credit window;

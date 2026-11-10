@@ -136,7 +136,7 @@ Effort is in engineer-weeks and is approximate. Status is `Partial`, `Pending`, 
 | P0-03 | Verify or revert namespace partial | `AirDesk/Namespace/NamespaceImportService.swift`; `AirDeskTests/NamespaceImportServiceTests.swift` | Compiles in AirDeskTests; path/symlink/lease/fid tests pass; not wired into production | — | Verified, committed |
 | P0-04 | Add Android CI | `.github/workflows/android.yml`, `android/gradle.properties` if needed | JDK 17 + Android SDK 35; `testDebugUnitTest`, `lintDebug`, `assembleDebug` on push/PR paths | — | Verified, first run green |
 | P0-05 | Add shared-core boundary ADR | `docs/adr/024-shared-core-and-ffi-boundary.md`, `docs/adr/README.md` | ADR is `Proposed`; defines what may move into Rust, compatibility fixtures, rollback and ownership | P0-01..03 | Proposed |
-| P0-06 | Freeze Phase 1 contracts | `protocol/fixtures/**`, `docs/planning/100x-masterplan-execution.md`, `milestones.md` | ADFP envelope, remote runtime, DeviceAgent and WIT contracts have named owners and fixture paths | P0-01..05 | Contract paths frozen; ADFP, ResourceCompound/blob, remote runtime provider and DeviceAgent verified; WIT fixture pending P2-10 |
+| P0-06 | Freeze Phase 1 contracts | `protocol/fixtures/**`, `docs/planning/100x-masterplan-execution.md`, `milestones.md` | ADFP envelope, remote runtime, DeviceAgent and WIT contracts have named owners and fixture paths | P0-01..05 | Contract paths frozen; ADFP, ResourceCompound/blob, remote runtime provider, DeviceAgent and WIT fixtures verified |
 
 #### Phase 1 contract freeze (P0-06)
 
@@ -146,7 +146,7 @@ Effort is in engineer-weeks and is approximate. Status is `Partial`, `Pending`, 
 | ResourceCompound and blob handles | Protocol owner | `protocol/fixtures/resource-compound/*.json`, `protocol/fixtures/resource-blob/*.json` | Additive compound Walk/Open/Read/Clunk semantics; >64 KiB results return a versioned BLAKE3 handle | Swift, TypeScript, Rust, Kotlin |
 | Remote runtime lifecycle | Runtime owner | `protocol/fixtures/remote-runtime/lifecycle-v1.json` | Create/start/suspend/checkpoint/resume/stop/destroy/status, disconnect preservation and typed transport/authorization failures | Swift, TypeScript |
 | DeviceAgent contract | Capabilities owner | `protocol/fixtures/device-agent/contract-v1.json` | Identity, capability descriptors, request/release, subscription, health, typed lifecycle and platform-denial results | Swift, TypeScript, Kotlin |
-| Host ABI WIT | Runtime and security owners | `protocol/fixtures/host-abi/wit-v1.json` | `airdesk:host-abi@0.1.0`, WASI 0.2 baseline, VFS/PTY interfaces, per-runtime qualification, no display frame submission | Swift, Rust, Wanix, browser |
+| Host ABI WIT | Runtime and security owners | `protocol/fixtures/host-abi/wit-v1.json` | `airdesk:host-abi@0.2.0`, WASI 0.2 baseline, VFS/PTY/display interfaces, per-runtime qualification, no display frame submission | Swift, Rust, Wanix, browser |
 | Movement and one-euro filter | Input owner | `protocol/fixtures/input/one-euro-v1.json` | Deterministic pointer/movement normalization and filter outputs with no phase lag at high speed | Swift, TypeScript, Rust |
 
 Compatibility rules:
@@ -184,7 +184,7 @@ Compatibility rules:
 | P2-07 | Android workspace/terminal bridge | `AndroidWorkspaceHost.kt`, `AndroidDesktopBridge.kt`, `DisplaySessionController.kt`; tests | Bundled DesktopShell drives workspace host and terminal bridge; reconnect preserves identity; truthful diagnostics | P1-05, P2-01 | Verified, committed |
 | P2-08 | Android MediaProjection/MediaCodec stream | `AndroidMediaCodecStream.kt`, `DisplaySessionController.kt`; tests | Registered display pipeline; hardware codec capability detection; fallback and typed failure; physical qualification separate | P2-07 | Verified, committed |
 | P2-09 | Android persistent SSH service | `AndroidSSHService.kt`, `RemoteSSH*`; tests | Foreground service; reattach and second-device handoff use same protocol as iOS; process survival tested remotely | P1-07 | Code complete; physical survival gate pending |
-| P2-10 | WIT host ABI 0.2 | `protocol/abi/wit/airdesk-host-abi.wit`, `protocol/abi/README.md`, `protocol/abi/check.sh` | `vfs-service`, `pty-service`, `display-sink`, typed errors, lease revalidation, 256 KiB PTY credits, no display frame submission | P2-01 | Pending |
+| P2-10 | WIT host ABI 0.2 | `protocol/abi/wit/airdesk-host-abi.wit`, `protocol/abi/README.md`, `protocol/abi/check.sh` | `vfs-service`, `pty-service`, `display-sink`, typed errors, lease revalidation, 256 KiB PTY credits, no display frame submission | P2-01 | Verified, committed |
 | P2-11 | WIT 0.3 evaluation and conformance | `protocol/abi/wit/airdesk-host-abi-0_3.wit`, `protocol/abi/conformance/**` | Separate 0.3 world using `stream<T>`/`future<T>`; no mixed worlds; conformance harness runs where tooling exists | P2-10 | Research |
 
 ### Phase 3 — Shared Rust core extraction (20–30 engineer-weeks)
@@ -394,6 +394,17 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - Physical foreground-service process survival, notification permission behavior, real SSH-server interoperability, second physical-device handoff and service restoration after process kill are not claimed. Credentials are intentionally memory-only, so a killed process cannot restart SSH without user re-entry.
 - iOS, Web, Rust and protocol schema/generated bindings were unchanged by P2-09; their last full gates remain green, including the iOS 505-test run at `93550ff`.
 
+### P2-10 verification evidence
+
+- `protocol/abi/wit/airdesk-host-abi.wit` defines package `airdesk:host-abi@0.2.0` and world `capability-host`, importing `wasi:io/streams@0.2.0`; the pinned WASI 0.2 I/O dependency package is vendored under `protocol/abi/wit/deps/io`.
+- `vfs-service` exposes `mount-capability` and a confined `node` resource with stat/open-at/read-stream/write-stream/readdir/close, relative-path and no-symlink-follow rules, and typed `abi-error` results.
+- `pty-service` exposes `spawn` and a lease-bound `pty-session` stdin/stdout/resize/terminate/wait/credits resource. The frozen credit contract is 262144 bytes maximum in flight, 131072 bytes resume threshold and 65536-byte maximum chunk, with no silent output drop.
+- `display-sink` exposes `register-sink` and presentation-state read/update/close for AD-DISPLAY/ADR-014, guarded by `OriginPolicy` and `lease-epoch`. It has no frame, surface, pixel or submit operation; display input subscription remains outside the native capability host.
+- `capability-grant` carries the COSE_Sign1 token and `lease-context`. The ABI requires token/claim/expiry/revocation/platform-permission revalidation on every host call, including through lease-bound stream handles, with typed lease, path-escape and flow-control errors.
+- `protocol/fixtures/host-abi/wit-v1.json` freezes the 0.2 package/world, interfaces, error codes, lease rules, PTY credits, no-frame rule, per-runtime qualification and separate-0.3 policy.
+- `protocol/abi/check.sh` resolved the WIT package with `wasm-tools` 1.263.0, validated required interfaces/functions/error codes, rejected 0.2 `stream<T>`/`future<T>` and any display frame/surface operation, checked the fixed credit values and verified the fixture. The 0.3 branch requires a separate package using `stream<T>`/`future<T>` with no `wasi:io` import.
+- This is a WIT and tooling gate only. No Wanix, Rust or Swift runtime implementation, cross-runtime conformance run, lease-enforcement integration or WASI 0.3 world is claimed; those remain qualification work under ADR-018 and P2-11.
+
 ### P5-01 verification evidence
 
 - ADR-025 selects in-app ReplayKit `RPScreenRecorder` capture of AirDesk-owned workspace surfaces as the first iOS host-capture path; capture, encoder ownership, capability checks and transport stay in one process and authority boundary.
@@ -459,7 +470,7 @@ These are not code-level tasks and must not be marked done from simulator or loo
 ## 10. Immediate next sprint
 
 1. P2-09 retains one physical gate: install the debug APK on an Android device, connect to a real SSH server, background the app, verify the foreground service/session survives, then verify reattach and second-device handoff. Do not mark P2-09 `Verified` from JVM tests alone.
-2. P2-10 is the next code task: WIT host ABI 0.2 with `vfs-service`, `pty-service`, `display-sink`, typed errors, lease revalidation and bounded PTY credits.
+2. P2-10 is complete at the WIT/tooling gate. P2-11 is the next protocol task: a separate 0.3 world using `stream<T>`/`future<T>` and a per-runtime conformance harness; do not claim runtime qualification from the WIT check alone.
 3. P2-04 remains blocked on P1-02 for signing-key/issuer evidence; do not claim remote invocation enforcement yet.
 4. P2-06 remains blocked on P4-01 for the one-euro pointer filter dependency.
 5. P5-03 is code-level only until transport/UI wiring and physical-display qualification exist; do not claim glass-to-glass latency.

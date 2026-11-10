@@ -1,0 +1,234 @@
+package airdesk:host-abi@0.2.0;
+
+// AirDesk capability host ABI, WASI 0.2 Component Model baseline.
+//
+// Host implementations must revalidate the capability token and lease context
+// on every call, including calls made through a lease-bound stream handle.
+// Frames are never submitted through this ABI; display-sink carries only
+// presentation state for the AD-DISPLAY/ADR-014 display session.
+
+interface types {
+  type capability-token = list<u8>;
+
+  enum abi-error-code {
+    invalid-argument,
+    unsupported,
+    lease-invalid,
+    lease-expired,
+    lease-revoked,
+    permission-denied,
+    not-found,
+    path-escape,
+    busy,
+    unavailable,
+    flow-control,
+    conflict,
+    internal,
+  }
+
+  /// Safe, typed host-call failure. Messages must not contain host paths,
+  /// capability tokens, credentials or other secrets.
+  record abi-error {
+    code: abi-error-code,
+    message: string,
+    retryable: bool,
+    lease-id: option<string>,
+    audit-id: option<string>,
+  }
+
+  enum file-kind {
+    unknown,
+    file,
+    directory,
+    symlink,
+    other,
+  }
+
+  flags open-flags {
+    read,
+    write,
+    create,
+    truncate,
+    directory,
+    no-follow,
+  }
+
+  record file-stat {
+    kind: file-kind,
+    size: u64,
+    mode: u32,
+    modified-at-epoch-ms: option<u64>,
+    read-only: bool,
+  }
+
+  record directory-entry {
+    name: string,
+    kind: file-kind,
+  }
+
+  /// Claims carried alongside the signed capability token. The host validates
+  /// these values against the token and current authorization state; the caller
+  /// cannot widen them.
+  record lease-context {
+    lease-id: string,
+    capability-uri: string,
+    workspace-id: string,
+    application-id: string,
+    requester-id: string,
+    granted-operations: list<string>,
+    issued-at-epoch-ms: u64,
+    expires-at-epoch-ms: u64,
+    lease-epoch: u64,
+  }
+
+  /// COSE_Sign1 capability token plus the lease claims it must match.
+  record capability-grant {
+    token: capability-token,
+    context: lease-context,
+  }
+
+  /// Fixed PTY flow-control contract. The host enforces this window on the
+  /// lease-bound output stream and resumes writers above the resume threshold.
+  record pty-credit-window {
+    max-in-flight-bytes: u64,
+    resume-threshold-bytes: u64,
+    max-chunk-bytes: u64,
+  }
+
+  record exit-status {
+    code: s32,
+    signal: option<u32>,
+  }
+
+  enum display-role {
+    view-only,
+    controller,
+  }
+
+  record viewport {
+    width: u32,
+    height: u32,
+  }
+
+  record origin-policy {
+    allowed-origins: list<string>,
+    loopback-only: bool,
+    require-secure-context: bool,
+  }
+
+  record display-registration {
+    origin: string,
+    workspace-id: string,
+    display-session-id: string,
+    generation: u64,
+    viewport: viewport,
+    focus-target: option<string>,
+    role: display-role,
+  }
+
+  /// Presentation state owned by the display session. It is never canonical
+  /// workspace state and never contains a frame or surface payload.
+  record presentation-state {
+    workspace-id: string,
+    display-session-id: string,
+    generation: u64,
+    lease-epoch: u64,
+    viewport: viewport,
+    focus-target: option<string>,
+    active-controller-id: option<string>,
+    role: display-role,
+    can-write-workspace: bool,
+  }
+}
+
+interface vfs-service {
+  use types.{
+    abi-error,
+    capability-grant,
+    directory-entry,
+    file-stat,
+    open-flags,
+  };
+  use wasi:io/streams@0.2.0.{input-stream, output-stream};
+
+  /// A mounted AD-RESOURCE subtree. Path arguments are relative to this node,
+  /// must reject `..` escapes and must not follow symlinks unless the caller
+  /// holds the matching lease operation.
+  resource node {
+    stat: func(grant: capability-grant) -> result<file-stat, abi-error>;
+    open-at: func(path: string, mode: open-flags, grant: capability-grant) -> result<node, abi-error>;
+    read-stream: func(offset: u64, length: u64, grant: capability-grant) -> result<input-stream, abi-error>;
+    write-stream: func(offset: u64, length: u64, grant: capability-grant) -> result<output-stream, abi-error>;
+    readdir: func(grant: capability-grant) -> result<list<directory-entry>, abi-error>;
+    close: func(grant: capability-grant) -> result<_, abi-error>;
+  }
+
+  /// Resolve an `airdesk://fs/<mount_id>/<mode>` grant to a confined node.
+  /// The host validates the COSE_Sign1 token, lease scope, expiry and platform
+  /// permission before returning any handle.
+  mount-capability: func(grant: capability-grant) -> result<node, abi-error>;
+}
+
+interface pty-service {
+  use types.{
+    abi-error,
+    capability-grant,
+    exit-status,
+    pty-credit-window,
+  };
+  use wasi:io/streams@0.2.0.{input-stream, output-stream};
+
+  /// A lease-bound PTY session. Stream handles inherit the grant and fail closed
+  /// when the lease expires or is revoked.
+  resource pty-session {
+    stdin: func(grant: capability-grant) -> result<output-stream, abi-error>;
+    stdout: func(grant: capability-grant) -> result<input-stream, abi-error>;
+    resize: func(columns: u32, rows: u32, grant: capability-grant) -> result<_, abi-error>;
+    terminate: func(grant: capability-grant) -> result<_, abi-error>;
+    wait: func(grant: capability-grant) -> result<exit-status, abi-error>;
+    credits: func() -> pty-credit-window;
+  }
+
+  /// Spawn an `airdesk://pty/<profile_id>` session. Dimensions are validated
+  /// before the platform PTY or SSH PTY transport is created.
+  spawn: func(
+    command: string,
+    arguments: list<string>,
+    columns: u32,
+    rows: u32,
+    grant: capability-grant,
+  ) -> result<pty-session, abi-error>;
+}
+
+interface display-sink {
+  use types.{
+    abi-error,
+    capability-grant,
+    display-registration,
+    origin-policy,
+    presentation-state,
+  };
+
+  /// Presentation-state handle for one display session. This interface has no
+  /// frame, surface, pixel or submit operation by design.
+  resource display-session {
+    state: func(grant: capability-grant) -> result<presentation-state, abi-error>;
+    update-presentation: func(state: presentation-state, grant: capability-grant) -> result<presentation-state, abi-error>;
+    close: func(grant: capability-grant) -> result<_, abi-error>;
+  }
+
+  /// Register a display sink under `airdesk://display/output`. The host checks
+  /// OriginPolicy and the active lease epoch before accepting the registration.
+  register-sink: func(
+    registration: display-registration,
+    policy: origin-policy,
+    grant: capability-grant,
+  ) -> result<display-session, abi-error>;
+}
+
+world capability-host {
+  import wasi:io/streams@0.2.0;
+  import vfs-service;
+  import pty-service;
+  import display-sink;
+}

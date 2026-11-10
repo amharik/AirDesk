@@ -4,6 +4,7 @@
 - **Date:** 2026-11-03
 - **Updated:** 2026-11-03 — peer review: WASI 0.2 Component Model WIT host ABI
 - **Updated:** 2026-11-03 — peer review round 3: cross-runtime is a gate; WASI 0.3 `stream<T>`; `forkpty()` macOS only; no display frame submission
+- **Updated:** 2026-11-10 — WIT package `airdesk:host-abi@0.2.0`, contract fixture and `protocol/abi/check.sh` landed; per-runtime conformance remains pending
 - **Deciders:** Engineering lead, security owner
 - **Scope:** DeviceAgent contract, native adapters, capability descriptors, leases, host ABI, platform permissions
 - **Supersedes:** None
@@ -92,7 +93,7 @@ Leases are time-bounded, scoped and revocable. Indefinite implicit access to dev
 
 ### 5.1 Host ABI uses the WASI 0.2 Component Model
 
-The host ABI is a **WASI 0.2 Component Model** contract expressed in WIT, not a custom C FFI or ad-hoc JSON plugin ABI. It builds on `wasi:io/streams@0.2.0`, `wasi:filesystem/types@0.2.0` and `wasi:cli/run@0.2.0`, plus the AirDesk package `airdesk:host-abi@0.1.0`.
+The host ABI is a **WASI 0.2 Component Model** contract expressed in WIT, not a custom C FFI or ad-hoc JSON plugin ABI. It imports `wasi:io/streams@0.2.0` and is consumed by native runtime worlds that may also import `wasi:filesystem/types@0.2.0` and `wasi:cli/run@0.2.0`, plus the AirDesk package `airdesk:host-abi@0.2.0`.
 
 Cross-runtime portability is a **qualification gate, not a property**. A component is not assumed to run identically in Wanix and in the native Rust/Swift agent merely because both implement the same WIT. Each runtime must pass the `airdesk:host-abi` conformance suite for the interfaces it claims; until it does, a component is admitted per runtime and the manifest names the qualified runtime target.
 
@@ -158,7 +159,7 @@ Those are separate authorization decisions.
 
 - A device can expose and authorize a capability through a native agent.
 - A capability request can be leased, used, expired and revoked.
-- Wanix can access an approved host capability through the `airdesk:host-abi@0.1.0` WIT contract.
+- Wanix can access an approved host capability through the `airdesk:host-abi@0.2.0` WIT contract.
 - Wanix and the native Rust/Swift agent each pass the `airdesk:host-abi` conformance suite for the interfaces they claim; cross-runtime equivalence is demonstrated per interface, not assumed from one WIT definition.
 - A WASI 0.3 world is rejected unless the agent implements `stream<T>`/`future<T>`; no `wasi:io` import is silently shimmed.
 - The host ABI exposes no display frame submission path.

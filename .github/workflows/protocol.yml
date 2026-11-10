@@ -27,6 +27,18 @@ jobs:
           echo "FLATC=/tmp/flatbuffers/build/flatc" >> "$GITHUB_ENV"
       - run: ./protocol/check.sh
 
+  host-abi:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned wasm-tools
+        run: |
+          curl -L --fail -o /tmp/wasm-tools.tar.gz https://github.com/bytecodealliance/wasm-tools/releases/download/v1.263.0/wasm-tools-1.263.0-x86_64-linux.tar.gz
+          mkdir -p /tmp/wasm-tools
+          tar -xzf /tmp/wasm-tools.tar.gz -C /tmp/wasm-tools --strip-components=1
+          echo "WASM_TOOLS=/tmp/wasm-tools/wasm-tools" >> "$GITHUB_ENV"
+      - run: ./protocol/abi/check.sh
+
   rust:
     runs-on: ubuntu-24.04
     steps:

@@ -1,0 +1,91 @@
+{
+  "contractVersion": 1,
+  "profile": "airdesk-host-abi-wit-v1",
+  "package": "airdesk:host-abi@0.2.0",
+  "world": "capability-host",
+  "witPath": "protocol/abi/wit/airdesk-host-abi.wit",
+  "wasiBaseline": {
+    "componentModel": "0.2",
+    "imports": ["wasi:io/streams@0.2.0"],
+    "vendoredDependencies": ["wasi:io/error@0.2.0", "wasi:io/poll@0.2.0", "wasi:io/streams@0.2.0"],
+    "wasi03MixedWorlds": "rejected"
+  },
+  "interfaces": {
+    "vfs-service": {
+      "boundProtocol": "AD-RESOURCE",
+      "capabilityUri": "airdesk://fs/<mount_id>/<mode>",
+      "resource": "node",
+      "functions": ["mount-capability"],
+      "nodeOperations": ["stat", "open-at", "read-stream", "write-stream", "readdir", "close"],
+      "pathRules": ["relative-to-mount", "reject-dot-dot-escape", "no-symlink-follow-without-lease"]
+    },
+    "pty-service": {
+      "boundProtocol": "AD-RUNTIME",
+      "capabilityUri": "airdesk://pty/<profile_id>",
+      "resource": "pty-session",
+      "functions": ["spawn"],
+      "sessionOperations": ["stdin", "stdout", "resize", "terminate", "wait", "credits"]
+    },
+    "display-sink": {
+      "boundProtocol": "AD-DISPLAY",
+      "capabilityUri": "airdesk://display/output",
+      "resource": "display-session",
+      "functions": ["register-sink"],
+      "sessionOperations": ["state", "update-presentation", "close"],
+      "frameSubmission": false,
+      "inputSubscription": false,
+      "stateOwner": "display-session",
+      "guards": ["origin-policy", "lease-epoch", "no-workspace-write"]
+    }
+  },
+  "lease": {
+    "token": "COSE_Sign1",
+    "revalidate": "every-host-call",
+    "streamHandlesInheritGrant": true,
+    "revocation": "close-handles-and-fail-closed",
+    "contextFields": [
+      "lease-id",
+      "capability-uri",
+      "workspace-id",
+      "application-id",
+      "requester-id",
+      "granted-operations",
+      "issued-at-epoch-ms",
+      "expires-at-epoch-ms",
+      "lease-epoch"
+    ],
+    "errorCodes": [
+      "invalid-argument",
+      "unsupported",
+      "lease-invalid",
+      "lease-expired",
+      "lease-revoked",
+      "permission-denied",
+      "not-found",
+      "path-escape",
+      "busy",
+      "unavailable",
+      "flow-control",
+      "conflict",
+      "internal"
+    ],
+    "errorMessageRules": ["no-host-paths", "no-tokens", "no-credentials"]
+  },
+  "ptyCredits": {
+    "maxInFlightBytes": 262144,
+    "resumeThresholdBytes": 131072,
+    "maxChunkBytes": 65536,
+    "dropPolicy": "never-silently-drop"
+  },
+  "runtimeQualification": {
+    "assumedEquivalent": false,
+    "requiredPerRuntime": true,
+    "targets": ["wanix", "native-rust", "native-swift"],
+    "unsupportedRequiredVersion": "fail-closed"
+  },
+  "versioning": {
+    "wasi03World": "separate-world",
+    "mixedWorlds": "rejected",
+    "requireStreamFutureIn03": true
+  }
+}
