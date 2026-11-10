@@ -2,7 +2,7 @@
 
 - **Status:** Planning only — no implementation commitment and no ADR promotion
 - **Date:** 2026-11-10
-- **Baseline:** `dev` at `9853c48`, plus the accepted ADR-025 host capture decision
+- **Baseline:** `dev` at `b50dba9`, plus the verified P5-02 iOS capture/encoder boundary
 - **Input:** User-supplied 100x product / 1000x UX masterplan
 - **Related:** `milestones.md`, `docs/planning/workspace-fabric-plan.md`, `docs/planning/release-roadmap.md`, ADR-001 through ADR-023
 
@@ -223,7 +223,7 @@ Compatibility rules:
 | ID | Task | Files | Done when | Depends | Status |
 | --- | --- | --- | --- | --- | --- |
 | P5-01 | Host capture platform decision | New ADR-025; `AirDesk/Display/**`, `project.yml` | Decision records iOS ReplayKit/broadcast extension vs separate macOS host vs external host; ScreenCaptureKit only if a macOS target exists | P0-05 | Verified, committed |
-| P5-02 | Zero-copy encoder pipeline | `AirDesk/Display/ScreenCapturePipeline.swift`, `VideoToolboxEncoder.swift`, `DisplayCoordinator.swift`; `android/.../AndroidMediaCodecStream.kt` | Capture surface -> encoder with bounded queues; HEVC/AV1 capability detection; keyframe/recovery; no unbounded memory | P5-01 | Pending |
+| P5-02 | Zero-copy encoder pipeline | `AirDesk/Display/ScreenCapturePipeline.swift`, `VideoToolboxEncoder.swift`, `DisplayCoordinator.swift`; `android/.../AndroidMediaCodecStream.kt` | Capture surface -> encoder with bounded queues; HEVC/AV1 capability detection; keyframe/recovery; no unbounded memory | P5-01 | Verified, committed (iOS host path) |
 | P5-03 | Client decode and frame pacing | `AirDesk/Display/DesktopSurface.swift`, `DisplayCoordinator.swift`; web endpoint surface path | Pacing to display refresh; dropped-frame diagnostics; latency/CPU metrics; no false glass-to-glass claim | P5-02 | Pending |
 | P5-04 | Persistent PTY daemon | New `core/airdeskd/**`, `AirDesk/Remote/SSHPTYSession.swift`, `RemoteTerminalController.swift`; tests | `airdeskd` byte-tees raw PTY over ADFP; multiple clients attach; replay buffer bounded; leases enforced | P1-03, P1-07 | Pending |
 | P5-05 | OSC 133 replay and handoff | `AirDesk/Remote/**`, `AirDesk/Web/TerminalBridge.swift`, `AirDeskTests/RemoteSSHReattachTests.swift` | Reconnect replays active command records without corrupting TUIs; second device attaches; zero lost acknowledged bytes | P4-08, P5-04 | Pending |
@@ -359,6 +359,17 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - P5-02 must introduce a mockable `DisplayCaptureSource`, keep ReplayKit/VideoToolbox work off the main thread, use a bounded encoder queue with drop-and-keyframe recovery, prefer HEVC with H.264 fallback, and make no zero-copy, AV1, glass-to-glass or hardware-qualification claim without measurement.
 - P5-01 added no Xcode target, capture source, Info.plist permission or `project.yml` change; it records the platform decision only.
 
+### P5-02 verification evidence
+
+- `DisplayCaptureSource` is the mockable capture boundary. `ReplayKitDisplayCaptureSource` uses in-app `RPScreenRecorder.startCapture`, disables audio and forwards video `CMSampleBuffer` pixel buffers without a pre-encode frame-data copy.
+- `ScreenCapturePipeline` lazily creates the encoder from the first frame and bounds in-flight frames to a configurable 1–8 (default 3). A full queue drops the new frame, records the drop and forces a recovery keyframe without blocking or growing a backlog.
+- The pipeline exposes typed lifecycle/failure errors, selected codec, received/encoded/dropped/keyframe/byte/in-flight metrics, and releases the encoder and capture source on stop and failure.
+- `VideoToolboxEncoder` requires hardware acceleration, configures real-time/no-reordering HEVC or H.264, forces the first and periodic keyframes, and copies compressed block-buffer bytes into owned `Data` before delivery. No zero-copy claim is made.
+- HEVC is preferred with H.264 fallback. AV1 capability is detected but AV1 is never selected for encoding while it remains research-only.
+- iOS: full `xcodebuild test` passed; 491 tests, 1 skipped, 0 failures, including 13 `ScreenCapturePipelineTests`.
+- `DisplayCoordinator`, transport/UI wiring, pacing and Android `AndroidMediaCodecStream.kt` were not changed by this iOS host-path task. Physical ReplayKit capture, hardware codec qualification, glass-to-glass latency and zero-copy behavior are not claimed.
+- Web, Rust and protocol schema/generated bindings were unchanged by P5-02; their last full gates remain green at `8c522eb`.
+
 ### Environment notes
 
 - The local container has no `node`, `npm`, `cargo`, `swift`, `xcodebuild`, `python3`, `perl`, `sqlite3` or `adb`; it is not a verification environment.
@@ -394,8 +405,8 @@ These are not code-level tasks and must not be marked done from simulator or loo
 
 ## 10. Immediate next sprint
 
-1. P5-02: implement the mockable ReplayKit capture boundary, bounded VideoToolbox encoder queue and typed lifecycle without claiming zero-copy or hardware qualification.
-2. P2-05: align the Android agent with canonical document resource URIs and ADR-012 camera authorization.
+1. P2-05: align the Android agent with canonical document resource URIs and ADR-012 camera authorization.
+2. P5-03: wire client decode and frame pacing without claiming glass-to-glass latency or physical-display qualification.
 3. P2-04 remains blocked on P1-02 for signing-key/issuer evidence; do not claim remote invocation enforcement yet.
 4. Keep `milestones.md` unchanged until a task actually passes its gate.
 
