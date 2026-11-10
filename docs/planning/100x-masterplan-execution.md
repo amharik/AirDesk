@@ -164,9 +164,9 @@ Compatibility rules:
 | P1-02 | Automatic workspace signing-key distribution | `AirDesk/Sync/WorkspaceSyncKeyStore.swift`, `WorkspaceSyncRuntime.swift`, `AirDesk/Identity/PairingLiveSession.swift`; `web/src/identity/session-keys.ts`, `web/src/sync/**` | After SAS, peers derive/exchange the workspace signing key; revoked peers cannot receive or use it; cross-platform fixture passes | P0-01, P1-01 | Pending |
 | P1-03 | ADFP production envelope codec | `AirDesk/Protocol/ADFPEnvelopeCodec.swift`; `AirDesk/Fabric/IrohFabricInputCodec.swift`, `IrohFabricPeer.swift`; `web/src/protocol/**`; `protocol/rust/src/**`; Android `AdfpFabricSession.kt` | Reliable channels carry validated envelopes; file id/version/size/expiry/correlation/idempotency enforced; golden fixtures match across Swift/TS/Rust/Kotlin | P0-02, P0-06 | Verified, committed |
 | P1-04 | ResourceCompound and blob handle protocol | `protocol/airdesk.fbs`, `protocol/baseline/airdesk_v1.fbs`, `protocol/fixtures/resource-compound/*.json`, `protocol/fixtures/resource-blob/*.json` | Additive schema; compound Walk/Open/Read/Clunk has one-RTT semantics; >64 KiB result can return BLAKE3 handle; all generated bindings and conformance pass | P1-03 | Verified, committed |
-| P1-05 | Remote runtime provider | `AirDesk/Runtime/RemoteRuntimeProvider.swift`, `RuntimeRegistry.swift`, `RuntimeProvider.swift`; `AirDeskTests/RemoteRuntimeProviderTests.swift` | Lifecycle maps create/start/suspend/checkpoint/resume/stop/destroy/status; disconnect preserves observed state; typed transport/authorization errors; not default-enabled | P1-03 | Verified, uncommitted |
-| P1-06 | Placement integration and diagnostics | `AirDesk/Runtime/RuntimeRegistry.swift`, `AirDesk/Workspace/WorkspaceOrchestrator.swift`, `ApplicationLifecycleController.swift`; `web/src/remote/placement.ts` | Deterministic local/device/runtime selection; explicit device filter; typed unavailable/transport/authorization failures; diagnostics explain selection | P1-05 | Verified, uncommitted |
-| P1-07 | Capability-scoped remote terminal | `AirDesk/Remote/CapabilityScopedTerminal.swift`, `RemoteTerminalController.swift`, `SessionCoordinator.swift`; `AirDeskTests/CapabilityScopedTerminalTests.swift` | Connect requires matching unexpired lease; denied/revoked/busy are typed and auditable; no capability bypass through terminal profile | P1-03, P1-05 | Pending |
+| P1-05 | Remote runtime provider | `AirDesk/Runtime/RemoteRuntimeProvider.swift`, `RuntimeRegistry.swift`, `RuntimeProvider.swift`; `AirDeskTests/RemoteRuntimeProviderTests.swift` | Lifecycle maps create/start/suspend/checkpoint/resume/stop/destroy/status; disconnect preserves observed state; typed transport/authorization errors; not default-enabled | P1-03 | Verified, committed |
+| P1-06 | Placement integration and diagnostics | `AirDesk/Runtime/RuntimeRegistry.swift`, `AirDesk/Workspace/WorkspaceOrchestrator.swift`, `ApplicationLifecycleController.swift`; `web/src/remote/placement.ts` | Deterministic local/device/runtime selection; explicit device filter; typed unavailable/transport/authorization failures; diagnostics explain selection | P1-05 | Verified, committed |
+| P1-07 | Capability-scoped remote terminal | `AirDesk/Remote/CapabilityScopedTerminal.swift`, `RemoteTerminalController.swift`, `SessionCoordinator.swift`; `AirDeskTests/CapabilityScopedTerminalTests.swift` | Connect requires matching unexpired lease; denied/revoked/busy are typed and auditable; no capability bypass through terminal profile | P1-03, P1-05 | Verified, committed |
 | P1-08 | Resource RPC and scoped namespace import | `AirDesk/Protocol/ResourceRPCClient.swift`, `ResourceRPCServer.swift`, `AirDesk/Namespace/NamespaceImportService.swift`; `AirDeskTests/ResourceRPCTests.swift`, `NamespaceImportTests.swift` | All opcodes, fid lifecycle, path confinement, symlink escape, size caps and lease denial/revocation covered; no 9P2000 tunneling; chunked transfer for large payloads | P0-03, P1-04 | Pending |
 | P1-09 | Iroh product upgrade spike | `project.yml`, `android/app/build.gradle.kts`, `AirDesk/Fabric/**`, `research/iroh-probe/` | Verify IrohLib/FFI 1.4.x availability; document API gaps; test path migration/roaming and relay diagnostics on loopback before product pin changes | P0-04 | Research |
 | P1-10 | Transport evidence upgrade | `scripts/research/transport_bench.ts`, `run-transport.sh`, `run-iroh*.sh`, `research/scenarios/**`, `docs/research/runs/**` | `cpu_percent`, build/runtime/network/device metadata; p50/p95/p99 recorded; no claim without method | P0-04 | Partial |
@@ -311,6 +311,15 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - `ApplicationLifecycleController.selection(for:)` retains the latest rationale and diagnostics for each started instance.
 - Android, Rust and protocol assets were unchanged by P1-05/P1-06; their last full gates remain green at `d2962cd`.
 
+### P1-07 verification evidence
+
+- iOS: full `xcodebuild test` passed; 455 tests, 1 skipped, 0 failures, including 8 `CapabilityScopedTerminalTests`.
+- `CapabilityScopedTerminal` requires a matching `airdesk://pty/spawn` lease before constructing or starting the SSH transport. Capability URI, workspace, application, requester device, session, operation and expiry are checked; active leases are single-owner.
+- Denied, revoked, expired and busy leases fail with typed `CapabilityTerminalError` values and produce bounded `CapabilityLeaseAuditEvent` records. Revocation or expiry during an active session stops the transport and emits an exit event.
+- `SessionCoordinator` now starts remote terminals only through `CapabilityScopedTerminal`. The terminal profile alone cannot authorize a connection; an explicit session authorization in Remote Terminal settings issues an eight-hour scoped lease. Profile changes, disconnects and runtime stops revoke the lease.
+- Web: `npm run check` passed; 269 tests across 38 files. P1-07 made no web changes.
+- Android, Rust and protocol assets were unchanged by P1-07; their last full gates remain green.
+
 ### Environment notes
 
 - The local container has no `node`, `npm`, `cargo`, `swift`, `xcodebuild`, `python3`, `perl`, `sqlite3` or `adb`; it is not a verification environment.
@@ -346,10 +355,9 @@ These are not code-level tasks and must not be marked done from simulator or loo
 
 ## 10. Immediate next sprint
 
-1. Review and commit P1-05/P1-06, then start P1-07 capability-scoped remote terminal.
-2. P2-01: write the `DeviceAgent` contract and canonical capability fixture before adding capture or transfer code.
-3. P5-01: write the host capture platform decision; do not start with ScreenCaptureKit on the current iOS target.
-4. Keep `milestones.md` unchanged until a task actually passes its gate.
+1. P2-01: write the `DeviceAgent` contract and canonical capability fixture before adding capture or transfer code.
+2. P5-01: write the host capture platform decision; do not start with ScreenCaptureKit on the current iOS target.
+3. Keep `milestones.md` unchanged until a task actually passes its gate.
 
 ## 11. ADR and documentation updates
 

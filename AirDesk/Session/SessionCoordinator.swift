@@ -139,11 +139,13 @@ final class SessionCoordinator: ObservableObject {
     private let cast: CastSessionCoordinator
     private let entitlements: EntitlementManager
     private let fabric: (any IrohFabricInputRouting)?
-    private let remoteTerminal = RemoteTerminalController()
+    private let terminalLeases: CapabilityLeaseRegistry
+    private let remoteTerminal: CapabilityScopedTerminal
     private let inputLease = InputLeaseManager()
     private var localInputValidationEnabled = false
     private let logger = Logger(subsystem: "com.airdesk.ios", category: "Session")
     private static let localControllerId = "local"
+    private static let remoteTerminalLeaseDuration: TimeInterval = 8 * 60 * 60
 
     private var endpoint: (any RuntimeEndpoint)?
     private var runtime: (any DesktopRuntime)?
@@ -162,6 +164,7 @@ final class SessionCoordinator: ObservableObject {
     private var remoteTerminalReconnectAttempt = 0
     private var remoteTerminalRequested = false
     private var remoteTerminalResumeAfterBackground = false
+    private var remoteTerminalLeaseId: String?
 
     init(
         settings: AppSettings,
@@ -171,6 +174,7 @@ final class SessionCoordinator: ObservableObject {
         entitlements: EntitlementManager,
         fabric: (any IrohFabricInputRouting)? = nil,
         runtimeProviders: DesktopRuntimeProviderRegistry? = nil,
+        terminalLeases: CapabilityLeaseRegistry = CapabilityLeaseRegistry(),
         endpointFactory: (@MainActor (DisplayProfile) throws -> (any RuntimeEndpoint)?)? = nil
     ) {
         let surface = DesktopSurface()
@@ -183,6 +187,8 @@ final class SessionCoordinator: ObservableObject {
         self.cast = cast
         self.entitlements = entitlements
         self.fabric = fabric
+        self.terminalLeases = terminalLeases
+        self.remoteTerminal = CapabilityScopedTerminal(leases: terminalLeases)
         self.desktopSurface = surface
         self.dispatcher = InputDispatcher()
         self.inputTransport = SessionInputTransport()
@@ -729,7 +735,52 @@ final class SessionCoordinator: ObservableObject {
         }
     }
 
+    @discardableResult
+    func authorizeRemoteTerminal(expiresAt: Date? = nil) throws -> String {
+        guard phase == .ready, !sessionId.isEmpty else {
+            throw CapabilityTerminalError.sessionRequired
+        }
+        let profile = settings.remoteTerminalProfile
+        guard profile.enabled else {
+            throw RemoteTerminalProfileError.disabled
+        }
+        _ = try profile.makeConfiguration()
+
+        if let remoteTerminalLeaseId {
+            terminalLeases.revoke(
+                leaseId: remoteTerminalLeaseId,
+                reason: "Superseded by a new terminal authorization"
+            )
+        }
+
+        let leaseId = "terminal-" + UUID().uuidString.lowercased()
+        let lease = CapabilityLease(
+            leaseId: leaseId,
+            capUri: CapabilityScopedTerminal.capabilityURI,
+            workspaceId: workspace.id,
+            applicationId: settings.runtimeChoice.rawValue,
+            requesterDeviceId: localDeviceIdentifier,
+            sessionId: sessionId,
+            expiresAt: expiresAt ?? Date().addingTimeInterval(Self.remoteTerminalLeaseDuration),
+            operations: Set(CapabilityTerminalOperation.allCases)
+        )
+        try terminalLeases.grant(lease)
+        remoteTerminalLeaseId = leaseId
+        return leaseId
+    }
+
+    func revokeRemoteTerminalLease() {
+        if let remoteTerminalLeaseId {
+            terminalLeases.revoke(
+                leaseId: remoteTerminalLeaseId,
+                reason: "Terminal authorization ended"
+            )
+        }
+        remoteTerminalLeaseId = nil
+    }
+
     func remoteTerminalSettingsDidChange() {
+        revokeRemoteTerminalLease()
         guard phase == .ready else { return }
         remoteTerminalRequested = false
         cancelRemoteTerminalReconnect()
@@ -945,6 +996,10 @@ final class SessionCoordinator: ObservableObject {
         lastRemoteTerminalConfigurationKey = ""
     }
 
+    private var localDeviceIdentifier: String {
+        UIDevice.current.identifierForVendor?.uuidString ?? "device.local"
+    }
+
     private func inputContext(
         controllerId: String,
         leaseEpoch: UInt64
@@ -952,7 +1007,7 @@ final class SessionCoordinator: ObservableObject {
         InputConnectionContext(
             sessionId: sessionId,
             generation: UInt64(max(sessionGeneration, 0)),
-            deviceId: UIDevice.current.identifierForVendor?.uuidString ?? "device.local",
+            deviceId: localDeviceIdentifier,
             controllerId: controllerId,
             leaseEpoch: leaseEpoch
         )
@@ -1046,6 +1101,7 @@ final class SessionCoordinator: ObservableObject {
         remoteTerminalResumeAfterBackground = false
         cancelRemoteTerminalReconnect()
         remoteTerminal.stop()
+        revokeRemoteTerminalLease()
         let endpoint = self.endpoint
         let runtime = self.runtime
         let hadEndpoint = endpoint != nil
@@ -1132,6 +1188,13 @@ final class SessionCoordinator: ObservableObject {
             return
         }
 
+        guard let leaseId = remoteTerminalLeaseId else {
+            sendRemoteTerminalExit(
+                "Remote terminal requires an explicit capability lease. Open Settings → Remote Terminal to authorize this session."
+            )
+            return
+        }
+
         #if DEBUG
         let debugPrivateKeySeed = remoteTerminalDebugPrivateKeySeed
         #else
@@ -1140,14 +1203,27 @@ final class SessionCoordinator: ObservableObject {
 
         do {
             let configuration = try profile.makeConfiguration(privateKeySeed: debugPrivateKeySeed)
+            let context = CapabilityTerminalContext(
+                workspaceId: workspace.id,
+                applicationId: settings.runtimeChoice.rawValue,
+                requesterDeviceId: localDeviceIdentifier,
+                sessionId: sessionId,
+                leaseId: leaseId
+            )
             remoteTerminalStatus = "Connecting to \(profile.destination)…"
             Task { [weak self] in
                 guard let self else { return }
                 do {
-                    try await self.remoteTerminal.start(configuration: configuration)
+                    try await self.remoteTerminal.start(
+                        configuration: configuration,
+                        context: context
+                    )
                     self.remoteTerminalReconnectAttempt = 0
                 } catch is CancellationError {
                     return
+                } catch let error as CapabilityTerminalError {
+                    self.remoteTerminalStatus = "Authorization failed: \(error.localizedDescription)"
+                    self.sendRemoteTerminalExit(error.localizedDescription)
                 } catch {
                     self.remoteTerminalStatus = "Failed: \(error.localizedDescription)"
                     if self.remoteTerminalRequested {
