@@ -1,0 +1,368 @@
+{
+  "contractVersion": 1,
+  "profile": "device-agent-contract-v1",
+  "nowEpochMillis": 1700000000000,
+  "leaseDurationMillis": 600000,
+  "identity": {
+    "deviceId": "ad-device:contract-fixture",
+    "displayName": "AirDesk Contract Fixture",
+    "platform": "ios",
+    "algorithm": "Ed25519",
+    "publicKeySpkiBase64Url": "MCowBQYDK2VwAyEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "createdAtEpochMillis": 1690000000000
+  },
+  "platformPermissions": {
+    "ios.camera.video": "granted",
+    "ios.microphone.record": "denied"
+  },
+  "capabilities": [
+    {
+      "capUri": "airdesk://audio/input",
+      "version": 1,
+      "providerDeviceId": "ad-device:contract-fixture",
+      "operations": ["record", "stop"],
+      "permissions": ["ios.microphone.record"],
+      "execution": "on-device-capture",
+      "transport": "none",
+      "constraints": "{\"streaming\":false,\"remoteInvocation\":false}",
+      "availability": "available",
+      "authorization": "granted",
+      "label": "Audio input",
+      "summary": "Microphone capture availability and permission state.",
+      "note": "The platform permission is denied even though the capability is authorized.",
+      "authorizationRef": "grant-audio"
+    },
+    {
+      "capUri": "airdesk://display/output",
+      "version": 1,
+      "providerDeviceId": "ad-device:contract-fixture",
+      "operations": ["present"],
+      "permissions": [],
+      "execution": "local-presentation",
+      "transport": "local-webview",
+      "constraints": "{\"presentation\":\"local\",\"remoteTransport\":false}",
+      "availability": "unavailable",
+      "authorization": "granted",
+      "label": "Display output",
+      "summary": "Local DesktopShell presentation surface.",
+      "note": "Authorized but unavailable until a presentation surface is attached.",
+      "authorizationRef": "grant-display"
+    },
+    {
+      "capUri": "airdesk://fs/documents/read",
+      "version": 1,
+      "providerDeviceId": "ad-device:contract-fixture",
+      "operations": ["read", "stat"],
+      "permissions": [],
+      "execution": "on-device-read",
+      "transport": "none",
+      "constraints": "{\"scope\":\"app-documents\",\"deviceWideAccess\":false}",
+      "availability": "available",
+      "authorization": "ungranted",
+      "label": "Documents read",
+      "summary": "App-scoped documents and user-selected files only.",
+      "note": "Available but not yet authorized for this session.",
+      "authorizationRef": "grant-documents-read"
+    },
+    {
+      "capUri": "airdesk://fs/documents/write",
+      "version": 1,
+      "providerDeviceId": "ad-device:contract-fixture",
+      "operations": ["write"],
+      "permissions": [],
+      "execution": "on-device-write",
+      "transport": "none",
+      "constraints": "{\"scope\":\"app-documents\",\"deviceWideAccess\":false}",
+      "availability": "available",
+      "authorization": "revoked",
+      "label": "Documents write",
+      "summary": "App-scoped document writes.",
+      "note": "The prior authorization was revoked.",
+      "authorizationRef": "grant-documents-write"
+    },
+    {
+      "capUri": "airdesk://input/pointer",
+      "version": 1,
+      "providerDeviceId": "ad-device:contract-fixture",
+      "operations": ["move", "click"],
+      "permissions": [],
+      "execution": "local-input",
+      "transport": "local-surface-bridge",
+      "constraints": "{\"scope\":\"presentation-surface\",\"remoteInput\":false}",
+      "availability": "busy",
+      "authorization": "granted",
+      "label": "Pointer input",
+      "summary": "Touch and pointer events on the local presentation.",
+      "note": "Temporarily busy with another local input owner.",
+      "authorizationRef": "grant-pointer"
+    },
+    {
+      "capUri": "airdesk://media/camera/capture",
+      "version": 1,
+      "providerDeviceId": "ad-device:contract-fixture",
+      "operations": ["capture", "stop"],
+      "permissions": ["ios.camera.video"],
+      "execution": "on-device-capture",
+      "transport": "none",
+      "constraints": "{\"streaming\":false,\"remoteInvocation\":false}",
+      "availability": "available",
+      "authorization": "granted",
+      "label": "Camera capture",
+      "summary": "Camera permission and hardware state.",
+      "note": "Authorized, available, and platform permission granted.",
+      "authorizationRef": "grant-camera"
+    },
+    {
+      "capUri": "airdesk://media/screen/share",
+      "version": 1,
+      "providerDeviceId": "ad-device:contract-fixture",
+      "operations": ["start", "stop"],
+      "permissions": [],
+      "execution": "on-device-capture",
+      "transport": "none",
+      "constraints": "{\"streaming\":false,\"policyRestricted\":true}",
+      "availability": "restricted",
+      "authorization": "granted",
+      "label": "Screen share",
+      "summary": "Screen sharing restricted by local policy.",
+      "note": "Authorized but restricted by local policy.",
+      "authorizationRef": "grant-screen"
+    }
+  ],
+  "requestCases": [
+    {
+      "name": "camera-authorized",
+      "request": {
+        "capUri": "airdesk://media/camera/capture",
+        "operations": ["capture"],
+        "workspaceId": "workspace.local",
+        "applicationId": "app.camera",
+        "requesterDeviceId": "ad-device:controller-1",
+        "sessionId": "session-1",
+        "leaseId": "lease-camera-1",
+        "auditId": "audit-camera-1"
+      },
+      "expected": {
+        "ok": true,
+        "leaseId": "lease-camera-1",
+        "auditId": "audit-camera-1",
+        "capUri": "airdesk://media/camera/capture",
+        "operations": ["capture"],
+        "workspaceId": "workspace.local",
+        "applicationId": "app.camera",
+        "requesterDeviceId": "ad-device:controller-1",
+        "sessionId": "session-1",
+        "issuedAtEpochMillis": 1700000000000,
+        "expiresAtEpochMillis": 1700000600000
+      }
+    },
+    {
+      "name": "audio-platform-permission-denied",
+      "request": {
+        "capUri": "airdesk://audio/input",
+        "operations": ["record"],
+        "workspaceId": "workspace.local",
+        "applicationId": "app.audio",
+        "requesterDeviceId": "ad-device:controller-1",
+        "sessionId": "session-1",
+        "leaseId": "lease-audio-1",
+        "auditId": "audit-audio-1"
+      },
+      "expected": {
+        "ok": false,
+        "code": "platform-permission-denied",
+        "permission": "ios.microphone.record"
+      }
+    },
+    {
+      "name": "display-unavailable",
+      "request": {
+        "capUri": "airdesk://display/output",
+        "operations": ["present"],
+        "workspaceId": "workspace.local",
+        "applicationId": "app.display",
+        "requesterDeviceId": "ad-device:controller-1",
+        "sessionId": "session-1",
+        "leaseId": "lease-display-1",
+        "auditId": "audit-display-1"
+      },
+      "expected": {
+        "ok": false,
+        "code": "capability-unavailable"
+      }
+    },
+    {
+      "name": "documents-unauthorized",
+      "request": {
+        "capUri": "airdesk://fs/documents/read",
+        "operations": ["read"],
+        "workspaceId": "workspace.local",
+        "applicationId": "app.documents",
+        "requesterDeviceId": "ad-device:controller-1",
+        "sessionId": "session-1",
+        "leaseId": "lease-documents-read-1",
+        "auditId": "audit-documents-read-1"
+      },
+      "expected": {
+        "ok": false,
+        "code": "authorization-denied"
+      }
+    },
+    {
+      "name": "documents-write-revoked",
+      "request": {
+        "capUri": "airdesk://fs/documents/write",
+        "operations": ["write"],
+        "workspaceId": "workspace.local",
+        "applicationId": "app.documents",
+        "requesterDeviceId": "ad-device:controller-1",
+        "sessionId": "session-1",
+        "leaseId": "lease-documents-write-1",
+        "auditId": "audit-documents-write-1"
+      },
+      "expected": {
+        "ok": false,
+        "code": "authorization-revoked"
+      }
+    },
+    {
+      "name": "pointer-busy",
+      "request": {
+        "capUri": "airdesk://input/pointer",
+        "operations": ["move"],
+        "workspaceId": "workspace.local",
+        "applicationId": "app.input",
+        "requesterDeviceId": "ad-device:controller-1",
+        "sessionId": "session-1",
+        "leaseId": "lease-pointer-1",
+        "auditId": "audit-pointer-1"
+      },
+      "expected": {
+        "ok": false,
+        "code": "capability-busy"
+      }
+    },
+    {
+      "name": "screen-restricted",
+      "request": {
+        "capUri": "airdesk://media/screen/share",
+        "operations": ["start"],
+        "workspaceId": "workspace.local",
+        "applicationId": "app.screen",
+        "requesterDeviceId": "ad-device:controller-1",
+        "sessionId": "session-1",
+        "leaseId": "lease-screen-1",
+        "auditId": "audit-screen-1"
+      },
+      "expected": {
+        "ok": false,
+        "code": "capability-restricted"
+      }
+    },
+    {
+      "name": "camera-operation-not-allowed",
+      "request": {
+        "capUri": "airdesk://media/camera/capture",
+        "operations": ["record"],
+        "workspaceId": "workspace.local",
+        "applicationId": "app.camera",
+        "requesterDeviceId": "ad-device:controller-1",
+        "sessionId": "session-1",
+        "leaseId": "lease-camera-invalid-1",
+        "auditId": "audit-camera-invalid-1"
+      },
+      "expected": {
+        "ok": false,
+        "code": "operation-not-allowed",
+        "operation": "record"
+      }
+    },
+    {
+      "name": "unknown-capability",
+      "request": {
+        "capUri": "airdesk://unknown/capability",
+        "operations": ["read"],
+        "workspaceId": "workspace.local",
+        "applicationId": "app.unknown",
+        "requesterDeviceId": "ad-device:controller-1",
+        "sessionId": "session-1",
+        "leaseId": "lease-unknown-1",
+        "auditId": "audit-unknown-1"
+      },
+      "expected": {
+        "ok": false,
+        "code": "capability-unknown"
+      }
+    }
+  ],
+  "releaseCases": [
+    {
+      "name": "release-active-lease",
+      "leaseId": "lease-camera-1",
+      "expected": {
+        "ok": true
+      }
+    },
+    {
+      "name": "release-missing-lease",
+      "leaseId": "lease-camera-1",
+      "expected": {
+        "ok": false,
+        "code": "lease-not-found"
+      }
+    }
+  ],
+  "subscriptions": {
+    "eventTypes": ["lifecycle", "health", "capability", "lease"],
+    "invalidEventType": "screen-capture",
+    "leaseEvent": {
+      "type": "lease",
+      "action": "granted",
+      "leaseId": "lease-camera-1"
+    },
+    "releaseEvent": {
+      "type": "lease",
+      "action": "released",
+      "leaseId": "lease-camera-1"
+    },
+    "disconnectEvent": {
+      "type": "lifecycle",
+      "state": "unavailable"
+    }
+  },
+  "lifecycle": {
+    "initialState": "starting",
+    "startedState": "ready",
+    "disconnectedState": "unavailable",
+    "states": ["starting", "ready", "degraded", "unavailable"],
+    "disconnectErrorCode": "agent-unavailable"
+  },
+  "health": {
+    "state": "ready",
+    "generation": 1,
+    "uptimeMillis": 0,
+    "capabilityCount": 7,
+    "availableCapabilityCount": 4,
+    "busyCapabilityCount": 1,
+    "restrictedCapabilityCount": 1,
+    "unavailableCapabilityCount": 1,
+    "authorizedCapabilityCount": 5,
+    "activeLeaseCount": 0
+  },
+  "errorCodes": [
+    "invalid-identity",
+    "invalid-capability",
+    "capability-unknown",
+    "authorization-denied",
+    "authorization-revoked",
+    "capability-busy",
+    "capability-restricted",
+    "capability-unavailable",
+    "operation-not-allowed",
+    "platform-permission-denied",
+    "agent-unavailable",
+    "lease-not-found",
+    "invalid-event-type",
+    "invalid-request"
+  ]
+}

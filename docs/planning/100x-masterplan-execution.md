@@ -2,7 +2,7 @@
 
 - **Status:** Planning only — no implementation commitment and no ADR promotion
 - **Date:** 2026-11-10
-- **Baseline:** `dev` at `d2962cd`, plus the verified P1-05/P1-06 working tree
+- **Baseline:** `dev` at `a9c6e4b`, plus the verified P2-01 DeviceAgent contract
 - **Input:** User-supplied 100x product / 1000x UX masterplan
 - **Related:** `milestones.md`, `docs/planning/workspace-fabric-plan.md`, `docs/planning/release-roadmap.md`, ADR-001 through ADR-023
 
@@ -86,7 +86,7 @@ Phase 0 is landed. Later changes must keep the full web, iOS, Android, Rust and 
 - ADR-018 is still `Proposed`; a WIT package and host ABI do not exist.
 - Android CI exists and is green; parity claims still require hardware qualification and live-network evidence.
 - The web terminal has `readText()` but no OSC 133 command-block model, no `renderingPaused` integration and no WebMCP authorization layer.
-- Native capability descriptors exist, but there is no cross-platform `DeviceAgent` contract, no automatic workspace signing-key distribution and no native lease/invocation enforcement.
+- Native capability descriptors exist and the cross-platform `DeviceAgent` contract/fixture is implemented, but automatic workspace signing-key distribution and native lease/invocation enforcement remain gaps.
 
 ## 3. Program guardrails
 
@@ -136,7 +136,7 @@ Effort is in engineer-weeks and is approximate. Status is `Partial`, `Pending`, 
 | P0-03 | Verify or revert namespace partial | `AirDesk/Namespace/NamespaceImportService.swift`; `AirDeskTests/NamespaceImportServiceTests.swift` | Compiles in AirDeskTests; path/symlink/lease/fid tests pass; not wired into production | — | Verified, committed |
 | P0-04 | Add Android CI | `.github/workflows/android.yml`, `android/gradle.properties` if needed | JDK 17 + Android SDK 35; `testDebugUnitTest`, `lintDebug`, `assembleDebug` on push/PR paths | — | Verified, first run green |
 | P0-05 | Add shared-core boundary ADR | `docs/adr/024-shared-core-and-ffi-boundary.md`, `docs/adr/README.md` | ADR is `Proposed`; defines what may move into Rust, compatibility fixtures, rollback and ownership | P0-01..03 | Proposed |
-| P0-06 | Freeze Phase 1 contracts | `protocol/fixtures/**`, `docs/planning/100x-masterplan-execution.md`, `milestones.md` | ADFP envelope, remote runtime, DeviceAgent and WIT contracts have named owners and fixture paths | P0-01..05 | Contract paths frozen; ADFP, ResourceCompound/blob and remote runtime provider verified, DeviceAgent/WIT fixtures pending P2-01/P2-04 |
+| P0-06 | Freeze Phase 1 contracts | `protocol/fixtures/**`, `docs/planning/100x-masterplan-execution.md`, `milestones.md` | ADFP envelope, remote runtime, DeviceAgent and WIT contracts have named owners and fixture paths | P0-01..05 | Contract paths frozen; ADFP, ResourceCompound/blob, remote runtime provider and DeviceAgent verified; WIT fixture pending P2-10 |
 
 #### Phase 1 contract freeze (P0-06)
 
@@ -175,7 +175,7 @@ Compatibility rules:
 
 | ID | Task | Files | Done when | Depends | Status |
 | --- | --- | --- | --- | --- | --- |
-| P2-01 | Cross-platform `DeviceAgent` contract | `AirDesk/Capabilities/DeviceAgent.swift`, `android/.../agent/DeviceAgent.kt`, `web/src/capability/**`; shared fixtures | Identity, capabilities, request/release, subscribe, health and typed lifecycle on all clients; availability and authorization remain independent | P0-06 | Pending |
+| P2-01 | Cross-platform `DeviceAgent` contract | `AirDesk/Capabilities/DeviceAgent.swift`, `android/.../agent/DeviceAgent.kt`, `web/src/capability/**`; shared fixtures | Identity, capabilities, request/release, subscribe, health and typed lifecycle on all clients; availability and authorization remain independent | P0-06 | Verified, committed |
 | P2-02 | iOS camera capture streaming | `AirDesk/Capture/CameraCaptureSource.swift`, `CameraCaptureStreamController.swift`; tests with mock source | Explicit authorization/lease gate; bounded frames/backpressure; cancel and permission-denied typed; no physical camera required for unit tests | P2-01 | Pending |
 | P2-03 | iOS document roots and file transfer | `AirDesk/Resources/ResourceRoot.swift`, `ResourceTransferService.swift`; tests | App-scoped/user-selected roots; path/symlink confinement; bounded read/write/stat; transfer events; no device-wide access | P2-01 | Pending |
 | P2-04 | Native capability lease and invocation enforcement | `AirDesk/Capabilities/CapabilityLeaseManager.swift`, `CapabilityAuthorizer.swift`, `CapabilityInvocationService.swift` | Issuance/expiry/revocation; provider/root issuer checks; remote invocation denied without matching lease/`cnf`; audit event | P2-01, P1-02 | Pending |
@@ -276,7 +276,7 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 | Android CI | `android.yml` | Blocks Android parity regressions |
 | ADFP golden vectors | `protocol/fixtures/adfp/envelope-v1.json`, malformed corpus | Swift/TS/Rust byte equality; Kotlin semantic decode and round-trip |
 | ResourceCompound/blob fixtures | `protocol/fixtures/resource-compound/*.json`, `protocol/fixtures/resource-blob/*.json` | Cross-language round-trip and bounds |
-| DeviceAgent contract | `protocol/fixtures/device-agent.json` | Identity/capability/health shape and canonical URIs |
+| DeviceAgent contract | `protocol/fixtures/device-agent/contract-v1.json` | Identity/capability/request-release/subscription/health/lifecycle shape and typed denials |
 | WIT conformance | `protocol/abi/check.sh` | 0.2 world validity; 0.3 separate; no mixed worlds |
 | Core FFI smoke | `core.yml` | Rust tests, UniFFI bindings, wasm build, Swift/Kotlin smoke |
 | Transport evidence | Structured run JSON | Required metadata present; no unrecorded result |
@@ -320,6 +320,16 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - Web: `npm run check` passed; 269 tests across 38 files. P1-07 made no web changes.
 - Android, Rust and protocol assets were unchanged by P1-07; their last full gates remain green.
 
+### P2-01 verification evidence
+
+- Contract/fixture: `protocol/fixtures/device-agent/contract-v1.json` freezes identity, seven capability descriptors, platform permission states, request/release cases, subscription event types, lifecycle states, health counts and typed error codes.
+- Shared behavior: identity projection, capability listing, authorization/availability independence, lease issuance/release, subscription delivery, health generation/counts and disconnect revocation are exercised from the same fixture in Swift, TypeScript and Kotlin.
+- Typed failures covered: `capability-unknown`, `authorization-denied`, `authorization-revoked`, `capability-busy`, `capability-restricted`, `capability-unavailable`, `operation-not-allowed`, `platform-permission-denied`, `lease-not-found`, `invalid-event-type` and `agent-unavailable`.
+- iOS: full `xcodebuild test` passed; 459 tests, 1 skipped, 0 failures, including 4 `DeviceAgentTests`.
+- Web: `npm run check` passed; 273 tests across 39 files, including 4 `device-agent.test.ts` cases.
+- Android: `testDebugUnitTest lintDebug assembleDebug` passed; 118 tests, 0 failures, including 4 `DeviceAgentTest` cases.
+- Rust, protocol schema and generated bindings were unchanged by P2-01.
+
 ### Environment notes
 
 - The local container has no `node`, `npm`, `cargo`, `swift`, `xcodebuild`, `python3`, `perl`, `sqlite3` or `adb`; it is not a verification environment.
@@ -355,9 +365,10 @@ These are not code-level tasks and must not be marked done from simulator or loo
 
 ## 10. Immediate next sprint
 
-1. P2-01: write the `DeviceAgent` contract and canonical capability fixture before adding capture or transfer code.
-2. P5-01: write the host capture platform decision; do not start with ScreenCaptureKit on the current iOS target.
-3. Keep `milestones.md` unchanged until a task actually passes its gate.
+1. P2-02: add iOS camera capture streaming behind the `DeviceAgent` authorization/lease gate.
+2. P2-03: add iOS document roots and bounded file transfer.
+3. P5-01: write the host capture platform decision; do not start with ScreenCaptureKit on the current iOS target.
+4. Keep `milestones.md` unchanged until a task actually passes its gate.
 
 ## 11. ADR and documentation updates
 
