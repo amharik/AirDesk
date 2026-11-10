@@ -2,7 +2,7 @@
 
 - **Status:** Planning only — no implementation commitment and no ADR promotion
 - **Date:** 2026-11-10
-- **Baseline:** `dev` at `265bb13`, plus the verified P2-03 document root and resource transfer layer
+- **Baseline:** `dev` at `9853c48`, plus the accepted ADR-025 host capture decision
 - **Input:** User-supplied 100x product / 1000x UX masterplan
 - **Related:** `milestones.md`, `docs/planning/workspace-fabric-plan.md`, `docs/planning/release-roadmap.md`, ADR-001 through ADR-023
 
@@ -222,7 +222,7 @@ Compatibility rules:
 
 | ID | Task | Files | Done when | Depends | Status |
 | --- | --- | --- | --- | --- | --- |
-| P5-01 | Host capture platform decision | New ADR-025; `AirDesk/Display/**`, `project.yml` | Decision records iOS ReplayKit/broadcast extension vs separate macOS host vs external host; ScreenCaptureKit only if a macOS target exists | P0-05 | Research |
+| P5-01 | Host capture platform decision | New ADR-025; `AirDesk/Display/**`, `project.yml` | Decision records iOS ReplayKit/broadcast extension vs separate macOS host vs external host; ScreenCaptureKit only if a macOS target exists | P0-05 | Verified, committed |
 | P5-02 | Zero-copy encoder pipeline | `AirDesk/Display/ScreenCapturePipeline.swift`, `VideoToolboxEncoder.swift`, `DisplayCoordinator.swift`; `android/.../AndroidMediaCodecStream.kt` | Capture surface -> encoder with bounded queues; HEVC/AV1 capability detection; keyframe/recovery; no unbounded memory | P5-01 | Pending |
 | P5-03 | Client decode and frame pacing | `AirDesk/Display/DesktopSurface.swift`, `DisplayCoordinator.swift`; web endpoint surface path | Pacing to display refresh; dropped-frame diagnostics; latency/CPU metrics; no false glass-to-glass claim | P5-02 | Pending |
 | P5-04 | Persistent PTY daemon | New `core/airdeskd/**`, `AirDesk/Remote/SSHPTYSession.swift`, `RemoteTerminalController.swift`; tests | `airdeskd` byte-tees raw PTY over ADFP; multiple clients attach; replay buffer bounded; leases enforced | P1-03, P1-07 | Pending |
@@ -351,6 +351,14 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - Device-wide filesystem access, UI document-picker wiring, remote resource RPC/encoding and physical file-provider qualification are not claimed by P2-03.
 - Web, Android, Rust and protocol schema/generated bindings were unchanged by P2-03; their last full gates remain at `8c522eb`.
 
+### P5-01 verification evidence
+
+- ADR-025 selects in-app ReplayKit `RPScreenRecorder` capture of AirDesk-owned workspace surfaces as the first iOS host-capture path; capture, encoder ownership, capability checks and transport stay in one process and authority boundary.
+- Whole-device iOS capture through a Broadcast Upload Extension is deferred and requires a separate target, IPC/transport, shared-container/keychain and suspension decision. No other-app, system-UI or protected-content capture is claimed.
+- `ScreenCaptureKit` remains prohibited on the iOS target and requires a separate macOS host target under ADR-006. External host processes remain a separate backend.
+- P5-02 must introduce a mockable `DisplayCaptureSource`, keep ReplayKit/VideoToolbox work off the main thread, use a bounded encoder queue with drop-and-keyframe recovery, prefer HEVC with H.264 fallback, and make no zero-copy, AV1, glass-to-glass or hardware-qualification claim without measurement.
+- P5-01 added no Xcode target, capture source, Info.plist permission or `project.yml` change; it records the platform decision only.
+
 ### Environment notes
 
 - The local container has no `node`, `npm`, `cargo`, `swift`, `xcodebuild`, `python3`, `perl`, `sqlite3` or `adb`; it is not a verification environment.
@@ -386,7 +394,7 @@ These are not code-level tasks and must not be marked done from simulator or loo
 
 ## 10. Immediate next sprint
 
-1. P5-01: write the host capture platform decision; do not start with ScreenCaptureKit on the current iOS target.
+1. P5-02: implement the mockable ReplayKit capture boundary, bounded VideoToolbox encoder queue and typed lifecycle without claiming zero-copy or hardware qualification.
 2. P2-05: align the Android agent with canonical document resource URIs and ADR-012 camera authorization.
 3. P2-04 remains blocked on P1-02 for signing-key/issuer evidence; do not claim remote invocation enforcement yet.
 4. Keep `milestones.md` unchanged until a task actually passes its gate.
