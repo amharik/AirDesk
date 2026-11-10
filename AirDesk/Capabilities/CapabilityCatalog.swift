@@ -123,7 +123,7 @@ final class CapabilityCatalog: ObservableObject {
             permissions: [Self.cameraPermission],
             execution: "on-device-capture",
             transport: "none",
-            constraints: "{\"hardwareAvailable\":\(hardwareAvailable),\"streaming\":false,\"remoteInvocation\":false}",
+            constraints: "{\"hardwareAvailable\":\(hardwareAvailable),\"streaming\":true,\"remoteInvocation\":false}",
             availability: cameraAvailability(
                 hardwareAvailable: hardwareAvailable,
                 permissionStatus: permissionStatus
@@ -224,7 +224,7 @@ final class CapabilityCatalog: ObservableObject {
         case .notDetermined:
             return "Camera permission has not been requested. Use the explicit permission action to ask AVFoundation."
         case .authorized:
-            return "Camera permission is granted. Capture streaming and remote invocation are not implemented."
+            return "Camera permission is granted. Capture streaming is gated by a DeviceAgent lease; remote invocation is not connected."
         case .denied:
             return "Camera permission is denied. Availability and authorization are reported independently."
         case .restricted:
