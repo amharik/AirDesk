@@ -61,7 +61,7 @@ fun AirDeskApp(viewModel: AppViewModel = viewModel()) {
             when (tabs[selected]) {
                 AppTab.HOME -> HomeScreen(viewModel)
                 AppTab.CAPABILITIES -> CapabilitiesScreen(viewModel)
-                AppTab.PRESENTATION -> PresentationScreen()
+                AppTab.PRESENTATION -> PresentationScreen(viewModel)
                 AppTab.DIAGNOSTICS -> DiagnosticsScreen(viewModel)
             }
         }

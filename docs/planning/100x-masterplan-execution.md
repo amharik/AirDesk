@@ -181,7 +181,7 @@ Compatibility rules:
 | P2-04 | Native capability lease and invocation enforcement | `AirDesk/Capabilities/CapabilityLeaseManager.swift`, `CapabilityAuthorizer.swift`, `CapabilityInvocationService.swift` | Issuance/expiry/revocation; provider/root issuer checks; remote invocation denied without matching lease/`cnf`; audit event | P2-01, P1-02 | Pending |
 | P2-05 | Android agent contract and canonical URIs | `android/.../agent/DeviceAgent.kt`, `capabilities/**`, `protocol/AdfpCapabilityMapper.kt` | Canonical `airdesk://fs/documents/read` plus `write`; camera authorization aligned with ADR-012; tests | P2-01 | Verified, committed |
 | P2-06 | Android precision input controller | `AndroidTrackpadSurface.kt`, `AndroidInputRouter.kt`, `InputLease*` equivalents; tests | 120 Hz local cursor path; packed movement; no stuck input; multi-controller arbitration | P2-01, P4-01 | Pending |
-| P2-07 | Android workspace/terminal bridge | `AndroidWorkspaceHost.kt`, `AndroidDesktopBridge.kt`, `DisplaySessionController.kt`; tests | Bundled DesktopShell drives workspace host and terminal bridge; reconnect preserves identity; truthful diagnostics | P1-05, P2-01 | Partial |
+| P2-07 | Android workspace/terminal bridge | `AndroidWorkspaceHost.kt`, `AndroidDesktopBridge.kt`, `DisplaySessionController.kt`; tests | Bundled DesktopShell drives workspace host and terminal bridge; reconnect preserves identity; truthful diagnostics | P1-05, P2-01 | Verified, committed |
 | P2-08 | Android MediaProjection/MediaCodec stream | `AndroidMediaCodecStream.kt`, `DisplaySessionController.kt`; tests | Registered display pipeline; hardware codec capability detection; fallback and typed failure; physical qualification separate | P2-07 | Pending |
 | P2-09 | Android persistent SSH service | `AndroidSSHService.kt`, `RemoteSSH*`; tests | Foreground service; reattach and second-device handoff use same protocol as iOS; process survival tested remotely | P1-07 | Pending |
 | P2-10 | WIT host ABI 0.2 | `protocol/abi/wit/airdesk-host-abi.wit`, `protocol/abi/README.md`, `protocol/abi/check.sh` | `vfs-service`, `pty-service`, `display-sink`, typed errors, lease revalidation, 256 KiB PTY credits, no display frame submission | P2-01 | Pending |
@@ -361,6 +361,16 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - The shared DeviceAgent contract fixture was unchanged. ADR-012 grant/lease issuance and remote invocation enforcement remain P2-04 work and are not claimed by P2-05.
 - iOS, Web, Rust and protocol schema/generated bindings were unchanged by P2-05; their last full gates remain green, including the iOS 491-test run at `097c85b`.
 
+### P2-07 verification evidence
+
+- `AndroidWorkspaceHost` attaches the native bridge before navigation and loads the bundled DesktopShell from the existing `WebViewAssetLoader` origin. `WebViewCompat.addWebMessageListener` restricts the object to `https://appassets.androidplatform.net`, and the document-start bootstrap exposes WebKit-compatible `airdesk` and `airdeskTerminal` handlers without modifying bundled DesktopShell JavaScript.
+- `AndroidDesktopBridge` validates version 1 runtime messages and terminal actions, session identity, stale generation, sequence, viewport bounds, field lengths and terminal base64/resize bounds before dispatch. Rejections surface reason codes in diagnostics without storing terminal input or payload contents.
+- `DisplaySessionController` owns a stable session identity across reloads and reconnects; generation advances for each page load. It tracks connecting/ready/degraded/failed/stopped phases, viewport, runtime state, terminal status and bridge rejections. The Presentation tab renders these diagnostics truthfully.
+- The DesktopShell terminal bridge is transport-complete but has no SSH backend in P2-07. If the terminal requests a start without a P2-09 handler, it receives a truthful `terminalExit` that the Android SSH backend is unavailable; `AIRDESK_REMOTE_TERMINAL` remains disabled. P2-09 owns the foreground SSH service.
+- Android: `testDebugUnitTest` passed; 136 tests, 0 failures, including 9 `AndroidDesktopBridgeTest` and 8 `DisplaySessionControllerTest` cases, then `lintDebug assembleDebug` passed.
+- No physical-device WebView interaction, terminal process survival or Android MediaProjection/MediaCodec behavior is claimed. `DisplaySessionController` is the handoff point for P2-08.
+- iOS, Web, Rust and protocol schema/generated bindings were unchanged by P2-07; their last full gates remain green, including the iOS 505-test run at `93550ff`.
+
 ### P5-01 verification evidence
 
 - ADR-025 selects in-app ReplayKit `RPScreenRecorder` capture of AirDesk-owned workspace surfaces as the first iOS host-capture path; capture, encoder ownership, capability checks and transport stay in one process and authority boundary.
@@ -425,10 +435,11 @@ These are not code-level tasks and must not be marked done from simulator or loo
 
 ## 10. Immediate next sprint
 
-1. P2-07: complete the Android workspace/terminal bridge now that P2-05 aligned the capability catalog and canonical URIs.
+1. P2-08: add the Android MediaProjection/MediaCodec display pipeline on top of `DisplaySessionController`, with typed fallback and hardware capability detection.
 2. P2-04 remains blocked on P1-02 for signing-key/issuer evidence; do not claim remote invocation enforcement yet.
-3. P5-03 is code-level only until transport/UI wiring and physical-display qualification exist; do not claim glass-to-glass latency.
-4. Keep `milestones.md` unchanged until a task actually passes its gate.
+3. P2-09 remains the owner of the persistent Android SSH backend; P2-07 only completes the terminal bridge transport.
+4. P5-03 is code-level only until transport/UI wiring and physical-display qualification exist; do not claim glass-to-glass latency.
+5. Keep `milestones.md` unchanged until a task actually passes its gate.
 
 ## 11. ADR and documentation updates
 

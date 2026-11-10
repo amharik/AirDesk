@@ -25,10 +25,13 @@ import com.airdesk.android.pairing.PairingResult
 import com.airdesk.android.pairing.PeerRecord
 import com.airdesk.android.protocol.AdfpProtocol
 import com.airdesk.android.protocol.AdfpSelfTestResult
+import com.airdesk.android.workspace.DisplaySessionController
 import kotlinx.coroutines.launch
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as AirDeskApplication).container
+
+    val displaySession = DisplaySessionController()
 
     var identity by mutableStateOf<DeviceIdentity?>(null)
         private set

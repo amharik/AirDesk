@@ -2,6 +2,7 @@ package com.airdesk.android.ui.screens
 
 import android.annotation.SuppressLint
 import android.net.Uri
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
@@ -30,28 +31,45 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewAssetLoader
+import com.airdesk.android.AppViewModel
 import com.airdesk.android.BuildConfig
+import com.airdesk.android.workspace.AndroidWorkspaceHost
+import com.airdesk.android.workspace.DisplaySessionSnapshot
 import java.io.ByteArrayInputStream
-
-private const val ASSET_DOMAIN = "appassets.androidplatform.net"
-private const val ASSET_PREFIX = "/assets/DesktopShell/"
-private const val START_URL = "https://$ASSET_DOMAIN${ASSET_PREFIX}index.html"
 
 @Suppress("DEPRECATION")
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun PresentationScreen() {
+fun PresentationScreen(viewModel: AppViewModel) {
     val context = LocalContext.current
+    val session = viewModel.displaySession
+    val workspaceName = viewModel.identity?.displayName
+        ?.takeIf { it.isNotBlank() }
+        ?: "Android workspace"
+    val host = remember(session) {
+        AndroidWorkspaceHost(session = session, workspaceName = workspaceName)
+    }
+    var snapshot by remember(session) { mutableStateOf(session.snapshot()) }
     val assetLoader = remember {
         WebViewAssetLoader.Builder()
-            .setDomain(ASSET_DOMAIN)
-            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(context.applicationContext))
+            .setDomain(AndroidWorkspaceHost.ASSET_DOMAIN)
+            .addPathHandler(
+                "/assets/",
+                WebViewAssetLoader.AssetsPathHandler(context.applicationContext),
+            )
             .build()
     }
     var webView by remember { mutableStateOf<WebView?>(null) }
 
-    DisposableEffect(Unit) {
+    DisposableEffect(session) {
+        val listener: (DisplaySessionSnapshot) -> Unit = { snapshot = it }
+        session.addListener(listener)
+        onDispose { session.removeListener(listener) }
+    }
+
+    DisposableEffect(host) {
         onDispose {
+            host.detach()
             webView?.apply {
                 stopLoading()
                 loadUrl("about:blank")
@@ -74,10 +92,37 @@ fun PresentationScreen() {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            START_URL,
+            AndroidWorkspaceHost.START_URL,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        Text(
+            "Bridge ${snapshot.phase.wire} · session ${snapshot.sessionId.take(12)} · " +
+                "generation ${snapshot.generation} · ${snapshot.workspace}",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Text(
+            "Runtime ${snapshot.runtimeState ?: "waiting"} · viewport " +
+                (snapshot.viewport?.let { "${it.width}×${it.height}" } ?: "—") +
+                " · terminal ${snapshot.terminalStatus ?: "idle"}",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        snapshot.lastError?.let { error ->
+            Text(
+                "Desktop error: $error",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        snapshot.lastBridgeRejection?.let { rejection ->
+            Text(
+                "Bridge rejection: $rejection",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
         Spacer(Modifier.height(12.dp))
         Box(
             modifier = Modifier
@@ -133,8 +178,19 @@ fun PresentationScreen() {
                                     else -> blockedResponse()
                                 }
                             }
+
+                            override fun onReceivedError(
+                                view: WebView?,
+                                request: WebResourceRequest?,
+                                error: WebResourceError?,
+                            ) {
+                                if (request?.isForMainFrame != true) return
+                                session.markFailure(
+                                    "Desktop load failed: ${error?.description ?: "unknown error"}",
+                                )
+                            }
                         }
-                        loadUrl(START_URL)
+                        host.attachAndLoad(this)
                     }
                 },
             )
@@ -144,8 +200,8 @@ fun PresentationScreen() {
 
 private fun isLocalAsset(uri: Uri): Boolean =
     uri.scheme == "https" &&
-        uri.host == ASSET_DOMAIN &&
-        uri.path?.startsWith(ASSET_PREFIX) == true
+        uri.host == AndroidWorkspaceHost.ASSET_DOMAIN &&
+        uri.path?.startsWith(AndroidWorkspaceHost.ASSET_PREFIX) == true
 
 private fun blockedResponse(): WebResourceResponse =
     WebResourceResponse(
