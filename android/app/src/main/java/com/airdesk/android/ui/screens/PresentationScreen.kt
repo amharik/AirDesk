@@ -9,8 +9,10 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,13 +20,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
@@ -33,6 +38,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewAssetLoader
 import com.airdesk.android.AppViewModel
 import com.airdesk.android.BuildConfig
+import com.airdesk.android.remote.AndroidSSHService
+import com.airdesk.android.remote.RemoteSSHHostBridge
 import com.airdesk.android.workspace.AndroidWorkspaceHost
 import com.airdesk.android.workspace.DisplaySessionSnapshot
 import java.io.ByteArrayInputStream
@@ -49,7 +56,41 @@ fun PresentationScreen(viewModel: AppViewModel) {
     val host = remember(session) {
         AndroidWorkspaceHost(session = session, workspaceName = workspaceName)
     }
+    val remoteProfile = viewModel.remoteTerminalProfile
+    val remoteController = viewModel.remoteTerminalService
+    var showRemoteSettings by remember { mutableStateOf(false) }
     var snapshot by remember(session) { mutableStateOf(session.snapshot()) }
+
+    LaunchedEffect(Unit) {
+        viewModel.ensureRemoteTerminalService()
+    }
+
+    LaunchedEffect(remoteProfile) {
+        host.updateRemoteTerminalProfile(remoteProfile)
+    }
+
+    DisposableEffect(host, remoteController) {
+        val controller = remoteController
+        if (controller == null) {
+            host.terminalHandler = null
+            onDispose { }
+        } else {
+            val bridge = RemoteSSHHostBridge(
+                controller = controller,
+                output = host,
+                configuration = viewModel::remoteTerminalConfiguration,
+                context = viewModel::remoteTerminalContext,
+            )
+            bridge.onStartRequested = { AndroidSSHService.start(context) }
+            bridge.onStopRequested = { AndroidSSHService.stop(context) }
+            host.terminalHandler = bridge::handle
+            bridge.attach()
+            onDispose {
+                host.terminalHandler = null
+                bridge.detach()
+            }
+        }
+    }
     val assetLoader = remember {
         WebViewAssetLoader.Builder()
             .setDomain(AndroidWorkspaceHost.ASSET_DOMAIN)
@@ -92,7 +133,16 @@ fun PresentationScreen(viewModel: AppViewModel) {
             .fillMaxSize()
             .padding(16.dp),
     ) {
-        Text("Presentation", style = MaterialTheme.typography.headlineMedium)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Presentation", style = MaterialTheme.typography.headlineMedium)
+            OutlinedButton(onClick = { showRemoteSettings = true }) {
+                Text("SSH setup")
+            }
+        }
         Text(
             "DesktopShell is served from bundled assets through WebViewAssetLoader at a stable " +
                 "https origin. External navigation and non-local requests are blocked.",
@@ -114,6 +164,19 @@ fun PresentationScreen(viewModel: AppViewModel) {
             "Runtime ${snapshot.runtimeState ?: "waiting"} · viewport " +
                 (snapshot.viewport?.let { "${it.width}×${it.height}" } ?: "—") +
                 " · terminal ${snapshot.terminalStatus ?: "idle"}",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            "Remote ${remoteProfile.destination} · " +
+                (if (remoteProfile.enabled) "enabled" else "disabled") +
+                " · " +
+                (if (viewModel.remoteTerminalLeaseId != null) {
+                    "authorized"
+                } else {
+                    "not authorized"
+                }) +
+                (viewModel.remoteTerminalMessage?.let { " · $it" } ?: ""),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -210,11 +273,37 @@ fun PresentationScreen(viewModel: AppViewModel) {
                                 )
                             }
                         }
+                        host.updateRemoteTerminalProfile(viewModel.remoteTerminalProfile)
                         host.attachAndLoad(this)
                     }
                 },
             )
         }
+    }
+
+    if (showRemoteSettings) {
+        RemoteTerminalSettingsDialog(
+            profile = remoteProfile,
+            status = viewModel.remoteTerminalMessage,
+            leaseAuthorized = viewModel.remoteTerminalLeaseId != null,
+            serviceConnected = remoteController != null,
+            onDismiss = {
+                showRemoteSettings = false
+                viewModel.clearRemoteTerminalMessage()
+            },
+            onApply = { draft, authorize ->
+                val error = viewModel.applyRemoteTerminalProfile(draft, authorize)
+                if (error == null) {
+                    host.updateRemoteTerminalProfile(
+                        profile = viewModel.remoteTerminalProfile,
+                        restart = true,
+                    )
+                    showRemoteSettings = false
+                }
+                error
+            },
+            onAuthorize = { viewModel.authorizeRemoteTerminal() },
+        )
     }
 }
 

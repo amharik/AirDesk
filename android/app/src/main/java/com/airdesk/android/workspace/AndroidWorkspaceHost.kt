@@ -7,22 +7,27 @@ import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.WebMessageCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import com.airdesk.android.remote.RemoteSSHHostOutput
+import com.airdesk.android.remote.RemoteTerminalProfileDraft
 import kotlin.math.roundToInt
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.put
 
 class AndroidWorkspaceHost(
     private val session: DisplaySessionController,
     private val workspaceName: String,
     private val deviceName: String = Build.MODEL.ifBlank { "Android" },
-) {
+) : RemoteSSHHostOutput {
     private val bridge = AndroidDesktopBridge(session.sessionId, session.currentGeneration)
     private val json = Json { ignoreUnknownKeys = true }
     private var webView: WebView? = null
     private var bridgeView: WebView? = null
     private var bridgeAttached = false
+    private var remoteTerminalBootstrap = "{\"enabled\":false}"
 
     var terminalHandler: ((AndroidTerminalMessage) -> Unit)? = null
 
@@ -52,23 +57,59 @@ class AndroidWorkspaceHost(
         bridgeAttached = false
     }
 
-    fun sendTerminalReady() {
+    override fun sendTerminalReady() {
         sendControl("terminalReady")
         session.markTerminalStatus("Connected to remote terminal")
     }
 
-    fun sendTerminalData(base64Data: String) {
+    override fun sendTerminalData(base64Data: String) {
         sendControl("terminalData", mapOf("data" to base64Data))
     }
 
-    fun sendTerminalStatus(status: String) {
+    override fun sendTerminalStatus(status: String) {
         sendControl("terminalStatus", mapOf("message" to status))
         session.markTerminalStatus(status)
     }
 
-    fun sendTerminalExit(message: String) {
+    override fun sendTerminalExit(message: String) {
         sendControl("terminalExit", mapOf("message" to message))
         session.markTerminalStatus(message)
+    }
+
+    fun updateRemoteTerminalProfile(profile: RemoteTerminalProfileDraft, restart: Boolean = false) {
+        val configuration = profile.configurationOrNull()
+        val enabled = profile.enabled && configuration != null
+        remoteTerminalBootstrap = buildJsonObject {
+            put("enabled", enabled)
+            put("host", configuration?.host ?: profile.host.trim())
+            put(
+                "username",
+                configuration?.username ?: profile.username.trim(),
+            )
+            put("port", configuration?.port ?: profile.port.toIntOrNull() ?: 22)
+            put(
+                "startupCommand",
+                configuration?.startupCommand ?: profile.startupCommand.trim(),
+            )
+        }.toString()
+        sendControlObject(
+            type = "terminalConfig",
+            fields = buildJsonObject {
+                put("enabled", enabled)
+                put("host", configuration?.host ?: profile.host.trim())
+                put(
+                    "username",
+                    configuration?.username ?: profile.username.trim(),
+                )
+                put("port", configuration?.port ?: profile.port.toIntOrNull() ?: 22)
+                put(
+                    "startupCommand",
+                    configuration?.startupCommand ?: profile.startupCommand.trim(),
+                )
+                put("revision", System.currentTimeMillis())
+                put("restart", restart)
+            },
+        )
     }
 
     private fun attachNativeBridge(view: WebView): Boolean {
@@ -154,9 +195,7 @@ class AndroidWorkspaceHost(
         val handler = terminalHandler
         if (handler == null) {
             if (message.action == "start") {
-                sendTerminalExit(
-                    "Remote terminal backend is not available on Android yet (P2-09).",
-                )
+                sendTerminalExit("Remote terminal service is not connected yet.")
             }
             return
         }
@@ -182,6 +221,22 @@ class AndroidWorkspaceHost(
             type = type,
             fields = fields,
         )
+        evaluateControl(view, message)
+    }
+
+    private fun sendControlObject(type: String, fields: JsonObject) {
+        val view = webView ?: return
+        val message = buildJsonObject {
+            put("version", AndroidDesktopBridge.VERSION)
+            put("type", type)
+            put("sessionId", session.sessionId)
+            put("generation", session.currentGeneration)
+            fields.forEach { (key, value) -> put(key, value) }
+        }.toString()
+        evaluateControl(view, message)
+    }
+
+    private fun evaluateControl(view: WebView, message: String) {
         val script = """
             if (window.AirDeskBridge && typeof window.AirDeskBridge.receiveControl === 'function') {
                 window.AirDeskBridge.receiveControl($message);
@@ -213,7 +268,7 @@ class AndroidWorkspaceHost(
           window.AIRDESK_RUNTIME = "wanixDesktop";
           window.AIRDESK_APPEARANCE = "dark";
           window.AIRDESK_DEVICE_NAME = ${jsString(deviceName)};
-          window.AIRDESK_REMOTE_TERMINAL = {"enabled": false};
+          window.AIRDESK_REMOTE_TERMINAL = $remoteTerminalBootstrap;
           var host = window.AirDeskAndroidHost;
           if (!host || typeof host.postMessage !== 'function') return;
           var webkit = window.webkit || (window.webkit = {});

@@ -2,7 +2,12 @@ package com.airdesk.android
 
 import android.Manifest
 import android.app.Application
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.ServiceConnection
 import android.content.pm.PackageManager
+import android.os.IBinder
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -25,13 +30,52 @@ import com.airdesk.android.pairing.PairingResult
 import com.airdesk.android.pairing.PeerRecord
 import com.airdesk.android.protocol.AdfpProtocol
 import com.airdesk.android.protocol.AdfpSelfTestResult
+import com.airdesk.android.remote.AndroidSSHService
+import com.airdesk.android.remote.RemoteSSHContext
+import com.airdesk.android.remote.RemoteSSHLease
+import com.airdesk.android.remote.RemoteSSHLeaseRegistry
+import com.airdesk.android.remote.RemoteSSHOperation
+import com.airdesk.android.remote.RemoteSSHServiceController
+import com.airdesk.android.remote.RemoteTerminalProfileDraft
 import com.airdesk.android.workspace.DisplaySessionController
+import java.util.UUID
 import kotlinx.coroutines.launch
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as AirDeskApplication).container
 
     val displaySession = DisplaySessionController()
+
+    var remoteTerminalProfile by mutableStateOf(RemoteTerminalProfileDraft())
+        private set
+    var remoteTerminalService by mutableStateOf<RemoteSSHServiceController?>(null)
+        private set
+    var remoteTerminalLeaseId by mutableStateOf<String?>(null)
+        private set
+    var remoteTerminalMessage by mutableStateOf<String?>(null)
+        private set
+    private var remoteTerminalBound = false
+    private val remoteTerminalConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            val local = service as? AndroidSSHService.LocalBinder ?: return
+            val controller = local.controller()
+            val leaseId = remoteTerminalLeaseId
+            if (leaseId != null && controller.terminal.lease(leaseId) == null) {
+                remoteTerminalLeaseId = null
+            }
+            remoteTerminalService = controller
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            remoteTerminalService = null
+            remoteTerminalLeaseId = null
+        }
+
+        override fun onBindingDied(name: ComponentName?) {
+            remoteTerminalService = null
+            remoteTerminalLeaseId = null
+        }
+    }
 
     var identity by mutableStateOf<DeviceIdentity?>(null)
         private set
@@ -70,6 +114,91 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 identityError = error.message ?: error::class.java.simpleName
                 refreshCapabilities()
             }
+        bindRemoteTerminalService()
+    }
+
+    fun ensureRemoteTerminalService() {
+        if (remoteTerminalService == null) {
+            bindRemoteTerminalService()
+        }
+    }
+
+    fun applyRemoteTerminalProfile(
+        draft: RemoteTerminalProfileDraft,
+        authorize: Boolean,
+    ): String? {
+        if (draft.enabled) {
+            runCatching { draft.configuration() }.getOrElse { error ->
+                return error.message ?: "The remote terminal profile is invalid."
+            }
+        }
+        remoteTerminalProfile = draft
+        if (!draft.enabled) {
+            remoteTerminalLeaseId?.let { leaseId ->
+                remoteTerminalService?.terminal?.revokeLease(leaseId)
+            }
+            remoteTerminalLeaseId = null
+            remoteTerminalMessage = "Remote terminal disabled."
+            return null
+        }
+        if (authorize) {
+            return authorizeRemoteTerminal()
+        }
+        remoteTerminalMessage =
+            "Profile saved. Authorize this session before the terminal can connect."
+        return null
+    }
+
+    fun authorizeRemoteTerminal(): String? {
+        val profile = remoteTerminalProfile
+        if (!profile.enabled) {
+            return "Enable the remote terminal before authorizing it."
+        }
+        runCatching { profile.configuration() }.getOrElse { error ->
+            return error.message ?: "The remote terminal profile is invalid."
+        }
+        val currentIdentity = identity ?: return "The device identity is not loaded."
+        val controller = remoteTerminalService
+            ?: return "The remote terminal service is not connected yet. Try again."
+        val now = System.currentTimeMillis()
+        remoteTerminalLeaseId?.let { existing ->
+            controller.terminal.revokeLease(existing, "Replaced by a new authorization")
+        }
+        val lease = RemoteSSHLease(
+            leaseId = UUID.randomUUID().toString(),
+            capUri = RemoteSSHLeaseRegistry.CAPABILITY_URI,
+            workspaceId = displaySession.snapshot().workspace,
+            applicationId = REMOTE_TERMINAL_APPLICATION_ID,
+            requesterDeviceId = currentIdentity.deviceId,
+            sessionId = displaySession.sessionId,
+            issuedAtEpochMillis = now,
+            expiresAtEpochMillis = now + REMOTE_TERMINAL_LEASE_MILLIS,
+            operations = RemoteSSHOperation.entries.toSet(),
+            auditId = UUID.randomUUID().toString(),
+        )
+        return runCatching {
+            controller.terminal.grantLease(lease)
+            remoteTerminalLeaseId = lease.leaseId
+            remoteTerminalMessage = "Authorized this session for the remote terminal."
+            null
+        }.getOrElse { error ->
+            error.message ?: "The remote terminal could not be authorized."
+        }
+    }
+
+    fun remoteTerminalConfiguration() = remoteTerminalProfile.configuration()
+
+    fun remoteTerminalContext(): RemoteSSHContext = RemoteSSHContext(
+        capUri = RemoteSSHLeaseRegistry.CAPABILITY_URI,
+        workspaceId = displaySession.snapshot().workspace,
+        applicationId = REMOTE_TERMINAL_APPLICATION_ID,
+        requesterDeviceId = identity?.deviceId.orEmpty(),
+        sessionId = displaySession.sessionId,
+        leaseId = remoteTerminalLeaseId,
+    )
+
+    fun clearRemoteTerminalMessage() {
+        remoteTerminalMessage = null
     }
 
     fun refreshCapabilities() {
@@ -305,9 +434,25 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
+        if (remoteTerminalBound) {
+            runCatching {
+                getApplication<Application>().unbindService(remoteTerminalConnection)
+            }
+            remoteTerminalBound = false
+        }
+        remoteTerminalService = null
         irohTransport?.close()
         irohTransport = null
         super.onCleared()
+    }
+
+    private fun bindRemoteTerminalService() {
+        if (remoteTerminalBound) return
+        val application = getApplication<Application>()
+        val intent = Intent(application, AndroidSSHService::class.java)
+        remoteTerminalBound = runCatching {
+            application.bindService(intent, remoteTerminalConnection, Context.BIND_AUTO_CREATE)
+        }.getOrDefault(false)
     }
 
     private fun pairingCoordinator(
@@ -352,5 +497,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             irohStatus = error.message ?: error.javaClass.simpleName
             irohStatusIsError = true
         }
+    }
+
+    companion object {
+        private const val REMOTE_TERMINAL_APPLICATION_ID = "terminal"
+        private const val REMOTE_TERMINAL_LEASE_MILLIS = 8L * 60 * 60 * 1_000
     }
 }

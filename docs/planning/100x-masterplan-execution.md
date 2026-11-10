@@ -183,7 +183,7 @@ Compatibility rules:
 | P2-06 | Android precision input controller | `AndroidTrackpadSurface.kt`, `AndroidInputRouter.kt`, `InputLease*` equivalents; tests | 120 Hz local cursor path; packed movement; no stuck input; multi-controller arbitration | P2-01, P4-01 | Pending |
 | P2-07 | Android workspace/terminal bridge | `AndroidWorkspaceHost.kt`, `AndroidDesktopBridge.kt`, `DisplaySessionController.kt`; tests | Bundled DesktopShell drives workspace host and terminal bridge; reconnect preserves identity; truthful diagnostics | P1-05, P2-01 | Verified, committed |
 | P2-08 | Android MediaProjection/MediaCodec stream | `AndroidMediaCodecStream.kt`, `DisplaySessionController.kt`; tests | Registered display pipeline; hardware codec capability detection; fallback and typed failure; physical qualification separate | P2-07 | Verified, committed |
-| P2-09 | Android persistent SSH service | `AndroidSSHService.kt`, `RemoteSSH*`; tests | Foreground service; reattach and second-device handoff use same protocol as iOS; process survival tested remotely | P1-07 | Pending |
+| P2-09 | Android persistent SSH service | `AndroidSSHService.kt`, `RemoteSSH*`; tests | Foreground service; reattach and second-device handoff use same protocol as iOS; process survival tested remotely | P1-07 | Code complete; physical survival gate pending |
 | P2-10 | WIT host ABI 0.2 | `protocol/abi/wit/airdesk-host-abi.wit`, `protocol/abi/README.md`, `protocol/abi/check.sh` | `vfs-service`, `pty-service`, `display-sink`, typed errors, lease revalidation, 256 KiB PTY credits, no display frame submission | P2-01 | Pending |
 | P2-11 | WIT 0.3 evaluation and conformance | `protocol/abi/wit/airdesk-host-abi-0_3.wit`, `protocol/abi/conformance/**` | Separate 0.3 world using `stream<T>`/`future<T>`; no mixed worlds; conformance harness runs where tooling exists | P2-10 | Research |
 
@@ -382,6 +382,18 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - MediaProjection consent UI, a persistent foreground capture service, physical codec behavior, zero-copy, glass-to-glass latency and hardware qualification are not claimed by P2-08.
 - iOS, Web, Rust and protocol schema/generated bindings were unchanged by P2-08; their last full gates remain green, including the iOS 505-test run at `93550ff`.
 
+### P2-09 verification evidence
+
+- `RemoteSSHProfile`/`RemoteSSHLease` mirror the iOS terminal contract: OpenSSH host-key pinning, validated connection/size fields, `airdesk://pty/spawn`, connect/write/resize operations, single-owner leases, expiry/revocation/busy errors and bounded audit records. The lease registry is synchronized for Android's background write/event threads.
+- `RemoteSSHController` runs connection setup off the caller thread, emits `ready` before reader data, chunks host output to 64 KiB, serializes write/resize, closes the transport on stop and reports transport closure once without flooding late events.
+- `JschRemoteSSHTransport` uses `com.github.mwiede:jsch:0.2.21`, enforces the pinned host key through a custom `HostKeyRepository`, allocates a PTY for both shell and startup-command `exec` channels, and maps host-key, authentication, connect and channel failures to typed errors. The packaging block excludes duplicate OSGi manifests from JSch/Bouncy Castle.
+- `RemoteSSHTerminal` gates every connect/write/resize through the shared lease path and audits allowed/denied/revoked/expired/busy decisions. `RemoteSSHServiceController` keeps the session alive when a client detaches, lets a newly attached client take over writes, and exposes the same `ready`/`data`/`exit` event protocol used by iOS.
+- `AndroidSSHService` is a `remoteMessaging` foreground service with a low-importance ongoing notification, `START_STICKY`, `stopWithTask=false`, a local binder and truthful status. The Presentation tab binds to it, supplies a memory-only SSH profile, grants an explicit eight-hour scoped lease, and bridges terminal start/write/resize/stop plus base64 output. Reopening Terminal reattaches to a running service instead of reconnecting.
+- `AIRDESK_REMOTE_TERMINAL` and `terminalConfig` are now driven by the saved profile so the bundled DesktopShell selects the SSH path; passwords are never persisted.
+- Android: `testDebugUnitTest --rerun-tasks` passed; 159 tests, 0 failures, including 10 `RemoteSSHTest` cases, then `lintDebug assembleDebug` passed.
+- Physical foreground-service process survival, notification permission behavior, real SSH-server interoperability, second physical-device handoff and service restoration after process kill are not claimed. Credentials are intentionally memory-only, so a killed process cannot restart SSH without user re-entry.
+- iOS, Web, Rust and protocol schema/generated bindings were unchanged by P2-09; their last full gates remain green, including the iOS 505-test run at `93550ff`.
+
 ### P5-01 verification evidence
 
 - ADR-025 selects in-app ReplayKit `RPScreenRecorder` capture of AirDesk-owned workspace surfaces as the first iOS host-capture path; capture, encoder ownership, capability checks and transport stay in one process and authority boundary.
@@ -446,11 +458,12 @@ These are not code-level tasks and must not be marked done from simulator or loo
 
 ## 10. Immediate next sprint
 
-1. P2-09: add the persistent Android SSH foreground service on the P1-07 capability-scoped terminal path, with reattach and second-device handoff using the same protocol as iOS.
-2. P2-04 remains blocked on P1-02 for signing-key/issuer evidence; do not claim remote invocation enforcement yet.
-3. P2-06 remains blocked on P4-01 for the one-euro pointer filter dependency.
-4. P5-03 is code-level only until transport/UI wiring and physical-display qualification exist; do not claim glass-to-glass latency.
-5. Keep `milestones.md` unchanged until a task actually passes its gate.
+1. P2-09 retains one physical gate: install the debug APK on an Android device, connect to a real SSH server, background the app, verify the foreground service/session survives, then verify reattach and second-device handoff. Do not mark P2-09 `Verified` from JVM tests alone.
+2. P2-10 is the next code task: WIT host ABI 0.2 with `vfs-service`, `pty-service`, `display-sink`, typed errors, lease revalidation and bounded PTY credits.
+3. P2-04 remains blocked on P1-02 for signing-key/issuer evidence; do not claim remote invocation enforcement yet.
+4. P2-06 remains blocked on P4-01 for the one-euro pointer filter dependency.
+5. P5-03 is code-level only until transport/UI wiring and physical-display qualification exist; do not claim glass-to-glass latency.
+6. Keep `milestones.md` unchanged until a task actually passes its gate.
 
 ## 11. ADR and documentation updates
 
