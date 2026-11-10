@@ -187,6 +187,32 @@ struct EncodedDisplayFrame: Equatable, Sendable {
     let codec: DisplayVideoCodec
     let isKeyframe: Bool
     let data: Data
+    let parameterSets: [Data]
+    let nalUnitHeaderLength: Int
+
+    init(
+        sequence: UInt64,
+        timestampSeconds: Double,
+        durationSeconds: Double,
+        width: Int,
+        height: Int,
+        codec: DisplayVideoCodec,
+        isKeyframe: Bool,
+        data: Data,
+        parameterSets: [Data] = [],
+        nalUnitHeaderLength: Int = 4
+    ) {
+        self.sequence = sequence
+        self.timestampSeconds = timestampSeconds
+        self.durationSeconds = durationSeconds
+        self.width = width
+        self.height = height
+        self.codec = codec
+        self.isKeyframe = isKeyframe
+        self.data = data
+        self.parameterSets = parameterSets
+        self.nalUnitHeaderLength = nalUnitHeaderLength
+    }
 }
 
 protocol DisplayCaptureSource: AnyObject {

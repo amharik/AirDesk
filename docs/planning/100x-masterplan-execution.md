@@ -2,7 +2,7 @@
 
 - **Status:** Planning only — no implementation commitment and no ADR promotion
 - **Date:** 2026-11-10
-- **Baseline:** `dev` at `097c85b`, plus the verified P2-05 Android agent/catalog alignment
+- **Baseline:** `dev` at `90555d9`, plus the verified P5-03 iOS client decode/frame pacing path
 - **Input:** User-supplied 100x product / 1000x UX masterplan
 - **Related:** `milestones.md`, `docs/planning/workspace-fabric-plan.md`, `docs/planning/release-roadmap.md`, ADR-001 through ADR-023
 
@@ -224,7 +224,7 @@ Compatibility rules:
 | --- | --- | --- | --- | --- | --- |
 | P5-01 | Host capture platform decision | New ADR-025; `AirDesk/Display/**`, `project.yml` | Decision records iOS ReplayKit/broadcast extension vs separate macOS host vs external host; ScreenCaptureKit only if a macOS target exists | P0-05 | Verified, committed |
 | P5-02 | Zero-copy encoder pipeline | `AirDesk/Display/ScreenCapturePipeline.swift`, `VideoToolboxEncoder.swift`, `DisplayCoordinator.swift`; `android/.../AndroidMediaCodecStream.kt` | Capture surface -> encoder with bounded queues; HEVC/AV1 capability detection; keyframe/recovery; no unbounded memory | P5-01 | Verified, committed (iOS host path) |
-| P5-03 | Client decode and frame pacing | `AirDesk/Display/DesktopSurface.swift`, `DisplayCoordinator.swift`; web endpoint surface path | Pacing to display refresh; dropped-frame diagnostics; latency/CPU metrics; no false glass-to-glass claim | P5-02 | Pending |
+| P5-03 | Client decode and frame pacing | `AirDesk/Display/DesktopSurface.swift`, `DisplayCoordinator.swift`; web endpoint surface path | Pacing to display refresh; dropped-frame diagnostics; latency/CPU metrics; no false glass-to-glass claim | P5-02 | Verified, committed (iOS decode/pacing path) |
 | P5-04 | Persistent PTY daemon | New `core/airdeskd/**`, `AirDesk/Remote/SSHPTYSession.swift`, `RemoteTerminalController.swift`; tests | `airdeskd` byte-tees raw PTY over ADFP; multiple clients attach; replay buffer bounded; leases enforced | P1-03, P1-07 | Pending |
 | P5-05 | OSC 133 replay and handoff | `AirDesk/Remote/**`, `AirDesk/Web/TerminalBridge.swift`, `AirDeskTests/RemoteSSHReattachTests.swift` | Reconnect replays active command records without corrupting TUIs; second device attaches; zero lost acknowledged bytes | P4-08, P5-04 | Pending |
 | P5-06 | XPORT-01/02 qualification | `scripts/research/**`, `research/scenarios/**`, `docs/research/**`, `docs/adr/013-multi-transport-and-connectivity.md` | CPU, reconnect, direct/relay and device matrix recorded; ADR-013 updated only if evidence supports it | P1-10, P5-02 | Blocked |
@@ -380,6 +380,16 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - `DisplayCoordinator`, transport/UI wiring, pacing and Android `AndroidMediaCodecStream.kt` were not changed by this iOS host-path task. Physical ReplayKit capture, hardware codec qualification, glass-to-glass latency and zero-copy behavior are not claimed.
 - Web, Rust and protocol schema/generated bindings were unchanged by P5-02; their last full gates remain green at `8c522eb`.
 
+### P5-03 verification evidence
+
+- `EncodedDisplayFrame` now carries HEVC/H.264 parameter sets and the NAL unit header length extracted from the encoder format description, so an out-of-process client can reconstruct a decoder format description.
+- `VideoToolboxDisplayDecoder` creates HEVC/H.264 `VTDecompressionSession` instances, copies compressed data into a `CMBlockBuffer`, submits `CMSampleBuffer`s off the main actor, and reports per-frame decode wall time, process CPU time and hardware-acceleration status. AV1 remains rejected/detection-only.
+- `DisplayClientPipeline` bounds decode in-flight frames, drops frames before the first keyframe and under decode backpressure, fails closed with typed errors, and records received/dropped/decoded/failure/in-flight, average/peak decode latency and CPU time.
+- `DisplayFramePacer` enforces the target presentation interval, bounds the presentation queue (default 2 frames, 250 ms maximum age), drops overflow and expired frames, and records presented/dropped/overflow/late/queue-depth/queue-delay diagnostics. `DisplayFramePacingDriver` drives presentation with `CADisplayLink` at the display refresh rate capped by the configured target.
+- iOS: full `xcodebuild test` passed; 505 tests, 1 skipped, 0 failures, including 14 `DisplayClientPipelineTests` and the existing 13 `ScreenCapturePipelineTests`.
+- `DesktopSurface`, `DisplayCoordinator`, transport/UI wiring, the web endpoint frame path and Android MediaCodec were not changed. Physical display qualification, hardware-decode qualification, glass-to-glass or input-to-photon latency and zero-copy behavior are not claimed.
+- CPU metrics are process-level wall-clock deltas around decode submission/output, not per-core, thermal or battery qualification.
+
 ### Environment notes
 
 - The local container has no `node`, `npm`, `cargo`, `swift`, `xcodebuild`, `python3`, `perl`, `sqlite3` or `adb`; it is not a verification environment.
@@ -415,9 +425,9 @@ These are not code-level tasks and must not be marked done from simulator or loo
 
 ## 10. Immediate next sprint
 
-1. P5-03: wire client decode and frame pacing without claiming glass-to-glass latency or physical-display qualification.
-2. P2-07: complete the Android workspace/terminal bridge now that P2-05 aligned the capability catalog and canonical URIs.
-3. P2-04 remains blocked on P1-02 for signing-key/issuer evidence; do not claim remote invocation enforcement yet.
+1. P2-07: complete the Android workspace/terminal bridge now that P2-05 aligned the capability catalog and canonical URIs.
+2. P2-04 remains blocked on P1-02 for signing-key/issuer evidence; do not claim remote invocation enforcement yet.
+3. P5-03 is code-level only until transport/UI wiring and physical-display qualification exist; do not claim glass-to-glass latency.
 4. Keep `milestones.md` unchanged until a task actually passes its gate.
 
 ## 11. ADR and documentation updates

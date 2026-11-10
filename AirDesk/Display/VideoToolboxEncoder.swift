@@ -301,6 +301,8 @@ final class VideoToolboxEncoder: DisplayVideoEncoder {
         let durationSeconds = duration.isValid && !duration.isIndefinite
             ? CMTimeGetSeconds(duration)
             : metadata.durationSeconds
+        let (parameterSets, nalUnitHeaderLength) = parameterSets(from: format)
+        guard !parameterSets.isEmpty else { return nil }
 
         return EncodedDisplayFrame(
             sequence: metadata.sequence,
@@ -310,8 +312,81 @@ final class VideoToolboxEncoder: DisplayVideoEncoder {
             height: Int(dimensions.height),
             codec: codec,
             isKeyframe: isKeyframe(sampleBuffer),
-            data: data
+            data: data,
+            parameterSets: parameterSets,
+            nalUnitHeaderLength: nalUnitHeaderLength
         )
+    }
+
+    private func parameterSets(
+        from format: CMVideoFormatDescription
+    ) -> ([Data], Int) {
+        var count = 0
+        var nalUnitHeaderLength: Int32 = 4
+        var sets: [Data] = []
+
+        switch codec {
+        case .hevc:
+            let countStatus = CMVideoFormatDescriptionGetHEVCParameterSetAtIndex(
+                format,
+                parameterSetIndex: 0,
+                parameterSetPointerOut: nil,
+                parameterSetSizeOut: nil,
+                parameterSetCountOut: &count,
+                nalUnitHeaderLengthOut: &nalUnitHeaderLength
+            )
+            guard countStatus == noErr, (1...16).contains(count) else {
+                return ([], 4)
+            }
+            for index in 0..<count {
+                var pointer: UnsafePointer<UInt8>?
+                var size = 0
+                let status = CMVideoFormatDescriptionGetHEVCParameterSetAtIndex(
+                    format,
+                    parameterSetIndex: index,
+                    parameterSetPointerOut: &pointer,
+                    parameterSetSizeOut: &size,
+                    parameterSetCountOut: nil,
+                    nalUnitHeaderLengthOut: nil
+                )
+                guard status == noErr, let pointer, size > 0 else {
+                    return ([], 4)
+                }
+                sets.append(Data(bytes: pointer, count: size))
+            }
+        case .h264:
+            let countStatus = CMVideoFormatDescriptionGetH264ParameterSetAtIndex(
+                format,
+                parameterSetIndex: 0,
+                parameterSetPointerOut: nil,
+                parameterSetSizeOut: nil,
+                parameterSetCountOut: &count,
+                nalUnitHeaderLengthOut: &nalUnitHeaderLength
+            )
+            guard countStatus == noErr, (1...16).contains(count) else {
+                return ([], 4)
+            }
+            for index in 0..<count {
+                var pointer: UnsafePointer<UInt8>?
+                var size = 0
+                let status = CMVideoFormatDescriptionGetH264ParameterSetAtIndex(
+                    format,
+                    parameterSetIndex: index,
+                    parameterSetPointerOut: &pointer,
+                    parameterSetSizeOut: &size,
+                    parameterSetCountOut: nil,
+                    nalUnitHeaderLengthOut: nil
+                )
+                guard status == noErr, let pointer, size > 0 else {
+                    return ([], 4)
+                }
+                sets.append(Data(bytes: pointer, count: size))
+            }
+        case .av1:
+            return ([], 4)
+        }
+
+        return (sets, Int(nalUnitHeaderLength))
     }
 
     private func isKeyframe(_ sampleBuffer: CMSampleBuffer) -> Bool {
