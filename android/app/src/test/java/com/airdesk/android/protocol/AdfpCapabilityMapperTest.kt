@@ -68,7 +68,7 @@ class AdfpCapabilityMapperTest {
         assertEquals(camera.capUri, mapped.capUri)
         assertEquals(camera.version.toUInt(), mapped.version)
         assertEquals(provider, mapped.providerDeviceId)
-        assertEquals(ProtocolAvailability.restricted, mapped.availability)
+        assertEquals(ProtocolAvailability.available, mapped.availability)
         assertEquals(ProtocolAuthorization.ungranted, mapped.authorization)
         assertEquals(camera.permissions, mapped.permissions)
         assertEquals(camera.execution, mapped.execution)

@@ -32,16 +32,18 @@ data class CapabilityDescriptor(
 
 object CapabilityCatalog {
     const val CAMERA_PERMISSION = "android.permission.CAMERA"
+    const val DOCUMENTS_READ_CAP_URI = "airdesk://fs/documents/read"
+    const val DOCUMENTS_WRITE_CAP_URI = "airdesk://fs/documents/write"
 
     fun seed(
         providerDeviceId: String,
         cameraHardware: Boolean,
         cameraPermissionGranted: Boolean,
     ): List<CapabilityDescriptor> {
-        val cameraAvailability = when {
-            !cameraHardware -> Availability.UNAVAILABLE
-            !cameraPermissionGranted -> Availability.RESTRICTED
-            else -> Availability.AVAILABLE
+        val cameraAvailability = if (cameraHardware) {
+            Availability.AVAILABLE
+        } else {
+            Availability.UNAVAILABLE
         }
         return listOf(
             CapabilityDescriptor(
@@ -95,23 +97,36 @@ object CapabilityCatalog {
                 transport = "none",
                 constraints = "{\"hardwareAvailable\":$cameraHardware,\"streaming\":false,\"remoteInvocation\":false}",
                 note = if (cameraPermissionGranted) {
-                    "Camera permission granted; capture transport is not implemented in this baseline."
+                    "Camera permission granted; capability authorization still requires an explicit grant."
                 } else {
-                    "Camera permission not granted; availability is restricted, not authorized."
+                    "Camera permission not granted; availability is unchanged and capability remains ungranted."
                 },
             ),
             CapabilityDescriptor(
-                capUri = "airdesk://fs/read",
+                capUri = DOCUMENTS_READ_CAP_URI,
                 providerDeviceId = providerDeviceId,
-                label = "Files read",
-                summary = "Scoped app-private documents only.",
+                label = "Documents read",
+                summary = "App-scoped documents and user-selected files only.",
                 availability = Availability.RESTRICTED,
                 authorization = Authorization.UNGRANTED,
                 permissions = emptyList(),
                 execution = "on-device-read",
                 transport = "none",
-                constraints = "{\"scope\":\"app-documents\",\"deviceWideAccess\":false,\"remoteTransfer\":false}",
-                note = "No device-wide filesystem. Remote file transport is not implemented.",
+                constraints = "{\"scope\":\"app-documents\",\"userSelectedOnly\":true,\"deviceWideAccess\":false,\"remoteTransfer\":false}",
+                note = "No device-wide filesystem. Remote file transfer is not implemented.",
+            ),
+            CapabilityDescriptor(
+                capUri = DOCUMENTS_WRITE_CAP_URI,
+                providerDeviceId = providerDeviceId,
+                label = "Documents write",
+                summary = "App-scoped document writes and user-selected files only.",
+                availability = Availability.RESTRICTED,
+                authorization = Authorization.UNGRANTED,
+                permissions = emptyList(),
+                execution = "on-device-write",
+                transport = "none",
+                constraints = "{\"scope\":\"app-documents\",\"userSelectedOnly\":true,\"deviceWideAccess\":false,\"remoteTransfer\":false}",
+                note = "No device-wide filesystem. Remote write transfer is not implemented.",
             ),
             CapabilityDescriptor(
                 capUri = "airdesk://health/status",

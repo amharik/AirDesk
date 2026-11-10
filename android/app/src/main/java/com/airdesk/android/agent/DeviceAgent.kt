@@ -141,7 +141,7 @@ class DeviceAgentSubscription internal constructor(
 }
 
 class DeviceAgent(
-    private val identityValue: DeviceAgentIdentity,
+    identity: DeviceAgentIdentity,
     capabilities: List<DeviceAgentCapability>,
     permissions: Map<String, DeviceAgentPlatformPermissionState> = emptyMap(),
     private val leaseDurationMillis: Long = 600_000,
@@ -152,6 +152,7 @@ class DeviceAgent(
         val handler: (DeviceAgentEvent) -> Unit,
     )
 
+    private val identityValue = identity
     private val capabilityValues = capabilities.toList()
     private val permissionStates = permissions.toMap()
     private val leases = LinkedHashMap<String, DeviceAgentLease>()

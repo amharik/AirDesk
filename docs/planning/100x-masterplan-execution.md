@@ -2,7 +2,7 @@
 
 - **Status:** Planning only — no implementation commitment and no ADR promotion
 - **Date:** 2026-11-10
-- **Baseline:** `dev` at `b50dba9`, plus the verified P5-02 iOS capture/encoder boundary
+- **Baseline:** `dev` at `097c85b`, plus the verified P2-05 Android agent/catalog alignment
 - **Input:** User-supplied 100x product / 1000x UX masterplan
 - **Related:** `milestones.md`, `docs/planning/workspace-fabric-plan.md`, `docs/planning/release-roadmap.md`, ADR-001 through ADR-023
 
@@ -179,7 +179,7 @@ Compatibility rules:
 | P2-02 | iOS camera capture streaming | `AirDesk/Capture/CameraCaptureSource.swift`, `CameraCaptureStreamController.swift`; tests with mock source | Explicit authorization/lease gate; bounded frames/backpressure; cancel and permission-denied typed; no physical camera required for unit tests | P2-01 | Verified, committed |
 | P2-03 | iOS document roots and file transfer | `AirDesk/Resources/ResourceRoot.swift`, `ResourceTransferService.swift`; tests | App-scoped/user-selected roots; path/symlink confinement; bounded read/write/stat; transfer events; no device-wide access | P2-01 | Verified, committed |
 | P2-04 | Native capability lease and invocation enforcement | `AirDesk/Capabilities/CapabilityLeaseManager.swift`, `CapabilityAuthorizer.swift`, `CapabilityInvocationService.swift` | Issuance/expiry/revocation; provider/root issuer checks; remote invocation denied without matching lease/`cnf`; audit event | P2-01, P1-02 | Pending |
-| P2-05 | Android agent contract and canonical URIs | `android/.../agent/DeviceAgent.kt`, `capabilities/**`, `protocol/AdfpCapabilityMapper.kt` | Canonical `airdesk://fs/documents/read` plus `write`; camera authorization aligned with ADR-012; tests | P2-01 | Partial |
+| P2-05 | Android agent contract and canonical URIs | `android/.../agent/DeviceAgent.kt`, `capabilities/**`, `protocol/AdfpCapabilityMapper.kt` | Canonical `airdesk://fs/documents/read` plus `write`; camera authorization aligned with ADR-012; tests | P2-01 | Verified, committed |
 | P2-06 | Android precision input controller | `AndroidTrackpadSurface.kt`, `AndroidInputRouter.kt`, `InputLease*` equivalents; tests | 120 Hz local cursor path; packed movement; no stuck input; multi-controller arbitration | P2-01, P4-01 | Pending |
 | P2-07 | Android workspace/terminal bridge | `AndroidWorkspaceHost.kt`, `AndroidDesktopBridge.kt`, `DisplaySessionController.kt`; tests | Bundled DesktopShell drives workspace host and terminal bridge; reconnect preserves identity; truthful diagnostics | P1-05, P2-01 | Partial |
 | P2-08 | Android MediaProjection/MediaCodec stream | `AndroidMediaCodecStream.kt`, `DisplaySessionController.kt`; tests | Registered display pipeline; hardware codec capability detection; fallback and typed failure; physical qualification separate | P2-07 | Pending |
@@ -351,6 +351,16 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - Device-wide filesystem access, UI document-picker wiring, remote resource RPC/encoding and physical file-provider qualification are not claimed by P2-03.
 - Web, Android, Rust and protocol schema/generated bindings were unchanged by P2-03; their last full gates remain at `8c522eb`.
 
+### P2-05 verification evidence
+
+- The Android capability catalog now advertises the canonical `airdesk://fs/documents/read` and `airdesk://fs/documents/write` URIs and no longer advertises the legacy `airdesk://fs/read`.
+- Both document capabilities are app-scoped and user-mediated: `scope=app-documents`, `userSelectedOnly=true`, `deviceWideAccess=false` and `remoteTransfer=false`. They remain restricted and ungranted; no device-wide filesystem, file transfer or grant issuance is claimed.
+- Camera availability now depends only on hardware presence and is not collapsed to `restricted` when the Android platform permission is absent. Permission state remains separate from capability authorization, which is never auto-granted by the catalog.
+- The `DeviceAgent` constructor label was aligned with the shared fixture test, restoring Android test compilation for the existing contract suite.
+- Android: `testDebugUnitTest` passed; 119 tests, 0 failures, then `lintDebug assembleDebug` passed.
+- The shared DeviceAgent contract fixture was unchanged. ADR-012 grant/lease issuance and remote invocation enforcement remain P2-04 work and are not claimed by P2-05.
+- iOS, Web, Rust and protocol schema/generated bindings were unchanged by P2-05; their last full gates remain green, including the iOS 491-test run at `097c85b`.
+
 ### P5-01 verification evidence
 
 - ADR-025 selects in-app ReplayKit `RPScreenRecorder` capture of AirDesk-owned workspace surfaces as the first iOS host-capture path; capture, encoder ownership, capability checks and transport stay in one process and authority boundary.
@@ -405,8 +415,8 @@ These are not code-level tasks and must not be marked done from simulator or loo
 
 ## 10. Immediate next sprint
 
-1. P2-05: align the Android agent with canonical document resource URIs and ADR-012 camera authorization.
-2. P5-03: wire client decode and frame pacing without claiming glass-to-glass latency or physical-display qualification.
+1. P5-03: wire client decode and frame pacing without claiming glass-to-glass latency or physical-display qualification.
+2. P2-07: complete the Android workspace/terminal bridge now that P2-05 aligned the capability catalog and canonical URIs.
 3. P2-04 remains blocked on P1-02 for signing-key/issuer evidence; do not claim remote invocation enforcement yet.
 4. Keep `milestones.md` unchanged until a task actually passes its gate.
 
