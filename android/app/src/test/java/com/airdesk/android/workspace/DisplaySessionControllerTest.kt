@@ -1,5 +1,9 @@
 package com.airdesk.android.workspace
 
+import com.airdesk.android.display.AndroidCodecSelection
+import com.airdesk.android.display.AndroidDisplayCaptureState
+import com.airdesk.android.display.AndroidDisplayStreamMetrics
+import com.airdesk.android.display.AndroidVideoCodec
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -118,6 +122,93 @@ class DisplaySessionControllerTest {
         target.markStopped()
         assertEquals(2, snapshots.size)
         assertEquals(DisplaySessionPhase.STOPPED, target.snapshot().phase)
+    }
+
+    @Test
+    fun displayStreamRegistrationTracksCodecFallbackAndMetrics() {
+        val target = controller()
+        target.beginLoad("Workspace")
+        val selection = AndroidCodecSelection(
+            codec = AndroidVideoCodec.H264,
+            codecName = "c2.qti.h264.encoder",
+            hardwareAccelerated = true,
+            fallback = true,
+            softwareFallback = false,
+        )
+
+        now += 5
+        target.markDisplayStarting(selection, 1920, 1080)
+        val starting = target.snapshot().displayStream!!
+        assertEquals(AndroidDisplayCaptureState.STARTING, starting.state)
+        assertEquals(AndroidVideoCodec.H264, starting.codec)
+        assertEquals("c2.qti.h264.encoder", starting.codecName)
+        assertTrue(starting.hardwareAccelerated)
+        assertTrue(starting.fallback)
+        assertFalse(starting.softwareFallback)
+        assertEquals(1920, starting.width)
+        assertEquals(1080, starting.height)
+        assertEquals(AndroidDisplayStreamMetrics(), starting.metrics)
+
+        now += 5
+        target.markDisplayRunning()
+        target.updateDisplayMetrics(AndroidDisplayStreamMetrics(30, 1, 48_000))
+        val running = target.snapshot().displayStream!!
+        assertEquals(AndroidDisplayCaptureState.RUNNING, running.state)
+        assertEquals(AndroidDisplayStreamMetrics(30, 1, 48_000), running.metrics)
+
+        now += 5
+        target.markDisplayStopped()
+        val stopped = target.snapshot().displayStream!!
+        assertEquals(AndroidDisplayCaptureState.STOPPED, stopped.state)
+        assertEquals(AndroidDisplayStreamMetrics(30, 1, 48_000), stopped.metrics)
+    }
+
+    @Test
+    fun displayFailureIsTypedAndNotOverwrittenByStop() {
+        val target = controller()
+        target.beginLoad("Workspace")
+        target.markDisplayStarting(
+            AndroidCodecSelection(
+                codec = AndroidVideoCodec.HEVC,
+                codecName = "c2.qti.hevc.encoder",
+                hardwareAccelerated = true,
+                fallback = false,
+                softwareFallback = false,
+            ),
+            1280,
+            720,
+        )
+
+        target.markDisplayFailed("Encoder\nfailed\u0000" + "x".repeat(300))
+        val failed = target.snapshot().displayStream!!
+        assertEquals(AndroidDisplayCaptureState.FAILED, failed.state)
+        assertTrue(failed.lastError?.startsWith("Encoder failed") == true)
+        assertFalse(failed.lastError?.contains("\n") == true)
+        assertTrue((failed.lastError?.length ?: 0) <= 240)
+
+        target.markDisplayStopped()
+        val afterStop = target.snapshot().displayStream!!
+        assertEquals(AndroidDisplayCaptureState.FAILED, afterStop.state)
+        assertEquals(failed.lastError, afterStop.lastError)
+    }
+
+    @Test
+    fun displayRegistrationIgnoresInvalidDimensions() {
+        val target = controller()
+        target.beginLoad("Workspace")
+        target.markDisplayStarting(
+            AndroidCodecSelection(
+                codec = AndroidVideoCodec.H264,
+                codecName = "c2.qti.h264.encoder",
+                hardwareAccelerated = true,
+                fallback = false,
+                softwareFallback = false,
+            ),
+            0,
+            720,
+        )
+
+        assertNull(target.snapshot().displayStream)
     }
 
     @Test

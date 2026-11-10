@@ -1,5 +1,9 @@
 package com.airdesk.android.workspace
 
+import com.airdesk.android.display.AndroidCodecSelection
+import com.airdesk.android.display.AndroidDisplayCaptureState
+import com.airdesk.android.display.AndroidDisplayStreamMetrics
+import com.airdesk.android.display.AndroidVideoCodec
 import java.util.UUID
 
 enum class DisplaySessionPhase(val wire: String) {
@@ -22,6 +26,19 @@ data class DisplaySessionHandshake(
     val workspace: String,
 )
 
+data class DisplayStreamSnapshot(
+    val state: AndroidDisplayCaptureState,
+    val codec: AndroidVideoCodec,
+    val codecName: String,
+    val hardwareAccelerated: Boolean,
+    val fallback: Boolean,
+    val softwareFallback: Boolean,
+    val width: Int,
+    val height: Int,
+    val metrics: AndroidDisplayStreamMetrics,
+    val lastError: String?,
+)
+
 data class DisplaySessionSnapshot(
     val sessionId: String,
     val generation: Long,
@@ -33,6 +50,7 @@ data class DisplaySessionSnapshot(
     val terminalStatus: String?,
     val lastBridgeRejection: String?,
     val updatedAtEpochMillis: Long,
+    val displayStream: DisplayStreamSnapshot? = null,
 )
 
 class DisplaySessionController(
@@ -56,6 +74,7 @@ class DisplaySessionController(
     private var lastError: String? = null
     private var terminalStatus: String? = null
     private var lastBridgeRejection: String? = null
+    private var displayStream: DisplayStreamSnapshot? = null
     private var updatedAtEpochMillis = now()
 
     val currentGeneration: Long
@@ -135,6 +154,63 @@ class DisplaySessionController(
         publish()
     }
 
+    fun markDisplayStarting(
+        selection: AndroidCodecSelection,
+        width: Int,
+        height: Int,
+    ) {
+        if (!validDimension(width) || !validDimension(height)) return
+        displayStream = DisplayStreamSnapshot(
+            state = AndroidDisplayCaptureState.STARTING,
+            codec = selection.codec,
+            codecName = clean(selection.codecName, 160),
+            hardwareAccelerated = selection.hardwareAccelerated,
+            fallback = selection.fallback,
+            softwareFallback = selection.softwareFallback,
+            width = width,
+            height = height,
+            metrics = AndroidDisplayStreamMetrics(),
+            lastError = null,
+        )
+        publish()
+    }
+
+    fun markDisplayRunning() {
+        val current = displayStream ?: return
+        displayStream = current.copy(
+            state = AndroidDisplayCaptureState.RUNNING,
+            lastError = null,
+        )
+        publish()
+    }
+
+    fun updateDisplayMetrics(metrics: AndroidDisplayStreamMetrics) {
+        val current = displayStream ?: return
+        if (current.metrics == metrics) return
+        displayStream = current.copy(metrics = metrics)
+        publish()
+    }
+
+    fun markDisplayStopped() {
+        val current = displayStream ?: return
+        if (current.state == AndroidDisplayCaptureState.STOPPED ||
+            current.state == AndroidDisplayCaptureState.FAILED
+        ) {
+            return
+        }
+        displayStream = current.copy(state = AndroidDisplayCaptureState.STOPPED)
+        publish()
+    }
+
+    fun markDisplayFailed(message: String) {
+        val current = displayStream ?: return
+        displayStream = current.copy(
+            state = AndroidDisplayCaptureState.FAILED,
+            lastError = clean(message, 240).ifBlank { "Display stream failed" },
+        )
+        publish()
+    }
+
     fun markStopped() {
         phase = DisplaySessionPhase.STOPPED
         runtimeState = "stopped"
@@ -152,6 +228,7 @@ class DisplaySessionController(
         terminalStatus = terminalStatus,
         lastBridgeRejection = lastBridgeRejection,
         updatedAtEpochMillis = updatedAtEpochMillis,
+        displayStream = displayStream,
     )
 
     private fun publish() {

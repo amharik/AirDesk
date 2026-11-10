@@ -182,7 +182,7 @@ Compatibility rules:
 | P2-05 | Android agent contract and canonical URIs | `android/.../agent/DeviceAgent.kt`, `capabilities/**`, `protocol/AdfpCapabilityMapper.kt` | Canonical `airdesk://fs/documents/read` plus `write`; camera authorization aligned with ADR-012; tests | P2-01 | Verified, committed |
 | P2-06 | Android precision input controller | `AndroidTrackpadSurface.kt`, `AndroidInputRouter.kt`, `InputLease*` equivalents; tests | 120 Hz local cursor path; packed movement; no stuck input; multi-controller arbitration | P2-01, P4-01 | Pending |
 | P2-07 | Android workspace/terminal bridge | `AndroidWorkspaceHost.kt`, `AndroidDesktopBridge.kt`, `DisplaySessionController.kt`; tests | Bundled DesktopShell drives workspace host and terminal bridge; reconnect preserves identity; truthful diagnostics | P1-05, P2-01 | Verified, committed |
-| P2-08 | Android MediaProjection/MediaCodec stream | `AndroidMediaCodecStream.kt`, `DisplaySessionController.kt`; tests | Registered display pipeline; hardware codec capability detection; fallback and typed failure; physical qualification separate | P2-07 | Pending |
+| P2-08 | Android MediaProjection/MediaCodec stream | `AndroidMediaCodecStream.kt`, `DisplaySessionController.kt`; tests | Registered display pipeline; hardware codec capability detection; fallback and typed failure; physical qualification separate | P2-07 | Verified, committed |
 | P2-09 | Android persistent SSH service | `AndroidSSHService.kt`, `RemoteSSH*`; tests | Foreground service; reattach and second-device handoff use same protocol as iOS; process survival tested remotely | P1-07 | Pending |
 | P2-10 | WIT host ABI 0.2 | `protocol/abi/wit/airdesk-host-abi.wit`, `protocol/abi/README.md`, `protocol/abi/check.sh` | `vfs-service`, `pty-service`, `display-sink`, typed errors, lease revalidation, 256 KiB PTY credits, no display frame submission | P2-01 | Pending |
 | P2-11 | WIT 0.3 evaluation and conformance | `protocol/abi/wit/airdesk-host-abi-0_3.wit`, `protocol/abi/conformance/**` | Separate 0.3 world using `stream<T>`/`future<T>`; no mixed worlds; conformance harness runs where tooling exists | P2-10 | Research |
@@ -371,6 +371,17 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - No physical-device WebView interaction, terminal process survival or Android MediaProjection/MediaCodec behavior is claimed. `DisplaySessionController` is the handoff point for P2-08.
 - iOS, Web, Rust and protocol schema/generated bindings were unchanged by P2-07; their last full gates remain green, including the iOS 505-test run at `93550ff`.
 
+### P2-08 verification evidence
+
+- `AndroidVideoCapabilities` inspects `MediaCodecList.REGULAR_CODECS` encoders that advertise `COLOR_FormatSurface`, separates hardware from software encoders, and records the exact codec name. AV1 remains detectable but is never selected.
+- `AndroidCodecSelector` prefers hardware HEVC, falls back to hardware H.264 when HEVC is unavailable, and can use software fallback only when explicitly enabled. An H.264 preference is not silently upgraded to HEVC, and unsupported requests fail with `CODEC_UNSUPPORTED`.
+- `AndroidMediaCodecStream` configures a surface-input MediaCodec, registers a `MediaProjection.Callback`, creates an auto-mirror `VirtualDisplay`, and drains asynchronous encoder output into owned frame bytes with codec configuration. Frames carry sequence, timestamp, dimensions, codec, keyframe state and byte payload; metrics count encoded frames, keyframes and bytes.
+- Configuration and capture dimensions are validated before the pipeline starts. Typed `AndroidDisplayException` codes cover invalid configuration/size, already-running state, unsupported codec, encoder creation/configuration/failure, unavailable or stopped projection, and virtual-display failure. Stop and failure release the virtual display, projection callback, input surface, codec and encoder thread.
+- `DisplaySessionController` now registers display starting/running/metrics/stopped/failed snapshots alongside the desktop session. Display failures are retained when a later stop arrives, and the Presentation tab renders the selected codec, hardware/software and fallback state, dimensions, encoded frames and display error.
+- Android: `testDebugUnitTest` passed; 149 tests, 0 failures, including 10 `AndroidMediaCodecStreamTest` and 11 `DisplaySessionControllerTest` cases, then `lintDebug assembleDebug` passed.
+- MediaProjection consent UI, a persistent foreground capture service, physical codec behavior, zero-copy, glass-to-glass latency and hardware qualification are not claimed by P2-08.
+- iOS, Web, Rust and protocol schema/generated bindings were unchanged by P2-08; their last full gates remain green, including the iOS 505-test run at `93550ff`.
+
 ### P5-01 verification evidence
 
 - ADR-025 selects in-app ReplayKit `RPScreenRecorder` capture of AirDesk-owned workspace surfaces as the first iOS host-capture path; capture, encoder ownership, capability checks and transport stay in one process and authority boundary.
@@ -435,9 +446,9 @@ These are not code-level tasks and must not be marked done from simulator or loo
 
 ## 10. Immediate next sprint
 
-1. P2-08: add the Android MediaProjection/MediaCodec display pipeline on top of `DisplaySessionController`, with typed fallback and hardware capability detection.
+1. P2-09: add the persistent Android SSH foreground service on the P1-07 capability-scoped terminal path, with reattach and second-device handoff using the same protocol as iOS.
 2. P2-04 remains blocked on P1-02 for signing-key/issuer evidence; do not claim remote invocation enforcement yet.
-3. P2-09 remains the owner of the persistent Android SSH backend; P2-07 only completes the terminal bridge transport.
+3. P2-06 remains blocked on P4-01 for the one-euro pointer filter dependency.
 4. P5-03 is code-level only until transport/UI wiring and physical-display qualification exist; do not claim glass-to-glass latency.
 5. Keep `milestones.md` unchanged until a task actually passes its gate.
 

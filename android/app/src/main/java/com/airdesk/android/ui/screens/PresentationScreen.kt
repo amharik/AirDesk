@@ -79,6 +79,14 @@ fun PresentationScreen(viewModel: AppViewModel) {
         }
     }
 
+    val displaySummary = snapshot.displayStream?.let { stream ->
+        "${stream.state.wire} · ${stream.codec.wire} " +
+            (if (stream.hardwareAccelerated) "hardware" else "software") +
+            (if (stream.fallback) " fallback" else "") +
+            " · ${stream.width}×${stream.height} · " +
+            "${stream.metrics.encodedFrames} frames"
+    } ?: "idle · no codec"
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -109,6 +117,18 @@ fun PresentationScreen(viewModel: AppViewModel) {
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        Text(
+            "Display $displaySummary",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        snapshot.displayStream?.lastError?.let { error ->
+            Text(
+                "Display error: $error",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
         snapshot.lastError?.let { error ->
             Text(
                 "Desktop error: $error",
