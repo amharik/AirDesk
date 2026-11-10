@@ -2,7 +2,7 @@
 
 - **Status:** Planning only — no implementation commitment and no ADR promotion
 - **Date:** 2026-11-10
-- **Baseline:** `dev` at `8c522eb`, plus the verified P2-02 camera capture pipeline
+- **Baseline:** `dev` at `265bb13`, plus the verified P2-03 document root and resource transfer layer
 - **Input:** User-supplied 100x product / 1000x UX masterplan
 - **Related:** `milestones.md`, `docs/planning/workspace-fabric-plan.md`, `docs/planning/release-roadmap.md`, ADR-001 through ADR-023
 
@@ -177,7 +177,7 @@ Compatibility rules:
 | --- | --- | --- | --- | --- | --- |
 | P2-01 | Cross-platform `DeviceAgent` contract | `AirDesk/Capabilities/DeviceAgent.swift`, `android/.../agent/DeviceAgent.kt`, `web/src/capability/**`; shared fixtures | Identity, capabilities, request/release, subscribe, health and typed lifecycle on all clients; availability and authorization remain independent | P0-06 | Verified, committed |
 | P2-02 | iOS camera capture streaming | `AirDesk/Capture/CameraCaptureSource.swift`, `CameraCaptureStreamController.swift`; tests with mock source | Explicit authorization/lease gate; bounded frames/backpressure; cancel and permission-denied typed; no physical camera required for unit tests | P2-01 | Verified, committed |
-| P2-03 | iOS document roots and file transfer | `AirDesk/Resources/ResourceRoot.swift`, `ResourceTransferService.swift`; tests | App-scoped/user-selected roots; path/symlink confinement; bounded read/write/stat; transfer events; no device-wide access | P2-01 | Pending |
+| P2-03 | iOS document roots and file transfer | `AirDesk/Resources/ResourceRoot.swift`, `ResourceTransferService.swift`; tests | App-scoped/user-selected roots; path/symlink confinement; bounded read/write/stat; transfer events; no device-wide access | P2-01 | Verified, committed |
 | P2-04 | Native capability lease and invocation enforcement | `AirDesk/Capabilities/CapabilityLeaseManager.swift`, `CapabilityAuthorizer.swift`, `CapabilityInvocationService.swift` | Issuance/expiry/revocation; provider/root issuer checks; remote invocation denied without matching lease/`cnf`; audit event | P2-01, P1-02 | Pending |
 | P2-05 | Android agent contract and canonical URIs | `android/.../agent/DeviceAgent.kt`, `capabilities/**`, `protocol/AdfpCapabilityMapper.kt` | Canonical `airdesk://fs/documents/read` plus `write`; camera authorization aligned with ADR-012; tests | P2-01 | Partial |
 | P2-06 | Android precision input controller | `AndroidTrackpadSurface.kt`, `AndroidInputRouter.kt`, `InputLease*` equivalents; tests | 120 Hz local cursor path; packed movement; no stuck input; multi-controller arbitration | P2-01, P4-01 | Pending |
@@ -340,6 +340,17 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - Camera frames remain local BGRA `Data`; encoding, remote transport, UI wiring and physical-camera qualification are not claimed by P2-02.
 - Web, Android, Rust and protocol schema/generated bindings were unchanged by P2-02; their last full gates remain green at `8c522eb`.
 
+### P2-03 verification evidence
+
+- `ResourceRoot` supports app-scoped app Documents roots and explicit user-selected roots, rejects `/` and other non-confined app roots, requires an existing directory, resolves symlinks, and brackets user-selected access with security-scoped resource calls.
+- `ResourceTransferService` confines every operation to a validated root. It rejects absolute paths, `..`, empty segments, NUL bytes, oversized paths/segments and resolved symlink escapes, while allowing symlinks that remain inside the root.
+- `stat`, chunked `read` and `write` are bounded to 64 KiB per operation and a 64 MiB resulting file, validate offsets, require regular files for reads/writes and support append without leaving the root confinement model.
+- Transfer events are bounded to 128 retained entries with monotonic sequence, outcome, path, byte count and offset; denied and failed operations are recorded and `onEvent` receives every event even after retention starts evicting old entries.
+- The app target explicitly compiles the Swift files under `AirDesk/Resources` while continuing to exclude the bundled web desktop assets and other resource-only files.
+- iOS: full `xcodebuild test` passed; 478 tests, 1 skipped, 0 failures, including 10 `ResourceTransferServiceTests`.
+- Device-wide filesystem access, UI document-picker wiring, remote resource RPC/encoding and physical file-provider qualification are not claimed by P2-03.
+- Web, Android, Rust and protocol schema/generated bindings were unchanged by P2-03; their last full gates remain at `8c522eb`.
+
 ### Environment notes
 
 - The local container has no `node`, `npm`, `cargo`, `swift`, `xcodebuild`, `python3`, `perl`, `sqlite3` or `adb`; it is not a verification environment.
@@ -375,8 +386,8 @@ These are not code-level tasks and must not be marked done from simulator or loo
 
 ## 10. Immediate next sprint
 
-1. P2-03: add iOS document roots and bounded file transfer.
-2. P5-01: write the host capture platform decision; do not start with ScreenCaptureKit on the current iOS target.
+1. P5-01: write the host capture platform decision; do not start with ScreenCaptureKit on the current iOS target.
+2. P2-05: align the Android agent with canonical document resource URIs and ADR-012 camera authorization.
 3. P2-04 remains blocked on P1-02 for signing-key/issuer evidence; do not claim remote invocation enforcement yet.
 4. Keep `milestones.md` unchanged until a task actually passes its gate.
 

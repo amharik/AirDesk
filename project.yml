@@ -49,6 +49,8 @@ targets:
         excludes:
           - "Resources/**"
           - "**/*.md"
+      - path: AirDesk/Resources/ResourceRoot.swift
+      - path: AirDesk/Resources/ResourceTransferService.swift
       - path: AirDesk/Resources/DesktopShell
         type: folder
       - path: AirDesk/Resources/Assets.xcassets
