@@ -74,7 +74,7 @@ final class WorkspaceSyncSession {
     let workspaceId: String
     let senderDeviceId: String
 
-    private let key: SymmetricKey
+    private var key: SymmetricKey
     private var hostEpoch: UInt64
     private var nextOutboundSeq: UInt64
     private var lastReceivedSeqBySender: [String: UInt64]
@@ -111,6 +111,8 @@ final class WorkspaceSyncSession {
         )
     }
 
+    var currentKey: SymmetricKey { key }
+
     var pendingCount: Int { outbox.count }
 
     var pendingEnvelopes: [WorkspaceSyncEnvelope] { outbox }
@@ -121,6 +123,11 @@ final class WorkspaceSyncSession {
 
     func revokeSender(_ senderDeviceId: String) {
         revokedSenderDeviceIds.insert(senderDeviceId)
+    }
+
+    func rotate(to newKey: SymmetricKey) {
+        key = newKey
+        outbox.removeAll()
     }
 
     @discardableResult

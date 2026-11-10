@@ -53,6 +53,8 @@ final class AppEnvironment: ObservableObject {
 
     private var workspaceBootstrapper: WorkspaceBootstrapper?
     private(set) var workspaceSyncRuntime: WorkspaceSyncRuntime?
+    private var workspaceBootstrapKey: SymmetricKey?
+    private var pendingKeyGrants: [String: Data] = [:]
     private var bootstrapped = false
     private var cancellables = Set<AnyCancellable>()
     #if DEBUG
@@ -166,12 +168,21 @@ final class AppEnvironment: ObservableObject {
         fabric.onPeerConnected = { [weak self] remoteEndpointID in
             self?.session.fabricPeerDidConnect(remoteEndpointID)
             self?.workspaceSyncRuntime?.peerDidConnect()
+            self?.sendPendingWorkspaceKeyGrant(to: remoteEndpointID)
+            self?.sendPendingWorkspaceKeyRotation(to: remoteEndpointID)
         }
         fabric.onPeerDisconnected = { [weak self] remoteEndpointID in
             self?.session.fabricPeerDidDisconnect(remoteEndpointID)
         }
         fabric.onSyncEnvelope = { [weak self] data in
-            self?.workspaceSyncRuntime?.handleEnvelope(data)
+            guard let self else { return }
+            if (try? WorkspaceSyncKeyRotationCrypto.decode(data)) != nil {
+                self.handleWorkspaceKeyRotation(data)
+            } else if (try? WorkspaceSyncKeyGrantCrypto.decode(data)) != nil {
+                self.handleWorkspaceKeyGrant(data)
+            } else {
+                self.workspaceSyncRuntime?.handleEnvelope(data)
+            }
         }
 
         settings.$fabricEnabled
@@ -363,6 +374,8 @@ final class AppEnvironment: ObservableObject {
         }
         let keyStore = KeychainWorkspaceSyncKeyStore()
         try keyStore.saveKey(key, workspaceId: report.workspaceId)
+        let state = try keyStore.loadState(workspaceId: report.workspaceId)
+        try keyStore.saveState(state, workspaceId: report.workspaceId)
         try installWorkspaceSync(
             key: key,
             bootstrapper: workspaceBootstrapper,
@@ -380,17 +393,73 @@ final class AppEnvironment: ObservableObject {
             reason: "Revoked from Settings"
         )
         try workspaceSyncRuntime?.revokeSender(deviceId)
+        try rotateWorkspaceSyncKey(revoking: deviceId)
         return record
     }
 
-    func activateWorkspaceSync(pairingKeys: PairingKeySchedule.Keys) throws {
+    func activateWorkspaceSync(
+        pairingKeys: PairingKeySchedule.Keys,
+        hostDeviceId: String
+    ) throws {
         guard let report = workspaceRestoreReport else {
             throw WorkspaceSyncControllerError.workspaceMissing
         }
         let key = try WorkspaceSyncCrypto.derivePairingKey(
             secret: pairingKeys.transport.bytes
         )
+        workspaceBootstrapKey = key
         try activateWorkspaceSync(key: key)
+        try workspaceSyncRuntime?.setRotationIssuerDeviceId(hostDeviceId)
+    }
+
+    func activateWorkspaceSyncForHost(
+        pairingKeys: PairingKeySchedule.Keys,
+        remoteEndpointID: String
+    ) throws {
+        guard let workspaceBootstrapper,
+              let report = workspaceRestoreReport else {
+            throw WorkspaceSyncControllerError.workspaceMissing
+        }
+        let bootstrapKey = try WorkspaceSyncCrypto.derivePairingKey(
+            secret: pairingKeys.transport.bytes
+        )
+        let keyStore = KeychainWorkspaceSyncKeyStore()
+        let storedKey = try keyStore.loadKey(workspaceId: report.workspaceId)
+        if let storedKey {
+            if workspaceSyncRuntime == nil {
+                try installWorkspaceSync(
+                    key: storedKey,
+                    bootstrapper: workspaceBootstrapper,
+                    report: report
+                )
+            }
+        } else {
+            try keyStore.saveKey(bootstrapKey, workspaceId: report.workspaceId)
+            let state = try keyStore.loadState(workspaceId: report.workspaceId)
+            try keyStore.saveState(state, workspaceId: report.workspaceId)
+            try installWorkspaceSync(
+                key: bootstrapKey,
+                bootstrapper: workspaceBootstrapper,
+                report: report
+            )
+        }
+        guard let runtime = workspaceSyncRuntime else {
+            throw WorkspaceSyncControllerError.workspaceMissing
+        }
+        try runtime.setRotationIssuerDeviceId(nil)
+        let grant = try WorkspaceSyncKeyGrantCrypto.grant(
+            currentKey: runtime.currentKey,
+            bootstrapKey: bootstrapKey,
+            workspaceId: report.workspaceId,
+            issuerDeviceId: workspaceBootstrapper.host.deviceId,
+            generation: runtime.keyGeneration
+        )
+        let data = try JSONEncoder().encode(grant)
+        if fabric.sendSync(data, to: remoteEndpointID) {
+            try? runtime.markRotationSent(for: remoteEndpointID)
+        } else {
+            pendingKeyGrants[remoteEndpointID] = data
+        }
     }
 
     private func configureWorkspaceSyncIfAvailable(
@@ -416,11 +485,90 @@ final class AppEnvironment: ObservableObject {
             hostEpoch: bootstrapper.host.hostEpoch ?? 1,
             host: bootstrapper.host,
             fabric: fabric,
-            stateURL: bootstrapper.store.syncStateURL
+            stateURL: bootstrapper.store.syncStateURL,
+            keyStore: KeychainWorkspaceSyncKeyStore()
         )
         workspaceSyncRuntime = runtime
         try runtime.publishLocalSnapshot()
         runtime.peerDidConnect()
+    }
+
+    private func rotateWorkspaceSyncKey(revoking deviceId: String) throws {
+        guard let runtime = workspaceSyncRuntime, let deviceRegistry else { return }
+        let endpoints = deviceRegistry.peers
+            .filter { $0.trustState == .trusted && $0.deviceId != deviceId }
+            .compactMap(\.endpointId)
+        _ = try runtime.rotateKey(for: endpoints)
+        try runtime.publishLocalSnapshot()
+        for endpointId in endpoints {
+            sendPendingWorkspaceKeyRotation(to: endpointId)
+        }
+    }
+
+    private func sendPendingWorkspaceKeyGrant(to endpointId: String) {
+        guard let data = pendingKeyGrants[endpointId] else { return }
+        if fabric.sendSync(data, to: endpointId) {
+            pendingKeyGrants.removeValue(forKey: endpointId)
+            try? workspaceSyncRuntime?.markRotationSent(for: endpointId)
+        }
+    }
+
+    private func handleWorkspaceKeyGrant(_ data: Data) {
+        guard let runtime = workspaceSyncRuntime,
+              let bootstrapKey = workspaceBootstrapKey,
+              let issuerDeviceId = runtime.rotationIssuerDeviceId,
+              let deviceRegistry,
+              let message = try? WorkspaceSyncKeyGrantCrypto.decode(data),
+              message.issuerDeviceId == issuerDeviceId,
+              deviceRegistry.isTrusted(deviceId: issuerDeviceId) else {
+            return
+        }
+        do {
+            if try runtime.acceptKeyGrant(
+                message,
+                bootstrapKey: bootstrapKey,
+                expectedIssuerDeviceId: issuerDeviceId
+            ) {
+                try runtime.publishLocalSnapshot()
+            }
+        } catch {
+            // A stale or unauthenticated grant must not disturb the active key.
+        }
+    }
+
+    private func sendPendingWorkspaceKeyRotation(to endpointId: String) {
+        guard let runtime = workspaceSyncRuntime,
+              let deviceRegistry,
+              deviceRegistry.peers.contains(where: {
+                  $0.endpointId == endpointId && $0.trustState == .trusted
+              }),
+              let data = runtime.pendingRotation(for: endpointId) else {
+            return
+        }
+        if fabric.sendSync(data, to: endpointId) {
+            try? runtime.markRotationSent(for: endpointId)
+        }
+    }
+
+    private func handleWorkspaceKeyRotation(_ data: Data) {
+        guard let runtime = workspaceSyncRuntime,
+              let issuerDeviceId = runtime.rotationIssuerDeviceId,
+              let deviceRegistry,
+              let message = try? WorkspaceSyncKeyRotationCrypto.decode(data),
+              message.issuerDeviceId == issuerDeviceId,
+              deviceRegistry.isTrusted(deviceId: issuerDeviceId) else {
+            return
+        }
+        do {
+            if try runtime.acceptRotation(
+                message,
+                expectedIssuerDeviceId: issuerDeviceId
+            ) {
+                try runtime.publishLocalSnapshot()
+            }
+        } catch {
+            // A stale or unauthenticated rotation must not disturb the active key.
+        }
     }
 
     #if DEBUG

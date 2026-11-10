@@ -10,6 +10,7 @@ struct PairedPeerRecord: Codable, Equatable {
     var deviceId: String
     var displayLabel: String
     var publicKeySPKI: Data
+    var endpointId: String?
     var trustState: DeviceTrustState
     var pairedAt: Date
     var revokedAt: Date?
@@ -19,6 +20,7 @@ struct PairedPeerRecord: Codable, Equatable {
         deviceId: String,
         displayLabel: String,
         publicKeySPKI: Data,
+        endpointId: String? = nil,
         trustState: DeviceTrustState = .trusted,
         pairedAt: Date,
         revokedAt: Date? = nil,
@@ -27,6 +29,7 @@ struct PairedPeerRecord: Codable, Equatable {
         self.deviceId = deviceId
         self.displayLabel = displayLabel
         self.publicKeySPKI = publicKeySPKI
+        self.endpointId = endpointId
         self.trustState = trustState
         self.pairedAt = pairedAt
         self.revokedAt = revokedAt
@@ -185,7 +188,11 @@ final class DeviceRegistry {
     }
 
     @discardableResult
-    func trust(deviceId: String, at date: Date = Date()) throws -> PairedPeerRecord {
+    func trust(
+        deviceId: String,
+        at date: Date = Date(),
+        endpointId: String? = nil
+    ) throws -> PairedPeerRecord {
         lock.lock()
         defer { lock.unlock() }
         guard var record = records[deviceId] else {
@@ -200,6 +207,9 @@ final class DeviceRegistry {
         record.pairedAt = date
         record.revokedAt = nil
         record.revocationReason = nil
+        if let endpointId, !endpointId.isEmpty {
+            record.endpointId = endpointId
+        }
         records[deviceId] = record
         try persistUnlocked()
         return record

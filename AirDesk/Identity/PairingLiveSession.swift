@@ -20,6 +20,16 @@ final class AdPairLiveSession: ObservableObject {
     }
 
     let role: Role
+    var isHost: Bool {
+        if case .host = role { return true }
+        return false
+    }
+    var remoteEndpointID: String? {
+        guard let endpointID = peer.remoteEndpointID, !endpointID.isEmpty else {
+            return nil
+        }
+        return endpointID
+    }
     @Published private(set) var state: State = .idle
     @Published private(set) var code: String?
     @Published private(set) var pin: String?
@@ -158,7 +168,11 @@ final class AdPairLiveSession: ObservableObject {
             throw AdPairLiveError.shortAuthenticationStringMismatch
         }
         if let registry, let peerDeviceId {
-            try registry.trust(deviceId: peerDeviceId, at: now())
+            try registry.trust(
+                deviceId: peerDeviceId,
+                at: now(),
+                endpointId: peer.remoteEndpointID
+            )
         }
         state = .completed
         return result.sessionKeys

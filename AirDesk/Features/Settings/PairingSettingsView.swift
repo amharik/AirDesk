@@ -408,7 +408,27 @@ struct PairingSettingsView: View {
         do {
             let keys = try session.confirmShortAuthenticationString(verificationCode)
             do {
-                try environment.activateWorkspaceSync(pairingKeys: keys)
+                if session.isHost {
+                    guard let endpointID = session.remoteEndpointID else {
+                        throw AdPairLiveError.peerUnavailable(
+                            "The paired peer endpoint is unavailable."
+                        )
+                    }
+                    try environment.activateWorkspaceSyncForHost(
+                        pairingKeys: keys,
+                        remoteEndpointID: endpointID
+                    )
+                } else {
+                    guard let hostDeviceId = session.peerDeviceId else {
+                        throw AdPairLiveError.peerUnavailable(
+                            "The paired host identity is unavailable."
+                        )
+                    }
+                    try environment.activateWorkspaceSync(
+                        pairingKeys: keys,
+                        hostDeviceId: hostDeviceId
+                    )
+                }
                 notice = "Pairing verified and workspace sync activated."
             } catch {
                 notice = "Pairing verified. Workspace sync is unavailable: \(error.localizedDescription)"

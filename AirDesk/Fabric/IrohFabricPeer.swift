@@ -211,6 +211,11 @@ final class IrohFabricPeer: ObservableObject {
     }
 
     @discardableResult
+    func sendSync(_ payload: Data, to remoteEndpointID: String) -> Bool {
+        sendReliable(payload, channel: .sync, to: remoteEndpointID)
+    }
+
+    @discardableResult
     func sendPairing(_ payload: Data) -> Bool {
         sendReliable(payload, channel: .pairing, to: pairingRemoteID ?? activeRemoteID)
     }

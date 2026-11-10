@@ -161,7 +161,7 @@ Compatibility rules:
 | ID | Task | Files | Done when | Depends | Status |
 | --- | --- | --- | --- | --- | --- |
 | P1-01 | Production signaling adapter and loopback harness | `web/src/identity/pairing-signaling.ts`, `pairing-webrtc-session.ts`; new signaling transport tests | Host/controller exchange real offer/answer/candidates through an injected transport; closed/malformed/duplicate signals fail typed; no plaintext secret in signaling | P0-01 | Verified, committed |
-| P1-02 | Automatic workspace signing-key distribution | `AirDesk/Sync/WorkspaceSyncKeyStore.swift`, `WorkspaceSyncRuntime.swift`, `AirDesk/Identity/PairingLiveSession.swift`; `web/src/identity/session-keys.ts`, `web/src/sync/**` | After SAS, peers derive/exchange the workspace signing key; revoked peers cannot receive or use it; cross-platform fixture passes | P0-01, P1-01 | Pending |
+| P1-02 | Automatic workspace signing-key distribution | `AirDesk/Sync/WorkspaceSyncKeyStore.swift`, `WorkspaceSyncRuntime.swift`, `AirDesk/Identity/PairingLiveSession.swift`; `web/src/identity/session-keys.ts`, `web/src/sync/**` | After SAS, peers derive/exchange the workspace signing key; revoked peers cannot receive or use it; cross-platform fixture passes | P0-01, P1-01 | Verified, committed |
 | P1-03 | ADFP production envelope codec | `AirDesk/Protocol/ADFPEnvelopeCodec.swift`; `AirDesk/Fabric/IrohFabricInputCodec.swift`, `IrohFabricPeer.swift`; `web/src/protocol/**`; `protocol/rust/src/**`; Android `AdfpFabricSession.kt` | Reliable channels carry validated envelopes; file id/version/size/expiry/correlation/idempotency enforced; golden fixtures match across Swift/TS/Rust/Kotlin | P0-02, P0-06 | Verified, committed |
 | P1-04 | ResourceCompound and blob handle protocol | `protocol/airdesk.fbs`, `protocol/baseline/airdesk_v1.fbs`, `protocol/fixtures/resource-compound/*.json`, `protocol/fixtures/resource-blob/*.json` | Additive schema; compound Walk/Open/Read/Clunk has one-RTT semantics; >64 KiB result can return BLAKE3 handle; all generated bindings and conformance pass | P1-03 | Verified, committed |
 | P1-05 | Remote runtime provider | `AirDesk/Runtime/RemoteRuntimeProvider.swift`, `RuntimeRegistry.swift`, `RuntimeProvider.swift`; `AirDeskTests/RemoteRuntimeProviderTests.swift` | Lifecycle maps create/start/suspend/checkpoint/resume/stop/destroy/status; disconnect preserves observed state; typed transport/authorization errors; not default-enabled | P1-03 | Verified, committed |
@@ -281,6 +281,16 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 | Core FFI smoke | `core.yml` | Rust tests, UniFFI bindings, wasm build, Swift/Kotlin smoke |
 | Transport evidence | Structured run JSON | Required metadata present; no unrecorded result |
 | Capability negative tests | iOS/Android/web | Denied/expired/revoked/busy fail closed |
+
+### P1-02 verification evidence
+
+- After SAS, the host sends the current workspace synchronization key to the newly paired peer as a `workspace-key-grant` v1 message authenticated with the pairing-derived bootstrap key. The controller accepts only a trusted issuer, the matching workspace, a valid 32-byte key and a non-stale generation.
+- Existing trusted peers receive `workspace-key-rotation` v1 messages authenticated under the current workspace key. Revocation rotates the key, clears the local outbox, queues one pending rotation per trusted endpoint and persists the key generation plus pending rotations in Keychain-backed state.
+- The receiver rejects replayed, skipped, wrong-issuer, wrong-workspace and tampered rotations; revoked peers fail AES-GCM authentication after rotation. Replayed grants are idempotent and cannot lower the accepted generation.
+- Cross-platform fixtures `protocol/fixtures/sync/key-grant-v1.json` and `protocol/fixtures/sync/key-rotation-v1.json` reproduce the same nonce and ciphertext in Swift and TypeScript.
+- iOS: full `xcodebuild test` passed; 511 tests, 1 skipped, 0 failures, including 6 `WorkspaceSyncKeyRotationTests`.
+- Web: full `npm run check` passed; 278 tests across 40 files, including 5 `sync-key-rotation.test.ts` cases.
+- Android, Rust and protocol schema/generated bindings were unchanged by P1-02. The distributed key is the workspace synchronization AES-GCM key; capability signing/issuer enforcement remains P2-04. No live multi-device network or hardware qualification is claimed.
 
 ### P1-03 verification evidence
 
@@ -479,7 +489,7 @@ These are not code-level tasks and must not be marked done from simulator or loo
 
 1. P2-09 retains one physical gate: install the debug APK on an Android device, connect to a real SSH server, background the app, verify the foreground service/session survives, then verify reattach and second-device handoff. Do not mark P2-09 `Verified` from JVM tests alone.
 2. P2-10 and the P2-11 static gate are complete: the 0.3 world is separate, uses `stream<T>`/`future<T>`, and the conformance manifest records every runtime as `not-run`. Runtime conformance and lease-enforcement integration remain pending; do not claim runtime qualification from the WIT check alone.
-3. P2-04 remains blocked on P1-02 for signing-key/issuer evidence; do not claim remote invocation enforcement yet.
+3. P1-02 now supplies workspace-key grant/rotation evidence, so P2-04 can proceed; remote invocation enforcement is still pending and must not be claimed.
 4. P2-06 remains blocked on P4-01 for the one-euro pointer filter dependency.
 5. P5-03 is code-level only until transport/UI wiring and physical-display qualification exist; do not claim glass-to-glass latency.
 6. Keep `milestones.md` unchanged until a task actually passes its gate.
