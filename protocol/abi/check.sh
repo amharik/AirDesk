@@ -119,11 +119,28 @@ done
 if [ -f "$WIT_03" ]; then
   sed 's://.*::' "$WIT_03" > "$TMP/main03.wit"
   require_text "$WIT_03" 'package airdesk:host-abi@0.3.0;'
+  require_text "$WIT_03" 'world capability-host-0-3 {'
   if ! grep -Eq 'stream<|future<' "$TMP/main03.wit"; then
     fail "0.3 world does not use stream<T>/future<T>"
   fi
+  require_text "$WIT_03" 'async func'
+  for declaration in \
+    'read-via-stream:' \
+    'write-via-stream:' \
+    'read-stdout:' \
+    'write-stdin:' \
+    'mount-capability:' \
+    'spawn:' \
+    'register-sink:'
+  do
+    require_text "$WIT_03" "$declaration"
+  done
+  if grep -Eqi 'submit|frame|surface|pixel' "$TMP/main03.wit"; then
+    fail "display frame submission or surface payload found in 0.3 host ABI"
+  fi
   reject_text "$TMP/main03.wit" 'wasi:io'
   reject_text "$TMP/main03.wit" 'airdesk:host-abi@0.2.0'
+  reject_text "$TMP/main03.wit" 'capability-host {'
   reject_text "$TMP/main.wit" 'airdesk:host-abi@0.3.0'
 else
   reject_text "$TMP/main.wit" 'airdesk:host-abi@0.3.0'
@@ -138,7 +155,12 @@ if [ "$ACTUAL_WASM_TOOLS" != "$EXPECTED_WASM_TOOLS" ]; then
   fail "wasm-tools $EXPECTED_WASM_TOOLS required, found $ACTUAL_WASM_TOOLS"
 fi
 
-"$WASM_TOOLS" component wit "$WIT_DIR" >/dev/null || fail "WIT package did not resolve"
+# Resolve 0.2 from an isolated package directory so a future 0.3 sibling cannot
+# be merged into the 0.2 world by the resolver.
+mkdir -p "$TMP/wit02"
+cp "$MAIN" "$TMP/wit02/"
+cp -R "$WIT_DIR/deps" "$TMP/wit02/deps"
+"$WASM_TOOLS" component wit "$TMP/wit02" >/dev/null || fail "0.2 WIT package did not resolve"
 if [ -f "$WIT_03" ]; then
   "$WASM_TOOLS" component wit "$WIT_03" >/dev/null || fail "0.3 WIT did not resolve"
 fi

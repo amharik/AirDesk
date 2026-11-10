@@ -64,7 +64,8 @@ runtime records a qualification result for every interface it claims.
 
 - 0.2 is the current WASI 0.2 baseline. It has no component-model `stream<T>` or
   `future<T>` types.
-- WASI 0.3 is a separate world and file (`airdesk-host-abi-0_3.wit`) for P2-11.
+- 0.3 is a separate package and world in `airdesk-host-abi-0_3.wit`. It uses
+  `async func`, `stream<T>` and `future<T>` and does not import `wasi:io`.
   A mixed 0.2/0.3 world, a 0.3 world that imports `wasi:io`, or a silent 0.3 to
   0.2 shim is a qualification failure.
 - The ABI version is independent of ADFP wire versions, runtime versions and
@@ -77,10 +78,15 @@ runtime records a qualification result for every interface it claims.
 ```
 
 The check requires `wasm-tools` 1.263.0 (or set `WASM_TOOLS=/path/to/wasm-tools`).
-It validates the WIT package with `wasm-tools component wit`, verifies the
+It validates the WIT packages with `wasm-tools component wit`, verifies the
 required interfaces and functions, checks the fixed PTY credit values, enforces
 the no-frame-submission rule, verifies the 0.2/0.3 separation and compares the
 frozen fixture at `protocol/fixtures/host-abi/wit-v1.json`.
+
+`./protocol/abi/conformance/check.sh` runs the static gate and validates the
+runtime conformance manifest. No runtime is currently marked qualified; a
+passed result requires an evidence file and an explicit entry in
+`qualifiedRuntimes`.
 
 `protocol/fixtures/host-abi/wit-v1.json` is the P0-06 frozen contract fixture;
 it supersedes the earlier 0.1.0 draft reference. Changes to the fixture or the

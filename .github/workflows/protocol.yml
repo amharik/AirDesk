@@ -38,6 +38,7 @@ jobs:
           tar -xzf /tmp/wasm-tools.tar.gz -C /tmp/wasm-tools --strip-components=1
           echo "WASM_TOOLS=/tmp/wasm-tools/wasm-tools" >> "$GITHUB_ENV"
       - run: ./protocol/abi/check.sh
+      - run: ./protocol/abi/conformance/check.sh
 
   rust:
     runs-on: ubuntu-24.04

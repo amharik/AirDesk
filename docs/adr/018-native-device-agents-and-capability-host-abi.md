@@ -4,7 +4,7 @@
 - **Date:** 2026-11-03
 - **Updated:** 2026-11-03 — peer review: WASI 0.2 Component Model WIT host ABI
 - **Updated:** 2026-11-03 — peer review round 3: cross-runtime is a gate; WASI 0.3 `stream<T>`; `forkpty()` macOS only; no display frame submission
-- **Updated:** 2026-11-10 — WIT package `airdesk:host-abi@0.2.0`, contract fixture and `protocol/abi/check.sh` landed; per-runtime conformance remains pending
+- **Updated:** 2026-11-10 — WIT package `airdesk:host-abi@0.2.0`, contract fixture and `protocol/abi/check.sh` landed; a separate 0.3 package and conformance manifest were added; per-runtime conformance remains pending
 - **Deciders:** Engineering lead, security owner
 - **Scope:** DeviceAgent contract, native adapters, capability descriptors, leases, host ABI, platform permissions
 - **Supersedes:** None

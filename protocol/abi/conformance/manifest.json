@@ -1,0 +1,40 @@
+{
+  "contractVersion": 1,
+  "profile": "airdesk-host-abi-conformance-v1",
+  "baselineAbi": "airdesk:host-abi@0.2.0",
+  "targetAbi": "airdesk:host-abi@0.3.0",
+  "tooling": {
+    "wasmTools": "1.263.0",
+    "staticGate": "protocol/abi/check.sh"
+  },
+  "rules": {
+    "perRuntimeQualification": true,
+    "crossRuntimeEquivalenceAssumed": false,
+    "requiresEvidenceForQualified": true,
+    "mixedWorlds": "rejected"
+  },
+  "qualifiedRuntimes": [],
+  "runtimes": [
+    {
+      "id": "wanix",
+      "claimedInterfaces": ["vfs-service", "pty-service", "display-sink"],
+      "status": "not-run",
+      "evidence": null,
+      "note": "Static WIT exists; no Wanix execution or filesystem/PTY qualification has been run."
+    },
+    {
+      "id": "native-rust",
+      "claimedInterfaces": ["vfs-service", "pty-service", "display-sink"],
+      "status": "not-run",
+      "evidence": null,
+      "note": "Static WIT exists; no Rust host implementation or conformance run is present."
+    },
+    {
+      "id": "native-swift",
+      "claimedInterfaces": ["vfs-service", "pty-service", "display-sink"],
+      "status": "not-run",
+      "evidence": null,
+      "note": "Static WIT exists; no Swift host implementation or conformance run is present."
+    }
+  ]
+}

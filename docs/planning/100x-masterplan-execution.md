@@ -185,7 +185,7 @@ Compatibility rules:
 | P2-08 | Android MediaProjection/MediaCodec stream | `AndroidMediaCodecStream.kt`, `DisplaySessionController.kt`; tests | Registered display pipeline; hardware codec capability detection; fallback and typed failure; physical qualification separate | P2-07 | Verified, committed |
 | P2-09 | Android persistent SSH service | `AndroidSSHService.kt`, `RemoteSSH*`; tests | Foreground service; reattach and second-device handoff use same protocol as iOS; process survival tested remotely | P1-07 | Code complete; physical survival gate pending |
 | P2-10 | WIT host ABI 0.2 | `protocol/abi/wit/airdesk-host-abi.wit`, `protocol/abi/README.md`, `protocol/abi/check.sh` | `vfs-service`, `pty-service`, `display-sink`, typed errors, lease revalidation, 256 KiB PTY credits, no display frame submission | P2-01 | Verified, committed |
-| P2-11 | WIT 0.3 evaluation and conformance | `protocol/abi/wit/airdesk-host-abi-0_3.wit`, `protocol/abi/conformance/**` | Separate 0.3 world using `stream<T>`/`future<T>`; no mixed worlds; conformance harness runs where tooling exists | P2-10 | Research |
+| P2-11 | WIT 0.3 evaluation and conformance | `protocol/abi/wit/airdesk-host-abi-0_3.wit`, `protocol/abi/conformance/**` | Separate 0.3 world using `stream<T>`/`future<T>`; no mixed worlds; conformance harness runs where tooling exists | P2-10 | Static gate complete; runtime conformance pending |
 
 ### Phase 3 — Shared Rust core extraction (20–30 engineer-weeks)
 
@@ -405,6 +405,14 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - `protocol/abi/check.sh` resolved the WIT package with `wasm-tools` 1.263.0, validated required interfaces/functions/error codes, rejected 0.2 `stream<T>`/`future<T>` and any display frame/surface operation, checked the fixed credit values and verified the fixture. The 0.3 branch requires a separate package using `stream<T>`/`future<T>` with no `wasi:io` import.
 - This is a WIT and tooling gate only. No Wanix, Rust or Swift runtime implementation, cross-runtime conformance run, lease-enforcement integration or WASI 0.3 world is claimed; those remain qualification work under ADR-018 and P2-11.
 
+### P2-11 verification evidence
+
+- `protocol/abi/wit/airdesk-host-abi-0_3.wit` is a separate `airdesk:host-abi@0.3.0` package and `capability-host-0-3` world. It uses `async func`, `stream<T>` and `future<T>` for VFS read/write/directory streams and PTY stdin/stdout, with the 0.3 write-direction flip and terminal futures.
+- The 0.3 package has no `wasi:io` import and no reference to the 0.2 package. The 0.2 resolver runs from an isolated package directory so sibling 0.3 files cannot be merged into the 0.2 world; `check.sh` rejects mixed worlds, 0.3 `wasi:io`, and any display frame/surface operation.
+- `protocol/abi/conformance/check.sh` runs the static ABI gate and validates `manifest.json` with Python. It requires per-runtime qualification, forbids assumed cross-runtime equivalence, requires evidence for passed/failed results and requires `qualifiedRuntimes` to exactly match passed runtimes.
+- The manifest records `wanix`, `native-rust` and `native-swift` as `not-run` with no evidence and an empty `qualifiedRuntimes` list. No runtime conformance, execution, lease enforcement or WASI 0.3 world support is claimed.
+- Verified on macOS and Linux with `wasm-tools` 1.263.0: both `protocol/abi/check.sh` and `protocol/abi/conformance/check.sh` passed. CI protocol workflow installs the pinned Linux binary and runs both checks.
+
 ### P5-01 verification evidence
 
 - ADR-025 selects in-app ReplayKit `RPScreenRecorder` capture of AirDesk-owned workspace surfaces as the first iOS host-capture path; capture, encoder ownership, capability checks and transport stay in one process and authority boundary.
@@ -470,7 +478,7 @@ These are not code-level tasks and must not be marked done from simulator or loo
 ## 10. Immediate next sprint
 
 1. P2-09 retains one physical gate: install the debug APK on an Android device, connect to a real SSH server, background the app, verify the foreground service/session survives, then verify reattach and second-device handoff. Do not mark P2-09 `Verified` from JVM tests alone.
-2. P2-10 is complete at the WIT/tooling gate. P2-11 is the next protocol task: a separate 0.3 world using `stream<T>`/`future<T>` and a per-runtime conformance harness; do not claim runtime qualification from the WIT check alone.
+2. P2-10 and the P2-11 static gate are complete: the 0.3 world is separate, uses `stream<T>`/`future<T>`, and the conformance manifest records every runtime as `not-run`. Runtime conformance and lease-enforcement integration remain pending; do not claim runtime qualification from the WIT check alone.
 3. P2-04 remains blocked on P1-02 for signing-key/issuer evidence; do not claim remote invocation enforcement yet.
 4. P2-06 remains blocked on P4-01 for the one-euro pointer filter dependency.
 5. P5-03 is code-level only until transport/UI wiring and physical-display qualification exist; do not claim glass-to-glass latency.
