@@ -6,6 +6,7 @@ final class ApplicationLifecycleController {
 
     private let lock = NSLock()
     private var observedByInstance: [String: ApplicationInstanceStatus] = [:]
+    private var selectionByInstance: [String: RuntimeProviderSelection] = [:]
     private let now: () -> Date
 
     init(
@@ -63,6 +64,9 @@ final class ApplicationLifecycleController {
             placement: instance.placement,
             threading: threading
         )
+        lock.withLock {
+            selectionByInstance[instanceId] = selection
+        }
         let provider = try registry.provider(id: selection.providerId)
 
         let request = RuntimeCreateRequest(
@@ -209,6 +213,12 @@ final class ApplicationLifecycleController {
     func status(for instanceId: String) -> ApplicationInstanceStatus? {
         lock.withLock {
             observedByInstance[instanceId]
+        }
+    }
+
+    func selection(for instanceId: String) -> RuntimeProviderSelection? {
+        lock.withLock {
+            selectionByInstance[instanceId]
         }
     }
 

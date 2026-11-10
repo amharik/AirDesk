@@ -33,6 +33,7 @@ struct RuntimeProviderDescriptor: Equatable, Sendable {
     var id: String
     var displayName: String
     var location: RuntimeLocation
+    var deviceId: String?
     var version: String
     var supportedWorlds: Set<RuntimeWorld>
     var architectures: Set<String>
@@ -46,6 +47,7 @@ struct RuntimeProviderDescriptor: Equatable, Sendable {
         id: String,
         displayName: String,
         location: RuntimeLocation,
+        deviceId: String? = nil,
         version: String,
         supportedWorlds: Set<RuntimeWorld>,
         architectures: Set<String>,
@@ -58,6 +60,7 @@ struct RuntimeProviderDescriptor: Equatable, Sendable {
         self.id = id
         self.displayName = displayName
         self.location = location
+        self.deviceId = deviceId
         self.version = version
         self.supportedWorlds = supportedWorlds
         self.architectures = architectures
@@ -69,10 +72,49 @@ struct RuntimeProviderDescriptor: Equatable, Sendable {
     }
 }
 
+enum RuntimePlacementOutcome: String, Codable, Sendable {
+    case selected
+    case eligible
+    case deviceMismatch = "device-mismatch"
+    case placementMismatch = "placement-mismatch"
+    case unavailable
+    case pinnedWorldMismatch = "pinned-world-mismatch"
+    case unsupportedWorld = "unsupported-world"
+    case unsupportedArchitecture = "unsupported-architecture"
+    case capabilityUnsupported = "capability-unsupported"
+    case quotaUnenforceable = "quota-unenforceable"
+    case synchronizationUnavailable = "synchronization-unavailable"
+}
+
+struct RuntimePlacementDiagnostic: Equatable, Sendable {
+    var providerId: String
+    var deviceId: String?
+    var world: String?
+    var location: RuntimeLocation
+    var outcome: RuntimePlacementOutcome
+    var reason: String
+}
+
 struct RuntimeProviderSelection: Equatable, Sendable {
     var providerId: String
+    var deviceId: String?
     var world: RuntimeWorld
     var rationale: String
+    var diagnostics: [RuntimePlacementDiagnostic]
+
+    init(
+        providerId: String,
+        deviceId: String? = nil,
+        world: RuntimeWorld,
+        rationale: String,
+        diagnostics: [RuntimePlacementDiagnostic] = []
+    ) {
+        self.providerId = providerId
+        self.deviceId = deviceId
+        self.world = world
+        self.rationale = rationale
+        self.diagnostics = diagnostics
+    }
 }
 
 struct RuntimeCreateRequest: Equatable, Sendable {
@@ -100,6 +142,9 @@ enum RuntimeProviderError: Error, Equatable, LocalizedError {
     case unknownProvider(String)
     case noQualifiedProvider(applicationId: String)
     case providerUnavailable(String)
+    case deviceMismatch(deviceId: String)
+    case transportUnavailable(providerId: String)
+    case authorizationDenied(providerId: String)
     case unsupportedWorld(providerId: String, world: RuntimeWorld)
     case unknownWorld(providerId: String, world: String)
     case unsupportedArchitecture(providerId: String, architecture: String)
@@ -123,6 +168,12 @@ enum RuntimeProviderError: Error, Equatable, LocalizedError {
             return "No available runtime provider can place application \(applicationId)."
         case .providerUnavailable(let id):
             return "Runtime provider \(id) is unavailable."
+        case .deviceMismatch(let deviceId):
+            return "No registered runtime provider belongs to device \(deviceId)."
+        case .transportUnavailable(let providerId):
+            return "Runtime provider \(providerId) cannot reach its transport."
+        case .authorizationDenied(let providerId):
+            return "Runtime provider \(providerId) denied authorization."
         case .unsupportedWorld(let providerId, let world):
             return "Runtime provider \(providerId) does not support world \(world.rawValue)."
         case .unknownWorld(let providerId, let world):

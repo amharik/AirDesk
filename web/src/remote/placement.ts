@@ -124,22 +124,28 @@ function rejectionFor(
       reason: `execution ${descriptor.execution} is not local`
     };
   }
-  if (
-    request.placement === 'device' &&
-    (request.deviceId === undefined || descriptor.providerDeviceId !== request.deviceId)
-  ) {
+  if (request.placement === 'device' && request.deviceId === undefined) {
     return {
       code: 'placement-unavailable',
-      reason: `provider is not the requested device ${request.deviceId ?? '(missing)'}`
+      reason: 'device placement requires an explicit deviceId'
     };
   }
-  if (
-    request.placement === 'runtime' &&
-    (request.runtimeId === undefined || descriptor.runtimeId !== request.runtimeId)
-  ) {
+  if (request.deviceId !== undefined && descriptor.providerDeviceId !== request.deviceId) {
     return {
       code: 'placement-unavailable',
-      reason: `provider is not the requested runtime ${request.runtimeId ?? '(missing)'}`
+      reason: `provider device ${descriptor.providerDeviceId} is not the requested device ${request.deviceId}`
+    };
+  }
+  if (request.placement === 'runtime' && request.runtimeId === undefined) {
+    return {
+      code: 'placement-unavailable',
+      reason: 'runtime placement requires an explicit runtimeId'
+    };
+  }
+  if (request.runtimeId !== undefined && descriptor.runtimeId !== request.runtimeId) {
+    return {
+      code: 'placement-unavailable',
+      reason: `provider runtime ${descriptor.runtimeId} is not the requested runtime ${request.runtimeId}`
     };
   }
   if (descriptor.availability === 'busy') {

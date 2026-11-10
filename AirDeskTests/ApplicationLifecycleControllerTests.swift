@@ -147,6 +147,20 @@ final class ApplicationLifecycleControllerTests: XCTestCase {
         XCTAssertEqual(manifest.instances[0].desiredState, .stopped)
     }
 
+    func testStartRecordsPlacementSelectionDiagnostics() async throws {
+        let (lifecycle, _, host) = try makeLifecycle()
+        let application = makeApplication()
+        let instance = makeInstance(desiredState: .stopped)
+        try install(application, instance, in: host)
+
+        _ = try await lifecycle.start(instanceId: instance.id)
+
+        let selection = try XCTUnwrap(lifecycle.selection(for: instance.id))
+        XCTAssertEqual(selection.providerId, "wanix")
+        XCTAssertEqual(selection.diagnostics.first(where: { $0.outcome == .selected })?.providerId, "wanix")
+        XCTAssertTrue(selection.rationale.contains("provider=wanix"))
+    }
+
     func testReconcileReportsProviderStateWithoutRewritingDesiredState() async throws {
         let (lifecycle, _, host) = try makeLifecycle()
         let application = makeApplication()

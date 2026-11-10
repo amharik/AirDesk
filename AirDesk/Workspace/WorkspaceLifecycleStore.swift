@@ -45,13 +45,13 @@ final class WorkspaceLifecycleStore: ObservableObject {
 
     init(
         host: WorkspaceHost,
-        registry: RuntimeRegistry = .standard(),
+        registry: RuntimeRegistry? = nil,
         now: @escaping () -> Date = Date.init
     ) {
         self.host = host
         self.controller = ApplicationLifecycleController(
             host: host,
-            registry: registry,
+            registry: registry ?? RuntimeRegistry.standard(hostDeviceId: host.deviceId),
             now: now
         )
         refresh()

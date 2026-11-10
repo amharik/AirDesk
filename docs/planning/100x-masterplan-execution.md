@@ -1,8 +1,8 @@
 # AirDesk 100x/1000x Masterplan — Execution Breakdown
 
 - **Status:** Planning only — no implementation commitment and no ADR promotion
-- **Date:** 2026-11-09
-- **Baseline:** `dev` at `9499bf6`, plus uncommitted P1 work described below
+- **Date:** 2026-11-10
+- **Baseline:** `dev` at `d2962cd`, plus the verified P1-05/P1-06 working tree
 - **Input:** User-supplied 100x product / 1000x UX masterplan
 - **Related:** `milestones.md`, `docs/planning/workspace-fabric-plan.md`, `docs/planning/release-roadmap.md`, ADR-001 through ADR-023
 
@@ -12,7 +12,7 @@ This document maps the masterplan onto the repository as it actually exists. It 
 
 Do not execute the masterplan as a four-week big-bang Rust rewrite. Execute it as six parallel workstreams with a hard compatibility boundary:
 
-1. Stabilize the uncommitted P1 work and add missing Android CI.
+1. Keep the landed Phase 0 and P1 protocol work green, then close remote runtime and placement gaps.
 2. Close the trust/protocol/remote-execution gaps in Swift, Kotlin, TypeScript and Rust using shared fixtures.
 3. Make the native agent contract and WIT ABI authoritative before adding more platform-specific capability code.
 4. Extract low-risk codecs and state machines into `libairdesk-core` first; move cryptography only after cross-language equivalence is proven.
@@ -53,11 +53,11 @@ The source plan's 16-week schedule is not credible at current staffing. The task
   - `ios.yml`: xcodegen, build-for-testing, AirDeskTests.
   - `desktop-shell.yml`: `npm run check` and SBOM.
   - `debug-release.yml`: Android and iOS debug artifact release.
-  - No Android CI workflow exists.
+  - `android.yml`: Android unit tests, lint and debug assembly.
 
-### 2.2 In-flight uncommitted work
+### 2.2 Landed Phase 0 work
 
-These files were added or modified during the initial P1 implementation attempt and are not verified end to end:
+These files entered the initial Phase 0 implementation and are retained here for provenance. They were verified and landed in `4e348e5`:
 
 - Browser pairing:
   - `web/src/identity/pairing-webrtc-session.ts`
@@ -73,18 +73,18 @@ These files were added or modified during the initial P1 implementation attempt 
 - Namespace partial work:
   - `AirDesk/Namespace/NamespaceImportService.swift`
 
-Phase 0 must either finish, test and commit these changes or revert them. Do not build later milestones on unverified partial files.
+Phase 0 is landed. Later changes must keep the full web, iOS, Android, Rust and protocol gates green.
 
 ### 2.3 Masterplan corrections and gaps
 
 - The product pins `IrohLib` 1.2.0 in `project.yml` and `iroh-android` 1.2.0 in `android/app/build.gradle.kts`. Only `research/iroh-probe/Cargo.toml` uses `iroh = 1.4.1`. Product upgrade is a separate, gated task.
 - `protocol/rust/` currently contains packed/movement codecs, not a shared core or FFI layer.
-- `libghostty-vt`, OSC 133 handling, `renderingPaused`, WebMCP, one-euro filtering, UWB discovery and zero-copy media capture are not present in tracked source. ResourceCompound and BLAKE3 blob handles are now implemented but uncommitted.
+- `libghostty-vt`, OSC 133 handling, `renderingPaused`, WebMCP, one-euro filtering, UWB discovery and zero-copy media capture are not present in tracked source. ResourceCompound and BLAKE3 blob handles are implemented and covered by cross-language fixtures.
 - The current app target is iOS 17.5 with Mac Catalyst disabled. `ScreenCaptureKit` is a macOS API and cannot be used by the current iOS host target. The host strategy must choose ReplayKit/broadcast extension, a separate macOS host target, or an external host process before implementation.
 - ADR-013 is `Proposed`; `XPORT-02` cannot be signed off without measurements.
 - ADR-014 deliberately keeps the browser endpoint loopback-only. Non-loopback browser transport is an architecture decision, not a host-binding change.
 - ADR-018 is still `Proposed`; a WIT package and host ABI do not exist.
-- No Android CI exists, so Android parity claims currently depend on manual remote builds.
+- Android CI exists and is green; parity claims still require hardware qualification and live-network evidence.
 - The web terminal has `readText()` but no OSC 133 command-block model, no `renderingPaused` integration and no WebMCP authorization layer.
 - Native capability descriptors exist, but there is no cross-platform `DeviceAgent` contract, no automatic workspace signing-key distribution and no native lease/invocation enforcement.
 
@@ -131,12 +131,12 @@ Effort is in engineer-weeks and is approximate. Status is `Partial`, `Pending`, 
 
 | ID | Task | Files | Done when | Depends | Status |
 | --- | --- | --- | --- | --- | --- |
-| P0-01 | Verify and land browser WebRTC pairing orchestration | `web/src/identity/pairing-webrtc-session.ts`, `pairing-webrtc.ts`, `index.ts`; `web/test/pairing-webrtc-session.test.ts`, `pairing-webrtc.test.ts`, `pairing-signaling.test.ts` | Full-checkout `npm run check` passes; binding mismatch rejects before SAS; malformed/duplicate/out-of-order signals covered; no live signaling server claimed | — | Verified, uncommitted |
-| P0-02 | Verify or revert Android fabric/ADFP partials | `android/.../fabric/FabricTransport.kt`, `IrohFabricTransportAdapter.kt`, `protocol/AdfpFabricSession.kt`; `android/app/src/test/.../IrohFabricTransportAdapterTest.kt`, `AdfpFabricSessionTest.kt` | Remote `testDebugUnitTest`, `lintDebug`, `assembleDebug` pass; 1 MiB cap and channel routing enforced; pairing path unchanged | P0-04 | Verified, uncommitted |
-| P0-03 | Verify or revert namespace partial | `AirDesk/Namespace/NamespaceImportService.swift`; `AirDeskTests/NamespaceImportServiceTests.swift` | Compiles in AirDeskTests; path/symlink/lease/fid tests pass; not wired into production | — | Verified, uncommitted |
+| P0-01 | Verify and land browser WebRTC pairing orchestration | `web/src/identity/pairing-webrtc-session.ts`, `pairing-webrtc.ts`, `index.ts`; `web/test/pairing-webrtc-session.test.ts`, `pairing-webrtc.test.ts`, `pairing-signaling.test.ts` | Full-checkout `npm run check` passes; binding mismatch rejects before SAS; malformed/duplicate/out-of-order signals covered; no live signaling server claimed | — | Verified, committed |
+| P0-02 | Verify or revert Android fabric/ADFP partials | `android/.../fabric/FabricTransport.kt`, `IrohFabricTransportAdapter.kt`, `protocol/AdfpFabricSession.kt`; `android/app/src/test/.../IrohFabricTransportAdapterTest.kt`, `AdfpFabricSessionTest.kt` | Remote `testDebugUnitTest`, `lintDebug`, `assembleDebug` pass; 1 MiB cap and channel routing enforced; pairing path unchanged | P0-04 | Verified, committed |
+| P0-03 | Verify or revert namespace partial | `AirDesk/Namespace/NamespaceImportService.swift`; `AirDeskTests/NamespaceImportServiceTests.swift` | Compiles in AirDeskTests; path/symlink/lease/fid tests pass; not wired into production | — | Verified, committed |
 | P0-04 | Add Android CI | `.github/workflows/android.yml`, `android/gradle.properties` if needed | JDK 17 + Android SDK 35; `testDebugUnitTest`, `lintDebug`, `assembleDebug` on push/PR paths | — | Verified, first run green |
 | P0-05 | Add shared-core boundary ADR | `docs/adr/024-shared-core-and-ffi-boundary.md`, `docs/adr/README.md` | ADR is `Proposed`; defines what may move into Rust, compatibility fixtures, rollback and ownership | P0-01..03 | Proposed |
-| P0-06 | Freeze Phase 1 contracts | `protocol/fixtures/**`, `docs/planning/100x-masterplan-execution.md`, `milestones.md` | ADFP envelope, remote runtime, DeviceAgent and WIT contracts have named owners and fixture paths | P0-01..05 | Contract paths frozen; ADFP and ResourceCompound/blob fixtures verified, others pending P1-05/P2-01/P2-04 |
+| P0-06 | Freeze Phase 1 contracts | `protocol/fixtures/**`, `docs/planning/100x-masterplan-execution.md`, `milestones.md` | ADFP envelope, remote runtime, DeviceAgent and WIT contracts have named owners and fixture paths | P0-01..05 | Contract paths frozen; ADFP, ResourceCompound/blob and remote runtime provider verified, DeviceAgent/WIT fixtures pending P2-01/P2-04 |
 
 #### Phase 1 contract freeze (P0-06)
 
@@ -162,10 +162,10 @@ Compatibility rules:
 | --- | --- | --- | --- | --- | --- |
 | P1-01 | Production signaling adapter and loopback harness | `web/src/identity/pairing-signaling.ts`, `pairing-webrtc-session.ts`; new signaling transport tests | Host/controller exchange real offer/answer/candidates through an injected transport; closed/malformed/duplicate signals fail typed; no plaintext secret in signaling | P0-01 | Pending |
 | P1-02 | Automatic workspace signing-key distribution | `AirDesk/Sync/WorkspaceSyncKeyStore.swift`, `WorkspaceSyncRuntime.swift`, `AirDesk/Identity/PairingLiveSession.swift`; `web/src/identity/session-keys.ts`, `web/src/sync/**` | After SAS, peers derive/exchange the workspace signing key; revoked peers cannot receive or use it; cross-platform fixture passes | P0-01, P1-01 | Pending |
-| P1-03 | ADFP production envelope codec | `AirDesk/Protocol/ADFPEnvelopeCodec.swift`; `AirDesk/Fabric/IrohFabricInputCodec.swift`, `IrohFabricPeer.swift`; `web/src/protocol/**`; `protocol/rust/src/**`; Android `AdfpFabricSession.kt` | Reliable channels carry validated envelopes; file id/version/size/expiry/correlation/idempotency enforced; golden fixtures match across Swift/TS/Rust/Kotlin | P0-02, P0-06 | Verified, uncommitted |
-| P1-04 | ResourceCompound and blob handle protocol | `protocol/airdesk.fbs`, `protocol/baseline/airdesk_v1.fbs`, `protocol/fixtures/resource-compound/*.json`, `protocol/fixtures/resource-blob/*.json` | Additive schema; compound Walk/Open/Read/Clunk has one-RTT semantics; >64 KiB result can return BLAKE3 handle; all generated bindings and conformance pass | P1-03 | Verified, uncommitted |
-| P1-05 | Remote runtime provider | `AirDesk/Runtime/RemoteRuntimeProvider.swift`, `RuntimeRegistry.swift`, `RuntimeProvider.swift`; `AirDeskTests/RemoteRuntimeProviderTests.swift` | Lifecycle maps create/start/suspend/checkpoint/resume/stop/destroy/status; disconnect preserves observed state; typed transport/authorization errors; not default-enabled | P1-03 | Pending |
-| P1-06 | Placement integration and diagnostics | `AirDesk/Runtime/RuntimeRegistry.swift`, `AirDesk/Workspace/WorkspaceOrchestrator.swift`, `ApplicationLifecycleController.swift`; `web/src/remote/placement.ts` | Deterministic local/device/runtime selection; explicit device filter; typed unavailable/transport/authorization failures; diagnostics explain selection | P1-05 | Pending |
+| P1-03 | ADFP production envelope codec | `AirDesk/Protocol/ADFPEnvelopeCodec.swift`; `AirDesk/Fabric/IrohFabricInputCodec.swift`, `IrohFabricPeer.swift`; `web/src/protocol/**`; `protocol/rust/src/**`; Android `AdfpFabricSession.kt` | Reliable channels carry validated envelopes; file id/version/size/expiry/correlation/idempotency enforced; golden fixtures match across Swift/TS/Rust/Kotlin | P0-02, P0-06 | Verified, committed |
+| P1-04 | ResourceCompound and blob handle protocol | `protocol/airdesk.fbs`, `protocol/baseline/airdesk_v1.fbs`, `protocol/fixtures/resource-compound/*.json`, `protocol/fixtures/resource-blob/*.json` | Additive schema; compound Walk/Open/Read/Clunk has one-RTT semantics; >64 KiB result can return BLAKE3 handle; all generated bindings and conformance pass | P1-03 | Verified, committed |
+| P1-05 | Remote runtime provider | `AirDesk/Runtime/RemoteRuntimeProvider.swift`, `RuntimeRegistry.swift`, `RuntimeProvider.swift`; `AirDeskTests/RemoteRuntimeProviderTests.swift` | Lifecycle maps create/start/suspend/checkpoint/resume/stop/destroy/status; disconnect preserves observed state; typed transport/authorization errors; not default-enabled | P1-03 | Verified, uncommitted |
+| P1-06 | Placement integration and diagnostics | `AirDesk/Runtime/RuntimeRegistry.swift`, `AirDesk/Workspace/WorkspaceOrchestrator.swift`, `ApplicationLifecycleController.swift`; `web/src/remote/placement.ts` | Deterministic local/device/runtime selection; explicit device filter; typed unavailable/transport/authorization failures; diagnostics explain selection | P1-05 | Verified, uncommitted |
 | P1-07 | Capability-scoped remote terminal | `AirDesk/Remote/CapabilityScopedTerminal.swift`, `RemoteTerminalController.swift`, `SessionCoordinator.swift`; `AirDeskTests/CapabilityScopedTerminalTests.swift` | Connect requires matching unexpired lease; denied/revoked/busy are typed and auditable; no capability bypass through terminal profile | P1-03, P1-05 | Pending |
 | P1-08 | Resource RPC and scoped namespace import | `AirDesk/Protocol/ResourceRPCClient.swift`, `ResourceRPCServer.swift`, `AirDesk/Namespace/NamespaceImportService.swift`; `AirDeskTests/ResourceRPCTests.swift`, `NamespaceImportTests.swift` | All opcodes, fid lifecycle, path confinement, symlink escape, size caps and lease denial/revocation covered; no 9P2000 tunneling; chunked transfer for large payloads | P0-03, P1-04 | Pending |
 | P1-09 | Iroh product upgrade spike | `project.yml`, `android/app/build.gradle.kts`, `AirDesk/Fabric/**`, `research/iroh-probe/` | Verify IrohLib/FFI 1.4.x availability; document API gaps; test path migration/roaming and relay diagnostics on loopback before product pin changes | P0-04 | Research |
@@ -301,6 +301,16 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - FlatBuffers struct bug found during Kotlin verification: `Qid` must be created after `start*` and added immediately via `addQid`; creating it before `start*` fails with `struct must be serialized inline`. Fixed in compound result, stat, attach result and open result writers.
 - GitHub Actions: Protocol, Android, DesktopShell and iOS passed for the combined change. iOS failed twice with exit code 65 and passed on rerun of the same tests; the workflow now supports `workflow_dispatch` and annotates filtered failure lines for faster triage. Android's first CI run passed.
 
+### P1-05/P1-06 verification evidence
+
+- iOS: full `xcodebuild test` passed; 447 tests, 1 skipped, 0 failures, including 5 `RemoteRuntimeProviderTests` and lifecycle placement-diagnostic coverage.
+- Web: `npm run check` passed; 269 tests across 38 files, including explicit device/runtime filtering without a placement scope.
+- `RemoteRuntimeProvider` maps create/start/suspend/checkpoint/resume/stop/destroy/status; transport disconnect preserves the last observed state while marking the provider unavailable/open; authorization failures mark the provider restricted/degraded; protocol failures are typed.
+- Remote runtime providers are not registered by `RuntimeRegistry.standard()`. Explicit registration plus explicit device placement is required.
+- `RuntimeRegistry` emits deterministic placement diagnostics with device mismatch, pinned-world, availability, world, architecture, capability, quota and synchronization outcomes. Local providers inherit `hostDeviceId` for explicit device selection.
+- `ApplicationLifecycleController.selection(for:)` retains the latest rationale and diagnostics for each started instance.
+- Android, Rust and protocol assets were unchanged by P1-05/P1-06; their last full gates remain green at `d2962cd`.
+
 ### Environment notes
 
 - The local container has no `node`, `npm`, `cargo`, `swift`, `xcodebuild`, `python3`, `perl`, `sqlite3` or `adb`; it is not a verification environment.
@@ -336,7 +346,7 @@ These are not code-level tasks and must not be marked done from simulator or loo
 
 ## 10. Immediate next sprint
 
-1. P1-05/P1-06: add the remote runtime provider and placement diagnostics behind an explicit registration path.
+1. Review and commit P1-05/P1-06, then start P1-07 capability-scoped remote terminal.
 2. P2-01: write the `DeviceAgent` contract and canonical capability fixture before adding capture or transfer code.
 3. P5-01: write the host capture platform decision; do not start with ScreenCaptureKit on the current iOS target.
 4. Keep `milestones.md` unchanged until a task actually passes its gate.

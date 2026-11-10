@@ -80,6 +80,29 @@ describe('remote capability placement', () => {
     if (runtime.ok) expect(runtime.provider.runtimeId).toBe('runtime-local');
   });
 
+  it('honors explicit device and runtime filters without a placement scope', () => {
+    const descriptors = [
+      provider({ providerDeviceId: 'dev-a', runtimeId: 'runtime-a' }),
+      provider({ providerDeviceId: 'dev-b', runtimeId: 'runtime-b' })
+    ];
+
+    const byDevice = selectProvider(descriptors, request({ deviceId: 'dev-b' }));
+    expect(byDevice.ok).toBe(true);
+    if (byDevice.ok) expect(byDevice.provider.providerDeviceId).toBe('dev-b');
+
+    const byRuntime = selectProvider(descriptors, request({ runtimeId: 'runtime-a' }));
+    expect(byRuntime.ok).toBe(true);
+    if (byRuntime.ok) expect(byRuntime.provider.runtimeId).toBe('runtime-a');
+
+    const conflicting = selectProvider(descriptors, request({ deviceId: 'dev-b', runtimeId: 'runtime-a' }));
+    expect(conflicting.ok).toBe(false);
+    if (conflicting.ok) return;
+    expect(conflicting.code).toBe('placement-unavailable');
+    expect(conflicting.diagnostics.map((entry) => entry.reason).join(' ')).toContain(
+      'requested device dev-b'
+    );
+  });
+
   it('returns typed unauthorized failures for ungranted, denied and revoked providers', () => {
     for (const authorization of ['ungranted', 'denied', 'revoked'] as const) {
       const result = selectProvider([provider({ authorization })], request());
