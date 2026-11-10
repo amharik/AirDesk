@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   attachRtcPairingLink,
+  PairingSignalError,
   sendPairingLinkSignal,
   webSocketPairingSignalTransport,
   type WebSocketTextLike
@@ -50,6 +51,7 @@ describe('pairing signaling transport', () => {
     socket.emit(new Uint8Array([1]));
 
     expect(socket.sent).toEqual([encodePairingLinkSignal(signal)]);
+    expect(Object.keys(JSON.parse(socket.sent[0]!)).sort()).toEqual(['candidate', 'kind']);
     expect(received).toEqual([encodePairingLinkSignal(signal)]);
     detach();
     socket.emit(encodePairingLinkSignal(signal));
@@ -61,7 +63,7 @@ describe('pairing signaling transport', () => {
     socket.readyState = 0;
     expect(() =>
       webSocketPairingSignalTransport(socket).send('{}')
-    ).toThrow('not open');
+    ).toThrowError(PairingSignalError);
 
     const handled: PairingLinkSignal[] = [];
     const errors: unknown[] = [];
@@ -98,7 +100,8 @@ describe('pairing signaling transport', () => {
     };
 
     socket.readyState = 0;
-    expect(() => sendPairingLinkSignal(transport, signal)).toThrow('not open');
+    expect(() => sendPairingLinkSignal(transport, signal)).toThrowError(PairingSignalError);
+    expect(() => sendPairingLinkSignal(transport, signal)).toThrow('not-open');
     socket.readyState = 1;
 
     const handled: PairingLinkSignal[] = [];
@@ -106,7 +109,6 @@ describe('pairing signaling transport', () => {
     const link = {
       handleSignal: vi.fn(async (next: PairingLinkSignal) => {
         handled.push(next);
-        if (handled.length > 1) throw new Error('duplicate signal');
       })
     } as unknown as RtcPairingLink;
     const detach = attachRtcPairingLink(link, transport, (error) => errors.push(error));
@@ -116,9 +118,10 @@ describe('pairing signaling transport', () => {
     socket.emit('{');
     await Promise.resolve();
 
-    expect(handled).toEqual([signal, signal]);
+    expect(handled).toEqual([signal]);
     expect(errors).toHaveLength(2);
-    expect(errors[0]).toBeInstanceOf(Error);
+    expect(errors[0]).toBeInstanceOf(PairingSignalError);
+    expect(errors[0]).toMatchObject({ code: 'duplicate-signal' });
     detach();
   });
 });

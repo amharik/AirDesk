@@ -10,6 +10,18 @@ export interface PairingSignalTransport {
   onSignal(handler: (signal: string) => void): () => void;
 }
 
+export type PairingSignalErrorCode = 'not-open' | 'duplicate-signal';
+
+export class PairingSignalError extends Error {
+  readonly code: PairingSignalErrorCode;
+
+  constructor(code: PairingSignalErrorCode, message: string) {
+    super(`${code}: ${message}`);
+    this.name = 'PairingSignalError';
+    this.code = code;
+  }
+}
+
 interface TextEventTarget {
   addEventListener(type: 'message', listener: (event: { data: unknown }) => void): void;
   removeEventListener(type: 'message', listener: (event: { data: unknown }) => void): void;
@@ -25,7 +37,9 @@ export function webSocketPairingSignalTransport(
 ): PairingSignalTransport {
   return {
     send(signal: string): void {
-      if (socket.readyState !== 1) throw new Error('pairing signaling WebSocket is not open');
+      if (socket.readyState !== 1) {
+        throw new PairingSignalError('not-open', 'pairing signaling WebSocket is not open');
+      }
       socket.send(signal);
     },
     onSignal(handler: (signal: string) => void): () => void {
@@ -50,6 +64,7 @@ export function attachRtcPairingLink(
   transport: PairingSignalTransport,
   onError?: (error: unknown) => void
 ): () => void {
+  const seen = new Set<string>();
   return transport.onSignal((raw) => {
     let signal: PairingLinkSignal;
     try {
@@ -58,6 +73,11 @@ export function attachRtcPairingLink(
       onError?.(error);
       return;
     }
+    if (seen.has(raw)) {
+      onError?.(new PairingSignalError('duplicate-signal', 'pairing signal was already received'));
+      return;
+    }
+    seen.add(raw);
     void link.handleSignal(signal).catch((error) => onError?.(error));
   });
 }
