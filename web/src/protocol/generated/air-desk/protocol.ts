@@ -52,4 +52,6 @@ export { ResourceWstat } from './protocol/resource-wstat.js';
 export { ResourceWstatResult } from './protocol/resource-wstat-result.js';
 export { SenderRole } from './protocol/sender-role.js';
 export { SyncRecord } from './protocol/sync-record.js';
+export { TerminalMessage } from './protocol/terminal-message.js';
+export { TerminalMessageType } from './protocol/terminal-message-type.js';
 export { Viewport } from './protocol/viewport.js';

@@ -1507,12 +1507,116 @@ impl ::flatbuffers::SimpleToVerifyInSlice for MessagePayload {}
 pub struct MessagePayloadUnionTableOffset {}
 
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MIN_FABRIC_PAYLOAD: u8 = 0;
+pub const ENUM_MIN_TERMINAL_MESSAGE_TYPE: u32 = 0;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MAX_FABRIC_PAYLOAD: u8 = 9;
+pub const ENUM_MAX_TERMINAL_MESSAGE_TYPE: u32 = 6;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 #[allow(non_camel_case_types)]
-pub const ENUM_VALUES_FABRIC_PAYLOAD: [FabricPayload; 10] = [
+pub const ENUM_VALUES_TERMINAL_MESSAGE_TYPE: [TerminalMessageType; 7] = [
+  TerminalMessageType::attach,
+  TerminalMessageType::attached,
+  TerminalMessageType::data,
+  TerminalMessageType::resize,
+  TerminalMessageType::detach,
+  TerminalMessageType::exit,
+  TerminalMessageType::error,
+];
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[repr(transparent)]
+pub struct TerminalMessageType(pub u32);
+#[allow(non_upper_case_globals)]
+impl TerminalMessageType {
+  pub const attach: Self = Self(0);
+  pub const attached: Self = Self(1);
+  pub const data: Self = Self(2);
+  pub const resize: Self = Self(3);
+  pub const detach: Self = Self(4);
+  pub const exit: Self = Self(5);
+  pub const error: Self = Self(6);
+
+  pub const ENUM_MIN: u32 = 0;
+  pub const ENUM_MAX: u32 = 6;
+  pub const ENUM_VALUES: &'static [Self] = &[
+    Self::attach,
+    Self::attached,
+    Self::data,
+    Self::resize,
+    Self::detach,
+    Self::exit,
+    Self::error,
+  ];
+  /// Returns the variant's name or "" if unknown.
+  pub fn variant_name(self) -> Option<&'static str> {
+    match self {
+      Self::attach => Some("attach"),
+      Self::attached => Some("attached"),
+      Self::data => Some("data"),
+      Self::resize => Some("resize"),
+      Self::detach => Some("detach"),
+      Self::exit => Some("exit"),
+      Self::error => Some("error"),
+      _ => None,
+    }
+  }
+}
+impl ::core::fmt::Debug for TerminalMessageType {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+    if let Some(name) = self.variant_name() {
+      f.write_str(name)
+    } else {
+      f.write_fmt(format_args!("<UNKNOWN {:?}>", self.0))
+    }
+  }
+}
+impl<'a> ::flatbuffers::Follow<'a> for TerminalMessageType {
+  type Inner = Self;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    let b = unsafe { ::flatbuffers::read_scalar_at::<u32>(buf, loc) };
+    Self(b)
+  }
+}
+
+impl ::flatbuffers::Push for TerminalMessageType {
+    type Output = TerminalMessageType;
+    #[inline]
+    unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
+        unsafe { ::flatbuffers::emplace_scalar::<u32>(dst, self.0) };
+    }
+}
+
+impl ::flatbuffers::EndianScalar for TerminalMessageType {
+  type Scalar = u32;
+  #[inline]
+  fn to_little_endian(self) -> u32 {
+    self.0.to_le()
+  }
+  #[inline]
+  #[allow(clippy::wrong_self_convention)]
+  fn from_little_endian(v: u32) -> Self {
+    let b = u32::from_le(v);
+    Self(b)
+  }
+}
+
+impl<'a> ::flatbuffers::Verifiable for TerminalMessageType {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    u32::run_verifier(v, pos)
+  }
+}
+
+impl ::flatbuffers::SimpleToVerifyInSlice for TerminalMessageType {}
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+pub const ENUM_MIN_FABRIC_PAYLOAD: u8 = 0;
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+pub const ENUM_MAX_FABRIC_PAYLOAD: u8 = 10;
+#[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
+#[allow(non_camel_case_types)]
+pub const ENUM_VALUES_FABRIC_PAYLOAD: [FabricPayload; 11] = [
   FabricPayload::NONE,
   FabricPayload::DeviceIdentity,
   FabricPayload::PairingOffer,
@@ -1523,6 +1627,7 @@ pub const ENUM_VALUES_FABRIC_PAYLOAD: [FabricPayload; 10] = [
   FabricPayload::SyncRecord,
   FabricPayload::GroupMember,
   FabricPayload::ResourceRpc,
+  FabricPayload::TerminalMessage,
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -1540,9 +1645,10 @@ impl FabricPayload {
   pub const SyncRecord: Self = Self(7);
   pub const GroupMember: Self = Self(8);
   pub const ResourceRpc: Self = Self(9);
+  pub const TerminalMessage: Self = Self(10);
 
   pub const ENUM_MIN: u8 = 0;
-  pub const ENUM_MAX: u8 = 9;
+  pub const ENUM_MAX: u8 = 10;
   pub const ENUM_VALUES: &'static [Self] = &[
     Self::NONE,
     Self::DeviceIdentity,
@@ -1554,6 +1660,7 @@ impl FabricPayload {
     Self::SyncRecord,
     Self::GroupMember,
     Self::ResourceRpc,
+    Self::TerminalMessage,
   ];
   /// Returns the variant's name or "" if unknown.
   pub fn variant_name(self) -> Option<&'static str> {
@@ -1568,6 +1675,7 @@ impl FabricPayload {
       Self::SyncRecord => Some("SyncRecord"),
       Self::GroupMember => Some("GroupMember"),
       Self::ResourceRpc => Some("ResourceRpc"),
+      Self::TerminalMessage => Some("TerminalMessage"),
       _ => None,
     }
   }
@@ -7585,6 +7693,324 @@ impl ::core::fmt::Debug for ResourceRpc<'_> {
       ds.finish()
   }
 }
+pub enum TerminalMessageOffset {}
+#[derive(Copy, Clone, PartialEq)]
+
+pub struct TerminalMessage<'a> {
+  pub _tab: ::flatbuffers::Table<'a>,
+}
+
+impl<'a> ::flatbuffers::Follow<'a> for TerminalMessage<'a> {
+  type Inner = TerminalMessage<'a>;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }
+  }
+}
+
+impl<'a> TerminalMessage<'a> {
+  pub const VT_VERSION: ::flatbuffers::VOffsetT = 4;
+  pub const VT_TYPE_: ::flatbuffers::VOffsetT = 6;
+  pub const VT_SESSION_ID: ::flatbuffers::VOffsetT = 8;
+  pub const VT_CLIENT_ID: ::flatbuffers::VOffsetT = 10;
+  pub const VT_LEASE: ::flatbuffers::VOffsetT = 12;
+  pub const VT_SEQUENCE: ::flatbuffers::VOffsetT = 14;
+  pub const VT_REPLAY_FROM_SEQUENCE: ::flatbuffers::VOffsetT = 16;
+  pub const VT_OLDEST_SEQUENCE: ::flatbuffers::VOffsetT = 18;
+  pub const VT_DATA: ::flatbuffers::VOffsetT = 20;
+  pub const VT_COLUMNS: ::flatbuffers::VOffsetT = 22;
+  pub const VT_ROWS: ::flatbuffers::VOffsetT = 24;
+  pub const VT_EXIT_CODE: ::flatbuffers::VOffsetT = 26;
+  pub const VT_MESSAGE: ::flatbuffers::VOffsetT = 28;
+  pub const VT_TRUNCATED: ::flatbuffers::VOffsetT = 30;
+
+  #[inline]
+  pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
+    TerminalMessage { _tab: table }
+  }
+  #[allow(unused_mut)]
+  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
+    _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
+    args: &'args TerminalMessageArgs<'args>
+  ) -> ::flatbuffers::WIPOffset<TerminalMessage<'bldr>> {
+    let mut builder = TerminalMessageBuilder::new(_fbb);
+    builder.add_oldest_sequence(args.oldest_sequence);
+    builder.add_replay_from_sequence(args.replay_from_sequence);
+    builder.add_sequence(args.sequence);
+    if let Some(x) = args.message { builder.add_message(x); }
+    builder.add_exit_code(args.exit_code);
+    builder.add_rows(args.rows);
+    builder.add_columns(args.columns);
+    if let Some(x) = args.data { builder.add_data(x); }
+    if let Some(x) = args.lease { builder.add_lease(x); }
+    if let Some(x) = args.client_id { builder.add_client_id(x); }
+    if let Some(x) = args.session_id { builder.add_session_id(x); }
+    builder.add_type_(args.type_);
+    builder.add_version(args.version);
+    builder.add_truncated(args.truncated);
+    builder.finish()
+  }
+
+
+  #[inline]
+  pub fn version(&self) -> u32 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u32>(TerminalMessage::VT_VERSION, Some(1)).unwrap()}
+  }
+  #[inline]
+  pub fn type_(&self) -> TerminalMessageType {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<TerminalMessageType>(TerminalMessage::VT_TYPE_, Some(TerminalMessageType::attach)).unwrap()}
+  }
+  #[inline]
+  pub fn session_id(&self) -> &'a str {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(TerminalMessage::VT_SESSION_ID, None).unwrap()}
+  }
+  #[inline]
+  pub fn client_id(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(TerminalMessage::VT_CLIENT_ID, None)}
+  }
+  #[inline]
+  pub fn lease(&self) -> Option<CapabilityLease<'a>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<CapabilityLease>>(TerminalMessage::VT_LEASE, None)}
+  }
+  #[inline]
+  pub fn sequence(&self) -> u64 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u64>(TerminalMessage::VT_SEQUENCE, Some(0)).unwrap()}
+  }
+  #[inline]
+  pub fn replay_from_sequence(&self) -> u64 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u64>(TerminalMessage::VT_REPLAY_FROM_SEQUENCE, Some(0)).unwrap()}
+  }
+  #[inline]
+  pub fn oldest_sequence(&self) -> u64 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u64>(TerminalMessage::VT_OLDEST_SEQUENCE, Some(0)).unwrap()}
+  }
+  #[inline]
+  pub fn data(&self) -> Option<::flatbuffers::Vector<'a, u8>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'a, u8>>>(TerminalMessage::VT_DATA, None)}
+  }
+  #[inline]
+  pub fn columns(&self) -> u32 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u32>(TerminalMessage::VT_COLUMNS, Some(80)).unwrap()}
+  }
+  #[inline]
+  pub fn rows(&self) -> u32 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u32>(TerminalMessage::VT_ROWS, Some(24)).unwrap()}
+  }
+  #[inline]
+  pub fn exit_code(&self) -> i32 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<i32>(TerminalMessage::VT_EXIT_CODE, Some(0)).unwrap()}
+  }
+  #[inline]
+  pub fn message(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(TerminalMessage::VT_MESSAGE, None)}
+  }
+  #[inline]
+  pub fn truncated(&self) -> bool {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<bool>(TerminalMessage::VT_TRUNCATED, Some(false)).unwrap()}
+  }
+}
+
+impl ::flatbuffers::Verifiable for TerminalMessage<'_> {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    v.visit_table(pos)?
+     .visit_field::<u32>("version", Self::VT_VERSION, false)?
+     .visit_field::<TerminalMessageType>("type_", Self::VT_TYPE_, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("session_id", Self::VT_SESSION_ID, true)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("client_id", Self::VT_CLIENT_ID, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<CapabilityLease>>("lease", Self::VT_LEASE, false)?
+     .visit_field::<u64>("sequence", Self::VT_SEQUENCE, false)?
+     .visit_field::<u64>("replay_from_sequence", Self::VT_REPLAY_FROM_SEQUENCE, false)?
+     .visit_field::<u64>("oldest_sequence", Self::VT_OLDEST_SEQUENCE, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<::flatbuffers::Vector<'_, u8>>>("data", Self::VT_DATA, false)?
+     .visit_field::<u32>("columns", Self::VT_COLUMNS, false)?
+     .visit_field::<u32>("rows", Self::VT_ROWS, false)?
+     .visit_field::<i32>("exit_code", Self::VT_EXIT_CODE, false)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("message", Self::VT_MESSAGE, false)?
+     .visit_field::<bool>("truncated", Self::VT_TRUNCATED, false)?
+     .finish();
+    Ok(())
+  }
+}
+pub struct TerminalMessageArgs<'a> {
+    pub version: u32,
+    pub type_: TerminalMessageType,
+    pub session_id: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub client_id: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub lease: Option<::flatbuffers::WIPOffset<CapabilityLease<'a>>>,
+    pub sequence: u64,
+    pub replay_from_sequence: u64,
+    pub oldest_sequence: u64,
+    pub data: Option<::flatbuffers::WIPOffset<::flatbuffers::Vector<'a, u8>>>,
+    pub columns: u32,
+    pub rows: u32,
+    pub exit_code: i32,
+    pub message: Option<::flatbuffers::WIPOffset<&'a str>>,
+    pub truncated: bool,
+}
+impl<'a> Default for TerminalMessageArgs<'a> {
+  #[inline]
+  fn default() -> Self {
+    TerminalMessageArgs {
+      version: 1,
+      type_: TerminalMessageType::attach,
+      session_id: None, // required field
+      client_id: None,
+      lease: None,
+      sequence: 0,
+      replay_from_sequence: 0,
+      oldest_sequence: 0,
+      data: None,
+      columns: 80,
+      rows: 24,
+      exit_code: 0,
+      message: None,
+      truncated: false,
+    }
+  }
+}
+
+pub struct TerminalMessageBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
+  fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
+  start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
+}
+impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> TerminalMessageBuilder<'a, 'b, A> {
+  #[inline]
+  pub fn add_version(&mut self, version: u32) {
+    self.fbb_.push_slot::<u32>(TerminalMessage::VT_VERSION, version, 1);
+  }
+  #[inline]
+  pub fn add_type_(&mut self, type_: TerminalMessageType) {
+    self.fbb_.push_slot::<TerminalMessageType>(TerminalMessage::VT_TYPE_, type_, TerminalMessageType::attach);
+  }
+  #[inline]
+  pub fn add_session_id(&mut self, session_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(TerminalMessage::VT_SESSION_ID, session_id);
+  }
+  #[inline]
+  pub fn add_client_id(&mut self, client_id: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(TerminalMessage::VT_CLIENT_ID, client_id);
+  }
+  #[inline]
+  pub fn add_lease(&mut self, lease: ::flatbuffers::WIPOffset<CapabilityLease<'b >>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<CapabilityLease>>(TerminalMessage::VT_LEASE, lease);
+  }
+  #[inline]
+  pub fn add_sequence(&mut self, sequence: u64) {
+    self.fbb_.push_slot::<u64>(TerminalMessage::VT_SEQUENCE, sequence, 0);
+  }
+  #[inline]
+  pub fn add_replay_from_sequence(&mut self, replay_from_sequence: u64) {
+    self.fbb_.push_slot::<u64>(TerminalMessage::VT_REPLAY_FROM_SEQUENCE, replay_from_sequence, 0);
+  }
+  #[inline]
+  pub fn add_oldest_sequence(&mut self, oldest_sequence: u64) {
+    self.fbb_.push_slot::<u64>(TerminalMessage::VT_OLDEST_SEQUENCE, oldest_sequence, 0);
+  }
+  #[inline]
+  pub fn add_data(&mut self, data: ::flatbuffers::WIPOffset<::flatbuffers::Vector<'b , u8>>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(TerminalMessage::VT_DATA, data);
+  }
+  #[inline]
+  pub fn add_columns(&mut self, columns: u32) {
+    self.fbb_.push_slot::<u32>(TerminalMessage::VT_COLUMNS, columns, 80);
+  }
+  #[inline]
+  pub fn add_rows(&mut self, rows: u32) {
+    self.fbb_.push_slot::<u32>(TerminalMessage::VT_ROWS, rows, 24);
+  }
+  #[inline]
+  pub fn add_exit_code(&mut self, exit_code: i32) {
+    self.fbb_.push_slot::<i32>(TerminalMessage::VT_EXIT_CODE, exit_code, 0);
+  }
+  #[inline]
+  pub fn add_message(&mut self, message: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(TerminalMessage::VT_MESSAGE, message);
+  }
+  #[inline]
+  pub fn add_truncated(&mut self, truncated: bool) {
+    self.fbb_.push_slot::<bool>(TerminalMessage::VT_TRUNCATED, truncated, false);
+  }
+  #[inline]
+  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> TerminalMessageBuilder<'a, 'b, A> {
+    let start = _fbb.start_table();
+    TerminalMessageBuilder {
+      fbb_: _fbb,
+      start_: start,
+    }
+  }
+  #[inline]
+  pub fn finish(self) -> ::flatbuffers::WIPOffset<TerminalMessage<'a>> {
+    let o = self.fbb_.end_table(self.start_);
+    self.fbb_.required(o, TerminalMessage::VT_SESSION_ID,"session_id");
+    ::flatbuffers::WIPOffset::new(o.value())
+  }
+}
+
+impl ::core::fmt::Debug for TerminalMessage<'_> {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+    let mut ds = f.debug_struct("TerminalMessage");
+      ds.field("version", &self.version());
+      ds.field("type_", &self.type_());
+      ds.field("session_id", &self.session_id());
+      ds.field("client_id", &self.client_id());
+      ds.field("lease", &self.lease());
+      ds.field("sequence", &self.sequence());
+      ds.field("replay_from_sequence", &self.replay_from_sequence());
+      ds.field("oldest_sequence", &self.oldest_sequence());
+      ds.field("data", &self.data());
+      ds.field("columns", &self.columns());
+      ds.field("rows", &self.rows());
+      ds.field("exit_code", &self.exit_code());
+      ds.field("message", &self.message());
+      ds.field("truncated", &self.truncated());
+      ds.finish()
+  }
+}
 pub enum EnvelopeOffset {}
 #[derive(Copy, Clone, PartialEq)]
 
@@ -7835,6 +8261,21 @@ impl<'a> Envelope<'a> {
     }
   }
 
+  #[inline]
+  #[allow(non_snake_case)]
+  pub fn fabric_payload_as_terminal_message(&self) -> Option<TerminalMessage<'a>> {
+    if self.fabric_payload_type() == FabricPayload::TerminalMessage {
+      self.fabric_payload().map(|t| {
+       // Safety:
+       // Created from a valid Table for this object
+       // Which contains a valid union in this slot
+       unsafe { TerminalMessage::init_from_table(t) }
+     })
+    } else {
+      None
+    }
+  }
+
 }
 
 impl ::flatbuffers::Verifiable for Envelope<'_> {
@@ -7863,6 +8304,7 @@ impl ::flatbuffers::Verifiable for Envelope<'_> {
           FabricPayload::SyncRecord => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<SyncRecord>>("FabricPayload::SyncRecord", pos),
           FabricPayload::GroupMember => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<GroupMember>>("FabricPayload::GroupMember", pos),
           FabricPayload::ResourceRpc => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<ResourceRpc>>("FabricPayload::ResourceRpc", pos),
+          FabricPayload::TerminalMessage => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<TerminalMessage>>("FabricPayload::TerminalMessage", pos),
           _ => Ok(()),
         }
      })?
@@ -8022,6 +8464,13 @@ impl ::core::fmt::Debug for Envelope<'_> {
         },
         FabricPayload::ResourceRpc => {
           if let Some(x) = self.fabric_payload_as_resource_rpc() {
+            ds.field("fabric_payload", &x)
+          } else {
+            ds.field("fabric_payload", &"InvalidFlatbuffer: Union discriminant does not match value.")
+          }
+        },
+        FabricPayload::TerminalMessage => {
+          if let Some(x) = self.fabric_payload_as_terminal_message() {
             ds.field("fabric_payload", &x)
           } else {
             ds.field("fabric_payload", &"InvalidFlatbuffer: Union discriminant does not match value.")

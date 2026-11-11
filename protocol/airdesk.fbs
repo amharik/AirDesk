@@ -423,6 +423,35 @@ union MessagePayload {
   ControlMessage
 }
 
+enum TerminalMessageType : uint {
+  attach = 0,
+  attached = 1,
+  data = 2,
+  resize = 3,
+  detach = 4,
+  exit = 5,
+  error = 6
+}
+
+// Persistent PTY attachment. Requests carry only a lease id; the daemon
+// authorizes it against locally provisioned leases. Data is raw PTY bytes.
+table TerminalMessage {
+  version:uint = 1 (id: 0);
+  type:TerminalMessageType (id: 1);
+  session_id:string (required, id: 2);
+  client_id:string (id: 3);
+  lease:CapabilityLease (id: 4);
+  sequence:ulong (id: 5);
+  replay_from_sequence:ulong (id: 6);
+  oldest_sequence:ulong (id: 7);
+  data:[ubyte] (id: 8);
+  columns:uint = 80 (id: 9);
+  rows:uint = 24 (id: 10);
+  exit_code:int = 0 (id: 11);
+  message:string (id: 12);
+  truncated:bool = false (id: 13);
+}
+
 // Additive fabric union. Existing MessagePayload members are untouched so v1
 // baseline conformance is preserved.
 union FabricPayload {
@@ -434,7 +463,8 @@ union FabricPayload {
   DisplaySession,
   SyncRecord,
   GroupMember,
-  ResourceRpc
+  ResourceRpc,
+  TerminalMessage
 }
 
 table Envelope {

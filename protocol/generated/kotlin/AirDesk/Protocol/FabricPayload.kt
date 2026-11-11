@@ -15,5 +15,6 @@ class FabricPayload private constructor() {
         const val SyncRecord: UByte = 7u
         const val GroupMember: UByte = 8u
         const val ResourceRpc: UByte = 9u
+        const val TerminalMessage: UByte = 10u
     }
 }

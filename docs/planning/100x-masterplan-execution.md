@@ -1,10 +1,10 @@
 # AirDesk 100x/1000x Masterplan — Execution Breakdown
 
 - **Status:** Planning only — no implementation commitment and no ADR promotion
-- **Date:** 2026-11-10
-- **Baseline:** `dev` at `90555d9`, plus the verified P5-03 iOS client decode/frame pacing path
+- **Date:** 2026-11-11
+- **Baseline:** `dev` at `4a12420`, plus the verified P5-03 iOS client decode/frame pacing path
 - **Input:** User-supplied 100x product / 1000x UX masterplan
-- **Related:** `milestones.md`, `docs/planning/workspace-fabric-plan.md`, `docs/planning/release-roadmap.md`, ADR-001 through ADR-023
+- **Related:** `milestones.md`, `docs/planning/workspace-fabric-plan.md`, `docs/planning/release-roadmap.md`, ADR-001 through ADR-026
 
 This document maps the masterplan onto the repository as it actually exists. It is deliberately more conservative than the source plan: the 100x/1000x targets are treated as hypotheses, the Rust core is staged behind a compatibility boundary rather than rewritten in one pass, and hardware/live-network claims remain gated.
 
@@ -225,7 +225,7 @@ Compatibility rules:
 | P5-01 | Host capture platform decision | New ADR-025; `AirDesk/Display/**`, `project.yml` | Decision records iOS ReplayKit/broadcast extension vs separate macOS host vs external host; ScreenCaptureKit only if a macOS target exists | P0-05 | Verified, committed |
 | P5-02 | Zero-copy encoder pipeline | `AirDesk/Display/ScreenCapturePipeline.swift`, `VideoToolboxEncoder.swift`, `DisplayCoordinator.swift`; `android/.../AndroidMediaCodecStream.kt` | Capture surface -> encoder with bounded queues; HEVC/AV1 capability detection; keyframe/recovery; no unbounded memory | P5-01 | Verified, committed (iOS host path) |
 | P5-03 | Client decode and frame pacing | `AirDesk/Display/DesktopSurface.swift`, `DisplayCoordinator.swift`; web endpoint surface path | Pacing to display refresh; dropped-frame diagnostics; latency/CPU metrics; no false glass-to-glass claim | P5-02 | Verified, committed (iOS decode/pacing path) |
-| P5-04 | Persistent PTY daemon | New `core/airdeskd/**`, `AirDesk/Remote/SSHPTYSession.swift`, `RemoteTerminalController.swift`; tests | `airdeskd` byte-tees raw PTY over ADFP; multiple clients attach; replay buffer bounded; leases enforced | P1-03, P1-07 | Pending |
+| P5-04 | Persistent PTY daemon | New `core/airdeskd/**`, `AirDesk/Remote/PersistentTerminalFabric.swift`, `AirDesk/Remote/SSHPTYSession.swift`, `RemoteTerminalController.swift`; tests | `airdeskd` byte-tees raw PTY over ADFP; multiple clients attach; replay buffer bounded; leases enforced | P1-03, P1-07 | Verified, committed (daemon/codec) |
 | P5-05 | OSC 133 replay and handoff | `AirDesk/Remote/**`, `AirDesk/Web/TerminalBridge.swift`, `AirDeskTests/RemoteSSHReattachTests.swift` | Reconnect replays active command records without corrupting TUIs; second device attaches; zero lost acknowledged bytes | P4-08, P5-04 | Pending |
 | P5-06 | XPORT-01/02 qualification | `scripts/research/**`, `research/scenarios/**`, `docs/research/**`, `docs/adr/013-multi-transport-and-connectivity.md` | CPU, reconnect, direct/relay and device matrix recorded; ADR-013 updated only if evidence supports it | P1-10, P5-02 | Blocked |
 | P5-07 | Physical device matrix | Hardware test plans under `docs/research/`; no code claim | iPhone/iPad/Android/Cast/AirPlay/external display tested with documented limitations | P5-06 | Blocked |
@@ -504,6 +504,18 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - `DesktopSurface`, `DisplayCoordinator`, transport/UI wiring, the web endpoint frame path and Android MediaCodec were not changed. Physical display qualification, hardware-decode qualification, glass-to-glass or input-to-photon latency and zero-copy behavior are not claimed.
 - CPU metrics are process-level wall-clock deltas around decode submission/output, not per-core, thermal or battery qualification.
 
+### P5-04 verification evidence
+
+- ADR-026 records `core/airdeskd` as an isolated standalone daemon carve-out from ADR-024. SSH, local PTY and process spawning remain outside the shared core and FFI/WASM boundaries.
+- `protocol/airdesk.fbs` adds `TerminalMessageType`, `TerminalMessage` and additive `FabricPayload.TerminalMessage`; the v1 `MessagePayload` union is unchanged. Swift, TypeScript, Rust and Kotlin bindings were regenerated and `./protocol/check.sh` passed.
+- `airdeskd` opens a real Unix `openpty`/`fork`/`execvp` PTY, reads raw bytes into a sequence-numbered bounded replay buffer, fans out to multiple attached clients, resizes with `TIOCSWINSZ`, and sends SIGHUP on close. The first transport binding is a local Unix socket with a 4-byte length prefix and a 1 MiB frame cap.
+- The default replay budget is 256 KiB or 4096 chunks; reads are capped at 8 KiB. Truncation is reported to clients instead of silently claiming zero lost bytes.
+- The initial lease capability is `airdesk://pty/spawn`. Attach, write, resize and detach require a live local lease; revocation and expiry are enforced, and attach authorization precedes replay/client allocation. Lease issuance, distribution and invocation enforcement remain ADR-012 work.
+- Rust: `cargo test --offline` in `core/airdeskd` passed 8 tests covering frame round-trip, bounded replay/truncation, multi-client attach, reconnect sequence, lease denial/revocation/expiry, operation authorization, Unix-socket framing and a real `/bin/sh` PTY byte tee.
+- Swift: `PersistentTerminalFabric` implements ADFP terminal encode/decode, length-prefixed stream framing and duplicate/sequence replay tracking. Full `xcodebuild test` passed; 547 tests, 1 skipped, 0 failures, including 4 `PersistentTerminalFabricTests`.
+- Web: full `npm run check` passed; 283 tests across 40 files. Android: `testDebugUnitTest lintDebug assembleDebug` passed with 166 tests and 0 failures after regenerated Kotlin bindings were synced.
+- No SSH, Iroh, WebSocket or local-forward transport is deployed for `airdeskd`; the Swift client is not yet wired to `SSHPTYSession`/`RemoteTerminalController`. Live-network process survival, second-device handoff, OSC 133 replay and zero-lost-byte claims remain P5-05/hardware-gated work.
+
 ### Environment notes
 
 - The local container has no `node`, `npm`, `cargo`, `swift`, `xcodebuild`, `python3`, `perl`, `sqlite3` or `adb`; it is not a verification environment.
@@ -542,8 +554,8 @@ These are not code-level tasks and must not be marked done from simulator or loo
 1. P2-09 retains one physical gate: install the debug APK on an Android device, connect to a real SSH server, background the app, verify the foreground service/session survives, then verify reattach and second-device handoff. Do not mark P2-09 `Verified` from JVM tests alone.
 2. P2-10 and the P2-11 static gate are complete: the 0.3 world is separate, uses `stream<T>`/`future<T>`, and the conformance manifest records every runtime as `not-run`. Runtime conformance and lease-enforcement integration remain pending; do not claim runtime qualification from the WIT check alone.
 3. P2-04 now supplies native grant-chain, lease, revocation and `cnf` authorization with audit events on top of P1-02 workspace-key evidence. Production remote invocation transport wiring remains pending and must not be claimed from the standalone service tests.
-4. P2-06, P4-02 and P4-03 now supply Android packed movement/lease arbitration, the iOS display-rate local cursor with host-cursor suppression, and the capability/lease-gated semantic input deck with OSC 133 state input. P5-04 is the next unblocked implementation target. The P2-06 surface is not yet mounted over the presentation WebView; the P4-02 cursor control is a native JSON bridge message, not ADFP FlatBuffers; the P4-03 terminal phase currently comes from remote terminal output rather than the bundled shell; and no physical-device, remote-input transport or physical-display qualification is claimed.
-5. P5-03 is code-level only until transport/UI wiring and physical-display qualification exist; do not claim glass-to-glass latency.
+4. P2-06, P4-02, P4-03 and P5-04 now supply Android packed movement/lease arbitration, the iOS display-rate local cursor with host-cursor suppression, the capability/lease-gated semantic input deck with OSC 133 state input, and the persistent PTY daemon/codec with bounded ADFP replay and lease checks. P5-05 is the next unblocked implementation target. The P2-06 surface is not yet mounted over the presentation WebView; the P4-02 cursor control is a native JSON bridge message, not ADFP FlatBuffers; the P4-03 terminal phase currently comes from remote terminal output rather than the bundled shell; `airdeskd` has no deployed SSH/Iroh/WebSocket transport and its Swift client is not yet wired into `SSHPTYSession`/`RemoteTerminalController`; and no physical-device, remote-input transport or physical-display qualification is claimed.
+5. P5-03 is code-level only until transport/UI wiring and physical-display qualification exist; do not claim glass-to-glass latency. P5-04 does not claim live-network process survival or zero lost bytes.
 6. Keep `milestones.md` unchanged until a task actually passes its gate.
 
 ## 11. ADR and documentation updates
@@ -552,6 +564,7 @@ These are not code-level tasks and must not be marked done from simulator or loo
 | --- | --- |
 | New ADR-024 | Shared Rust core, UniFFI/C-ABI/WASM boundary, fixture ownership, cutover and rollback |
 | New ADR-025 | Host capture and media pipeline platform decision |
+| New ADR-026 | Standalone persistent PTY daemon carve-out, ADFP terminal attachment, replay and lease enforcement |
 | ADR-010 | Additive ADFP envelope, ResourceCompound and blob handle semantics |
 | ADR-011/012 | Pairing signing-key distribution and native lease/invocation enforcement |
 | ADR-013 | Evidence status mechanism; stays `Proposed` until XPORT-02 |

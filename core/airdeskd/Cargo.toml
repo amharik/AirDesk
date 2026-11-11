@@ -1,0 +1,12 @@
+[package]
+name = "airdeskd"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+airdesk-protocol = { path = "../../protocol/rust" }
+flatbuffers = "=25.12.19"
+libc = "=0.2.191"

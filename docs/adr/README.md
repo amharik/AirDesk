@@ -17,6 +17,8 @@ This index is the authoritative map of which decision is in force. An ADR's orig
 > **Execution note (2026-11-09):** ADR-024 is proposed for an additive shared Rust core behind UniFFI/WASM. No existing codec, crypto or platform implementation has moved; native paths remain until fixture equality, platform tests and rollback are demonstrated.
 >
 > **Execution note (2026-11-10):** ADR-025 accepts in-app ReplayKit capture of AirDesk-owned surfaces as the initial iOS host-capture path. Whole-device Broadcast Upload Extensions, macOS ScreenCaptureKit hosts and external host processes remain separately gated; no media pipeline or capture capability is implemented by this decision.
+>
+> **Execution note (2026-11-11):** ADR-026 records the standalone `core/airdeskd` persistent PTY daemon as a carve-out from ADR-024 while leaving SSH, local PTY and process spawning out of the shared core. Terminal ADFP payloads, bounded replay, multi-client attach and local lease enforcement are implemented and covered by Rust and Swift codec tests; a deployed transport, live-network survival and physical-device qualification remain pending.
 
 | ADR | Decision | Decision status | Implementation status | Effective note |
 | --- | --- | --- | --- | --- |
@@ -45,6 +47,7 @@ This index is the authoritative map of which decision is in force. An ADR's orig
 | [023](023-openssl-scrypt-password-registration.md) | OpenSSL scrypt for native SPAKE2+ password registration | Accepted | Implemented | Same pinned OpenSSL distribution; fixed scrypt profile `N=32768, r=8, p=1, dkLen=80`, browser-compatible material and P-256 reduction |
 | [024](024-shared-core-and-ffi-boundary.md) | Shared core and FFI boundary | Proposed | Not started | Additive Rust core; native implementations remain until fixture equality, platform tests and rollback are proven |
 | [025](025-host-capture-platform.md) | Host capture and media pipeline platform | Accepted | Not started | Initial iOS path is in-app ReplayKit capture of AirDesk-owned surfaces; whole-device broadcast extension and macOS ScreenCaptureKit host remain separately gated; no zero-copy or glass-to-glass claim |
+| [026](026-persistent-pty-daemon.md) | Persistent PTY daemon boundary | Proposed | In progress | `core/airdeskd` is an isolated daemon, not shared-core/FFI; additive ADFP `TerminalMessage`, bounded sequence replay, multi-client attach and local lease checks exist; deployed transport and physical/live-network gates remain pending |
 
 ## Effective decisions
 
@@ -59,6 +62,7 @@ This index is the authoritative map of which decision is in force. An ADR's orig
 - **Identity:** Ed25519 default with P-256 fallback; device trust is not workspace ownership or collaboration; future user identity uses WebAuthn/FIDO2; native AD-PAIR-1 uses isolated OpenSSL P-256 group operations under ADR-022, with browser-compatible QR/PIN challenge envelopes, PIN attempt limiting and a headless initiator/responder coordinator in `PairingCode.swift` and `PairingCoordinator.swift`.
 - **Capabilities:** scoped, time-bounded, revocable leases; advertisement is not permission.
 - **Input:** multiple controllers may attach; one keyboard focus owner at a time; this is not multi-user collaboration.
+- **Persistent terminal:** `core/airdeskd` is a standalone, locally protected daemon outside the shared core/FFI boundary; terminal attachment uses additive ADFP `TerminalMessage` frames, bounded sequence replay, explicit client lifecycle and local lease checks. It does not own workspace authority, identity or transport authentication.
 
 ## Delivery phase and lineage
 

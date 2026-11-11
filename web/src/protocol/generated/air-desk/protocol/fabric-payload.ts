@@ -12,6 +12,7 @@ import { PairingOffer } from '../../air-desk/protocol/pairing-offer.js';
 import { PairingResponse } from '../../air-desk/protocol/pairing-response.js';
 import { ResourceRpc } from '../../air-desk/protocol/resource-rpc.js';
 import { SyncRecord } from '../../air-desk/protocol/sync-record.js';
+import { TerminalMessage } from '../../air-desk/protocol/terminal-message.js';
 
 
 export enum FabricPayload {
@@ -24,13 +25,14 @@ export enum FabricPayload {
   DisplaySession = 6,
   SyncRecord = 7,
   GroupMember = 8,
-  ResourceRpc = 9
+  ResourceRpc = 9,
+  TerminalMessage = 10
 }
 
 export function unionToFabricPayload(
   type: FabricPayload,
-  accessor: (obj:CapabilityDescriptor|CapabilityLease|DeviceIdentity|DisplaySession|GroupMember|PairingOffer|PairingResponse|ResourceRpc|SyncRecord) => CapabilityDescriptor|CapabilityLease|DeviceIdentity|DisplaySession|GroupMember|PairingOffer|PairingResponse|ResourceRpc|SyncRecord|null
-): CapabilityDescriptor|CapabilityLease|DeviceIdentity|DisplaySession|GroupMember|PairingOffer|PairingResponse|ResourceRpc|SyncRecord|null {
+  accessor: (obj:CapabilityDescriptor|CapabilityLease|DeviceIdentity|DisplaySession|GroupMember|PairingOffer|PairingResponse|ResourceRpc|SyncRecord|TerminalMessage) => CapabilityDescriptor|CapabilityLease|DeviceIdentity|DisplaySession|GroupMember|PairingOffer|PairingResponse|ResourceRpc|SyncRecord|TerminalMessage|null
+): CapabilityDescriptor|CapabilityLease|DeviceIdentity|DisplaySession|GroupMember|PairingOffer|PairingResponse|ResourceRpc|SyncRecord|TerminalMessage|null {
   switch(FabricPayload[type]) {
     case 'NONE': return null; 
     case 'DeviceIdentity': return accessor(new DeviceIdentity())! as DeviceIdentity;
@@ -42,15 +44,16 @@ export function unionToFabricPayload(
     case 'SyncRecord': return accessor(new SyncRecord())! as SyncRecord;
     case 'GroupMember': return accessor(new GroupMember())! as GroupMember;
     case 'ResourceRpc': return accessor(new ResourceRpc())! as ResourceRpc;
+    case 'TerminalMessage': return accessor(new TerminalMessage())! as TerminalMessage;
     default: return null;
   }
 }
 
 export function unionListToFabricPayload(
   type: FabricPayload, 
-  accessor: (index: number, obj:CapabilityDescriptor|CapabilityLease|DeviceIdentity|DisplaySession|GroupMember|PairingOffer|PairingResponse|ResourceRpc|SyncRecord) => CapabilityDescriptor|CapabilityLease|DeviceIdentity|DisplaySession|GroupMember|PairingOffer|PairingResponse|ResourceRpc|SyncRecord|null, 
+  accessor: (index: number, obj:CapabilityDescriptor|CapabilityLease|DeviceIdentity|DisplaySession|GroupMember|PairingOffer|PairingResponse|ResourceRpc|SyncRecord|TerminalMessage) => CapabilityDescriptor|CapabilityLease|DeviceIdentity|DisplaySession|GroupMember|PairingOffer|PairingResponse|ResourceRpc|SyncRecord|TerminalMessage|null, 
   index: number
-): CapabilityDescriptor|CapabilityLease|DeviceIdentity|DisplaySession|GroupMember|PairingOffer|PairingResponse|ResourceRpc|SyncRecord|null {
+): CapabilityDescriptor|CapabilityLease|DeviceIdentity|DisplaySession|GroupMember|PairingOffer|PairingResponse|ResourceRpc|SyncRecord|TerminalMessage|null {
   switch(FabricPayload[type]) {
     case 'NONE': return null; 
     case 'DeviceIdentity': return accessor(index, new DeviceIdentity())! as DeviceIdentity;
@@ -62,6 +65,7 @@ export function unionListToFabricPayload(
     case 'SyncRecord': return accessor(index, new SyncRecord())! as SyncRecord;
     case 'GroupMember': return accessor(index, new GroupMember())! as GroupMember;
     case 'ResourceRpc': return accessor(index, new ResourceRpc())! as ResourceRpc;
+    case 'TerminalMessage': return accessor(index, new TerminalMessage())! as TerminalMessage;
     default: return null;
   }
 }
