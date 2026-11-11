@@ -491,6 +491,7 @@
                 autoResize: true,
                 cursorBlink: true,
                 announceOutput: true,
+                semanticBlocks: true,
                 transport: {
                   send: function (text) {
                     pendingInput += text;
@@ -781,6 +782,7 @@
               autoResize: true,
               cursorBlink: true,
               announceOutput: true,
+              semanticBlocks: true,
               transport: {
                 send: sendText,
                 sendBinary: sendBytes,

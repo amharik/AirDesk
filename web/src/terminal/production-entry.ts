@@ -7,6 +7,11 @@ import {
   saveTranscript
 } from './terminal-transcript';
 import type { TranscriptStore } from './terminal-transcript';
+import {
+  SemanticTerminalModel,
+  copyBlockOutput,
+  formatBlockMarkdown
+} from './semantic-blocks';
 import { WTermEngine } from './wterm-engine';
 import type { WTermEngineOptions } from './wterm-engine';
 import type { TerminalEngine } from './terminal-engine';
@@ -20,9 +25,16 @@ export interface AirDeskWTermTranscript {
   replay(text: string, limit?: number): string;
 }
 
+export interface AirDeskWTermSemantic {
+  create(): SemanticTerminalModel;
+  copyOutput(block: Parameters<typeof copyBlockOutput>[0]): string;
+  markdown(block: Parameters<typeof formatBlockMarkdown>[0]): string;
+}
+
 export interface AirDeskWTermRuntime {
   create(element: HTMLElement, options: WTermEngineOptions): Promise<TerminalEngine>;
   transcript: AirDeskWTermTranscript;
+  semantic: AirDeskWTermSemantic;
 }
 
 declare global {
@@ -48,5 +60,10 @@ window.AirDeskWTerm = {
     read: readTranscript,
     save: saveTranscript,
     replay: formatTranscriptReplay
+  },
+  semantic: {
+    create: () => new SemanticTerminalModel(),
+    copyOutput: copyBlockOutput,
+    markdown: formatBlockMarkdown
   }
 };
