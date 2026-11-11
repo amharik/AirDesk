@@ -18,6 +18,7 @@
     z: 100,
     pointer: { x: window.innerWidth / 2, y: window.innerHeight / 2 },
     pointerVisible: false,
+    hostCursorSuppressed: false,
     drag: null,
     downTarget: null,
     hoverElement: null,
@@ -747,8 +748,10 @@
       cursor.style.top = '0px';
       cursor.style.margin = '0';
       cursor.style.transform = 'translate3d(' + (x - 3) + 'px,' + (y - 2) + 'px,0)';
-      if (!state.pointerVisible || !cursor.classList.contains('visible')) {
-        state.pointerVisible = true;
+      state.pointerVisible = true;
+      if (state.hostCursorSuppressed) {
+        cursor.classList.remove('visible');
+      } else if (!cursor.classList.contains('visible')) {
         cursor.classList.add('visible');
       }
     }
@@ -1458,7 +1461,11 @@
 
   function activateSession() {
     moveCursor(window.innerWidth / 2, window.innerHeight / 2);
-    cursor.classList.add('visible');
+    if (state.hostCursorSuppressed) {
+      cursor.classList.remove('visible');
+    } else {
+      cursor.classList.add('visible');
+    }
   }
 
   function endSession() {
@@ -1522,6 +1529,19 @@
     if (message.type === 'previewInput') {
       previewKeyboardRouting = message.enabled !== false;
       debugLog('previewInput enabled=' + previewKeyboardRouting);
+      return;
+    }
+    if (message.type === 'cursor') {
+      state.hostCursorSuppressed = message.hostVisible === false;
+      if (cursor) {
+        if (message.shape) cursor.setAttribute('data-shape', String(message.shape));
+        if (state.hostCursorSuppressed) {
+          cursor.classList.remove('visible');
+        } else if (state.pointerVisible) {
+          cursor.classList.add('visible');
+        }
+      }
+      debugLog('cursor hostVisible=' + !state.hostCursorSuppressed);
       return;
     }
     if (message.type === 'appearance' && message.appearance) {

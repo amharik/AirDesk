@@ -17,6 +17,9 @@ struct MirroredDesktopView: View {
             DesktopSurfaceAnchor(surface: session.desktopSurface)
                 .ignoresSafeArea()
 
+            LocalCursorOverlay(presentation: session.localCursor)
+                .ignoresSafeArea()
+
             HardwareKeyboardCapture(
                 isActive: true,
                 onText: { session.sendText($0) },

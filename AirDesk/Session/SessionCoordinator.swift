@@ -129,6 +129,7 @@ final class SessionCoordinator: ObservableObject {
 
     let desktopSurface: DesktopSurface
     let dispatcher: InputDispatcher
+    let localCursor = LocalCursorPresentation()
     private let inputTransport: SessionInputTransport
     private let host: SurfaceRuntimeHost
     private let endpointFactory: @MainActor (DisplayProfile) throws -> (any RuntimeEndpoint)?
@@ -218,6 +219,17 @@ final class SessionCoordinator: ObservableObject {
             self?.handleCastControl(message)
         }
         dispatcher.transport = inputTransport
+        localCursor.onHostCursorVisibleChanged = { [weak self] visible in
+            self?.desktopSurface.sendControl(
+                type: "cursor",
+                payload: [
+                    "hostVisible": visible,
+                    "shape": self?.localCursor.shape.rawValue ?? CursorShape.arrow.rawValue,
+                    "hotspotX": self?.localCursor.hotspot.x ?? 0.5,
+                    "hotspotY": self?.localCursor.hotspot.y ?? 0.5
+                ]
+            )
+        }
         dispatcher.onEventSent = { [weak self] event in
             self?.diagnostics.recordSent(event)
         }
@@ -351,6 +363,7 @@ final class SessionCoordinator: ObservableObject {
         connectTask?.cancel()
         connectTask = nil
         dispatcher.endSession()
+        localCursor.end()
         invalidateInputLease()
         stopRuntime()
         desktopSurface.onStateChange = nil
@@ -373,6 +386,7 @@ final class SessionCoordinator: ObservableObject {
     }
 
     func disconnect() {
+        localCursor.end()
         recoveryTask?.cancel()
         recoveryTask = nil
         recoveryAttempts = 0
@@ -504,6 +518,7 @@ final class SessionCoordinator: ObservableObject {
         case .move(let dx, let dy):
             let point = pointer.move(delta: CGSize(width: dx, height: dy), viewport: viewport)
             dispatcher.move(to: point)
+            localCursor.move(to: point)
         case .click(let count):
             dispatcher.click(button: 0, count: count)
             if settings.hapticsEnabled { Haptics.shared.click() }
@@ -528,6 +543,22 @@ final class SessionCoordinator: ObservableObject {
         case .cancel:
             dispatcher.cancelAllInput()
             isDragging = false
+        }
+    }
+
+    func applyCursorMetadata(_ metadata: CursorMetadata) {
+        do {
+            try localCursor.apply(metadata)
+        } catch {
+            logger.debug("Rejected cursor metadata: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    func applyCursorMetadata(_ object: [String: Any]) {
+        do {
+            applyCursorMetadata(try CursorMetadata.decode(from: object))
+        } catch {
+            logger.debug("Rejected cursor metadata payload: \(String(describing: error), privacy: .public)")
         }
     }
 
@@ -907,7 +938,12 @@ final class SessionCoordinator: ObservableObject {
                 generation: sessionGeneration,
                 viewport: desktopSurface.lastViewport
             )
+            localCursor.start(
+                sessionId: activeSessionId,
+                generation: sessionGeneration
+            )
             pointer.center()
+            localCursor.move(to: pointer.position)
             dispatcher.move(to: pointer.position)
             dispatcher.flushPendingMove()
 
@@ -985,6 +1021,7 @@ final class SessionCoordinator: ObservableObject {
 
     private func prepareForNewSession() {
         dispatcher.endSession()
+        localCursor.end()
         stopRuntime()
         desktopSurface.returnHome()
         isPreviewPresented = false

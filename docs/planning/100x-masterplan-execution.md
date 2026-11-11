@@ -206,7 +206,7 @@ Compatibility rules:
 | ID | Task | Files | Done when | Depends | Status |
 | --- | --- | --- | --- | --- | --- |
 | P4-01 | One-euro pointer filter | `AirDesk/Input/PointerState.swift`, `InputDispatcher.swift`, `protocol/rust/src/movement.rs`, `web/src/protocol/movement.ts`; tests | Deterministic filter fixture; no phase lag at high speed; native/web output matches | P0-06 | Verified, committed |
-| P4-02 | Decoupled local cursor and host suppression | `AirDesk/Input/AirCursorView.swift`, `MacTrackpadView.swift`, `InputDispatcher.swift`, `AirDesk/Display/**`; protocol cursor shape/hotspot | Local cursor renders at display rate; remote cursor shape/hotspot arrives out of band; no double cursor; host suppression verified | P4-01 | Pending |
+| P4-02 | Decoupled local cursor and host suppression | `AirDesk/Input/AirCursorView.swift`, `MacTrackpadView.swift`, `InputDispatcher.swift`, `AirDesk/Display/**`; protocol cursor shape/hotspot | Local cursor renders at display rate; remote cursor shape/hotspot arrives out of band; no double cursor; host suppression verified | P4-01 | Verified, committed |
 | P4-03 | Semantic input deck | `AirDesk/Features/Keyboard/KeyboardBar.swift`, `MacInputDeck.swift`, `HardwareKeyboardCapture.swift`; OSC 133 state input | Context modes A/B/C/D drive bars and gestures; no modal preview dependency; all actions have capability/lease checks | P4-02 | Pending |
 | P4-04 | Continuity pill and haptics | `AirDesk/Features/Session/SessionRecoveryView.swift`, `RootView`/`AppEnvironment`, `AirDesk/Design/Haptics.swift`; telemetry overlay | Non-blocking connection/latency/capability pill; path migration status; haptics only for semantic events; recovery screen removed or fallback-only | P1-05, P1-09 | Pending |
 | P4-05 | Ambient proximity pairing | `AirDesk/Discovery/BonjourDiscovery.swift`, new `NearbyInteractionDiscovery.swift`; `android/.../discovery/UwbDiscovery.kt`; `web/src/identity/pairing-signaling.ts` | Bonjour and UWB proximity offer gated by distance/angle; manual code remains fallback; privacy/threat model covers proximity leakage | P0-01, P4-04 | Research |
@@ -291,6 +291,14 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - iOS: full `xcodebuild test` passed; 511 tests, 1 skipped, 0 failures, including 6 `WorkspaceSyncKeyRotationTests`.
 - Web: full `npm run check` passed; 278 tests across 40 files, including 5 `sync-key-rotation.test.ts` cases.
 - Android, Rust and protocol schema/generated bindings were unchanged by P1-02. The distributed key is the workspace synchronization AES-GCM key; capability signing/issuer enforcement remains P2-04. No live multi-device network or hardware qualification is claimed.
+
+### P4-02 verification evidence
+
+- `LocalCursorPresentation` keeps the local pointer target independent of host video frames and exposes a display-rate `TimelineView(.animation)` overlay. A 120 Hz maximum frame clock coalesces multiple pointer updates into the latest rendered point, so input cadence does not drive cursor rendering.
+- `CursorMetadata` is an out-of-band control payload carrying session/generation/sequence, cursor shape, normalized hotspot and visibility. Validation rejects mismatched sessions/generations, stale sequences, non-finite or out-of-range hotspots and contradictory hidden-visible metadata. `SessionCoordinator.applyCursorMetadata` is the transport handoff point.
+- The local cursor suppresses the host cursor on session start by sending a `cursor` control with `hostVisible: false`, restores it on disable/end, and ignores remote-cursor visibility while the local cursor is active. The bundled DesktopShell consumes the control, tracks `hostCursorSuppressed`, and prevents `moveCursor`/session activation from re-showing its virtual cursor. This avoids drawing both cursors.
+- `MirroredDesktopView` mounts `LocalCursorOverlay` above `DesktopSurfaceAnchor` with hit testing disabled. Shape and hotspot changes come from out-of-band metadata; the overlay itself never waits for a decoded display frame.
+- iOS: full `xcodebuild test` passed; 537 tests, 1 skipped, 0 failures, including 5 `LocalCursorPresentationTests`. Web `npm run check` passed with 283 tests across 40 files. The `cursor` control payload is a native JSON bridge message; ADFP FlatBuffers cursor-shape parity and physical-display qualification are not claimed.
 
 ### P2-06 verification evidence
 
@@ -526,7 +534,7 @@ These are not code-level tasks and must not be marked done from simulator or loo
 1. P2-09 retains one physical gate: install the debug APK on an Android device, connect to a real SSH server, background the app, verify the foreground service/session survives, then verify reattach and second-device handoff. Do not mark P2-09 `Verified` from JVM tests alone.
 2. P2-10 and the P2-11 static gate are complete: the 0.3 world is separate, uses `stream<T>`/`future<T>`, and the conformance manifest records every runtime as `not-run`. Runtime conformance and lease-enforcement integration remain pending; do not claim runtime qualification from the WIT check alone.
 3. P2-04 now supplies native grant-chain, lease, revocation and `cnf` authorization with audit events on top of P1-02 workspace-key evidence. Production remote invocation transport wiring remains pending and must not be claimed from the standalone service tests.
-4. P2-06 now supplies the Android packed movement codec, 120 Hz local cursor coalescing, input-lease arbitration and stuck-input release tests. Next unblocked implementation target is P4-02; P4-03 depends on it. The P2-06 surface is not yet mounted over the presentation WebView, and no physical-device or remote-input transport qualification is claimed.
+4. P2-06 and P4-02 now supply Android packed movement/lease arbitration and the iOS display-rate local cursor with host-cursor suppression. P4-03 is the next unblocked implementation target. The P2-06 surface is not yet mounted over the presentation WebView; the P4-02 cursor control is a native JSON bridge message, not ADFP FlatBuffers; and no physical-device, remote-input transport or physical-display qualification is claimed.
 5. P5-03 is code-level only until transport/UI wiring and physical-display qualification exist; do not claim glass-to-glass latency.
 6. Keep `milestones.md` unchanged until a task actually passes its gate.
 
