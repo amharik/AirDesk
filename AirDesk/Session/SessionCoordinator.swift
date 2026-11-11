@@ -87,6 +87,7 @@ final class SessionCoordinator: ObservableObject {
     @Published private(set) var previewKeyboardDismissRequest = 0
     @Published private(set) var debugJSLog = ""
     @Published private(set) var remoteTerminalStatus = "Idle"
+    @Published private(set) var terminalCommandPhase: TerminalCommandPhase = .unknown
     @Published private(set) var fabricControllerID: String?
     @Published private(set) var fabricControllerHasLease = false
 
@@ -143,6 +144,7 @@ final class SessionCoordinator: ObservableObject {
     private let terminalLeases: CapabilityLeaseRegistry
     private let remoteTerminal: CapabilityScopedTerminal
     private let inputLease = InputLeaseManager()
+    private var osc133Parser = OSC133Parser()
     private var localInputValidationEnabled = false
     private let logger = Logger(subsystem: "com.airdesk.ios", category: "Session")
     private static let localControllerId = "local"
@@ -283,6 +285,74 @@ final class SessionCoordinator: ObservableObject {
             hasExternalDisplay: display.hasExternalDisplay,
             isMirroring: display.isMirroring
         )
+    }
+
+    var semanticInputAuthorization: SemanticInputAuthorizationContext {
+        var available: Set<SemanticInputCapability> = [.sessionRecovery]
+        if canUseDesktopControls {
+            available.formUnion([.desktopControl, .keyboard, .pointer])
+            if capabilities.desktopWindows {
+                available.insert(.windowManagement)
+            }
+        }
+        return SemanticInputAuthorizationContext(
+            mode: SemanticContextMode.resolve(
+                sessionMode: effectiveMode,
+                isSessionReady: phase == .ready
+            ),
+            terminalPhase: terminalCommandPhase,
+            availableCapabilities: available,
+            activeControllerId: activeInputControllerId,
+            localControllerId: Self.localControllerId,
+            leaseEpoch: leaseEpoch,
+            isSessionReady: phase == .ready
+        )
+    }
+
+    var semanticInputLayout: SemanticInputDeckLayout {
+        SemanticInputDeckLayout.resolve(context: semanticInputAuthorization)
+    }
+
+    func canPerformSemanticAction(_ action: SemanticInputAction) -> Bool {
+        semanticInputAuthorization.allows(action)
+    }
+
+    @discardableResult
+    func performSemanticAction(_ action: SemanticInputAction) -> Bool {
+        guard canPerformSemanticAction(action) else { return false }
+        switch action {
+        case .escape:
+            sendKey("Escape", code: "Escape")
+        case .tab:
+            sendKey("Tab", code: "Tab")
+        case .returnKey:
+            sendKey("Enter", code: "Enter")
+        case .backspace:
+            sendKey("Backspace", code: "Backspace")
+        case .arrowLeft:
+            sendKey("ArrowLeft", code: "ArrowLeft")
+        case .arrowUp:
+            sendKey("ArrowUp", code: "ArrowUp")
+        case .arrowDown:
+            sendKey("ArrowDown", code: "ArrowDown")
+        case .arrowRight:
+            sendKey("ArrowRight", code: "ArrowRight")
+        case .interrupt:
+            sendKey("c", code: "KeyC", eventModifiers: [.control])
+        case .clearScreen:
+            sendKey("l", code: "KeyL", eventModifiers: [.control])
+        case .previousCommand:
+            sendKey("ArrowUp", code: "ArrowUp")
+        case .dock:
+            dockAction()
+        case .reconnect:
+            retry()
+        case .diagnostics:
+            openDiagnosticsAction()
+        case .endSession:
+            disconnect()
+        }
+        return true
     }
 
     var connectionStage: ConnectionStage {
@@ -1030,6 +1100,8 @@ final class SessionCoordinator: ObservableObject {
         pointer.center()
         runtimeState = .idle
         remoteTerminalStatus = "Idle"
+        terminalCommandPhase = .unknown
+        osc133Parser.reset()
         lastRemoteTerminalConfigurationKey = ""
     }
 
@@ -1283,6 +1355,9 @@ final class SessionCoordinator: ObservableObject {
             remoteTerminalStatus = "Connected to \(settings.remoteTerminalProfile.destination)"
             desktopSurface.sendControl(type: "terminalReady")
         case .data(let data):
+            if let event = osc133Parser.consume(data).last {
+                terminalCommandPhase = event.phase
+            }
             desktopSurface.sendControl(
                 type: "terminalData",
                 payload: ["data": data.base64EncodedString()]

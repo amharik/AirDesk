@@ -15,7 +15,7 @@ struct ControllerView: View {
             AirDeskBackground(intensity: 0.55)
 
             HardwareKeyboardCapture(
-                isActive: !session.isPreviewPresented,
+                isActive: session.canUseDesktopControls && !session.isPreviewPresented,
                 onText: { session.sendText($0) },
                 onKey: { key, code, modifiers in
                     session.sendKey(key, code: code, eventModifiers: modifiers)
@@ -54,6 +54,7 @@ struct ControllerView: View {
                 if shouldShowDeck {
                     MacInputDeck(
                         activeModifiers: session.modifiers,
+                        authorization: session.semanticInputAuthorization,
                         onCursor: { action, viewport in
                             session.handleCursor(action, viewport: viewport)
                         },
@@ -64,7 +65,8 @@ struct ControllerView: View {
                             session.sendText(text, eventModifiers: modifiers)
                         },
                         onModifier: { session.toggleModifier($0) },
-                        onClearModifiers: { session.clearModifiers() }
+                        onClearModifiers: { session.clearModifiers() },
+                        onSemanticAction: { session.performSemanticAction($0) }
                     )
                     .padding(.horizontal, 12)
                     .padding(.bottom, 10)

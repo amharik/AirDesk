@@ -29,18 +29,20 @@ private struct MacKey: Identifiable {
 
 struct MacInputDeck: View {
     let activeModifiers: Set<InputModifier>
+    let authorization: SemanticInputAuthorizationContext
     let onCursor: (CursorAction, CGSize) -> Void
     let onKey: (String, String?, Set<InputModifier>) -> Void
     let onText: (String, Set<InputModifier>) -> Void
     let onModifier: (InputModifier) -> Void
     let onClearModifiers: () -> Void
+    let onSemanticAction: (SemanticInputAction) -> Void
 
     @EnvironmentObject private var settings: AppSettings
     @State private var dragMode = false
 
     private let deckSize = CGSize(width: 1180, height: 620)
     private let keyboardSize = CGSize(width: 1140, height: 290)
-    private let trackpadSize = CGSize(width: 500, height: 240)
+    private let trackpadSize = CGSize(width: 500, height: 220)
 
     var body: some View {
         GeometryReader { proxy in
@@ -55,6 +57,10 @@ struct MacInputDeck: View {
                 .frame(width: deckSize.width * scale, height: deckSize.height * scale)
                 .frame(width: proxy.size.width, height: proxy.size.height)
         }
+    }
+
+    private var layout: SemanticInputDeckLayout {
+        SemanticInputDeckLayout.resolve(context: authorization)
     }
 
     private var deck: some View {
@@ -105,11 +111,11 @@ struct MacInputDeck: View {
                     .allowsHitTesting(false)
             }
 
-            Text("MACBOOK INPUT  ·  DRAG KEY OR DOUBLE-TAP + DRAG OR THREE-FINGER DRAG TO MOVE WINDOWS")
-                .font(.system(size: 8.5, weight: .semibold, design: .monospaced))
-                .tracking(0.8)
-                .foregroundStyle(ADTheme.textTertiary)
-                .lineLimit(1)
+            SemanticInputActionBar(
+                layout: layout,
+                authorization: authorization,
+                onAction: onSemanticAction
+            )
         }
         .padding(.top, 20)
         .padding(.bottom, 16)
@@ -148,7 +154,7 @@ struct MacInputDeck: View {
         .overlay(alignment: .topLeading) {
             HStack(spacing: 6) {
                 Circle().fill(ADTheme.accent.opacity(0.8)).frame(width: 5, height: 5)
-                Text("TRACKPAD + KEYBOARD")
+                Text("TRACKPAD + KEYBOARD · \(layout.statusText)")
                     .font(.system(size: 8, weight: .bold, design: .monospaced))
                     .tracking(1)
                     .foregroundStyle(ADTheme.textTertiary)
@@ -168,6 +174,59 @@ struct MacInputDeck: View {
                     .padding(.top, 7)
             }
         }
+    }
+}
+
+private struct SemanticInputActionBar: View {
+    let layout: SemanticInputDeckLayout
+    let authorization: SemanticInputAuthorizationContext
+    let onAction: (SemanticInputAction) -> Void
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(layout.actions) { action in
+                    let enabled = authorization.allows(action)
+                    Button {
+                        onAction(action)
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: action.systemImage)
+                                .font(.system(size: 9, weight: .semibold))
+                            Text(action.label.uppercased())
+                                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                .tracking(0.5)
+                        }
+                        .foregroundStyle(enabled ? ADTheme.textSecondary : ADTheme.textTertiary)
+                        .padding(.horizontal, 9)
+                        .frame(height: 26)
+                        .background {
+                            Capsule()
+                                .fill(enabled ? Color.white.opacity(0.07) : Color.white.opacity(0.025))
+                                .overlay {
+                                    Capsule().strokeBorder(
+                                        enabled ? Color.white.opacity(0.12) : Color.white.opacity(0.05),
+                                        lineWidth: 0.7
+                                    )
+                                }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!enabled)
+                    .opacity(enabled ? 1 : 0.4)
+                    .accessibilityLabel(action.label)
+                    .accessibilityValue(enabled ? "available" : "unavailable")
+                }
+
+                Text(layout.gestureHint)
+                    .font(.system(size: 8, weight: .semibold, design: .monospaced))
+                    .tracking(0.6)
+                    .foregroundStyle(ADTheme.textTertiary)
+                    .lineLimit(1)
+                    .padding(.leading, 4)
+            }
+        }
+        .frame(height: 26)
     }
 }
 

@@ -21,7 +21,7 @@ struct MirroredDesktopView: View {
                 .ignoresSafeArea()
 
             HardwareKeyboardCapture(
-                isActive: true,
+                isActive: session.canUseDesktopControls,
                 onText: { session.sendText($0) },
                 onKey: { key, code, modifiers in
                     session.sendKey(key, code: code, eventModifiers: modifiers)
@@ -253,6 +253,7 @@ struct MirroredDesktopView: View {
             if shouldShowDeck {
                 MacInputDeck(
                     activeModifiers: session.modifiers,
+                    authorization: session.semanticInputAuthorization,
                     onCursor: { action, viewport in
                         session.handleCursor(action, viewport: viewport)
                     },
@@ -263,7 +264,8 @@ struct MirroredDesktopView: View {
                         session.sendText(text, eventModifiers: modifiers)
                     },
                     onModifier: { session.toggleModifier($0) },
-                    onClearModifiers: { session.clearModifiers() }
+                    onClearModifiers: { session.clearModifiers() },
+                    onSemanticAction: { session.performSemanticAction($0) }
                 )
                 .frame(height: 340)
                 .transition(.move(edge: .bottom).combined(with: .opacity))

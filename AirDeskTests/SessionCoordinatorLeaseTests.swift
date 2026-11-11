@@ -151,6 +151,24 @@ final class SessionCoordinatorLeaseTests: XCTestCase {
         ))
     }
 
+    func testSemanticDeckAuthorizationUsesActiveLocalLeaseAndContextMode() async throws {
+        let coordinator = makeCoordinator()
+        coordinator.beginConnection(to: .previewDevice)
+        try await waitUntilReady(coordinator)
+
+        let authorization = coordinator.semanticInputAuthorization
+        XCTAssertEqual(authorization.mode, .d)
+        XCTAssertEqual(authorization.activeControllerId, "local")
+        XCTAssertEqual(authorization.leaseEpoch, 1)
+        XCTAssertTrue(coordinator.canPerformSemanticAction(.escape))
+        XCTAssertFalse(coordinator.canPerformSemanticAction(.dock))
+        XCTAssertTrue(coordinator.canPerformSemanticAction(.diagnostics))
+
+        coordinator.disconnect()
+        XCTAssertFalse(coordinator.canPerformSemanticAction(.escape))
+        XCTAssertTrue(coordinator.canPerformSemanticAction(.reconnect))
+    }
+
     private func makeCoordinator(
         fabric: (any IrohFabricInputRouting)? = nil,
         endpoint: StubLeaseEndpoint? = nil

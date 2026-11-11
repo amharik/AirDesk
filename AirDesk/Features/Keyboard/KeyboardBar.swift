@@ -28,6 +28,9 @@ struct KeyboardBar: View {
                 Text("→ \(session.runtimeName)")
                     .font(.system(size: 9, weight: .medium, design: .monospaced))
                     .foregroundStyle(ADTheme.textTertiary)
+                Text(semanticLayout.statusText)
+                    .font(.system(size: 9, weight: .medium, design: .monospaced))
+                    .foregroundStyle(ADTheme.textTertiary)
                 Spacer()
                 Button {
                     Haptics.shared.tap()
@@ -85,8 +88,18 @@ struct KeyboardBar: View {
                 }
             }
 
+            if !semanticLayout.actions.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 7) {
+                        ForEach(semanticLayout.actions) { action in
+                            semanticButton(action)
+                        }
+                    }
+                }
+            }
+
             KeyCaptureField(
-                active: true,
+                active: session.canUseDesktopControls,
                 onText: { text in
                     onInsert(text)
                     if settings.hapticsEnabled { Haptics.shared.tap() }
@@ -111,6 +124,42 @@ struct KeyboardBar: View {
                 .shadow(color: .black.opacity(0.35), radius: 20, y: -6)
         }
         .onAppear { pulse = true }
+    }
+
+    private var semanticLayout: SemanticInputDeckLayout {
+        session.semanticInputLayout
+    }
+
+    private func semanticButton(_ action: SemanticInputAction) -> some View {
+        let enabled = session.canPerformSemanticAction(action)
+        return Button {
+            session.performSemanticAction(action)
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: action.systemImage)
+                    .font(.system(size: 9, weight: .semibold))
+                Text(action.label.uppercased())
+                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+                    .tracking(0.5)
+            }
+            .foregroundStyle(enabled ? ADTheme.textSecondary : ADTheme.textTertiary)
+            .padding(.horizontal, 9)
+            .frame(height: 28)
+            .background {
+                Capsule()
+                    .fill(Color.white.opacity(enabled ? 0.07 : 0.025))
+                    .overlay {
+                        Capsule().strokeBorder(
+                            Color.white.opacity(enabled ? 0.12 : 0.05),
+                            lineWidth: 0.7
+                        )
+                    }
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .opacity(enabled ? 1 : 0.4)
+        .accessibilityLabel(action.label)
     }
 
     private func keyButton(_ title: String, label: String, action: @escaping () -> Void) -> some View {
