@@ -178,7 +178,7 @@ Compatibility rules:
 | P2-01 | Cross-platform `DeviceAgent` contract | `AirDesk/Capabilities/DeviceAgent.swift`, `android/.../agent/DeviceAgent.kt`, `web/src/capability/**`; shared fixtures | Identity, capabilities, request/release, subscribe, health and typed lifecycle on all clients; availability and authorization remain independent | P0-06 | Verified, committed |
 | P2-02 | iOS camera capture streaming | `AirDesk/Capture/CameraCaptureSource.swift`, `CameraCaptureStreamController.swift`; tests with mock source | Explicit authorization/lease gate; bounded frames/backpressure; cancel and permission-denied typed; no physical camera required for unit tests | P2-01 | Verified, committed |
 | P2-03 | iOS document roots and file transfer | `AirDesk/Resources/ResourceRoot.swift`, `ResourceTransferService.swift`; tests | App-scoped/user-selected roots; path/symlink confinement; bounded read/write/stat; transfer events; no device-wide access | P2-01 | Verified, committed |
-| P2-04 | Native capability lease and invocation enforcement | `AirDesk/Capabilities/CapabilityLeaseManager.swift`, `CapabilityAuthorizer.swift`, `CapabilityInvocationService.swift` | Issuance/expiry/revocation; provider/root issuer checks; remote invocation denied without matching lease/`cnf`; audit event | P2-01, P1-02 | Pending |
+| P2-04 | Native capability lease and invocation enforcement | `AirDesk/Capabilities/CapabilityLeaseManager.swift`, `CapabilityAuthorizer.swift`, `CapabilityInvocationService.swift` | Issuance/expiry/revocation; provider/root issuer checks; remote invocation denied without matching lease/`cnf`; audit event | P2-01, P1-02 | Verified, committed |
 | P2-05 | Android agent contract and canonical URIs | `android/.../agent/DeviceAgent.kt`, `capabilities/**`, `protocol/AdfpCapabilityMapper.kt` | Canonical `airdesk://fs/documents/read` plus `write`; camera authorization aligned with ADR-012; tests | P2-01 | Verified, committed |
 | P2-06 | Android precision input controller | `AndroidTrackpadSurface.kt`, `AndroidInputRouter.kt`, `InputLease*` equivalents; tests | 120 Hz local cursor path; packed movement; no stuck input; multi-controller arbitration | P2-01, P4-01 | Pending |
 | P2-07 | Android workspace/terminal bridge | `AndroidWorkspaceHost.kt`, `AndroidDesktopBridge.kt`, `DisplaySessionController.kt`; tests | Bundled DesktopShell drives workspace host and terminal bridge; reconnect preserves identity; truthful diagnostics | P1-05, P2-01 | Verified, committed |
@@ -291,6 +291,16 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - iOS: full `xcodebuild test` passed; 511 tests, 1 skipped, 0 failures, including 6 `WorkspaceSyncKeyRotationTests`.
 - Web: full `npm run check` passed; 278 tests across 40 files, including 5 `sync-key-rotation.test.ts` cases.
 - Android, Rust and protocol schema/generated bindings were unchanged by P1-02. The distributed key is the workspace synchronization AES-GCM key; capability signing/issuer enforcement remains P2-04. No live multi-device network or hardware qualification is claimed.
+
+### P2-04 verification evidence
+
+- `CapabilityLeaseManager` issues native capability leases only within a signed grant's capability URI, operations, epoch and validity window, rejects duplicate lease IDs and supports expiry checks and revocation. Lease requests remain scoped to workspace, application, requester, session and audit IDs.
+- `CapabilityGrant` uses a deterministic native binary claims token with Ed25519/P-256 signatures verified through `DevicePublicKey`. `CapabilityAuthorizer` validates the full root/delegated chain, approved root issuer, audience, epoch, parent token hash, subject/issuer linkage, validity windows and attenuation of capability URI, operations and expiry. This native token format is not COSE_Sign1 and does not claim cross-platform grant parity.
+- `CapabilityRevocationStore` enforces monotonic sequence numbers, retained prior entries, trusted issuers and freshness windows. Grant and lease revocation references are checked independently before authorization.
+- Proof of possession uses the `AD-CAP-POP-1` challenge domain over the final grant token hash plus nonce and the `cnf` SHA-256 SPKI thumbprint. Missing, mismatched and tampered proofs are rejected.
+- `CapabilityInvocationService` authorizes before dispatch, denies missing/revoked/expired leases and context or operation mismatches, and records allowed/denied/expired/revoked audit events with invocation, grant, lease, workspace, application, requester, session and payload metadata. It is not yet wired into a production remote-invocation transport.
+- iOS: full `xcodebuild test` passed; 526 tests, 1 skipped, 0 failures, including 10 `CapabilityLeaseInvocationTests` covering issuance bounds, expiry, manager and snapshot revocation, stale revocation data, root/parent/attenuation checks, proof-of-possession and audit output.
+- Web: full `npm run check` passed; 278 tests across 40 files. Android, Rust and protocol schema/generated bindings were unchanged by P2-04.
 
 ### P1-08 verification evidence
 
@@ -498,7 +508,7 @@ These are not code-level tasks and must not be marked done from simulator or loo
 
 1. P2-09 retains one physical gate: install the debug APK on an Android device, connect to a real SSH server, background the app, verify the foreground service/session survives, then verify reattach and second-device handoff. Do not mark P2-09 `Verified` from JVM tests alone.
 2. P2-10 and the P2-11 static gate are complete: the 0.3 world is separate, uses `stream<T>`/`future<T>`, and the conformance manifest records every runtime as `not-run`. Runtime conformance and lease-enforcement integration remain pending; do not claim runtime qualification from the WIT check alone.
-3. P1-08 now supplies a typed resource RPC client/server with all opcodes, lease-scoped fid lifecycle, confinement and chunked transfer. P1-02 supplies workspace-key grant/rotation evidence, so P2-04 can proceed; native remote invocation enforcement is still pending and must not be claimed.
+3. P2-04 now supplies native grant-chain, lease, revocation and `cnf` authorization with audit events on top of P1-02 workspace-key evidence. Production remote invocation transport wiring remains pending and must not be claimed from the standalone service tests.
 4. P2-06 remains blocked on P4-01 for the one-euro pointer filter dependency.
 5. P5-03 is code-level only until transport/UI wiring and physical-display qualification exist; do not claim glass-to-glass latency.
 6. Keep `milestones.md` unchanged until a task actually passes its gate.
