@@ -79,7 +79,7 @@ Phase 0 is landed. Later changes must keep the full web, iOS, Android, Rust and 
 
 - The product pins `IrohLib` 1.2.0 in `project.yml` and `iroh-android` 1.2.0 in `android/app/build.gradle.kts`. Only `research/iroh-probe/Cargo.toml` uses `iroh = 1.4.1`. Product upgrade is a separate, gated task.
 - `protocol/rust/` currently contains packed/movement codecs, not a shared core or FFI layer.
-- `libghostty-vt`, OSC 133 handling, `renderingPaused`, WebMCP, one-euro filtering, UWB discovery and zero-copy media capture are not present in tracked source. ResourceCompound and BLAKE3 blob handles are implemented and covered by cross-language fixtures.
+- `libghostty-vt`, OSC 133 handling, `renderingPaused`, WebMCP, UWB discovery and zero-copy media capture are not present in tracked source. ResourceCompound and BLAKE3 blob handles, plus the one-euro pointer filter, are implemented and covered by cross-language fixtures.
 - The current app target is iOS 17.5 with Mac Catalyst disabled. `ScreenCaptureKit` is a macOS API and cannot be used by the current iOS host target. The host strategy must choose ReplayKit/broadcast extension, a separate macOS host target, or an external host process before implementation.
 - ADR-013 is `Proposed`; `XPORT-02` cannot be signed off without measurements.
 - ADR-014 deliberately keeps the browser endpoint loopback-only. Non-loopback browser transport is an architecture decision, not a host-binding change.
@@ -136,7 +136,7 @@ Effort is in engineer-weeks and is approximate. Status is `Partial`, `Pending`, 
 | P0-03 | Verify or revert namespace partial | `AirDesk/Namespace/NamespaceImportService.swift`; `AirDeskTests/NamespaceImportServiceTests.swift` | Compiles in AirDeskTests; path/symlink/lease/fid tests pass; not wired into production | — | Verified, committed |
 | P0-04 | Add Android CI | `.github/workflows/android.yml`, `android/gradle.properties` if needed | JDK 17 + Android SDK 35; `testDebugUnitTest`, `lintDebug`, `assembleDebug` on push/PR paths | — | Verified, first run green |
 | P0-05 | Add shared-core boundary ADR | `docs/adr/024-shared-core-and-ffi-boundary.md`, `docs/adr/README.md` | ADR is `Proposed`; defines what may move into Rust, compatibility fixtures, rollback and ownership | P0-01..03 | Proposed |
-| P0-06 | Freeze Phase 1 contracts | `protocol/fixtures/**`, `docs/planning/100x-masterplan-execution.md`, `milestones.md` | ADFP envelope, remote runtime, DeviceAgent and WIT contracts have named owners and fixture paths | P0-01..05 | Contract paths frozen; ADFP, ResourceCompound/blob, remote runtime provider, DeviceAgent and WIT fixtures verified |
+| P0-06 | Freeze Phase 1 contracts | `protocol/fixtures/**`, `docs/planning/100x-masterplan-execution.md`, `milestones.md` | ADFP envelope, remote runtime, DeviceAgent and WIT contracts have named owners and fixture paths | P0-01..05 | Contract paths frozen; ADFP, ResourceCompound/blob, movement/one-euro, remote runtime provider, DeviceAgent and WIT fixtures verified |
 
 #### Phase 1 contract freeze (P0-06)
 
@@ -205,7 +205,7 @@ Compatibility rules:
 
 | ID | Task | Files | Done when | Depends | Status |
 | --- | --- | --- | --- | --- | --- |
-| P4-01 | One-euro pointer filter | `AirDesk/Input/PointerState.swift`, `InputDispatcher.swift`, `protocol/rust/src/movement.rs`, `web/src/protocol/movement.ts`; tests | Deterministic filter fixture; no phase lag at high speed; native/web output matches | P0-06 | Pending |
+| P4-01 | One-euro pointer filter | `AirDesk/Input/PointerState.swift`, `InputDispatcher.swift`, `protocol/rust/src/movement.rs`, `web/src/protocol/movement.ts`; tests | Deterministic filter fixture; no phase lag at high speed; native/web output matches | P0-06 | Verified, committed |
 | P4-02 | Decoupled local cursor and host suppression | `AirDesk/Input/AirCursorView.swift`, `MacTrackpadView.swift`, `InputDispatcher.swift`, `AirDesk/Display/**`; protocol cursor shape/hotspot | Local cursor renders at display rate; remote cursor shape/hotspot arrives out of band; no double cursor; host suppression verified | P4-01 | Pending |
 | P4-03 | Semantic input deck | `AirDesk/Features/Keyboard/KeyboardBar.swift`, `MacInputDeck.swift`, `HardwareKeyboardCapture.swift`; OSC 133 state input | Context modes A/B/C/D drive bars and gestures; no modal preview dependency; all actions have capability/lease checks | P4-02 | Pending |
 | P4-04 | Continuity pill and haptics | `AirDesk/Features/Session/SessionRecoveryView.swift`, `RootView`/`AppEnvironment`, `AirDesk/Design/Haptics.swift`; telemetry overlay | Non-blocking connection/latency/capability pill; path migration status; haptics only for semantic events; recovery screen removed or fallback-only | P1-05, P1-09 | Pending |
@@ -291,6 +291,15 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - iOS: full `xcodebuild test` passed; 511 tests, 1 skipped, 0 failures, including 6 `WorkspaceSyncKeyRotationTests`.
 - Web: full `npm run check` passed; 278 tests across 40 files, including 5 `sync-key-rotation.test.ts` cases.
 - Android, Rust and protocol schema/generated bindings were unchanged by P1-02. The distributed key is the workspace synchronization AES-GCM key; capability signing/issuer enforcement remains P2-04. No live multi-device network or hardware qualification is claimed.
+
+### P4-01 verification evidence
+
+- Native `OneEuroFilter`, TypeScript `OneEuroFilter` and Rust `OneEuroFilter` implement the same adaptive low-pass filter with `minCutoff=1.0`, `beta=160.0`, `dCutoff=1.0` and a 1/240 s minimum delta. The higher beta is tuned for normalized pointer coordinates so high-speed movement raises the cutoff instead of introducing material positional lag.
+- `protocol/fixtures/input/one-euro-v1.json` is generated from the shared algorithm and contains low-speed jitter and high-speed tracking cases. Swift, TypeScript and Rust reproduce the expected outputs within 1e-9.
+- `PointerState` enables the filter by default while retaining the existing sensitivity/acceleration gain and a `filterEnabled: false` path for raw movement. `setPosition` and `center` reset filter state. Existing session input uses the default `PointerState`, so the filter is on the production cursor path.
+- Fixture assertions require high-speed warmup error below 0.005 and final error below 0.003 normalized units, while low-speed jitter output range stays below 20% of the raw range.
+- iOS: full `xcodebuild test` passed; 532 tests, 1 skipped, 0 failures, including 5 `OneEuroFilterTests` and the updated `PointerStateTests`.
+- Web: full `npm run check` passed; 283 tests across 40 files, including 8 movement/one-euro cases. Rust: `cargo test` passed; 22 tests, including 5 one-euro tests. Android was unchanged.
 
 ### P2-04 verification evidence
 
@@ -509,7 +518,7 @@ These are not code-level tasks and must not be marked done from simulator or loo
 1. P2-09 retains one physical gate: install the debug APK on an Android device, connect to a real SSH server, background the app, verify the foreground service/session survives, then verify reattach and second-device handoff. Do not mark P2-09 `Verified` from JVM tests alone.
 2. P2-10 and the P2-11 static gate are complete: the 0.3 world is separate, uses `stream<T>`/`future<T>`, and the conformance manifest records every runtime as `not-run`. Runtime conformance and lease-enforcement integration remain pending; do not claim runtime qualification from the WIT check alone.
 3. P2-04 now supplies native grant-chain, lease, revocation and `cnf` authorization with audit events on top of P1-02 workspace-key evidence. Production remote invocation transport wiring remains pending and must not be claimed from the standalone service tests.
-4. P2-06 remains blocked on P4-01 for the one-euro pointer filter dependency.
+4. P4-01 now supplies the shared one-euro filter and fixture, so P2-06 is unblocked. Android precision input still needs its 120 Hz local cursor path, packed movement wiring, stuck-input prevention and multi-controller arbitration tests.
 5. P5-03 is code-level only until transport/UI wiring and physical-display qualification exist; do not claim glass-to-glass latency.
 6. Keep `milestones.md` unchanged until a task actually passes its gate.
 

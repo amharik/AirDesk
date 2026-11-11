@@ -7,15 +7,21 @@ struct PointerState: Equatable, Sendable {
     private(set) var lastMoveTime: TimeInterval
     var sensitivity: Double
     var accelerationEnabled: Bool
+    let filterEnabled: Bool
+    private var oneEuroFilter: OneEuroFilter
 
     init(
         position: CGPoint = CGPoint(x: 0.5, y: 0.5),
         sensitivity: Double = 0.9,
-        accelerationEnabled: Bool = true
+        accelerationEnabled: Bool = true,
+        filterEnabled: Bool = true,
+        filterParameters: OneEuroFilterParameters = .pointer
     ) {
         self.position = position
         self.sensitivity = sensitivity
         self.accelerationEnabled = accelerationEnabled
+        self.filterEnabled = filterEnabled
+        self.oneEuroFilter = OneEuroFilter(parameters: filterParameters)
         self.lastMoveTime = 0
     }
 
@@ -42,8 +48,20 @@ struct PointerState: Equatable, Sendable {
         let clampedDX = min(max(nx, -0.35), 0.35)
         let clampedDY = min(max(ny, -0.35), 0.35)
 
-        position.x = min(max(position.x + clampedDX, 0), 1)
-        position.y = min(max(position.y + clampedDY, 0), 1)
+        let targetX = min(max(position.x + clampedDX, 0), 1)
+        let targetY = min(max(position.y + clampedDY, 0), 1)
+        if filterEnabled {
+            let filtered = oneEuroFilter.filter(
+                x: Double(targetX),
+                y: Double(targetY),
+                timestamp: timestamp
+            )
+            position.x = min(max(filtered.x, 0), 1)
+            position.y = min(max(filtered.y, 0), 1)
+        } else {
+            position.x = targetX
+            position.y = targetY
+        }
         lastMoveTime = timestamp
         return position
     }
@@ -53,11 +71,13 @@ struct PointerState: Equatable, Sendable {
             x: min(max(point.x, 0), 1),
             y: min(max(point.y, 0), 1)
         )
+        oneEuroFilter.reset()
     }
 
     mutating func center() {
         position = CGPoint(x: 0.5, y: 0.5)
         lastMoveTime = 0
+        oneEuroFilter.reset()
     }
 
     static func scrollDelta(dx: Double, dy: Double, naturalScrolling: Bool) -> (Double, Double) {

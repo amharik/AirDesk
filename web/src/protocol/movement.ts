@@ -85,3 +85,116 @@ export function decodePackedMovement(bytes: Uint8Array): PackedMovement {
     modifiers: (flags >> 5) & 0b111
   };
 }
+
+export interface OneEuroParameters {
+  minCutoff: number;
+  beta: number;
+  dCutoff: number;
+}
+
+export const ONE_EURO_POINTER_PARAMETERS: Readonly<OneEuroParameters> = Object.freeze({
+  minCutoff: 1.0,
+  beta: 160.0,
+  dCutoff: 1.0
+});
+
+export const ONE_EURO_MINIMUM_DELTA_TIME = 1 / 240;
+
+export class OneEuroFilterError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'OneEuroFilterError';
+  }
+}
+
+export interface FilteredPoint {
+  x: number;
+  y: number;
+}
+
+class OneEuroAxis {
+  private previous = 0;
+  private filtered = 0;
+  private derivative = 0;
+
+  reset(): void {
+    this.previous = 0;
+    this.filtered = 0;
+    this.derivative = 0;
+  }
+
+  seed(value: number): void {
+    this.previous = value;
+    this.filtered = value;
+    this.derivative = 0;
+  }
+
+  filter(value: number, deltaTime: number, parameters: OneEuroParameters): number {
+    const rawDerivative = (value - this.previous) / deltaTime;
+    const derivativeAlpha = axisAlpha(parameters.dCutoff, deltaTime);
+    this.derivative = lowPass(rawDerivative, this.derivative, derivativeAlpha);
+    const cutoff = parameters.minCutoff + parameters.beta * Math.abs(this.derivative);
+    const valueAlpha = axisAlpha(cutoff, deltaTime);
+    const output = lowPass(value, this.filtered, valueAlpha);
+    this.previous = value;
+    this.filtered = output;
+    return output;
+  }
+}
+
+function axisAlpha(cutoff: number, deltaTime: number): number {
+  if (!Number.isFinite(cutoff) || cutoff <= 0 || !Number.isFinite(deltaTime) || deltaTime <= 0) {
+    return 1;
+  }
+  const timeConstant = 1 / (2 * Math.PI * cutoff);
+  return 1 / (1 + timeConstant / deltaTime);
+}
+
+function lowPass(input: number, previous: number, alpha: number): number {
+  return alpha * input + (1 - alpha) * previous;
+}
+
+export class OneEuroFilter {
+  readonly parameters: OneEuroParameters;
+  private readonly xAxis = new OneEuroAxis();
+  private readonly yAxis = new OneEuroAxis();
+  private lastTimestamp: number | undefined;
+
+  constructor(parameters: OneEuroParameters = ONE_EURO_POINTER_PARAMETERS) {
+    if (
+      !Number.isFinite(parameters.minCutoff) ||
+      parameters.minCutoff <= 0 ||
+      !Number.isFinite(parameters.beta) ||
+      parameters.beta < 0 ||
+      !Number.isFinite(parameters.dCutoff) ||
+      parameters.dCutoff <= 0
+    ) {
+      throw new OneEuroFilterError('invalid one-euro filter parameters');
+    }
+    this.parameters = { ...parameters };
+  }
+
+  reset(): void {
+    this.xAxis.reset();
+    this.yAxis.reset();
+    this.lastTimestamp = undefined;
+  }
+
+  filter(x: number, y: number, timestamp: number): FilteredPoint {
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(timestamp)) {
+      throw new OneEuroFilterError('filter input must be finite');
+    }
+    if (this.lastTimestamp === undefined) {
+      this.xAxis.seed(x);
+      this.yAxis.seed(y);
+      this.lastTimestamp = timestamp;
+      return { x, y };
+    }
+    const deltaTime = Math.max(timestamp - this.lastTimestamp, ONE_EURO_MINIMUM_DELTA_TIME);
+    this.lastTimestamp = timestamp;
+    return {
+      x: this.xAxis.filter(x, deltaTime, this.parameters),
+      y: this.yAxis.filter(y, deltaTime, this.parameters)
+    };
+  }
+}

@@ -9,7 +9,10 @@ pub mod resource;
 
 pub use generated::air_desk::protocol as fb;
 pub use adfp::{AdfpControlMessage, AdfpEnvelope, AdfpError, AdfpHeader, AdfpInputEvent, AdfpPayload};
-pub use movement::{PackedMovementError, PackedMovementFrame};
+pub use movement::{
+    OneEuroFilter, OneEuroFilterError, OneEuroParameters, PackedMovementError,
+    PackedMovementFrame, ONE_EURO_MINIMUM_DELTA_TIME,
+};
 pub use resource::{
     decode_compound_request, decode_compound_result, decode_read_result, validate_blob,
     validate_compound_request, validate_compound_result, BlobHandleData, CompoundRequest,

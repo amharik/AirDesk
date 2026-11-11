@@ -4,7 +4,7 @@ import XCTest
 
 final class PointerStateTests: XCTestCase {
     func testMoveAppliesGainWithoutAcceleration() {
-        var pointer = PointerState(position: CGPoint(x: 0.5, y: 0.5), sensitivity: 0.9, accelerationEnabled: false)
+        var pointer = PointerState(position: CGPoint(x: 0.5, y: 0.5), sensitivity: 0.9, accelerationEnabled: false, filterEnabled: false)
         let point = pointer.move(
             delta: CGSize(width: 100, height: -50),
             viewport: CGSize(width: 1000, height: 1000),
@@ -15,7 +15,7 @@ final class PointerStateTests: XCTestCase {
     }
 
     func testMoveClampsToDesktopBounds() {
-        var pointer = PointerState(position: CGPoint(x: 0.95, y: 0.05), sensitivity: 2, accelerationEnabled: false)
+        var pointer = PointerState(position: CGPoint(x: 0.95, y: 0.05), sensitivity: 2, accelerationEnabled: false, filterEnabled: false)
         let point = pointer.move(
             delta: CGSize(width: 4000, height: -4000),
             viewport: CGSize(width: 100, height: 100),
@@ -53,5 +53,29 @@ final class PointerStateTests: XCTestCase {
             timestamp: 30
         )
         XCTAssertEqual(point, CGPoint(x: 0.3, y: 0.3))
+    }
+}
+
+extension PointerStateTests {
+    func testDefaultOneEuroFilterAttenuatesJitter() {
+        var pointer = PointerState(
+            position: CGPoint(x: 0.5, y: 0.5),
+            sensitivity: 0.25,
+            accelerationEnabled: false
+        )
+        XCTAssertTrue(pointer.filterEnabled)
+        var positions: [CGFloat] = []
+        for index in 0..<80 {
+            let delta = index.isMultiple(of: 2) ? -2.0 : 2.0
+            let point = pointer.move(
+                delta: CGSize(width: delta, height: 0),
+                viewport: CGSize(width: 1000, height: 1000),
+                timestamp: Double(index) / 120.0
+            )
+            positions.append(point.x)
+        }
+        let filtered = positions.dropFirst(20)
+        let range = (filtered.max() ?? 0) - (filtered.min() ?? 0)
+        XCTAssertLessThan(range, 0.001)
     }
 }
