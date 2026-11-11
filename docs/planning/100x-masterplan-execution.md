@@ -167,7 +167,7 @@ Compatibility rules:
 | P1-05 | Remote runtime provider | `AirDesk/Runtime/RemoteRuntimeProvider.swift`, `RuntimeRegistry.swift`, `RuntimeProvider.swift`; `AirDeskTests/RemoteRuntimeProviderTests.swift` | Lifecycle maps create/start/suspend/checkpoint/resume/stop/destroy/status; disconnect preserves observed state; typed transport/authorization errors; not default-enabled | P1-03 | Verified, committed |
 | P1-06 | Placement integration and diagnostics | `AirDesk/Runtime/RuntimeRegistry.swift`, `AirDesk/Workspace/WorkspaceOrchestrator.swift`, `ApplicationLifecycleController.swift`; `web/src/remote/placement.ts` | Deterministic local/device/runtime selection; explicit device filter; typed unavailable/transport/authorization failures; diagnostics explain selection | P1-05 | Verified, committed |
 | P1-07 | Capability-scoped remote terminal | `AirDesk/Remote/CapabilityScopedTerminal.swift`, `RemoteTerminalController.swift`, `SessionCoordinator.swift`; `AirDeskTests/CapabilityScopedTerminalTests.swift` | Connect requires matching unexpired lease; denied/revoked/busy are typed and auditable; no capability bypass through terminal profile | P1-03, P1-05 | Verified, committed |
-| P1-08 | Resource RPC and scoped namespace import | `AirDesk/Protocol/ResourceRPCClient.swift`, `ResourceRPCServer.swift`, `AirDesk/Namespace/NamespaceImportService.swift`; `AirDeskTests/ResourceRPCTests.swift`, `NamespaceImportTests.swift` | All opcodes, fid lifecycle, path confinement, symlink escape, size caps and lease denial/revocation covered; no 9P2000 tunneling; chunked transfer for large payloads | P0-03, P1-04 | Pending |
+| P1-08 | Resource RPC and scoped namespace import | `AirDesk/Protocol/ResourceRPCClient.swift`, `ResourceRPCServer.swift`, `AirDesk/Namespace/NamespaceImportService.swift`; `AirDeskTests/ResourceRPCTests.swift`, `NamespaceImportTests.swift` | All opcodes, fid lifecycle, path confinement, symlink escape, size caps and lease denial/revocation covered; no 9P2000 tunneling; chunked transfer for large payloads | P0-03, P1-04 | Verified, committed |
 | P1-09 | Iroh product upgrade spike | `project.yml`, `android/app/build.gradle.kts`, `AirDesk/Fabric/**`, `research/iroh-probe/` | Verify IrohLib/FFI 1.4.x availability; document API gaps; test path migration/roaming and relay diagnostics on loopback before product pin changes | P0-04 | Research |
 | P1-10 | Transport evidence upgrade | `scripts/research/transport_bench.ts`, `run-transport.sh`, `run-iroh*.sh`, `research/scenarios/**`, `docs/research/runs/**` | `cpu_percent`, build/runtime/network/device metadata; p50/p95/p99 recorded; no claim without method | P0-04 | Partial |
 
@@ -291,6 +291,15 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - iOS: full `xcodebuild test` passed; 511 tests, 1 skipped, 0 failures, including 6 `WorkspaceSyncKeyRotationTests`.
 - Web: full `npm run check` passed; 278 tests across 40 files, including 5 `sync-key-rotation.test.ts` cases.
 - Android, Rust and protocol schema/generated bindings were unchanged by P1-02. The distributed key is the workspace synchronization AES-GCM key; capability signing/issuer enforcement remains P2-04. No live multi-device network or hardware qualification is claimed.
+
+### P1-08 verification evidence
+
+- `ResourceRPCCodec`, `ResourceRPCClient` and `ResourceRPCServer` encode and decode every ADFP-local resource request/result opcode 100–117. Incoming result opcodes and non-FlatBuffer frames, including 9P2000-shaped buffers, are rejected; there is no 9P2000 tag or wire passthrough.
+- The server dispatches attach/walk/open/read/write/clunk/stat/wstat/compound to `NamespaceImportService`. Typed `NamespaceError` values map to `ResourceStatus`, and individual-op failures return a compound result with the failing status.
+- Fid lifecycle, bind-mode permissions, lease denial/expiry/revocation and lease path prefixes remain enforced by the existing service and lease registry. Path confinement rejects absolute paths, parent traversal and empty/oversized segments; the confined filesystem backend rejects symlink escapes outside the root.
+- Reads and writes are capped at 64 KiB per operation. `readAll`/`writeAll` chunk larger transfers client-side, and tests assert every wire request stays within the bound. Server request frames over the configured cap fail with `invalid`.
+- iOS: full `xcodebuild test` passed; 516 tests, 1 skipped, 0 failures, including 5 `ResourceRPCTests` covering all opcodes, fid lifecycle, path/symlink confinement, chunking, size caps and lease denial/revocation.
+- Web: full `npm run check` passed; 278 tests across 40 files. Android, Rust and protocol schema/generated bindings were unchanged by P1-08.
 
 ### P1-03 verification evidence
 
@@ -489,7 +498,7 @@ These are not code-level tasks and must not be marked done from simulator or loo
 
 1. P2-09 retains one physical gate: install the debug APK on an Android device, connect to a real SSH server, background the app, verify the foreground service/session survives, then verify reattach and second-device handoff. Do not mark P2-09 `Verified` from JVM tests alone.
 2. P2-10 and the P2-11 static gate are complete: the 0.3 world is separate, uses `stream<T>`/`future<T>`, and the conformance manifest records every runtime as `not-run`. Runtime conformance and lease-enforcement integration remain pending; do not claim runtime qualification from the WIT check alone.
-3. P1-02 now supplies workspace-key grant/rotation evidence, so P2-04 can proceed; remote invocation enforcement is still pending and must not be claimed.
+3. P1-08 now supplies a typed resource RPC client/server with all opcodes, lease-scoped fid lifecycle, confinement and chunked transfer. P1-02 supplies workspace-key grant/rotation evidence, so P2-04 can proceed; native remote invocation enforcement is still pending and must not be claimed.
 4. P2-06 remains blocked on P4-01 for the one-euro pointer filter dependency.
 5. P5-03 is code-level only until transport/UI wiring and physical-display qualification exist; do not claim glass-to-glass latency.
 6. Keep `milestones.md` unchanged until a task actually passes its gate.
