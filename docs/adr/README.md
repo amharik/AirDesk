@@ -19,6 +19,8 @@ This index is the authoritative map of which decision is in force. An ADR's orig
 > **Execution note (2026-11-10):** ADR-025 accepts in-app ReplayKit capture of AirDesk-owned surfaces as the initial iOS host-capture path. Whole-device Broadcast Upload Extensions, macOS ScreenCaptureKit hosts and external host processes remain separately gated; no media pipeline or capture capability is implemented by this decision.
 >
 > **Execution note (2026-11-11):** ADR-026 records the standalone `core/airdeskd` persistent PTY daemon as a carve-out from ADR-024 while leaving SSH, local PTY and process spawning out of the shared core. Terminal ADFP payloads, bounded replay, multi-client attach and local lease enforcement are implemented and covered by Rust and Swift codec tests; a deployed transport, live-network survival and physical-device qualification remain pending.
+>
+> **Execution note (2026-11-12):** ADR-027 standardizes the terminal on WTerm plus the `@wterm/ghostty` WASM core after the P4-07 benchmark. `libghostty-vt` 0.6.3 is retained as a research reference only because it is a Bun/native FFI binding with no browser/WASM, DOM selection, accessibility or iOS target; the current engine remains the production path and no replacement is scheduled.
 
 | ADR | Decision | Decision status | Implementation status | Effective note |
 | --- | --- | --- | --- | --- |
@@ -28,7 +30,7 @@ This index is the authoritative map of which decision is in force. An ADR's orig
 | [004](004-runtime-and-execution-baseline.md) | Runtime and execution baseline | Proposed | Wanix baseline active | Wanix is the preferred portable provider; WASI 0.2 worlds are baseline, WASI 0.3 is an evaluation target and WASIX is a vendor extension |
 | [005](005-display-and-transport.md) | Display profiles and transport | Proposed | Partial | Display sessions present a workspace but do not own it; sequencing amended by ADR-013/014 |
 | [006](006-remote-windowing.md) | Remote windowing | Proposed | Not started | Remote windows are presentation/execution adapters; post-MVP; Xpra reattach preferred over stateless RDP |
-| [007](007-winbox-and-wterm.md) | WinBox and WTerm | Proposed | Production defaults | Shell and terminal must depend on application/runtime interfaces, not Wanix internals |
+| [007](007-winbox-and-wterm.md) | WinBox and WTerm | Proposed | Production defaults | Shell and terminal must depend on application/runtime interfaces, not Wanix internals; terminal engine standardized by ADR-027 |
 | [008](008-input-and-control-protocol.md) | Input and control protocol | Proposed | Implemented, gates pending | Input source, focus owner and multi-controller arbitration added by ADR-015 |
 | [009](009-workspace-persistence-and-recovery.md) | Workspace persistence and recovery | Proposed | Partial | Major amendment: desired/observed state, resource references, independent recovery domains and `lww`/`append-log`/`manual` merge metadata; single-device manifest/store/recovery and a deterministic merge-conflict corpus are implemented, cross-device sync is not |
 | [010](010-airdesk-fabric-protocol.md) | ADFP semantic scope | Proposed | In progress | Major amendment: AD-RUNTIME and AD-RESOURCE active; transport bindings are versioned separately from ADFP semantics; typed header/fabric payloads and Android codec exist, module/transport coverage is pending |
@@ -48,6 +50,7 @@ This index is the authoritative map of which decision is in force. An ADR's orig
 | [024](024-shared-core-and-ffi-boundary.md) | Shared core and FFI boundary | Proposed | Not started | Additive Rust core; native implementations remain until fixture equality, platform tests and rollback are proven |
 | [025](025-host-capture-platform.md) | Host capture and media pipeline platform | Accepted | Not started | Initial iOS path is in-app ReplayKit capture of AirDesk-owned surfaces; whole-device broadcast extension and macOS ScreenCaptureKit host remain separately gated; no zero-copy or glass-to-glass claim |
 | [026](026-persistent-pty-daemon.md) | Persistent PTY daemon boundary | Proposed | In progress | `core/airdeskd` is an isolated daemon, not shared-core/FFI; additive ADFP `TerminalMessage`, bounded sequence replay, multi-client attach and local lease checks exist; deployed transport and physical/live-network gates remain pending |
+| [027](027-terminal-engine-standardization.md) | Terminal engine standardization | Accepted | WTerm + Ghostty WASM production | WTerm remains the renderer and `@wterm/ghostty` 0.5.7 the production core; `libghostty-vt` is a research reference only because it is a Bun/native FFI binding without browser, selection, accessibility or iOS support |
 
 ## Effective decisions
 
