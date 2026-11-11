@@ -48,6 +48,25 @@
     setTitle(title) {
       if (!this.closedState) this.instance.setTitle(title);
     }
+    setBadge(badge) {
+      if (this.closedState) return;
+      const actions = this.element.querySelector(".airdesk-titlebar-actions");
+      if (!actions) return;
+      let element = actions.querySelector(".airdesk-window-badge");
+      if (!badge) {
+        element?.remove();
+        return;
+      }
+      if (!element) {
+        element = this.element.ownerDocument.createElement("span");
+        element.className = "airdesk-window-badge";
+        actions.appendChild(element);
+      }
+      element.dataset.tone = badge.tone ?? "neutral";
+      element.textContent = badge.label;
+      if (badge.title) element.title = badge.title;
+      else element.removeAttribute("title");
+    }
     setBounds(bounds) {
       if (this.closedState) return;
       this.instance.resize(bounds.width, bounds.height).move(bounds.x, bounds.y);
@@ -167,6 +186,7 @@
           if (index >= 0) this.focusStack.splice(index, 1);
         }
       );
+      if (descriptor.badge) handle.setBadge(descriptor.badge);
       this.wireChrome(instance, handle);
       this.windows.set(descriptor.id, handle);
       this.placeInFocusStack(descriptor.id);

@@ -8,21 +8,36 @@ import type {
   SemanticBlockPanelOptions,
   SemanticBlockSnapshot
 } from './semantic-blocks';
+import {
+  AgentSupervisionBadge,
+  AgentSupervisionModel
+} from './agent-supervision';
+import type {
+  AgentCapabilityGrant,
+  AgentControlAction,
+  AgentControlDecision,
+  AgentSupervisionSnapshot
+} from './agent-supervision';
 import type { TerminalEngine, TerminalTransport } from './terminal-engine';
 
 export interface WTermEngineOptions extends WTermOptions {
   transport: TerminalTransport;
   semanticBlocks?: boolean | SemanticBlockPanelOptions;
   onSemanticBlocks?: (snapshot: SemanticBlockSnapshot) => void;
+  agentBadge?: boolean;
+  onAgentSupervision?: (snapshot: AgentSupervisionSnapshot) => void;
 }
 
 export class WTermEngine implements TerminalEngine {
   readonly element: HTMLElement;
   readonly semanticBlocks = new SemanticTerminalModel();
+  readonly agentSupervision = new AgentSupervisionModel();
   private readonly transport: TerminalTransport;
   private readonly terminal: WTerm;
   private readonly panel?: SemanticBlockPanel;
+  private readonly badge?: AgentSupervisionBadge;
   private readonly onSemanticBlocks?: (snapshot: SemanticBlockSnapshot) => void;
+  private readonly onAgentSupervision?: (snapshot: AgentSupervisionSnapshot) => void;
   private readonly pending: Array<string | Uint8Array> = [];
   private ready = false;
 
@@ -34,17 +49,26 @@ export class WTermEngine implements TerminalEngine {
       onResize,
       semanticBlocks,
       onSemanticBlocks,
+      agentBadge,
+      onAgentSupervision,
       ...terminalOptions
     } = options;
     this.element = element;
     this.transport = transport;
     this.onSemanticBlocks = onSemanticBlocks;
+    this.onAgentSupervision = onAgentSupervision;
+    this.agentSupervision.setConnected(false);
+    const parent = element.parentElement;
+    if (agentBadge || semanticBlocks) {
+      this.badge = new AgentSupervisionBadge();
+      if (parent) parent.insertBefore(this.badge.element, element.nextSibling);
+      else element.appendChild(this.badge.element);
+    }
     if (semanticBlocks) {
       this.panel = new SemanticBlockPanel({
         ...(semanticBlocks === true ? {} : semanticBlocks),
         resolveBlock: (id) => this.semanticBlocks.snapshot().blocks.find((block) => block.id === id)
       });
-      const parent = element.parentElement;
       if (parent) parent.insertBefore(this.panel.element, element.nextSibling);
       else element.appendChild(this.panel.element);
     }
@@ -53,6 +77,7 @@ export class WTermEngine implements TerminalEngine {
       ...terminalOptions,
       onData: (data) => {
         this.semanticBlocks.noteInput(data);
+        this.publishAgent();
         onData?.(data);
         transport.send(data);
       },
@@ -71,6 +96,8 @@ export class WTermEngine implements TerminalEngine {
     await this.terminal.init();
     this.terminal.fit();
     this.ready = true;
+    this.agentSupervision.setConnected(true);
+    this.publishAgent();
     for (const data of this.pending.splice(0)) this.terminal.write(data);
   }
 
@@ -85,12 +112,38 @@ export class WTermEngine implements TerminalEngine {
 
   input(data: string): void {
     this.semanticBlocks.noteInput(data);
+    this.publishAgent();
     this.transport.send(data);
   }
 
   paste(data: string): void {
     this.semanticBlocks.noteInput(data);
+    this.publishAgent();
     this.transport.send(data);
+  }
+
+  agentSnapshot(now = Date.now()): AgentSupervisionSnapshot {
+    return this.agentSupervision.snapshot(now);
+  }
+
+  agentControl(
+    action: AgentControlAction,
+    payload: string,
+    grant: AgentCapabilityGrant | null | undefined,
+    now = Date.now()
+  ): AgentControlDecision {
+    const decision = this.agentSupervision.apply(
+      action,
+      payload,
+      grant,
+      (data) => this.transport.send(data),
+      now
+    );
+    if (decision.authorized) {
+      this.semanticBlocks.noteInput(payload);
+      this.publishAgent();
+    }
+    return decision;
   }
 
   fit(): void {
@@ -112,7 +165,10 @@ export class WTermEngine implements TerminalEngine {
   destroy(): void {
     this.ready = false;
     this.pending.length = 0;
+    this.agentSupervision.setConnected(false);
+    this.publishAgent();
     this.panel?.destroy();
+    this.badge?.destroy();
     this.terminal.destroy();
   }
 
@@ -121,5 +177,14 @@ export class WTermEngine implements TerminalEngine {
     const snapshot = this.semanticBlocks.snapshot();
     this.onSemanticBlocks?.(snapshot);
     this.panel?.render(snapshot);
+    this.publishAgent();
+  }
+
+  private publishAgent(): void {
+    this.agentSupervision.observe(this.semanticBlocks.snapshot());
+    if (!this.badge && !this.onAgentSupervision) return;
+    const snapshot = this.agentSupervision.snapshot();
+    this.badge?.render(snapshot);
+    this.onAgentSupervision?.(snapshot);
   }
 }

@@ -92,6 +92,25 @@ describe('WinBox window manager', () => {
     }
   });
 
+  it('applies and removes the optional agent badge in window chrome', () => {
+    const { manager } = createManager();
+    const handle = openTerminal(manager);
+    expect(handle.element.querySelector('.airdesk-window-badge')).toBeNull();
+
+    handle.setBadge({ label: 'Agent working', tone: 'active', title: 'Read-only command snapshot' });
+    const badge = handle.element.querySelector<HTMLElement>('.airdesk-window-badge');
+    expect(badge?.textContent).toBe('Agent working');
+    expect(badge?.dataset.tone).toBe('active');
+    expect(badge?.title).toBe('Read-only command snapshot');
+
+    handle.setBadge({ label: 'Agent failed', tone: 'failed' });
+    expect(handle.element.querySelector('.airdesk-window-badge')?.textContent).toBe('Agent failed');
+    expect(handle.element.querySelector<HTMLElement>('.airdesk-window-badge')?.title).toBe('');
+
+    handle.setBadge(null);
+    expect(handle.element.querySelector('.airdesk-window-badge')).toBeNull();
+  });
+
   it('tracks focus order and exposes normalized input conversion', () => {
     const { manager } = createManager();
     const terminal = openTerminal(manager);

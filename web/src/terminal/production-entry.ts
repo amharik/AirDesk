@@ -12,6 +12,11 @@ import {
   copyBlockOutput,
   formatBlockMarkdown
 } from './semantic-blocks';
+import {
+  AgentSupervisionModel,
+  agentBadgeLabel,
+  redactSensitiveText
+} from './agent-supervision';
 import { WTermEngine } from './wterm-engine';
 import type { WTermEngineOptions } from './wterm-engine';
 import type { TerminalEngine } from './terminal-engine';
@@ -31,10 +36,17 @@ export interface AirDeskWTermSemantic {
   markdown(block: Parameters<typeof formatBlockMarkdown>[0]): string;
 }
 
+export interface AirDeskWTermAgent {
+  create(): AgentSupervisionModel;
+  badgeLabel: typeof agentBadgeLabel;
+  redact: typeof redactSensitiveText;
+}
+
 export interface AirDeskWTermRuntime {
   create(element: HTMLElement, options: WTermEngineOptions): Promise<TerminalEngine>;
   transcript: AirDeskWTermTranscript;
   semantic: AirDeskWTermSemantic;
+  agent: AirDeskWTermAgent;
 }
 
 declare global {
@@ -65,5 +77,10 @@ window.AirDeskWTerm = {
     create: () => new SemanticTerminalModel(),
     copyOutput: copyBlockOutput,
     markdown: formatBlockMarkdown
+  },
+  agent: {
+    create: () => new AgentSupervisionModel(),
+    badgeLabel: agentBadgeLabel,
+    redact: redactSensitiveText
   }
 };

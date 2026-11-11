@@ -136,3 +136,56 @@ body[data-appearance="light"] .semantic-block {
 body[data-appearance="light"] .semantic-block-status {
   color: #5b6b85;
 }
+
+.agent-supervision-badge {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  padding: 3px 8px;
+  color: #93a6c4;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  background: #0c111b;
+  border: 1px solid rgb(111 227 255 / 20%);
+  border-radius: 999px;
+}
+
+.agent-supervision-badge::before {
+  width: 6px;
+  height: 6px;
+  content: "";
+  background: currentColor;
+  border-radius: 50%;
+}
+
+.agent-supervision-badge[data-state="working"] {
+  color: #6fe3ff;
+}
+
+.agent-supervision-badge[data-state="waiting"] {
+  color: #f5c86f;
+}
+
+.agent-supervision-badge[data-state="blocked"] {
+  color: #f59e6f;
+}
+
+.agent-supervision-badge[data-state="failed"] {
+  color: #ff6b7a;
+}
+
+.agent-supervision-badge[data-state="idle"] {
+  color: #5ee6a8;
+}
+
+.agent-supervision-badge[data-state="offline"] {
+  color: #6b7a94;
+}
+
+body[data-appearance="light"] .agent-supervision-badge {
+  color: #5b6b85;
+  background: #eef2f8;
+}

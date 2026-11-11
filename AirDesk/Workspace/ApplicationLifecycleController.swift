@@ -4,9 +4,13 @@ final class ApplicationLifecycleController {
     let host: WorkspaceHost
     let registry: RuntimeRegistry
 
+    static let agentInputCapability = "airdesk://agent/input"
+    static let agentAuditLimit = 100
+
     private let lock = NSLock()
     private var observedByInstance: [String: ApplicationInstanceStatus] = [:]
     private var selectionByInstance: [String: RuntimeProviderSelection] = [:]
+    private var agentAuditByInstance: [String: [AgentControlAuditEvent]] = [:]
     private let now: () -> Date
 
     init(
@@ -222,6 +226,68 @@ final class ApplicationLifecycleController {
         }
     }
 
+    func agentSupervision(for instanceId: String) -> ApplicationAgentSupervision? {
+        guard let status = status(for: instanceId) else { return nil }
+        let badge: AgentSupervisionBadge
+        switch status.observedState {
+        case .starting: badge = .starting
+        case .running: badge = .active
+        case .suspended, .suspendedCheckpointed: badge = .paused
+        case .failed: badge = .failed
+        case .stopped, .unavailable: badge = .offline
+        }
+        return ApplicationAgentSupervision(
+            instanceId: instanceId,
+            badge: badge,
+            snapshotOnly: true,
+            lastError: status.lastError
+        )
+    }
+
+    func authorizeAgentControl(
+        instanceId: String,
+        action: AgentControlAction,
+        payload: Data,
+        grant: AgentCapabilityGrant?
+    ) -> AgentControlDecision {
+        let decision: AgentControlDecision
+        if status(for: instanceId)?.observedState != .running {
+            decision = .denied(.instanceNotRunning)
+        } else if grant == nil {
+            decision = .denied(.missingGrant)
+        } else if grant?.capability != Self.agentInputCapability {
+            decision = .denied(.wrongCapability)
+        } else if grant?.leaseId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false {
+            decision = .denied(.missingLease)
+        } else if (grant?.expiresAt ?? .distantPast) <= now() {
+            decision = .denied(.expiredLease)
+        } else if grant?.actions.contains(action) == false {
+            decision = .denied(.actionNotGranted)
+        } else if payload.isEmpty {
+            decision = .denied(.emptyPayload)
+        } else if payload.count > 65_536 {
+            decision = .denied(.payloadTooLarge)
+        } else if payload.contains(where: { ($0 < 0x20 && $0 != 0x09 && $0 != 0x0A && $0 != 0x0D) || $0 == 0x7F }) {
+            decision = .denied(.unsafeControlSequence)
+        } else {
+            decision = .authorized
+        }
+        recordAgentAudit(
+            instanceId: instanceId,
+            action: action,
+            grant: grant,
+            byteCount: payload.count,
+            decision: decision
+        )
+        return decision
+    }
+
+    func agentAuditEvents(for instanceId: String) -> [AgentControlAuditEvent] {
+        lock.withLock {
+            agentAuditByInstance[instanceId] ?? []
+        }
+    }
+
     func reconcile() throws -> WorkspaceReconciliationReport {
         guard let manifest = try loadManifest() else {
             throw ApplicationLifecycleError.workspaceMissing
@@ -329,6 +395,33 @@ final class ApplicationLifecycleController {
         return status
     }
 
+    private func recordAgentAudit(
+        instanceId: String,
+        action: AgentControlAction,
+        grant: AgentCapabilityGrant?,
+        byteCount: Int,
+        decision: AgentControlDecision
+    ) {
+        let event = AgentControlAuditEvent(
+            timestamp: now(),
+            instanceId: instanceId,
+            action: action,
+            capability: grant?.capability,
+            leaseId: grant?.leaseId,
+            byteCount: byteCount,
+            accepted: decision.isAuthorized,
+            denial: decision.denial
+        )
+        lock.withLock {
+            var events = agentAuditByInstance[instanceId] ?? []
+            events.append(event)
+            if events.count > Self.agentAuditLimit {
+                events.removeFirst(events.count - Self.agentAuditLimit)
+            }
+            agentAuditByInstance[instanceId] = events
+        }
+    }
+
     private func mutate(
         _ body: (inout WorkspaceManifest) throws -> Void
     ) throws -> WorkspaceManifest {
@@ -349,6 +442,70 @@ final class ApplicationLifecycleController {
             throw ApplicationLifecycleError.host(error)
         }
     }
+}
+
+enum AgentSupervisionBadge: String, Equatable, Sendable {
+    case offline
+    case starting
+    case active
+    case paused
+    case failed
+}
+
+enum AgentControlAction: String, Equatable, Hashable, Sendable {
+    case write
+    case inject
+}
+
+struct AgentCapabilityGrant: Equatable, Sendable {
+    var capability: String
+    var leaseId: String
+    var expiresAt: Date
+    var actions: Set<AgentControlAction>
+}
+
+enum AgentControlDenial: String, Equatable, Sendable {
+    case instanceNotRunning
+    case missingGrant
+    case wrongCapability
+    case missingLease
+    case expiredLease
+    case actionNotGranted
+    case emptyPayload
+    case payloadTooLarge
+    case unsafeControlSequence
+}
+
+enum AgentControlDecision: Equatable, Sendable {
+    case authorized
+    case denied(AgentControlDenial)
+
+    var isAuthorized: Bool {
+        self == .authorized
+    }
+
+    var denial: AgentControlDenial? {
+        guard case .denied(let denial) = self else { return nil }
+        return denial
+    }
+}
+
+struct ApplicationAgentSupervision: Equatable, Sendable {
+    var instanceId: String
+    var badge: AgentSupervisionBadge
+    var snapshotOnly: Bool
+    var lastError: String?
+}
+
+struct AgentControlAuditEvent: Equatable, Sendable {
+    var timestamp: Date
+    var instanceId: String
+    var action: AgentControlAction
+    var capability: String?
+    var leaseId: String?
+    var byteCount: Int
+    var accepted: Bool
+    var denial: AgentControlDenial?
 }
 
 enum ApplicationLifecycleError: Error, Equatable, LocalizedError {

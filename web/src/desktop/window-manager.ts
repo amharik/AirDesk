@@ -12,6 +12,14 @@ export interface WindowBounds {
   height: number;
 }
 
+export type DesktopWindowBadgeTone = 'neutral' | 'active' | 'waiting' | 'blocked' | 'failed';
+
+export interface DesktopWindowBadge {
+  label: string;
+  tone?: DesktopWindowBadgeTone;
+  title?: string;
+}
+
 export interface DesktopWindowDescriptor {
   id: string;
   title: string;
@@ -21,6 +29,7 @@ export interface DesktopWindowDescriptor {
   minHeight?: number;
   content?: Node | string;
   appName?: string;
+  badge?: DesktopWindowBadge;
   onFocus?: () => void;
   onBlur?: () => void;
   onMove?: (x: number, y: number) => void;
@@ -43,6 +52,7 @@ export interface DesktopWindowHandle {
   restore(): void;
   close(): void;
   setTitle(title: string): void;
+  setBadge(badge: DesktopWindowBadge | null): void;
   setBounds(bounds: WindowBounds): void;
   setViewportInsets(insets: WindowInsets): void;
   clientToWindowPoint(clientX: number, clientY: number): { x: number; y: number };
@@ -184,6 +194,26 @@ class WindowHandle implements DesktopWindowHandle {
     if (!this.closedState) this.instance.setTitle(title);
   }
 
+  setBadge(badge: DesktopWindowBadge | null): void {
+    if (this.closedState) return;
+    const actions = this.element.querySelector<HTMLElement>('.airdesk-titlebar-actions');
+    if (!actions) return;
+    let element = actions.querySelector<HTMLElement>('.airdesk-window-badge');
+    if (!badge) {
+      element?.remove();
+      return;
+    }
+    if (!element) {
+      element = this.element.ownerDocument.createElement('span');
+      element.className = 'airdesk-window-badge';
+      actions.appendChild(element);
+    }
+    element.dataset.tone = badge.tone ?? 'neutral';
+    element.textContent = badge.label;
+    if (badge.title) element.title = badge.title;
+    else element.removeAttribute('title');
+  }
+
   setBounds(bounds: WindowBounds): void {
     if (this.closedState) return;
     this.instance.resize(bounds.width, bounds.height).move(bounds.x, bounds.y);
@@ -317,6 +347,7 @@ export class WinBoxWindowManager {
       }
     );
 
+    if (descriptor.badge) handle.setBadge(descriptor.badge);
     this.wireChrome(instance, handle);
     this.windows.set(descriptor.id, handle);
     this.placeInFocusStack(descriptor.id);

@@ -1491,6 +1491,180 @@ ${normalized}\r
     }
   };
 
+  // src/terminal/agent-supervision.ts
+  var AGENT_INPUT_CAPABILITY = "airdesk://agent/input";
+  var AGENT_SNAPSHOT_LIMIT = 50;
+  var AGENT_SNAPSHOT_TEXT_LIMIT = 8192;
+  var AGENT_CONTROL_TEXT_LIMIT = 65536;
+  var AGENT_AUDIT_LIMIT = 100;
+  var BADGE_LABELS = {
+    offline: "Agent offline",
+    idle: "Agent idle",
+    working: "Agent working",
+    waiting: "Agent waiting",
+    blocked: "Agent blocked",
+    failed: "Agent failed"
+  };
+  function agentBadgeLabel(badge) {
+    return BADGE_LABELS[badge];
+  }
+  function badgeForSemanticSnapshot(snapshot, connected = true) {
+    if (!connected) return "offline";
+    const latest = [...snapshot.blocks].reverse().find((block) => block.state !== "prompt");
+    if (!latest) return snapshot.unconfirmedInputBytes > 0 ? "waiting" : "idle";
+    switch (latest.state) {
+      case "running":
+        return "working";
+      case "interrupted":
+        return "blocked";
+      case "finished":
+        return latest.exitCode === 0 ? "idle" : "failed";
+      case "input":
+        return "waiting";
+      default:
+        return "idle";
+    }
+  }
+  function sensitivePatterns() {
+    return [
+      /\bAuthorization\s*:\s*(?:Bearer\s+)?[^\s]+/gi,
+      /\bBearer\s+[A-Za-z0-9._~+/=-]+/gi,
+      /(password|passwd|pwd|token|secret|api[-_]?key)\s*[:=]\s*[^\s]+/gi,
+      /-----BEGIN [^-]*PRIVATE KEY-----[\s\S]*?-----END [^-]*PRIVATE KEY-----/g,
+      /https?:\/\/[^\s/@:]+:[^\s/@]+@/g,
+      /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,})\b/g
+    ];
+  }
+  function redactSensitiveText(value) {
+    let text = sanitizeTerminalText(value);
+    let redacted = false;
+    for (const pattern of sensitivePatterns()) {
+      text = text.replace(pattern, (_match, key) => {
+        redacted = true;
+        return key ? `${key}=[redacted]` : "[redacted]";
+      });
+    }
+    return { text, redacted };
+  }
+  function unsafeControlSequence(value) {
+    for (let index = 0; index < value.length; index += 1) {
+      const code = value.charCodeAt(index);
+      if (code === 9 || code === 10 || code === 13) continue;
+      if (code < 32 || code === 127) return true;
+    }
+    return false;
+  }
+  var AgentSupervisionModel = class {
+    constructor() {
+      this.connected = true;
+      this.badge = "idle";
+      this.semantic = {
+        blocks: [],
+        activeBlockId: null,
+        lastSequence: 0,
+        unconfirmedInputBytes: 0
+      };
+      this.audit = [];
+    }
+    setConnected(connected) {
+      this.connected = connected;
+      this.badge = connected ? badgeForSemanticSnapshot(this.semantic) : "offline";
+    }
+    observe(snapshot) {
+      this.semantic = snapshot;
+      this.badge = badgeForSemanticSnapshot(snapshot, this.connected);
+    }
+    snapshot(now = Date.now(), limit = AGENT_SNAPSHOT_LIMIT) {
+      let redacted = false;
+      const blocks = this.semantic.blocks.filter((block) => block.state !== "prompt" && block.output.length > 0).slice(-Math.max(1, limit)).map((block) => {
+        const result = redactSensitiveText(block.output);
+        redacted = redacted || result.redacted;
+        return {
+          id: block.id,
+          state: block.state,
+          output: result.text.slice(0, AGENT_SNAPSHOT_TEXT_LIMIT)
+        };
+      });
+      return {
+        badge: this.badge,
+        blocks,
+        generatedAt: now,
+        redacted,
+        unconfirmedInputBytes: this.semantic.unconfirmedInputBytes
+      };
+    }
+    authorize(action, payload, grant, now = Date.now()) {
+      const decision = this.validate(action, payload, grant, now);
+      this.recordAudit(action, payload, grant, now, decision);
+      return decision;
+    }
+    apply(action, payload, grant, sink, now = Date.now()) {
+      const decision = this.authorize(action, payload, grant, now);
+      if (decision.authorized) void sink(payload);
+      return decision;
+    }
+    auditEvents() {
+      return this.audit.map((event) => ({ ...event }));
+    }
+    validate(action, payload, grant, now) {
+      if (!this.connected) return { authorized: false, reason: "offline" };
+      if (!grant) return { authorized: false, reason: "missing-capability" };
+      if (grant.capability !== AGENT_INPUT_CAPABILITY) {
+        return { authorized: false, reason: "wrong-capability" };
+      }
+      if (!grant.leaseId.trim()) return { authorized: false, reason: "missing-lease" };
+      if (grant.expiresAt <= now) return { authorized: false, reason: "expired-lease" };
+      if (grant.actions && !grant.actions.includes(action)) {
+        return { authorized: false, reason: "action-not-granted" };
+      }
+      if (!payload) return { authorized: false, reason: "empty-payload" };
+      if (payload.length > AGENT_CONTROL_TEXT_LIMIT) {
+        return { authorized: false, reason: "payload-too-large" };
+      }
+      if (unsafeControlSequence(payload)) {
+        return { authorized: false, reason: "unsafe-control-sequence" };
+      }
+      return { authorized: true };
+    }
+    recordAudit(action, payload, grant, now, decision) {
+      this.audit.push({
+        timestamp: now,
+        action,
+        capability: grant?.capability ?? null,
+        leaseId: grant?.leaseId ?? null,
+        byteCount: payload.length,
+        accepted: decision.authorized,
+        reason: decision.reason
+      });
+      if (this.audit.length > AGENT_AUDIT_LIMIT) {
+        this.audit.splice(0, this.audit.length - AGENT_AUDIT_LIMIT);
+      }
+    }
+  };
+  var AgentSupervisionBadge = class {
+    constructor() {
+      this.element = document.createElement("span");
+      this.element.className = "agent-supervision-badge";
+      this.element.setAttribute("role", "status");
+      this.element.setAttribute("aria-live", "polite");
+      this.render({
+        badge: "idle",
+        blocks: [],
+        generatedAt: 0,
+        redacted: false,
+        unconfirmedInputBytes: 0
+      });
+    }
+    render(snapshot) {
+      this.element.dataset.state = snapshot.badge;
+      this.element.textContent = agentBadgeLabel(snapshot.badge);
+      this.element.title = snapshot.redacted ? "Read-only snapshot redacts credential-like text." : "Read-only agent supervision snapshot.";
+    }
+    destroy() {
+      this.element.remove();
+    }
+  };
+
   // node_modules/@wterm/core/dist/wasm-loading.js
   var embedded;
   var modules2 = /* @__PURE__ */ new Map();
@@ -7279,6 +7453,7 @@ ${normalized}\r
   var WTermEngine = class {
     constructor(element, options) {
       this.semanticBlocks = new SemanticTerminalModel();
+      this.agentSupervision = new AgentSupervisionModel();
       this.pending = [];
       this.ready = false;
       const {
@@ -7288,17 +7463,26 @@ ${normalized}\r
         onResize,
         semanticBlocks,
         onSemanticBlocks,
+        agentBadge,
+        onAgentSupervision,
         ...terminalOptions
       } = options;
       this.element = element;
       this.transport = transport;
       this.onSemanticBlocks = onSemanticBlocks;
+      this.onAgentSupervision = onAgentSupervision;
+      this.agentSupervision.setConnected(false);
+      const parent = element.parentElement;
+      if (agentBadge || semanticBlocks) {
+        this.badge = new AgentSupervisionBadge();
+        if (parent) parent.insertBefore(this.badge.element, element.nextSibling);
+        else element.appendChild(this.badge.element);
+      }
       if (semanticBlocks) {
         this.panel = new SemanticBlockPanel({
           ...semanticBlocks === true ? {} : semanticBlocks,
           resolveBlock: (id) => this.semanticBlocks.snapshot().blocks.find((block) => block.id === id)
         });
-        const parent = element.parentElement;
         if (parent) parent.insertBefore(this.panel.element, element.nextSibling);
         else element.appendChild(this.panel.element);
       }
@@ -7307,6 +7491,7 @@ ${normalized}\r
         ...terminalOptions,
         onData: (data) => {
           this.semanticBlocks.noteInput(data);
+          this.publishAgent();
           onData?.(data);
           transport.send(data);
         },
@@ -7324,6 +7509,8 @@ ${normalized}\r
       await this.terminal.init();
       this.terminal.fit();
       this.ready = true;
+      this.agentSupervision.setConnected(true);
+      this.publishAgent();
       for (const data of this.pending.splice(0)) this.terminal.write(data);
     }
     write(data) {
@@ -7336,11 +7523,30 @@ ${normalized}\r
     }
     input(data) {
       this.semanticBlocks.noteInput(data);
+      this.publishAgent();
       this.transport.send(data);
     }
     paste(data) {
       this.semanticBlocks.noteInput(data);
+      this.publishAgent();
       this.transport.send(data);
+    }
+    agentSnapshot(now = Date.now()) {
+      return this.agentSupervision.snapshot(now);
+    }
+    agentControl(action, payload, grant, now = Date.now()) {
+      const decision = this.agentSupervision.apply(
+        action,
+        payload,
+        grant,
+        (data) => this.transport.send(data),
+        now
+      );
+      if (decision.authorized) {
+        this.semanticBlocks.noteInput(payload);
+        this.publishAgent();
+      }
+      return decision;
     }
     fit() {
       if (this.ready) this.terminal.fit();
@@ -7357,7 +7563,10 @@ ${normalized}\r
     destroy() {
       this.ready = false;
       this.pending.length = 0;
+      this.agentSupervision.setConnected(false);
+      this.publishAgent();
       this.panel?.destroy();
+      this.badge?.destroy();
       this.terminal.destroy();
     }
     publishSemantic(changed) {
@@ -7365,6 +7574,14 @@ ${normalized}\r
       const snapshot = this.semanticBlocks.snapshot();
       this.onSemanticBlocks?.(snapshot);
       this.panel?.render(snapshot);
+      this.publishAgent();
+    }
+    publishAgent() {
+      this.agentSupervision.observe(this.semanticBlocks.snapshot());
+      if (!this.badge && !this.onAgentSupervision) return;
+      const snapshot = this.agentSupervision.snapshot();
+      this.badge?.render(snapshot);
+      this.onAgentSupervision?.(snapshot);
     }
   };
 
@@ -7391,6 +7608,11 @@ ${normalized}\r
       create: () => new SemanticTerminalModel(),
       copyOutput: copyBlockOutput,
       markdown: formatBlockMarkdown
+    },
+    agent: {
+      create: () => new AgentSupervisionModel(),
+      badgeLabel: agentBadgeLabel,
+      redact: redactSensitiveText
     }
   };
 })();

@@ -188,6 +188,97 @@ final class ApplicationLifecycleControllerTests: XCTestCase {
         }
     }
 
+    func testAgentSupervisionBadgesFollowObservedState() async throws {
+        let (lifecycle, _, host) = try makeLifecycle()
+        let application = makeApplication()
+        let instance = makeInstance(desiredState: .stopped)
+        try install(application, instance, in: host)
+
+        XCTAssertNil(lifecycle.agentSupervision(for: instance.id))
+        _ = try await lifecycle.start(instanceId: instance.id)
+        XCTAssertEqual(lifecycle.agentSupervision(for: instance.id)?.badge, .active)
+        XCTAssertEqual(lifecycle.agentSupervision(for: instance.id)?.snapshotOnly, true)
+
+        _ = try await lifecycle.suspend(instanceId: instance.id)
+        XCTAssertEqual(lifecycle.agentSupervision(for: instance.id)?.badge, .paused)
+
+        _ = try await lifecycle.stop(instanceId: instance.id)
+        XCTAssertEqual(lifecycle.agentSupervision(for: instance.id)?.badge, .offline)
+    }
+
+    func testAgentControlRequiresExplicitCapabilityAndAuditsWithoutPayloads() async throws {
+        let (lifecycle, _, host) = try makeLifecycle()
+        let application = makeApplication()
+        let instance = makeInstance(desiredState: .stopped)
+        try install(application, instance, in: host)
+        _ = try await lifecycle.start(instanceId: instance.id)
+
+        let payload = Data("echo ok\r".utf8)
+        XCTAssertEqual(
+            lifecycle.authorizeAgentControl(
+                instanceId: instance.id,
+                action: .write,
+                payload: payload,
+                grant: nil
+            ),
+            .denied(.missingGrant)
+        )
+
+        let validGrant = AgentCapabilityGrant(
+            capability: ApplicationLifecycleController.agentInputCapability,
+            leaseId: "lease.agent",
+            expiresAt: now.addingTimeInterval(60),
+            actions: [.write]
+        )
+        XCTAssertEqual(
+            lifecycle.authorizeAgentControl(
+                instanceId: instance.id,
+                action: .inject,
+                payload: payload,
+                grant: validGrant
+            ),
+            .denied(.actionNotGranted)
+        )
+        XCTAssertEqual(
+            lifecycle.authorizeAgentControl(
+                instanceId: instance.id,
+                action: .write,
+                payload: payload,
+                grant: validGrant
+            ),
+            .authorized
+        )
+        XCTAssertEqual(
+            lifecycle.authorizeAgentControl(
+                instanceId: instance.id,
+                action: .write,
+                payload: Data([0x1B, 0x5D, 0x30, 0x3B, 0x78, 0x07]),
+                grant: validGrant
+            ),
+            .denied(.unsafeControlSequence)
+        )
+        XCTAssertEqual(
+            lifecycle.authorizeAgentControl(
+                instanceId: instance.id,
+                action: .write,
+                payload: payload,
+                grant: AgentCapabilityGrant(
+                    capability: "airdesk://agent/other",
+                    leaseId: "lease.agent",
+                    expiresAt: now.addingTimeInterval(60),
+                    actions: [.write]
+                )
+            ),
+            .denied(.wrongCapability)
+        )
+
+        let audit = lifecycle.agentAuditEvents(for: instance.id)
+        XCTAssertEqual(audit.count, 5)
+        XCTAssertEqual(audit.map(\.accepted), [false, false, true, false, false])
+        XCTAssertEqual(audit.last?.denial, .wrongCapability)
+        XCTAssertEqual(audit[2].byteCount, payload.count)
+    }
+
     private func makeLifecycle(
         useWanix: Bool = true
     ) throws -> (ApplicationLifecycleController, RuntimeRegistry, WorkspaceHost) {

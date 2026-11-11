@@ -492,6 +492,7 @@
                 cursorBlink: true,
                 announceOutput: true,
                 semanticBlocks: true,
+                agentBadge: true,
                 transport: {
                   send: function (text) {
                     pendingInput += text;
@@ -783,6 +784,7 @@
               cursorBlink: true,
               announceOutput: true,
               semanticBlocks: true,
+              agentBadge: true,
               transport: {
                 send: sendText,
                 sendBinary: sendBytes,

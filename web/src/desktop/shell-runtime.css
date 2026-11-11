@@ -100,13 +100,39 @@ body[data-appearance="light"] .airdesk-titlebar {
 .airdesk-titlebar-actions {
   position: relative;
   z-index: 3;
+  display: flex;
   flex: 0 0 auto;
+  gap: 6px;
+  align-items: center;
   margin-left: auto;
   color: var(--muted);
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: .08em;
   text-transform: uppercase;
+}
+
+.airdesk-window-badge {
+  padding: 2px 7px;
+  color: var(--muted);
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 999px;
+}
+
+.airdesk-window-badge[data-tone="active"] {
+  color: #6fe3ff;
+}
+
+.airdesk-window-badge[data-tone="waiting"] {
+  color: #f5c86f;
+}
+
+.airdesk-window-badge[data-tone="blocked"] {
+  color: #f59e6f;
+}
+
+.airdesk-window-badge[data-tone="failed"] {
+  color: #ff6b7a;
 }
 
 .airdesk-window-body {
