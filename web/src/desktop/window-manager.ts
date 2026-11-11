@@ -1,3 +1,6 @@
+import { computeTilingLayout } from './tiling';
+import type { DesktopTilingMode, RibbonTilingOptions, WindowLayout } from './tiling';
+
 export interface WindowInsets {
   top: number;
   right: number;
@@ -78,10 +81,10 @@ export interface WinBoxOptions {
   left?: number;
   class?: string;
   onclose?: () => boolean;
-  onfocus?: () => void;
-  onblur?: () => void;
-  onmove?: (x: number, y: number) => void;
-  onresize?: (width: number, height: number) => void;
+  onfocus?: (this: WinBoxInstance) => void;
+  onblur?: (this: WinBoxInstance) => void;
+  onmove?: (this: WinBoxInstance, x: number, y: number) => void;
+  onresize?: (this: WinBoxInstance, width: number, height: number) => void;
   onminimize?: () => void;
   onmaximize?: () => void;
   onrestore?: () => void;
@@ -122,6 +125,11 @@ export interface WindowManagerOptions {
 }
 
 const DEFAULT_INSETS: WindowInsets = { top: 39, right: 0, bottom: 96, left: 0 };
+
+function syncTransform(instance: WinBoxInstance): void {
+  instance.dom.style.setProperty('--airdesk-window-x', `${instance.x}px`);
+  instance.dom.style.setProperty('--airdesk-window-y', `${instance.y}px`);
+}
 
 export function createAirDeskWindowTemplate(document: Document): HTMLElement {
   const template = document.createElement('div');
@@ -307,8 +315,11 @@ export class WinBoxWindowManager {
         this.bringToFront(descriptor.id);
         descriptor.onFocus?.();
       },
-      onblur: descriptor.onBlur,
-      onmove: descriptor.onMove,
+      onblur: () => descriptor.onBlur?.(),
+      onmove: function (this: WinBoxInstance, x: number, y: number) {
+        syncTransform(this);
+        descriptor.onMove?.(x, y);
+      },
       onresize: descriptor.onResize,
       onminimize: () => {
         this.removeFromFocusStack(descriptor.id);
@@ -324,6 +335,7 @@ export class WinBoxWindowManager {
       }
     });
 
+    syncTransform(instance);
     instance.dom.setAttribute('data-app', descriptor.id);
     instance.dom.setAttribute('role', 'dialog');
     instance.dom.setAttribute('aria-label', descriptor.appName ?? descriptor.title);
@@ -377,6 +389,26 @@ export class WinBoxWindowManager {
 
   clientToWindowPoint(id: string, clientX: number, clientY: number): { x: number; y: number } | null {
     return this.windows.get(id)?.clientToWindowPoint(clientX, clientY) ?? null;
+  }
+
+  tile(mode: DesktopTilingMode = 'bsp', options: RibbonTilingOptions = {}): WindowLayout {
+    const ids = this.getFocusOrder().filter((id) => this.windows.has(id));
+    const layout = computeTilingLayout(mode, ids, options.bounds ?? this.viewportBounds(), options);
+    for (const [id, bounds] of layout) {
+      this.windows.get(id)?.setBounds(bounds);
+    }
+    return layout;
+  }
+
+  private viewportBounds(): WindowBounds {
+    const document = this.options.document ?? this.options.root.ownerDocument;
+    const view = document.defaultView;
+    return {
+      x: this.insets.left,
+      y: this.insets.top,
+      width: Math.max(0, (view?.innerWidth ?? 0) - this.insets.left - this.insets.right),
+      height: Math.max(0, (view?.innerHeight ?? 0) - this.insets.top - this.insets.bottom)
+    };
   }
 
   private wireChrome(instance: WinBoxInstance, handle: WindowHandle): void {

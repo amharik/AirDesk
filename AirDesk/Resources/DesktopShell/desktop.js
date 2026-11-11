@@ -264,6 +264,15 @@
     };
   }
 
+  function setTerminalRendering(win, paused) {
+    if (!win || !win.body) return;
+    var targets = win.body.querySelectorAll('.wterm-term');
+    for (var index = 0; index < targets.length; index += 1) {
+      var term = targets[index]._term;
+      if (term && typeof term.setRenderingPaused === 'function') term.setRenderingPaused(paused);
+    }
+  }
+
   function openApp(id, options) {
     var app = apps[id];
     if (!app) return null;
@@ -305,8 +314,13 @@
         onFocus: function () {
           debugLog('window.focus.' + id);
           if (win.el) applyFocusState(win);
+          setTerminalRendering(win, false);
         },
-        onMinimize: function () { if (win.el) markMinimized(win); },
+        onBlur: function () { setTerminalRendering(win, true); },
+        onMinimize: function () {
+          if (win.el) markMinimized(win);
+          setTerminalRendering(win, true);
+        },
         onMaximize: function () { if (win.el) markMaximized(win, true); },
         onRestore: function () { if (win.el) markMaximized(win, false); },
         onClosed: function () { finalizeCloseWindow(win); }

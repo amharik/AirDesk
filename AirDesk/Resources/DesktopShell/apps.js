@@ -362,6 +362,7 @@
           host.appendChild(target);
 
           var engine = null;
+          var renderingPaused = false;
           var disconnected = false;
           var restartAttempts = 0;
           var receivedOutput = false;
@@ -519,6 +520,7 @@
               }
               engine = created;
               target.setAttribute('data-wterm-core', 'ghostty');
+              if (typeof engine.setRenderingPaused === 'function') engine.setRenderingPaused(renderingPaused);
               return engine.connect();
             }).then(function (connected) {
               if (connected === false || disconnected) return false;
@@ -560,7 +562,19 @@
           target.setAttribute('data-wterm', '');
           host.appendChild(target);
 
+          target._term = {
+            focus: function () { if (engine) engine.focus(); },
+            input: function (data) { if (engine) engine.input(data); },
+            paste: function (data) { if (engine) engine.paste(data); },
+            setRenderingPaused: function (paused) {
+              renderingPaused = !!paused;
+              if (engine && typeof engine.setRenderingPaused === 'function') engine.setRenderingPaused(renderingPaused);
+            },
+            onData: function () { /* WTerm owns input callbacks */ }
+          };
+
           var engine = null;
+          var renderingPaused = false;
           var reader = null;
           var writer = null;
           var readerTask = null;
@@ -671,6 +685,10 @@
             focus: function () { if (engine) engine.focus(); },
             input: function (data) { dispatchInput('input', data); },
             paste: function (data) { dispatchInput('paste', data); },
+            setRenderingPaused: function (paused) {
+              renderingPaused = !!paused;
+              if (engine && typeof engine.setRenderingPaused === 'function') engine.setRenderingPaused(renderingPaused);
+            },
             onData: function () { /* WTerm owns input callbacks */ }
           };
 
@@ -816,6 +834,7 @@
             }
             engine = created;
             target.setAttribute('data-wterm-core', 'ghostty');
+            if (typeof engine.setRenderingPaused === 'function') engine.setRenderingPaused(renderingPaused);
             debugLog('wterm.core=ghostty');
             queuedInput.splice(0).forEach(function (entry) {
               engine[entry.method](entry.data);

@@ -46,7 +46,10 @@ final class DesktopShellIntegrationTests: XCTestCase {
             startY: startY,
             endX: Math.min(1, startX + 0.08),
             endY: Math.min(1, startY + 0.05),
-            before: { left: win.offsetLeft, top: win.offsetTop }
+            before: {
+              x: parseFloat(win.style.getPropertyValue('--airdesk-window-x')) || 0,
+              y: parseFloat(win.style.getPropertyValue('--airdesk-window-y')) || 0
+            }
           };
           return JSON.stringify({
             before: window.__airDeskDragTest.before,
@@ -78,15 +81,18 @@ final class DesktopShellIntegrationTests: XCTestCase {
         let moved = try await evaluate("""
         (function () {
           var win = window.__airDeskDragTest.win;
-          return JSON.stringify({ left: win.offsetLeft, top: win.offsetTop });
+          return JSON.stringify({
+            x: parseFloat(win.style.getPropertyValue('--airdesk-window-x')) || 0,
+            y: parseFloat(win.style.getPropertyValue('--airdesk-window-y')) || 0
+          });
         })();
         """)
         let movedData = try XCTUnwrap(moved as? String).data(using: .utf8)
         let after = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(movedData)) as? [String: Any])
-        let beforeLeft = try XCTUnwrap(before["left"] as? Int)
-        let beforeTop = try XCTUnwrap(before["top"] as? Int)
-        let afterLeft = try XCTUnwrap(after["left"] as? Int)
-        let afterTop = try XCTUnwrap(after["top"] as? Int)
+        let beforeLeft = try XCTUnwrap((before["x"] as? NSNumber)?.doubleValue)
+        let beforeTop = try XCTUnwrap((before["y"] as? NSNumber)?.doubleValue)
+        let afterLeft = try XCTUnwrap((after["x"] as? NSNumber)?.doubleValue)
+        let afterTop = try XCTUnwrap((after["y"] as? NSNumber)?.doubleValue)
         XCTAssertTrue(afterLeft != beforeLeft || afterTop != beforeTop, "window did not move: before=\(before) after=\(after)")
 
         _ = try await evaluate("""

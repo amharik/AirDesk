@@ -158,6 +158,46 @@ describe('WinBox window manager', () => {
     expect(handle.element.isConnected).toBe(false);
   });
 
+  it('moves windows with transform offsets while WinBox keeps mechanics state', () => {
+    const { manager } = createManager();
+    const handle = openTerminal(manager);
+
+    expect(handle.element.style.getPropertyValue('--airdesk-window-x')).toBe('24px');
+    expect(handle.element.style.getPropertyValue('--airdesk-window-y')).toBe('60px');
+
+    handle.setBounds({ x: 120, y: 90, width: 500, height: 320 });
+    expect(handle.element.style.getPropertyValue('--airdesk-window-x')).toBe('120px');
+    expect(handle.element.style.getPropertyValue('--airdesk-window-y')).toBe('90px');
+    expect(parseFloat(handle.element.style.width)).toBe(500);
+    expect(parseFloat(handle.element.style.height)).toBe(320);
+  });
+
+  it('tiles visible windows with BSP and ribbon layouts', () => {
+    const { manager } = createManager();
+    const terminal = openTerminal(manager);
+    const notes = manager.open({
+      id: 'notes',
+      title: 'Notes',
+      bounds: { x: 80, y: 80, width: 360, height: 260 }
+    });
+
+    const bsp = manager.tile('bsp', { bounds: { x: 0, y: 0, width: 1000, height: 600 }, gap: 10 });
+    expect(bsp.get('terminal')).toEqual({ x: 0, y: 0, width: 495, height: 600 });
+    expect(bsp.get('notes')).toEqual({ x: 505, y: 0, width: 495, height: 600 });
+    expect(parseFloat(terminal.element.style.width)).toBe(495);
+    expect(terminal.element.style.getPropertyValue('--airdesk-window-x')).toBe('0px');
+    expect(notes.element.style.getPropertyValue('--airdesk-window-x')).toBe('505px');
+
+    const ribbon = manager.tile('ribbon', {
+      bounds: { x: 0, y: 0, width: 1000, height: 600 },
+      gap: 10,
+      ribbonSize: 240
+    });
+    expect(ribbon.get('terminal')).toEqual({ x: 0, y: 0, width: 750, height: 600 });
+    expect(ribbon.get('notes')).toEqual({ x: 760, y: 0, width: 240, height: 600 });
+    expect(notes.element.style.getPropertyValue('--airdesk-window-x')).toBe('760px');
+  });
+
   it('honors close vetoes and replaces duplicate ids with a focus call', () => {
     const { manager } = createManager();
     let veto = true;

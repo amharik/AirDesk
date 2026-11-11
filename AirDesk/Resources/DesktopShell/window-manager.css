@@ -289,6 +289,10 @@ body.wb-lock iframe {
 
 /* src/desktop/shell-runtime.css */
 .winbox.airdesk-window {
+  left: 0 !important;
+  top: 0 !important;
+  transform: translate3d(var(--airdesk-window-x, 0px), var(--airdesk-window-y, 0px), 0);
+  will-change: transform;
   pointer-events: auto;
   min-width: 380px;
   min-height: 260px;
@@ -413,6 +417,8 @@ body[data-appearance=light] .airdesk-titlebar {
   color: #ff6b7a;
 }
 .airdesk-window-body {
+  contain: content;
+  isolation: isolate;
   background: var(--window-body);
   color: var(--text);
 }

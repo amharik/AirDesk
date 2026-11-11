@@ -24,6 +24,7 @@ export interface TerminalEngine {
   fit(): void;
   focus(): void;
   resize(cols: number, rows: number): void;
+  setRenderingPaused?(paused: boolean): void;
   readText(): Promise<string>;
   destroy(): void;
   agentSnapshot?(now?: number): AgentSupervisionSnapshot;

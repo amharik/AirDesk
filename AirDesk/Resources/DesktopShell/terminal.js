@@ -7557,6 +7557,9 @@ ${normalized}\r
     resize(cols, rows) {
       if (this.ready) this.terminal.resize(cols, rows);
     }
+    setRenderingPaused(paused) {
+      this.terminal.setRenderingPaused(paused);
+    }
     readText() {
       return this.terminal.readText();
     }

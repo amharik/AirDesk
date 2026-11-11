@@ -158,6 +158,10 @@ export class WTermEngine implements TerminalEngine {
     if (this.ready) this.terminal.resize(cols, rows);
   }
 
+  setRenderingPaused(paused: boolean): void {
+    this.terminal.setRenderingPaused(paused);
+  }
+
   readText(): Promise<string> {
     return this.terminal.readText();
   }
