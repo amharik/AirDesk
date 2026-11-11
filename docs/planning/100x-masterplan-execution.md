@@ -180,7 +180,7 @@ Compatibility rules:
 | P2-03 | iOS document roots and file transfer | `AirDesk/Resources/ResourceRoot.swift`, `ResourceTransferService.swift`; tests | App-scoped/user-selected roots; path/symlink confinement; bounded read/write/stat; transfer events; no device-wide access | P2-01 | Verified, committed |
 | P2-04 | Native capability lease and invocation enforcement | `AirDesk/Capabilities/CapabilityLeaseManager.swift`, `CapabilityAuthorizer.swift`, `CapabilityInvocationService.swift` | Issuance/expiry/revocation; provider/root issuer checks; remote invocation denied without matching lease/`cnf`; audit event | P2-01, P1-02 | Verified, committed |
 | P2-05 | Android agent contract and canonical URIs | `android/.../agent/DeviceAgent.kt`, `capabilities/**`, `protocol/AdfpCapabilityMapper.kt` | Canonical `airdesk://fs/documents/read` plus `write`; camera authorization aligned with ADR-012; tests | P2-01 | Verified, committed |
-| P2-06 | Android precision input controller | `AndroidTrackpadSurface.kt`, `AndroidInputRouter.kt`, `InputLease*` equivalents; tests | 120 Hz local cursor path; packed movement; no stuck input; multi-controller arbitration | P2-01, P4-01 | Pending |
+| P2-06 | Android precision input controller | `AndroidTrackpadSurface.kt`, `AndroidInputRouter.kt`, `InputLease*` equivalents; tests | 120 Hz local cursor path; packed movement; no stuck input; multi-controller arbitration | P2-01, P4-01 | Verified, committed |
 | P2-07 | Android workspace/terminal bridge | `AndroidWorkspaceHost.kt`, `AndroidDesktopBridge.kt`, `DisplaySessionController.kt`; tests | Bundled DesktopShell drives workspace host and terminal bridge; reconnect preserves identity; truthful diagnostics | P1-05, P2-01 | Verified, committed |
 | P2-08 | Android MediaProjection/MediaCodec stream | `AndroidMediaCodecStream.kt`, `DisplaySessionController.kt`; tests | Registered display pipeline; hardware codec capability detection; fallback and typed failure; physical qualification separate | P2-07 | Verified, committed |
 | P2-09 | Android persistent SSH service | `AndroidSSHService.kt`, `RemoteSSH*`; tests | Foreground service; reattach and second-device handoff use same protocol as iOS; process survival tested remotely | P1-07 | Code complete; physical survival gate pending |
@@ -291,6 +291,14 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - iOS: full `xcodebuild test` passed; 511 tests, 1 skipped, 0 failures, including 6 `WorkspaceSyncKeyRotationTests`.
 - Web: full `npm run check` passed; 278 tests across 40 files, including 5 `sync-key-rotation.test.ts` cases.
 - Android, Rust and protocol schema/generated bindings were unchanged by P1-02. The distributed key is the workspace synchronization AES-GCM key; capability signing/issuer enforcement remains P2-04. No live multi-device network or hardware qualification is claimed.
+
+### P2-06 verification evidence
+
+- `PackedMovementFrame` in the Android input package encodes and decodes the shared 16-byte v12 layout: magic `0xA5`, flags/epoch/sequence/coordinates/buttons/modifiers, with little-endian floats and uint32 sequence. The committed `protocol/fixtures/movement-v12.json` round-trips byte-for-byte, and wrong length, flags, coordinate range, magic and button masks are rejected.
+- `InputLeaseRegistry` scopes leases to `airdesk://input/pointer`, validates controller/workspace/application/session/epoch/audit fields and timestamps, and arbitrates one active controller with typed `LEASE_DENIED`, `LEASE_BUSY`, `LEASE_REVOKED`, `LEASE_EXPIRED` and `LEASE_INVALID` failures.
+- `AndroidInputRouter` coalesces pointer movement at a 120 Hz frame interval, clamps a normalized local cursor, increments frame sequence and emits packed frames through an injectable sink. Revocation, expiry and surface deactivation emit a zero-button release frame before clearing the lease so held buttons cannot stick.
+- `AndroidTrackpadSurface` is a reusable Compose surface that drives the router from `withFrameNanos` and forwards raw pointer deltas without touch-slop batching. It is not yet mounted over the presentation WebView, and no production remote packed-frame transport is wired.
+- Android: full `testDebugUnitTest lintDebug assembleDebug --rerun-tasks` passed; 166 tests, 0 failures, including 2 `PackedMovementFrameTest` and 5 `AndroidInputRouterTest` cases. `lintDebug` reports 0 errors and 8 pre-existing warnings. No physical-device, multitouch or remote-input qualification is claimed.
 
 ### P4-01 verification evidence
 
@@ -518,7 +526,7 @@ These are not code-level tasks and must not be marked done from simulator or loo
 1. P2-09 retains one physical gate: install the debug APK on an Android device, connect to a real SSH server, background the app, verify the foreground service/session survives, then verify reattach and second-device handoff. Do not mark P2-09 `Verified` from JVM tests alone.
 2. P2-10 and the P2-11 static gate are complete: the 0.3 world is separate, uses `stream<T>`/`future<T>`, and the conformance manifest records every runtime as `not-run`. Runtime conformance and lease-enforcement integration remain pending; do not claim runtime qualification from the WIT check alone.
 3. P2-04 now supplies native grant-chain, lease, revocation and `cnf` authorization with audit events on top of P1-02 workspace-key evidence. Production remote invocation transport wiring remains pending and must not be claimed from the standalone service tests.
-4. P4-01 now supplies the shared one-euro filter and fixture, so P2-06 is unblocked. Android precision input still needs its 120 Hz local cursor path, packed movement wiring, stuck-input prevention and multi-controller arbitration tests.
+4. P2-06 now supplies the Android packed movement codec, 120 Hz local cursor coalescing, input-lease arbitration and stuck-input release tests. Next unblocked implementation target is P4-02; P4-03 depends on it. The P2-06 surface is not yet mounted over the presentation WebView, and no physical-device or remote-input transport qualification is claimed.
 5. P5-03 is code-level only until transport/UI wiring and physical-display qualification exist; do not claim glass-to-glass latency.
 6. Keep `milestones.md` unchanged until a task actually passes its gate.
 

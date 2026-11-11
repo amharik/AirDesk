@@ -1,7 +1,7 @@
 # AirDesk implementation milestones
 
 Status: active
-Last updated: 2026-11-09
+Last updated: 2026-11-11
 
 This file is the implementation tracker. `docs/adr/README.md` remains authoritative for decision status. This file tracks execution order, acceptance criteria and current progress. Update it whenever a work item changes state.
 
@@ -276,3 +276,4 @@ Exit: Q1–Q8 answered with evidence; scenario corpus has pass/fail results; R6 
 | 2026-11-11 | M5 / PROTO-02 / P1-08 | Added the typed ADFP resource RPC client/server for all opcodes with fid lifecycle, path/symlink confinement, lease denial/revocation, 64 KiB caps and chunked transfer, and rejected 9P2000-style frames; iOS passes 516 tests with 1 skip and web passes 278 tests across 40 files | this commit |
 | 2026-11-11 | M5 / PROTO-02 / P2-04 | Added native signed capability grants with root/delegation/attenuation checks, lease issuance/expiry/revocation, fresh revocation snapshots, `AD-CAP-POP-1` proof-of-possession and invocation audit events; iOS passes 526 tests with 1 skip and web passes 278 tests across 40 files | this commit |
 | 2026-11-11 | M5 / INPUT-01 / P4-01 | Added the shared one-euro pointer filter to native, TypeScript and Rust with a committed jitter/high-speed fixture, fixture-matched outputs and default `PointerState` integration; iOS passes 532 tests with 1 skip, web passes 283 tests across 40 files and Rust passes 22 tests | this commit |
+| 2026-11-11 | M5 / INPUT-01 / P2-06 | Added the Android packed movement codec, 120 Hz local cursor coalescing, input-lease arbitration and zero-button release on revocation/expiry/deactivation, with a reusable Compose trackpad surface; Android passes 166 tests, 0 failures, and `lintDebug assembleDebug` passes | this commit |
