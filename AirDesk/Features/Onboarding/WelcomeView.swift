@@ -2,6 +2,10 @@ import SwiftUI
 
 struct WelcomeView: View {
     @EnvironmentObject private var environment: AppEnvironment
+    @EnvironmentObject private var session: SessionCoordinator
+    @EnvironmentObject private var cast: CastSessionCoordinator
+    @EnvironmentObject private var settings: AppSettings
+    @EnvironmentObject private var entitlements: EntitlementManager
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var showConnection: Bool
     @State private var animateHero = false
@@ -41,26 +45,43 @@ struct WelcomeView: View {
                     featureStrip
                         .padding(.top, 24)
 
-                    VStack(spacing: 12) {
+                    VStack(spacing: 10) {
+                        Button(action: startQuickConnect) {
+                            HStack(spacing: 9) {
+                                Image(systemName: runtimeLocked ? "lock.fill" : quickRecommendation.device.iconName)
+                                Text(runtimeLocked ? "Unlock Pro to start" : "Start now")
+                            }
+                        }
+                        .buttonStyle(PrimaryButtonStyle(tint: runtimeLocked ? ADTheme.amber : ADTheme.accent))
+                        .accessibilityLabel(
+                            runtimeLocked
+                                ? "Unlock AirDesk Pro to start \(quickRecommendation.title)"
+                                : quickRecommendation.accessibilityLabel
+                        )
+                        .accessibilityHint(quickRecommendation.accessibilityHint)
+
+                        Text(quickRecommendation.detail)
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(ADTheme.textTertiary)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: 360)
+
                         Button {
                             showConnection = true
                         } label: {
                             HStack(spacing: 9) {
-                                Image(systemName: "airplayvideo")
-                                Text("Connect Display")
-                            }
-                        }
-                        .buttonStyle(PrimaryButtonStyle())
-
-                        Button {
-                            environment.session.beginConnection(to: DisplayDevice.previewDevice)
-                        } label: {
-                            HStack(spacing: 9) {
-                                Image(systemName: DeviceContext.symbolName)
-                                Text("Preview on this \(DeviceContext.name)")
+                                Image(systemName: "slider.horizontal.3")
+                                Text("Advanced display setup")
                             }
                         }
                         .buttonStyle(SecondaryButtonStyle())
+                        .accessibilityLabel("Advanced display setup")
+                        .accessibilityHint("Choose AirPlay, a wired display, Google Cast, or an on-device preview manually.")
+
+                        Text("Need a specific display? Manual setup stays available.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(ADTheme.textTertiary)
+                            .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: 460)
                     .padding(.top, 30)
@@ -104,6 +125,67 @@ struct WelcomeView: View {
             guard !reduceMotion else { return }
             animateHero = true
         }
+        .task {
+            cast.startDiscovery()
+        }
+        .onDisappear {
+            cast.stopDiscovery()
+        }
+    }
+
+    private var runtimeLocked: Bool {
+        settings.runtimeChoice.requiresPro && !entitlements.canUse(settings.runtimeChoice)
+    }
+
+    private var quickRecommendation: OnboardingQuickConnect.Recommendation {
+        OnboardingQuickConnect.recommend(
+            externalDisplay: environment.display.hasExternalDisplay ? externalDevice : nil,
+            airPlayMirroring: environment.display.isMirroring ? airPlayMirroringDevice : nil,
+            castDevices: castDevices,
+            preview: DisplayDevice.previewDevice
+        )
+    }
+
+    private var externalDevice: DisplayDevice {
+        DisplayDevice(
+            id: "display.external",
+            name: environment.display.externalDisplayName.isEmpty ? "External display" : environment.display.externalDisplayName,
+            detail: "Connected · \(Int(environment.display.externalDisplaySize.width))×\(Int(environment.display.externalDisplaySize.height))",
+            kind: .external,
+            mode: .extended
+        )
+    }
+
+    private var airPlayMirroringDevice: DisplayDevice {
+        DisplayDevice(
+            id: "display.airplay.mirroring",
+            name: "AirPlay mirroring",
+            detail: "\(DeviceContext.name) screen mirrored · \(Int(environment.display.externalDisplaySize.width))×\(Int(environment.display.externalDisplaySize.height))",
+            kind: .airPlay,
+            mode: .mirrored
+        )
+    }
+
+    private var castDevices: [DisplayDevice] {
+        cast.devices.map { device in
+            DisplayDevice(
+                id: device.id,
+                name: device.name,
+                detail: "\(device.model) · \(cast.isDemo ? "Demo receiver" : "Google Cast")",
+                kind: .cast,
+                mode: .cast,
+                isDemo: device.isDemo || cast.isDemo
+            )
+        }
+    }
+
+    private func startQuickConnect() {
+        guard !runtimeLocked else {
+            environment.isProPresented = true
+            return
+        }
+        if settings.hapticsEnabled { Haptics.shared.tap() }
+        session.beginConnection(to: quickRecommendation.device)
     }
 
     private var brandHeader: some View {

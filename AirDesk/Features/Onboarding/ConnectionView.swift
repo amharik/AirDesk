@@ -64,9 +64,12 @@ struct ConnectionView: View {
         VStack(spacing: 10) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Choose a display")
-                        .font(.system(size: 30, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
+                    HStack(spacing: 8) {
+                        Text("Choose a display")
+                            .font(.system(size: 30, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                        CapsuleBadge(text: "Advanced", tint: ADTheme.textTertiary)
+                    }
                     Text("AirDesk will launch a Wanix desktop and switch to the Air Cursor.")
                         .font(.system(size: 14))
                         .foregroundStyle(ADTheme.textSecondary)
