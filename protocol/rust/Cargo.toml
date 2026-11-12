@@ -1,8 +1,9 @@
 [package]
-name = "airdesk-protocol"
+name = "airdesk-protocol-legacy"
 version = "0.1.0"
 edition = "2021"
 publish = false
 
 [dependencies]
+airdesk-core-protocol = { package = "airdesk-protocol", path = "../../core/airdesk-protocol" }
 flatbuffers = "=25.12.19"

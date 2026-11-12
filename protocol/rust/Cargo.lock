@@ -10,6 +10,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "airdesk-protocol-legacy"
+version = "0.1.0"
+dependencies = [
+ "airdesk-protocol",
+ "flatbuffers",
+]
+
+[[package]]
 name = "bitflags"
 version = "2.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

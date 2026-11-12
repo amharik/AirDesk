@@ -22,7 +22,7 @@ This index is the authoritative map of which decision is in force. An ADR's orig
 >
 > **Execution note (2026-11-12):** ADR-027 standardizes the terminal on WTerm plus the `@wterm/ghostty` WASM core after the P4-07 benchmark. `libghostty-vt` 0.6.3 is retained as a research reference only because it is a Bun/native FFI binding with no browser/WASM, DOM selection, accessibility or iOS target; the current engine remains the production path and no replacement is scheduled.
 >
-> **Execution note (2026-11-12):** User direction approved ADR-024 for the full shared-core boundary. The additive `core/` Cargo workspace and CI gate now exist with `airdesk-core`, `airdesk-protocol`, `airdesk-ffi` and `airdesk-wasm`; `core/airdeskd` remains a separate ADR-026 carve-out. No native or web implementation has moved and every fixture-equality, platform, rollback and cutover gate remains in force.
+> **Execution note (2026-11-12):** User direction approved ADR-024 for the full shared-core boundary. The `core/` Cargo workspace and CI gate now exist with `airdesk-core`, `airdesk-protocol`, `airdesk-ffi` and `airdesk-wasm`; `core/airdeskd` remains a separate ADR-026 carve-out. P3-02/P3-03 moved packed/movement, one-euro, ADFP envelope and resource code into `core/airdesk-protocol` with legacy re-exports; no Swift, TypeScript, Kotlin or remaining native/web implementation has moved, and every fixture-equality, platform, rollback and cutover gate remains in force.
 
 | ADR | Decision | Decision status | Implementation status | Effective note |
 | --- | --- | --- | --- | --- |

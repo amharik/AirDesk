@@ -136,8 +136,14 @@ pub fn encode_input(
     let mut builder = FlatBufferBuilder::new();
     let session_id = builder.create_string(&event.session_id);
     let key = event.key.as_ref().map(|value| builder.create_string(value));
-    let code = event.code.as_ref().map(|value| builder.create_string(value));
-    let text = event.text.as_ref().map(|value| builder.create_string(value));
+    let code = event
+        .code
+        .as_ref()
+        .map(|value| builder.create_string(value));
+    let text = event
+        .text
+        .as_ref()
+        .map(|value| builder.create_string(value));
     let target = event
         .target
         .as_ref()
@@ -214,7 +220,10 @@ pub fn encode_control(
         .action
         .as_ref()
         .map(|value| builder.create_string(value));
-    let code = message.code.as_ref().map(|value| builder.create_string(value));
+    let code = message
+        .code
+        .as_ref()
+        .map(|value| builder.create_string(value));
     let control = ControlMessage::create(
         &mut builder,
         &ControlMessageArgs {
@@ -313,9 +322,7 @@ fn validate_header(header: &AdfpHeader, now_epoch_millis: u64) -> Result<(), Adf
     if header.sender_role == SenderRole::unspecified {
         return Err(AdfpError::HeaderInvalid("senderRole"));
     }
-    if header.expires_at_epoch_millis != 0
-        && header.expires_at_epoch_millis <= now_epoch_millis
-    {
+    if header.expires_at_epoch_millis != 0 && header.expires_at_epoch_millis <= now_epoch_millis {
         return Err(AdfpError::HeaderExpired);
     }
     Ok(())
@@ -426,7 +433,7 @@ fn read_u32(data: &[u8], offset: usize) -> u32 {
 mod tests {
     use super::*;
 
-    const FIXTURE: &str = include_str!("../../fixtures/adfp/envelope-v1.json");
+    const FIXTURE: &str = include_str!("../../../protocol/fixtures/adfp/envelope-v1.json");
     const NOW: u64 = 1_700_000_000_000;
 
     fn case_hex(name: &str) -> Vec<u8> {

@@ -1,7 +1,35 @@
-//! Shared ADFP wire constants and compatibility checks.
+//! Shared ADFP wire constants, packed input codecs and movement filtering.
 //!
-//! The existing protocol crate remains the reference implementation during
-//! migration. This crate is additive and does not yet own codec bytes.
+//! The legacy `protocol/rust` crate re-exports these items so existing callers
+//! keep their import paths while the implementation moves into the shared core.
+
+#[allow(clippy::all, clippy::pedantic, clippy::nursery)]
+pub mod generated {
+    include!("../../../protocol/generated/rust/airdesk_generated.rs");
+}
+
+pub use generated::air_desk::protocol as fb;
+
+pub mod envelope;
+pub mod movement;
+pub mod packed;
+pub mod resource;
+
+pub use envelope::{
+    decode, encode_control, encode_input, AdfpControlMessage, AdfpEnvelope, AdfpError, AdfpHeader,
+    AdfpInputEvent, AdfpPayload, FILE_IDENTIFIER, MAX_HEADER_STRING_BYTES,
+};
+pub use movement::{
+    OneEuroFilter, OneEuroFilterError, OneEuroParameters, PackedMovementError, PackedMovementFrame,
+    ONE_EURO_MINIMUM_DELTA_TIME,
+};
+pub use packed::{PackedError, PackedFrame, HEADER_BYTES};
+pub use resource::{
+    decode_compound_request, decode_compound_result, decode_read_result, validate_blob,
+    validate_compound_request, validate_compound_result, BlobHandleData, CompoundRequest,
+    CompoundResult, QidData, ReadResult, ResourceError, ResourceStatData, BLAKE3_DIGEST_BYTES,
+    BLOB_HANDLE_VERSION, RESOURCE_INLINE_LIMIT, RESOURCE_MAX_PATH_SEGMENTS,
+};
 
 pub const ADFP_FILE_IDENTIFIER: &str = "ADEN";
 pub const ADFP_VERSION: u32 = 1;

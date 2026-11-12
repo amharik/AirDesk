@@ -30,16 +30,26 @@ pub enum ResourceError {
 impl fmt::Display for ResourceError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InvalidFlatBuffer(message) => write!(formatter, "invalid resource FlatBuffer: {message}"),
+            Self::InvalidFlatBuffer(message) => {
+                write!(formatter, "invalid resource FlatBuffer: {message}")
+            }
             Self::WrongOpCode => write!(formatter, "expected resource compound op code"),
             Self::WrongPayload => write!(formatter, "expected resource compound payload"),
             Self::MissingPayload => write!(formatter, "missing resource payload"),
             Self::UnsupportedBlobVersion => write!(formatter, "unsupported blob handle version"),
-            Self::UnsupportedBlobAlgorithm => write!(formatter, "unsupported blob digest algorithm"),
+            Self::UnsupportedBlobAlgorithm => {
+                write!(formatter, "unsupported blob digest algorithm")
+            }
             Self::InvalidBlobDigest => write!(formatter, "blake3 digest must be 32 bytes"),
             Self::InvalidBlobLength => write!(formatter, "invalid blob length"),
-            Self::InlineTooLarge => write!(formatter, "inline result exceeds 64 KiB; return a blob handle"),
-            Self::AmbiguousPayload => write!(formatter, "result cannot carry both inline data and a blob handle"),
+            Self::InlineTooLarge => write!(
+                formatter,
+                "inline result exceeds 64 KiB; return a blob handle"
+            ),
+            Self::AmbiguousPayload => write!(
+                formatter,
+                "result cannot carry both inline data and a blob handle"
+            ),
             Self::InvalidPathSegment => write!(formatter, "invalid path segment"),
             Self::TooManyPathSegments => write!(formatter, "too many path segments"),
         }
@@ -204,10 +214,16 @@ fn decode_stat(stat: &ResourceStat<'_>) -> ResourceStatData {
     }
 }
 
-fn request_from_table(request: ResourceCompoundRequest<'_>) -> Result<CompoundRequest, ResourceError> {
+fn request_from_table(
+    request: ResourceCompoundRequest<'_>,
+) -> Result<CompoundRequest, ResourceError> {
     let wnames = request
         .wnames()
-        .map(|names| (0..names.len()).map(|index| names.get(index).to_string()).collect())
+        .map(|names| {
+            (0..names.len())
+                .map(|index| names.get(index).to_string())
+                .collect()
+        })
         .unwrap_or_default();
     let decoded = CompoundRequest {
         request_id: request.request_id(),
@@ -324,7 +340,14 @@ mod tests {
     fn inline_compound_result_fixture_decodes() {
         let result = decode_compound_result(&hex(RESULT_HEX)).unwrap();
         assert_eq!(result.request_id, 42);
-        assert_eq!(result.qid, Some(QidData { kind: 0, version: 3, path: 987_654_321 }));
+        assert_eq!(
+            result.qid,
+            Some(QidData {
+                kind: 0,
+                version: 3,
+                path: 987_654_321
+            })
+        );
         assert_eq!(result.data, b"hello from compound read\n");
         assert!(result.blob.is_none());
         assert_eq!(result.stat.as_ref().unwrap().name, "notes.txt");

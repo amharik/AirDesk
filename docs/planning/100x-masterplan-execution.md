@@ -77,9 +77,9 @@ Phase 0 is landed. Later changes must keep the full web, iOS, Android, Rust and 
 
 ### 2.3 Masterplan corrections and gaps
 
-- The product pins `IrohLib` 1.2.0 in `project.yml` and `iroh-android` 1.2.0 in `android/app/build.gradle.kts`. Only `research/iroh-probe/Cargo.toml` uses `iroh = 1.4.1`. P1-09 verified on 2026-11-12 that no `iroh-ffi` or `iroh-android` `1.3.x`/`1.4.x` release exists; the product pins remain unchanged. `docs/research/iroh-product-upgrade-2026-11-12.md` records the availability, path/network APIs and live-roaming gaps.
+- The product pins `IrohLib` 1.2.0 in `project.yml` and `iroh-android` 1.2.0 in `android/app/build.gradle.kts`. Only `research/iroh-probe/Cargo.toml` uses `iroh = 1.4.1`. P1-09 verified on 2026-11-12 that no `iroh-ffi` or `iroh-android` `1.3.x`/`1.4.x` release exists; the product pins remain unchanged. A self-built `iroh-ffi` `v1.2.0` binding against `iroh = 1.4.1` was then compiled and exercised locally: full iOS suite 578 tests (1 skipped) and Android 171 tests/lint/assemble passed. That is code-level evidence only; relay, roaming, NAT rebinding, physical-device and rollback gates remain open. `docs/research/iroh-product-upgrade-2026-11-12.md` records the availability, build hashes, path/network APIs and live-roaming gaps.
 - P1-10 now records `cpu_percent`, peak RSS where available, commit/dirty, build/runtime, host model, CPU, memory and network in loopback T1-T4 results. The 2026-11-12 repeat used `Deno.cpuUsage()` for T1/T2 and `/usr/bin/time -l` for T3/T4; `docs/research/transport-metadata-2026-11-12.md` summarizes the dirty harness-validation runs. LAN, cellular, relay, physical-device and cross-host qualification remain P5-06.
-- `protocol/rust/` currently contains packed/movement codecs, not a shared core or FFI layer.
+- `protocol/rust/` is now a compatibility shim that re-exports packed, movement, ADFP envelope and resource codecs from `core/airdesk-protocol`; `core/airdesk-ffi` and `core/airdesk-wasm` are still smoke boundaries, not full FFI surfaces.
 - `libghostty-vt`, WebMCP, UWB discovery and zero-copy media capture are not present in tracked source. ADR-027 evaluated `libghostty-vt` and retained WTerm plus the `@wterm/ghostty` core; OSC 133 handling and `renderingPaused` are present in the WTerm path. ResourceCompound and BLAKE3 blob handles, plus the one-euro pointer filter, are implemented and covered by cross-language fixtures.
 - The current app target is iOS 17.5 with Mac Catalyst disabled. `ScreenCaptureKit` is a macOS API and cannot be used by the current iOS host target. The host strategy must choose ReplayKit/broadcast extension, a separate macOS host target, or an external host process before implementation.
 - ADR-013 is `Proposed`; `XPORT-02` cannot be signed off without measurements.
@@ -169,7 +169,7 @@ Compatibility rules:
 | P1-06 | Placement integration and diagnostics | `AirDesk/Runtime/RuntimeRegistry.swift`, `AirDesk/Workspace/WorkspaceOrchestrator.swift`, `ApplicationLifecycleController.swift`; `web/src/remote/placement.ts` | Deterministic local/device/runtime selection; explicit device filter; typed unavailable/transport/authorization failures; diagnostics explain selection | P1-05 | Verified, committed |
 | P1-07 | Capability-scoped remote terminal | `AirDesk/Remote/CapabilityScopedTerminal.swift`, `RemoteTerminalController.swift`, `SessionCoordinator.swift`; `AirDeskTests/CapabilityScopedTerminalTests.swift` | Connect requires matching unexpired lease; denied/revoked/busy are typed and auditable; no capability bypass through terminal profile | P1-03, P1-05 | Verified, committed |
 | P1-08 | Resource RPC and scoped namespace import | `AirDesk/Protocol/ResourceRPCClient.swift`, `ResourceRPCServer.swift`, `AirDesk/Namespace/NamespaceImportService.swift`; `AirDeskTests/ResourceRPCTests.swift`, `NamespaceImportTests.swift` | All opcodes, fid lifecycle, path confinement, symlink escape, size caps and lease denial/revocation covered; no 9P2000 tunneling; chunked transfer for large payloads | P0-03, P1-04 | Verified, committed |
-| P1-09 | Iroh product upgrade spike | `project.yml`, `android/app/build.gradle.kts`, `AirDesk/Fabric/**`, `research/iroh-probe/` | Verify IrohLib/FFI 1.4.x availability; document API gaps; test path migration/roaming and relay diagnostics on loopback before product pin changes | P0-04 | Research (no pin change; self-built 1.4 allowed only with existing language targets and qualification) |
+| P1-09 | Iroh product upgrade spike | `project.yml`, `android/app/build.gradle.kts`, `AirDesk/Fabric/**`, `research/iroh-probe/`, `research/iroh-ffi-1.4.patch` | Verify IrohLib/FFI 1.4.x availability; document API gaps; test path migration/roaming and relay diagnostics on loopback before product pin changes | P0-04 | Research (self-built 1.4.1 compiled and loopback-qualified; no pin change; relay/roaming/physical/rollback gates remain) |
 | P1-10 | Transport evidence upgrade | `scripts/research/transport_bench.ts`, `run-transport.sh`, `run-iroh*.sh`, `research/scenarios/**`, `docs/research/runs/**` | `cpu_percent`, build/runtime/network/device metadata; p50/p95/p99 recorded; no claim without method | P0-04 | Verified, committed |
 
 ### Phase 2 — Agent parity and ABI (16–22 engineer-weeks)
@@ -193,8 +193,8 @@ Compatibility rules:
 | ID | Task | Files | Done when | Depends | Status |
 | --- | --- | --- | --- | --- | --- |
 | P3-01 | Create core workspace | New `core/Cargo.toml`, `core/rust-toolchain.toml`, `core/airdesk-core/`, `core/airdesk-ffi/`, `core/airdesk-wasm/`, `core/airdesk-protocol/`; `.github/workflows/core.yml` | ADR-024 approved for implementation; crates build; no existing code deleted | P0-05 | Verified, committed |
-| P3-02 | Move low-risk codecs | `protocol/rust/src/packed.rs`, `movement.rs`, `lib.rs`; `core/airdesk-protocol/**`; fixtures | Packed/movement byte equality across Swift/TS/Rust; existing tests continue; protocol crate re-exports or compatibility shim | P3-01 | Pending |
-| P3-03 | Move ADFP envelope/resource codec | New `core/airdesk-protocol/src/envelope.rs`, `resource.rs`; shared fixtures | Golden bytes and malformed-frame corpus match Swift/TS/Kotlin; Rust becomes reference but not yet sole source | P1-03, P1-04, P3-02 | Pending |
+| P3-02 | Move low-risk codecs | `protocol/rust/src/packed.rs`, `movement.rs`, `lib.rs`; `core/airdesk-protocol/**`; fixtures | Packed/movement byte equality across Swift/TS/Rust; existing tests continue; protocol crate re-exports or compatibility shim | P3-01 | Verified (uncommitted); packed/movement moved, legacy re-exports, core fixtures green |
+| P3-03 | Move ADFP envelope/resource codec | New `core/airdesk-protocol/src/envelope.rs`, `resource.rs`; shared fixtures | Golden bytes and malformed-frame corpus match Swift/TS/Kotlin; Rust becomes reference but not yet sole source | P1-03, P1-04, P3-02 | Verified (uncommitted); ADFP/resource moved to core, legacy re-exports, fixtures green |
 | P3-04 | Extract pairing transcript/key schedule | New `core/airdesk-pairing/**`; `protocol/fixtures/ad-pair-1.json` | AD-PAIR-1 transcript, HKDF schedule, SAS and scrypt registration match existing Swift/TS/Kotlin fixtures | P3-01 | Pending |
 | P3-05 | Evaluate Rust SPAKE2+ implementation | `core/airdesk-pairing/**`; RFC 9383 vectors | `confirmV`-first, cofactor/subgroup checks, zeroization and error handling proven; no product cutover until independent review | P3-04 | Research (RFC vectors + independent review required) |
 | P3-06 | UniFFI Swift/Kotlin bindings | `core/airdesk-ffi/**`, `scripts/build-core-apple.sh`, `scripts/build-core-android.sh`, `project.yml`, `android/app/build.gradle.kts` | Generated bindings build in CI; app can call a non-authoritative core smoke API behind a flag | P3-02, P3-03 | Pending |
@@ -535,6 +535,23 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace --locked` and `cargo test --manifest-path core/airdeskd/Cargo.toml --locked` pass. The core workspace has 6 tests; `airdeskd` retains 8.
 - Decision recorded: ADR-024 is accepted for the full shared-core boundary, but every fixture-equality, platform, rollback and cutover gate remains in force.
 
+### P3-02 verification evidence
+
+- Moved `packed.rs`, `movement.rs` and their fixture tests into `core/airdesk-protocol`; the core crate now owns the 32-byte packed input frame, the 16-byte movement frame and the one-euro filter.
+- `protocol/rust` is renamed at package level to `airdesk-protocol-legacy` and keeps the `airdesk_protocol` dependency alias for `core/airdeskd`. It re-exports `packed`/`movement` modules and the root types, so existing Rust imports and the daemon compile unchanged.
+- The moved tests retain the same pointer/scroll/cancel hex fixtures, movement-v12 fixture and shared `one-euro-v1.json` output expectations; no codec bytes or defaults changed.
+- `core/airdesk-protocol` includes the generated Rust FlatBuffers module for `EventType`; generated-code lint noise is isolated with a module allow and does not weaken the hand-written codec warnings.
+- `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace --locked` pass; the core workspace now has 20 tests. Legacy `protocol/rust` has 8 ADFP/resource tests and `core/airdeskd` retains 8 tests, all passing.
+- Swift, TypeScript and Kotlin sources were not changed; their existing cross-language fixture tests remain the byte-equality gate. No product code consumes the new core path yet.
+
+### P3-03 verification evidence
+
+- Moved the ADFP envelope codec to `core/airdesk-protocol/src/envelope.rs` and the resource compound/blob codec to `resource.rs`; the legacy `protocol/rust` crate now re-exports both under its original `adfp` and `resource` module paths.
+- The moved tests retain the committed envelope JSON fixture, malformed/expired/wrong-version corpus, compound request/result hex fixtures, read-result fixtures, blob bounds and ambiguous-payload checks.
+- `core/airdesk-protocol` remains additive: Swift, TypeScript, Kotlin and the native/web product paths still use their existing implementations. Rust is the reference for these fixtures but not yet the sole source.
+- `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace --locked` and `cargo test --manifest-path core/airdeskd/Cargo.toml --locked` pass. The core workspace has 28 tests; the legacy shim has 1 re-export compatibility test; `airdeskd` retains 8.
+- Cross-language byte equality remains covered by the pre-existing Swift/TypeScript/Kotlin fixture suites; no product dependency or runtime path changed in this step.
+
 ### P4-07 verification evidence
 
 - ADR-027 records the decision to retain WTerm plus the `@wterm/ghostty` WASM core. `docs/research/terminal-engine-benchmark-2026-11-12.md` records the method and measurements.
@@ -602,7 +619,7 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 
 ### Research qualification decisions (2026-11-12)
 
-- P1-09: a self-built Iroh 1.4 FFI path may be evaluated only if the existing Swift/Kotlin language targets exist and the normal loopback, relay, roaming and rollback evidence is produced. The product pins remain 1.2.0 until then.
+- P1-09: a self-built Iroh 1.4 FFI path may be evaluated only if the existing Swift/Kotlin language targets exist and the normal loopback, relay, roaming and rollback evidence is produced. The 2026-11-12 build produced Swift and Kotlin targets from `iroh-ffi` `v1.2.0` with `iroh = 1.4.1`; full iOS (578 tests, 1 skipped) and Android (171 tests, lint, assemble) suites passed. This is code-level qualification only. The product pins remain 1.2.0 until relay, roaming, NAT rebinding, physical-device and rollback evidence exists.
 - P4-05: physical UWB distance/angle tests, privacy/threat review and false-positive limits are required before proximity claims. Bonjour and manual pairing remain the fallback.
 - P4-11: no Loro/CRDT decision until P3-03 and the shared-core fixture gates are complete.
 - P3-05: a Rust SPAKE2+ path requires RFC 9383 vectors, `confirmV`-first flow, subgroup/cofactor and zeroization checks, fixture parity and independent review. No product cutover follows from passing vectors alone.

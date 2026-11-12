@@ -232,12 +232,7 @@ impl OneEuroAxis {
         self.derivative = 0.0;
     }
 
-    fn filter(
-        &mut self,
-        value: f64,
-        delta_time: f64,
-        parameters: OneEuroParameters,
-    ) -> f64 {
+    fn filter(&mut self, value: f64, delta_time: f64, parameters: OneEuroParameters) -> f64 {
         let raw_derivative = (value - self.previous) / delta_time;
         let derivative_alpha = axis_alpha(parameters.d_cutoff, delta_time);
         self.derivative = low_pass(raw_derivative, self.derivative, derivative_alpha);
@@ -327,7 +322,7 @@ impl OneEuroFilter {
 mod one_euro_tests {
     use super::*;
 
-    const FIXTURE: &str = include_str!("../../fixtures/input/one-euro-v1.json");
+    const FIXTURE: &str = include_str!("../../../protocol/fixtures/input/one-euro-v1.json");
 
     #[derive(Debug, Clone, Copy)]
     struct Sample {
@@ -358,7 +353,10 @@ mod one_euro_tests {
         let rest = source[start..].trim_start();
         let end = rest
             .find(|character: char| {
-                character == ',' || character == '}' || character == ']' || character.is_whitespace()
+                character == ','
+                    || character == '}'
+                    || character == ']'
+                    || character.is_whitespace()
             })
             .unwrap_or(rest.len());
         rest[..end].parse().expect("fixture number value")
@@ -433,8 +431,14 @@ mod one_euro_tests {
         let raw = &input[10..];
         let filtered_range = filtered.iter().copied().fold(f64::NEG_INFINITY, f64::max)
             - filtered.iter().copied().fold(f64::INFINITY, f64::min);
-        let raw_range = raw.iter().map(|sample| sample.x).fold(f64::NEG_INFINITY, f64::max)
-            - raw.iter().map(|sample| sample.x).fold(f64::INFINITY, f64::min);
+        let raw_range = raw
+            .iter()
+            .map(|sample| sample.x)
+            .fold(f64::NEG_INFINITY, f64::max)
+            - raw
+                .iter()
+                .map(|sample| sample.x)
+                .fold(f64::INFINITY, f64::min);
         assert!(raw_range > 0.0);
         assert!(filtered_range < raw_range * 0.2);
     }

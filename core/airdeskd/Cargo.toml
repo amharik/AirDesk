@@ -7,6 +7,6 @@ publish = false
 [workspace]
 
 [dependencies]
-airdesk-protocol = { path = "../../protocol/rust" }
+airdesk-protocol = { package = "airdesk-protocol-legacy", path = "../../protocol/rust" }
 flatbuffers = "=25.12.19"
 libc = "=0.2.191"

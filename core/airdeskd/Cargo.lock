@@ -10,10 +10,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "airdeskd"
+name = "airdesk-protocol-legacy"
 version = "0.1.0"
 dependencies = [
  "airdesk-protocol",
+ "flatbuffers",
+]
+
+[[package]]
+name = "airdeskd"
+version = "0.1.0"
+dependencies = [
+ "airdesk-protocol-legacy",
  "flatbuffers",
  "libc",
 ]

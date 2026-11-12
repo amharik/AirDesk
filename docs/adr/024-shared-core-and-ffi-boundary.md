@@ -51,7 +51,7 @@ core/
 - The product does not depend on the core being present at runtime until its feature flag is enabled.
 - `core/` must be buildable and testable without Xcode, Android Studio or a browser.
 
-Implementation note (2026-11-12): the `core/` Cargo workspace now contains additive `airdesk-core`, `airdesk-protocol`, `airdesk-ffi` and `airdesk-wasm` crates with a shared ABI/version smoke surface. The existing `core/airdeskd` daemon remains a separate workspace under the ADR-026 carve-out. No Swift, TypeScript, Kotlin or production protocol code has been moved, and this approval does not waive any acceptance gate.
+Implementation note (2026-11-12): the `core/` Cargo workspace now contains `airdesk-core`, `airdesk-protocol`, `airdesk-ffi` and `airdesk-wasm` crates with a shared ABI/version smoke surface. P3-02/P3-03 moved the packed input, movement/one-euro, ADFP envelope and resource compound/blob codecs into `core/airdesk-protocol`; the legacy `protocol/rust` crate is a compatibility shim that re-exports them. The existing `core/airdeskd` daemon remains a separate workspace under the ADR-026 carve-out. No Swift, TypeScript, Kotlin or remaining production protocol code has moved, and this approval does not waive any acceptance gate.
 
 ### 2. Rust owns deterministic, platform-neutral logic first
 
