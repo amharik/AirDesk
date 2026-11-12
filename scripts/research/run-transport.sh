@@ -65,7 +65,7 @@ if [[ "$(uname -s)" != "Darwin" && "$ALLOW_NON_MAC" != "1" ]]; then
   exit 1
 fi
 
-for tool in deno git openssl swift; do
+for tool in deno git openssl swift /usr/bin/time; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     echo "Missing required tool: $tool" >&2
     exit 1
@@ -113,6 +113,9 @@ if [[ -n "$(git -C "$ROOT" status --porcelain --untracked-files=no)" ]]; then
 fi
 HOST_OS="$(sw_vers -productVersion 2>/dev/null || uname -r)"
 HOST_ARCH="$(uname -m)"
+HOST_MODEL="$(sysctl -n hw.model 2>/dev/null || printf 'unknown')"
+CPU_BRAND="$(sysctl -n machdep.cpu.brand_string 2>/dev/null || printf 'unknown')"
+MEMORY_BYTES="$(sysctl -n hw.memsize 2>/dev/null || printf '0')"
 DENO_VERSION="$(deno --version | sed -n '1s/^deno \([^ ]*\).*/\1/p')"
 CERT_DIR="$(mktemp -d "${TMPDIR:-/tmp}/airdesk-research-cert.XXXXXX")"
 chmod 700 "$CERT_DIR"
@@ -127,9 +130,10 @@ set +e
 deno run \
   --unstable-net \
   --allow-net=127.0.0.1 \
-  --allow-run=swift \
+  --allow-run=swift,/usr/bin/time \
   --allow-read="$SCENARIO" \
   --allow-read="$CERT_DIR" \
+  --allow-read="$RUN_DIR" \
   --allow-write="$RUN_DIR" \
   "$BENCH" \
   --scenario "$SCENARIO" \
@@ -141,6 +145,9 @@ deno run \
   --dirty "$DIRTY" \
   --host-os "$HOST_OS" \
   --host-arch "$HOST_ARCH" \
+  --host-model "$HOST_MODEL" \
+  --cpu-brand "$CPU_BRAND" \
+  --memory-bytes "$MEMORY_BYTES" \
   --deno-version "$DENO_VERSION" \
   --cert "$CERT_DIR/server.crt" \
   --key "$CERT_DIR/server.key" \

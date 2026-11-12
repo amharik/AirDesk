@@ -42,6 +42,7 @@ scripts/
   research/
     run-transport.sh
     transport_bench.ts
+    run_metrics.sh
     run-webrtc-ios.sh
     webrtc_probe.swift
     run-iroh.sh
@@ -116,6 +117,9 @@ Every run records at least:
   "environment": {
     "controller": "iPhone 16 Pro / iOS 18.6",
     "host": "macOS 15.x",
+    "host_model": "Macmini8,1",
+    "cpu": "Intel Core i5-4278U",
+    "memory_bytes": 8589934592,
     "browser": "n/a",
     "network": "LAN 5 GHz"
   },
@@ -124,7 +128,9 @@ Every run records at least:
     "reattach_ms": {
       "p50": null,
       "p95": null
-    }
+    },
+    "cpu_percent": null,
+    "peak_memory_bytes": null
   },
   "failures": [],
   "observations": "None",
@@ -197,6 +203,8 @@ The T4 relay-only runner was recorded on 2026-11-05: macOS client at `e4f9eeeb6b
 The S2 runner was recorded on 2026-11-05: iPhone 16 Pro simulator `3B46FDF8-1482-4517-99F3-D6EF46A85133` on iOS 18.6, Xcode 16.4, macOS 15.5 x86_64, remote Debian 13 x86_64 host `sillygirl` with tmux 3.5a, commit `472537a22a19`, 3 cycles and a 5-second background. The auto-preview background run reattached 3/3 at p50 6.9 s (max 8.2 s); the termination run recovered 3/3 at p50 57.6 s (max 70.8 s) for the full cold relaunch path. The Tailscale underlay was DERP-relayed.
 
 The S2 second-device runner was recorded on 2026-11-06: iPhone 16 Pro `3B46FDF8-1482-4517-99F3-D6EF46A85133` as primary and iPhone 16 Pro Max `DB9D5BBC-3996-440A-8641-4A236F42A0E0` as secondary, both iOS 18.6 simulators on the same Mac, with the same remote host and DERP-relayed tailnet, commit `3fcac85083ff`. The primary advanced the heartbeat to marker 9 and was shut down; the secondary attached to the same session and advanced it to 109. The 1/1 handoff passed with a 40.4 s cold recovery on the first secondary attempt, process survival and a truthful transcript. Simulators were run sequentially to keep the 8 GB host stable; this is not two physical devices or a simultaneous two-controller session.
+
+The P1-10 metadata repeat was recorded on 2026-11-12: T1/T2 measured with `Deno.cpuUsage()`, T3/T4 with `/usr/bin/time -l`, all at 30 samples across 64 B, 1 KiB and 16 KiB. The raw results include host model, CPU, memory, CPU percent, reconnect and p50/p95/p99; WebRTC and Iroh also record peak RSS. The runs were dirty because the runner changes were not committed, so they validate the harness fields rather than candidate performance. See `docs/research/transport-metadata-2026-11-12.md`.
 
 The first qualified runner was recorded on 2026-11-04:
 

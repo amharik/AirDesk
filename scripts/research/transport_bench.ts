@@ -14,6 +14,14 @@ interface Scenario {
   pass: Record<string, string>;
 }
 
+interface CpuUsage {
+  user: number;
+  system: number;
+}
+
+const readCpuUsage = (): CpuUsage =>
+  (Deno as unknown as { cpuUsage(): CpuUsage }).cpuUsage();
+
 interface RunState {
   rtts: number[];
   failures: string[];
@@ -21,6 +29,8 @@ interface RunState {
   reconnectMs: number | null;
   serverReceived: number;
   serverErrors: string[];
+  externalCpuSeconds: number;
+  externalPeakMemoryBytes: number | null;
   transportDiagnostics?: Record<string, unknown>;
 }
 
@@ -48,6 +58,24 @@ function percentile(values: number[], rank: number): number | null {
   const sorted = [...values].sort((left, right) => left - right);
   const index = Math.ceil((rank / 100) * sorted.length) - 1;
   return round(sorted[Math.max(0, Math.min(index, sorted.length - 1))]);
+}
+
+function parseTimeTool(text: string): {
+  cpuSeconds: number;
+  peakMemoryBytes: number | null;
+} {
+  const cpu = text.match(
+    /^\s*([\d.]+)\s+real\s+([\d.]+)\s+user\s+([\d.]+)\s+sys/m,
+  );
+  const user = cpu ? Number(cpu[2]) : 0;
+  const system = cpu ? Number(cpu[3]) : 0;
+  const peak = text.match(/^\s*(\d+)\s+maximum resident set size/m);
+  return {
+    cpuSeconds: Number.isFinite(user) && Number.isFinite(system)
+      ? user + system
+      : 0,
+    peakMemoryBytes: peak ? Number(peak[1]) : null,
+  };
 }
 
 function withTimeout<T>(
@@ -458,8 +486,13 @@ async function runWebRTC(
   payloadBytes: number,
 ): Promise<void> {
   const scriptPath = new URL("./webrtc_probe.swift", import.meta.url).pathname;
-  const output = await new Deno.Command("swift", {
+  const timePath = `${runDir}/webrtc-time-${crypto.randomUUID()}.txt`;
+  const output = await new Deno.Command("/usr/bin/time", {
     args: [
+      "-l",
+      "-o",
+      timePath,
+      "swift",
       scriptPath,
       "--payload-bytes",
       String(payloadBytes),
@@ -469,6 +502,16 @@ async function runWebRTC(
     stdout: "piped",
     stderr: "piped",
   }).output();
+  const timeText = await Deno.readTextFile(timePath).catch(() => "");
+  await Deno.remove(timePath).catch(() => {});
+  const processMetrics = parseTimeTool(timeText);
+  state.externalCpuSeconds += processMetrics.cpuSeconds;
+  if (processMetrics.peakMemoryBytes !== null) {
+    state.externalPeakMemoryBytes = Math.max(
+      state.externalPeakMemoryBytes ?? 0,
+      processMetrics.peakMemoryBytes,
+    );
+  }
   const stdout = new TextDecoder().decode(output.stdout).trim();
   const stderr = new TextDecoder().decode(output.stderr).trim();
   if (!output.success) {
@@ -518,6 +561,9 @@ const commit = requiredArgument("--commit");
 const dirty = requiredArgument("--dirty") === "true";
 const hostOs = requiredArgument("--host-os");
 const hostArch = requiredArgument("--host-arch");
+const hostModel = argument("--host-model") ?? "unknown";
+const cpuBrand = argument("--cpu-brand") ?? "unknown";
+const memoryBytes = Number(argument("--memory-bytes") ?? "0");
 const denoVersion = requiredArgument("--deno-version");
 const requestedSamples = Number(argument("--samples") ?? "0");
 const requestedPayloadBytes = Number(argument("--payload-bytes") ?? "0");
@@ -551,7 +597,12 @@ const state: RunState = {
   reconnectMs: null,
   serverReceived: 0,
   serverErrors: [],
+  externalCpuSeconds: 0,
+  externalPeakMemoryBytes: null,
 };
+
+const cpuStarted = readCpuUsage();
+const wallStarted = performance.now();
 
 if (transport === "websocket") {
   await runWebSocket(state, sampleCount, payloadBytes);
@@ -573,6 +624,19 @@ if (transport === "websocket") {
 for (const error of state.serverErrors) {
   state.failures.push(error);
 }
+
+const cpuFinished = readCpuUsage();
+const wallElapsedMs = performance.now() - wallStarted;
+const cpuSeconds = (
+  cpuFinished.user +
+  cpuFinished.system -
+  cpuStarted.user -
+  cpuStarted.system
+) / 1_000_000 + state.externalCpuSeconds;
+const cpuPercent = wallElapsedMs > 0
+  ? round((cpuSeconds * 1000 / wallElapsedMs) * 100)
+  : null;
+const controllerRssBytes = Deno.memoryUsage().rss;
 
 const pass = state.failures.length === 0 &&
   state.delivered === sampleCount &&
@@ -602,6 +666,9 @@ const result = {
   environment: {
     controller: `deno ${denoVersion}`,
     host: `macOS ${hostOs} ${hostArch}`,
+    host_model: hostModel,
+    cpu: cpuBrand,
+    memory_bytes: Number.isFinite(memoryBytes) ? memoryBytes : 0,
     browser: "n/a",
     network: scenario.network,
   },
@@ -616,6 +683,10 @@ const result = {
     },
     messages_delivered: state.delivered,
     reconnect_ms: state.reconnectMs === null ? null : round(state.reconnectMs),
+    cpu_percent: cpuPercent,
+    process_cpu_seconds: round(cpuSeconds),
+    peak_memory_bytes: state.externalPeakMemoryBytes,
+    controller_rss_bytes: controllerRssBytes,
   },
   diagnostics: {
     server_messages_received: state.serverReceived,
@@ -646,10 +717,13 @@ const report = [
   `- Commit: \`${commit}\`${dirty ? " (dirty)" : ""}`,
   "- Owner: R0 harness",
   `- Environment: ${result.environment.host}; ${result.environment.controller}`,
+  `- Hardware: ${hostModel}; ${cpuBrand}; ${result.environment.memory_bytes} bytes RAM`,
   `- Network: ${scenario.network}`,
   "- Build configuration: research",
   `- Samples: ${sampleCount}`,
   `- Payload: ${payloadBytes} bytes`,
+  `- CPU: ${cpuPercent === null ? "n/a" : `${cpuPercent}%`}`,
+  `- Peak memory: ${state.externalPeakMemoryBytes === null ? "n/a" : `${state.externalPeakMemoryBytes} bytes`}`,
   `- Result: ${pass ? "pass" : "fail"}`,
   "",
   "## Hypothesis",

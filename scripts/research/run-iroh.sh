@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+source "$ROOT/scripts/research/run_metrics.sh"
 PROBE_DIR="$ROOT/research/iroh-probe"
 OUT_ROOT="$ROOT/docs/research/runs"
 SAMPLES="${AIRDESK_IROH_SAMPLES:-30}"
@@ -16,7 +17,7 @@ if [[ "$(uname -s)" != "Darwin" && "$ALLOW_NON_MAC" != "1" ]]; then
   exit 1
 fi
 
-for tool in cargo git; do
+for tool in cargo git jq /usr/bin/time; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     echo "Missing required tool: $tool" >&2
     exit 1
@@ -53,6 +54,9 @@ if [[ -n "$(git -C "$ROOT" status --porcelain --untracked-files=normal -- \
 fi
 HOST_OS="$(sw_vers -productVersion 2>/dev/null || uname -r)"
 HOST_ARCH="$(uname -m)"
+HOST_MODEL="$(sysctl -n hw.model 2>/dev/null || printf 'unknown')"
+CPU_BRAND="$(sysctl -n machdep.cpu.brand_string 2>/dev/null || printf 'unknown')"
+MEMORY_BYTES="$(sysctl -n hw.memsize 2>/dev/null || printf '0')"
 CARGO_VERSION="$(cargo --version)"
 CARGO_VERSION="${CARGO_VERSION#cargo }"
 CARGO_VERSION="${CARGO_VERSION%% *}"
@@ -71,8 +75,10 @@ fi
 
 for payload in "${PAYLOADS[@]}"; do
   date="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  time_log="$RUN_DIR/${payload}b.time.log"
   set +e
-  "$BIN" \
+  /usr/bin/time -l -o "$time_log" \
+    "$BIN" \
     --samples "$SAMPLES" \
     --payload-bytes "$payload" \
     --run-id "$RUN_ID-${payload}b" \
@@ -91,6 +97,9 @@ for payload in "${PAYLOADS[@]}"; do
     tail -n 80 "$RUN_DIR/${payload}b.stderr.log" >&2
     exit 1
   fi
+  research_annotate_process_metrics \
+    "$RUN_DIR/${payload}b.json" "$time_log" "$HOST_MODEL" "$CPU_BRAND" "$MEMORY_BYTES"
+  rm -f "$time_log"
   if [[ ! -s "$RUN_DIR/${payload}b.stderr.log" ]]; then
     rm -f "$RUN_DIR/${payload}b.stderr.log"
   fi
@@ -111,6 +120,9 @@ cat >"$RUN_DIR/run-index.json" <<EOF
   "payloads": [64, 1024, 16384],
   "environment": {
     "host": "macOS $HOST_OS $HOST_ARCH",
+    "host_model": "$HOST_MODEL",
+    "cpu": "$CPU_BRAND",
+    "memory_bytes": $MEMORY_BYTES,
     "controller": "cargo $CARGO_VERSION",
     "network": "loopback",
     "relay_mode": "disabled"
