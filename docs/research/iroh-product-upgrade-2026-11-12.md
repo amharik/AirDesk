@@ -76,14 +76,76 @@ P4-04 can consume the existing selected path, relay flag and RTT from
 `IrohFabricPeer.paths` without changing the Iroh pin. It must label the status
 as current-path diagnostics, not claim automatic roaming or multipath support.
 
+### Self-built 1.4.1 binding evidence
+
+Because no FFI release exists, `iroh-ffi` `v1.2.0` (`66a8d61`) was patched to
+the exact Rust pins below and built locally. `research/iroh-ffi-1.4.patch`
+records the dependency and macOS-fat-slice changes.
+
+```toml
+iroh = "=1.4.1"
+iroh-base = "=1.4.1"
+iroh-metrics = "=1.0.2"
+iroh-relay = "=1.4.1"
+iroh-services = "=2.0.0"
+iroh-tickets = "=1.0.0"
+n0-error = "=1.0.3"
+```
+
+The Swift and Kotlin targets both generated. On macOS, `cargo check` passed and
+`cargo test --lib` passed 26/26. The xcframework contained iOS arm64, iOS
+simulator arm64+x86_64, Mac Catalyst arm64 and macOS arm64 slices. SHA-256:
+
+- iOS arm64: `c97177722ea4e2002cc2392b090871a1fdac781a7dafea8f902445593c96cdec`
+- iOS simulator: `3bfc632c07bc2a3cc6a5496649d88efafeda3c40e49eeeab8f385d3fe1fd6c7a`
+- Mac Catalyst: `c24b3de1ed9b757ff46730ffab2953898d435c00065c5b499bf497ae23383790`
+- macOS arm64: `fabbd0a89a5604ae8e8ef01e42e4bf44ab3664d74e324965de0118f9cb4efa5e`
+- Swift bindings: `63fbfbc1a1761165d192682ca0aff360abdfcad805449017a0c7f508754993ca`
+- Kotlin bindings: `043ddfd83509b1f5c78461652137a4b1ab0e3ceadddef7cbe16c2ca67a2a5591`
+
+On Linux aarch64 (`sillyoci`), using Rust 1.98.1, `cargo-ndk` 3.5.4 and the
+aarch64 NDK r29 repack, the Android arm64 target built. The AAR was published
+locally as `computer.iroh:iroh-android:1.4.1` and contained
+`jni/arm64-v8a/libiroh_ffi.so` (12,904,424 bytes, 16 KB LOAD alignment).
+
+- `libiroh_ffi.so`: `ba22cc144f6c768eb3e7645d1d88fdd917c2338970f12d3ebfcad6d38e37322d`
+- AAR: `2698e4f91a85cc715941e6cfc16bb82fac35ab61faac1053ed149bcd6fafc163`
+- debug APK: `d2cb1166b424b5fc0a96a6822f7f87c63a79f0d15eecdf749f1ae13edbaa279e`
+
+Qualification runs:
+
+- iOS: temporarily pointed `project.yml` at the local package, then full
+  `xcodebuild test` passed 578 tests, 1 skipped, 0 failures. The dedicated
+  `IrohFabricPeerTests` and `IrohFabricTransportTests` passed including direct
+  loopback transport.
+- Android: temporarily pointed the app at the local `1.4.1` AAR, then
+  `testDebugUnitTest lintDebug assembleDebug` passed 171 tests, 0 failures. The
+  APK packaged `lib/arm64-v8a/libiroh_ffi.so`.
+
+Limitations and rollback:
+
+- Android has only the `arm64-v8a` native slice; emulator ABIs and other device
+  ABIs are not built. The macOS xcframework has no macOS x86_64 slice, so a
+  standalone `swift test` on an Intel host fails to link `RustBuffer`; the iOS
+  simulator suite is the exercised Swift gate.
+- No relay transition, Wi-Fi/cellular roaming, NAT rebinding, physical-device
+  Iroh run or product rollback drill was performed.
+- Rollback is to restore `project.yml` from
+  `/tmp/opencode/airdesk-project.yml.bak`, remove the local `mavenLocal`
+  `1.4.1` artifacts, revert the temporary `1.4.1` app dependency to `1.2.0`,
+  and regenerate the Xcode project. The Mac checkout was restored after the iOS
+  run; only untracked DerivedData/Dist/screenshot directories remained.
+- The built artifacts are temporary qualification inputs. No product pin or
+  tracked source dependency was changed.
+
 ## Decision
 
 - Keep the `IrohLib` and `iroh-android` `1.2.0` product pins.
-- Do not claim Iroh `1.4.x` product availability or roaming support.
-- Unblock P4-04's continuity pill using the `1.2.0` path diagnostics that
-  already exist.
-- Keep live path migration and relay roaming as an explicit hardware/live-
-  network gate for P1-09/P1-10.
+- Treat the self-built `1.4.1` bindings as code-level evidence, not a product
+  release. Do not claim Iroh `1.4.x` product availability or roaming support.
+- Unblock P4-04's continuity pill using the existing `1.2.0` path diagnostics.
+- Keep live path migration, relay transition and roaming as an explicit
+  hardware/live-network gate for P1-09/P1-10.
 
 ## Follow-up gates
 

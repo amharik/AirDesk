@@ -1,0 +1,169 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index acb28b4..e7acba3 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -1611,7 +1611,7 @@ dependencies = [
+  "iroh-base",
+  "iroh-metrics",
+  "iroh-relay",
+- "iroh-services",
++ "iroh-services 2.0.0",
+  "iroh-tickets",
+  "jni 0.22.4",
+  "n0-error",
+@@ -1735,6 +1735,59 @@ dependencies = [
+  "uuid",
+ ]
+ 
++[[package]]
++name = "iroh-services"
++version = "2.0.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "7e03fe6d35ad303cf364941cba65946f2ad1eb9d531f17954f1cf7b6885fc4ea"
++dependencies = [
++ "base64 0.22.1",
++ "built",
++ "bytes",
++ "cfg_aliases",
++ "data-encoding",
++ "ed25519-dalek",
++ "futures-buffered",
++ "getrandom 0.4.3",
++ "iroh",
++ "iroh-metrics",
++ "iroh-services-proto",
++ "iroh-tickets",
++ "irpc",
++ "irpc-iroh",
++ "n0-error",
++ "n0-future",
++ "portmapper",
++ "postcard",
++ "rand",
++ "rcan",
++ "serde",
++ "serde_json",
++ "tokio",
++ "tokio-util",
++ "tracing",
++ "tracing-subscriber",
++ "uuid",
++]
++
++[[package]]
++name = "iroh-services-proto"
++version = "0.1.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "b9c8f9110c270a6079bacb2b0fc4b59ed84555692edbe89cb6a9cec4c48b1eb2"
++dependencies = [
++ "derive_more",
++ "iroh",
++ "iroh-metrics",
++ "irpc",
++ "n0-error",
++ "rcan",
++ "serde",
++ "strum",
++ "tracing",
++ "uuid",
++]
++
+ [[package]]
+ name = "iroh-tickets"
+ version = "1.0.0"
+@@ -2033,9 +2086,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "n0-error"
+-version = "1.0.1"
++version = "1.0.3"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "26c59ea174675ce6bc196878851e5049e11b8b1f9af3ba87e4d6df8d828bb001"
++checksum = "96c2215d16de3a55894583a539e6b151fb45236c3a6da45a18a40af73dc00636"
+ dependencies = [
+  "n0-error-macros",
+  "spez",
+@@ -2043,9 +2096,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "n0-error-macros"
+-version = "1.0.1"
++version = "1.0.3"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "4412346410d6616f3668c40e53c298e5320c7b856f7a960e5914e442601be79f"
++checksum = "6217fd5f567ce1e53f324744c14fab04899861e397539c5f3cc08bd7c1dcd2de"
+ dependencies = [
+  "proc-macro2",
+  "quote",
+@@ -2471,7 +2524,7 @@ dependencies = [
+  "iroh-base",
+  "iroh-metrics",
+  "iroh-relay",
+- "iroh-services",
++ "iroh-services 1.0.0",
+  "iroh-tickets",
+  "n0-future",
+  "napi",
+diff --git a/Cargo.toml b/Cargo.toml
+index 9e9885a..63f3f8a 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -34,13 +34,13 @@ jni = "0.22"
+ [dependencies]
+ anyhow = "1.0.69"
+ async-trait = "0.1.80"
+-iroh = { version = "1.0.0" }
+-iroh-base = { version = "1.0.0" }
+-iroh-metrics = { version = "1.0.0" }
+-iroh-relay = { version = "1.0.0", default-features = false }
+-iroh-services = { version = "1.0.0", default-features = false }
+-iroh-tickets = { version = "1.0.0" }
+-n0-error = { version = "1.0.0" }
++iroh = { version = "=1.4.1" }
++iroh-base = { version = "=1.4.1" }
++iroh-metrics = { version = "=1.0.2" }
++iroh-relay = { version = "=1.4.1", default-features = false }
++iroh-services = { version = "=2.0.0", default-features = false }
++iroh-tickets = { version = "=1.0.0" }
++n0-error = { version = "=1.0.3" }
+ thiserror = "2.0"
+ tokio = "1.25.0"
+ uniffi = { version = "0.31.1", features = ["cli", "tokio"] }
+diff --git a/make_swift.sh b/make_swift.sh
+index 2892d59..f53098c 100755
+--- a/make_swift.sh
++++ b/make_swift.sh
+@@ -66,6 +66,8 @@ echo "Building x86_64-apple-ios"
+ cargo build --release --target x86_64-apple-ios
+ echo "Building aarch64-apple-darwin"
+ cargo build --release --target aarch64-apple-darwin
++echo "Building x86_64-apple-darwin"
++cargo build --release --target x86_64-apple-darwin
+ echo "Building aarch64-apple-ios-macabi"
+ cargo build --release --target aarch64-apple-ios-macabi
+ 
+@@ -112,6 +114,15 @@ lipo -create \
+     "$TARGET_DIR/x86_64-apple-ios/release/lib${UDL_NAME}.a" \
+     -output "$SIM_FAT"
+ 
++# Fat lib for the macOS slice.
++MACOS_FAT="$TARGET_DIR/apple-mac-fat/lib${UDL_NAME}.a"
++mkdir -p "$(dirname "$MACOS_FAT")"
++rm -f "$MACOS_FAT"
++lipo -create \
++    "$TARGET_DIR/aarch64-apple-darwin/release/lib${UDL_NAME}.a" \
++    "$TARGET_DIR/x86_64-apple-darwin/release/lib${UDL_NAME}.a" \
++    -output "$MACOS_FAT"
++
+ # Assemble the xcframework. xcodebuild reads each .a's Mach-O headers to
+ # determine platform + arch + (simulator vs device), and emits the outer
+ # Info.plist + per-slice directories with the flat `lib<name>.a +
+@@ -123,7 +134,7 @@ xcodebuild -create-xcframework \
+     -headers "$HEADERS_STAGE" \
+     -library "$SIM_FAT" \
+     -headers "$HEADERS_STAGE" \
+-    -library "$TARGET_DIR/aarch64-apple-darwin/release/lib${UDL_NAME}.a" \
++    -library "$MACOS_FAT" \
+     -headers "$HEADERS_STAGE" \
+     -library "$TARGET_DIR/aarch64-apple-ios-macabi/release/lib${UDL_NAME}.a" \
+     -headers "$HEADERS_STAGE" \
