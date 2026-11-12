@@ -38,6 +38,7 @@ import com.airdesk.android.remote.RemoteSSHOperation
 import com.airdesk.android.remote.RemoteSSHServiceController
 import com.airdesk.android.remote.RemoteTerminalProfileDraft
 import com.airdesk.android.workspace.DisplaySessionController
+import com.airdesk.android.workspace.WindowProjectionRegistry
 import java.util.UUID
 import kotlinx.coroutines.launch
 
@@ -45,6 +46,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as AirDeskApplication).container
 
     val displaySession = DisplaySessionController()
+    val windowProjections = WindowProjectionRegistry()
 
     var remoteTerminalProfile by mutableStateOf(RemoteTerminalProfileDraft())
         private set

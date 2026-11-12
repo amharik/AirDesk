@@ -13,6 +13,7 @@ final class CastSessionCoordinator: ObservableObject {
     @Published private(set) var lastError: String?
     @Published private(set) var isDemo = true
     @Published private(set) var isReady = false
+    @Published private(set) var projectedWindows: [WindowProjection] = []
     private(set) var lastAcceptedInputSequence = 0
 
     var onInput: ((InputEvent) -> Void)?
@@ -22,6 +23,7 @@ final class CastSessionCoordinator: ObservableObject {
     private var controlObservers: [UUID: (CastControlMessage) -> Void] = [:]
     private var readyMessages: [String: CastControlMessage] = [:]
     private var controlErrors: [String: CastProtocolError] = [:]
+    private let windowProjectionRegistry = WindowProjectionRegistry()
 
     init(adapter: (any GoogleCastAdapter)? = nil) {
         if let adapter {
@@ -128,6 +130,63 @@ final class CastSessionCoordinator: ObservableObject {
 
     func clearError() {
         lastError = nil
+    }
+
+    @discardableResult
+    func beginWindowProjection(
+        _ identity: WindowProjectionIdentity,
+        to target: WindowProjectionTarget
+    ) -> WindowProjectionResult {
+        let result = windowProjectionRegistry.begin(identity: identity, target: target)
+        refreshWindowProjections()
+        return result
+    }
+
+    @discardableResult
+    func acknowledgeProjectedSurface(windowId: String, revision: Int) -> WindowProjectionResult {
+        let result = windowProjectionRegistry.acknowledgeSurface(windowId: windowId, revision: revision)
+        refreshWindowProjections()
+        return result
+    }
+
+    @discardableResult
+    func disconnectWindowProjection(windowId: String, reason: String) -> WindowProjectionResult {
+        let result = windowProjectionRegistry.disconnect(windowId: windowId, reason: reason)
+        refreshWindowProjections()
+        return result
+    }
+
+    @discardableResult
+    func resumeWindowProjection(
+        windowId: String,
+        to target: WindowProjectionTarget,
+        generation: Int
+    ) -> WindowProjectionResult {
+        let result = windowProjectionRegistry.resume(
+            windowId: windowId,
+            target: target,
+            generation: generation
+        )
+        refreshWindowProjections()
+        return result
+    }
+
+    @discardableResult
+    func releaseWindowProjection(windowId: String) -> WindowProjectionResult {
+        let result = windowProjectionRegistry.release(windowId: windowId)
+        refreshWindowProjections()
+        return result
+    }
+
+    @discardableResult
+    func failWindowProjection(windowId: String, reason: String) -> WindowProjectionResult {
+        let result = windowProjectionRegistry.fail(windowId: windowId, reason: reason)
+        refreshWindowProjections()
+        return result
+    }
+
+    private func refreshWindowProjections() {
+        projectedWindows = windowProjectionRegistry.list()
     }
 
     private func readinessKey(sessionId: String, generation: Int) -> String {

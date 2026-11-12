@@ -127,6 +127,7 @@ fun PresentationScreen(viewModel: AppViewModel) {
             " · ${stream.width}×${stream.height} · " +
             "${stream.metrics.encodedFrames} frames"
     } ?: "idle · no codec"
+    val projectedWindows = viewModel.windowProjections.list()
 
     Column(
         modifier = Modifier
@@ -185,6 +186,14 @@ fun PresentationScreen(viewModel: AppViewModel) {
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        projectedWindows.firstOrNull()?.let { projection ->
+            Text(
+                "Window sling ${projection.state.wire} · ${projection.identity.title} · " +
+                    "revision ${projection.surfaceRevision} · compute ${projection.computeLocation}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
         snapshot.displayStream?.lastError?.let { error ->
             Text(
                 "Display error: $error",
