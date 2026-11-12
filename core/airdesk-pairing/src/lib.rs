@@ -1,8 +1,9 @@
-//! AD-PAIR-1 transcript, SAS, HKDF key schedule and scrypt registration.
+//! AD-PAIR-1 transcript, SAS, HKDF key schedule, scrypt registration and
+//! research-only SPAKE2+ over P-256.
 //!
-//! This crate deliberately stops before SPAKE2+ group arithmetic. The browser,
-//! Swift and Kotlin implementations remain the behavioural references while
-//! the shared fixture proves transcript and key-schedule parity.
+//! The browser, Swift and Kotlin implementations remain the behavioural
+//! references. SPAKE2+ is not wired into product pairing until independent
+//! cryptographic review.
 
 use std::fmt;
 
@@ -13,6 +14,8 @@ use scrypt::{scrypt, Params};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
+
+pub mod spake2plus;
 
 pub const AD_PAIR_TRANSCRIPT_DOMAIN: &str = "AD-PAIR-1";
 pub const AD_PAIR_SAS_DOMAIN: &str = "AD-PAIR-1-SAS";

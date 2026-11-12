@@ -130,7 +130,7 @@ Native uses `WorkspaceSyncCrypto.derivePairingKey(secret:)` and activates the ke
 
 ## Test fixture
 
-`web/test/fixtures/ad-pair-1.json` fixes the transcript and key-schedule vectors. `web/test/identity-pairing.test.ts` covers signatures, binding mismatch, replay/expiry, SAS and session keys. `protocol/fixtures/ad-pair-1.json` is the shared copy used by the Rust core and adds a deterministic scrypt registration vector. `core/airdesk-pairing` reproduces the transcript, hash, SAS, HKDF keys and scrypt scalars; SPAKE2+ group arithmetic remains P3-05.
+`web/test/fixtures/ad-pair-1.json` fixes the transcript and key-schedule vectors. `web/test/identity-pairing.test.ts` covers signatures, binding mismatch, replay/expiry, SAS and session keys. `protocol/fixtures/ad-pair-1.json` is the shared copy used by the Rust core and adds a deterministic scrypt registration vector. `core/airdesk-pairing` reproduces the transcript, hash, SAS, HKDF keys and scrypt scalars. `protocol/fixtures/spake2plus-p256-rfc9383.json` and `core/airdesk-pairing/src/spake2plus.rs` cover research-only RFC 9383 SPAKE2+ over P-256; that path is not exported through UniFFI/WASM or cut over, and requires independent review.
 
 ## Pending
 

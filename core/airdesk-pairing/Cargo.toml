@@ -8,9 +8,13 @@ publish.workspace = true
 [dependencies]
 base64 = "0.22"
 hkdf = "0.12"
+hmac = "0.12"
 num-bigint = "0.4"
+p256 = { version = "0.13", features = ["arithmetic"] }
+rand_core = { version = "0.6", features = ["getrandom"] }
 scrypt = "0.11"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
 unicode-normalization = "0.1"
+zeroize = { version = "1", features = ["derive"] }
