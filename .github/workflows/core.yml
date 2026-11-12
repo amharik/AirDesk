@@ -8,6 +8,7 @@ on:
       - "protocol/fixtures/**"
       - "scripts/build-core-apple.sh"
       - "scripts/build-core-android.sh"
+      - "scripts/build-core-wasm.sh"
       - ".github/workflows/core.yml"
   pull_request:
     paths:
@@ -16,6 +17,7 @@ on:
       - "protocol/fixtures/**"
       - "scripts/build-core-apple.sh"
       - "scripts/build-core-android.sh"
+      - "scripts/build-core-wasm.sh"
       - ".github/workflows/core.yml"
 
 jobs:
@@ -55,6 +57,19 @@ jobs:
           cmp /tmp/airdesk-swift/airdesk_ffi.swift \
             airdesk-ffi/apple/Sources/AirDeskCore/AirDeskCore.swift
           diff -ru /tmp/airdesk-kotlin/com airdesk-ffi/generated/kotlin/com
+
+  wasm:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.98.1"
+          targets: wasm32-unknown-unknown
+      - name: Install wasm-bindgen
+        run: cargo install wasm-bindgen-cli --version 0.2.130 --locked
+      - name: Build deterministic wasm
+        run: AIRDESK_CORE_WASM_VERIFY_DETERMINISM=1 ./scripts/build-core-wasm.sh
 
   daemon:
     runs-on: ubuntu-24.04

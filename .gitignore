@@ -21,3 +21,5 @@ core/target/
 core/airdesk-ffi/apple/Artifacts/
 core/airdesk-ffi/apple/.build/
 core/airdesk-ffi/generated/jniLibs/
+core/airdesk-wasm/dist/
+core/airdesk-wasm/dist.verify/

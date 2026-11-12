@@ -79,7 +79,7 @@ Phase 0 is landed. Later changes must keep the full web, iOS, Android, Rust and 
 
 - The product pins `IrohLib` 1.2.0 in `project.yml` and `iroh-android` 1.2.0 in `android/app/build.gradle.kts`. Only `research/iroh-probe/Cargo.toml` uses `iroh = 1.4.1`. P1-09 verified on 2026-11-12 that no `iroh-ffi` or `iroh-android` `1.3.x`/`1.4.x` release exists; the product pins remain unchanged. A self-built `iroh-ffi` `v1.2.0` binding against `iroh = 1.4.1` was then compiled and exercised locally: full iOS suite 578 tests (1 skipped) and Android 171 tests/lint/assemble passed. That is code-level evidence only; relay, roaming, NAT rebinding, physical-device and rollback gates remain open. `docs/research/iroh-product-upgrade-2026-11-12.md` records the availability, build hashes, path/network APIs and live-roaming gaps.
 - P1-10 now records `cpu_percent`, peak RSS where available, commit/dirty, build/runtime, host model, CPU, memory and network in loopback T1-T4 results. The 2026-11-12 repeat used `Deno.cpuUsage()` for T1/T2 and `/usr/bin/time -l` for T3/T4; `docs/research/transport-metadata-2026-11-12.md` summarizes the dirty harness-validation runs. LAN, cellular, relay, physical-device and cross-host qualification remain P5-06.
-- `protocol/rust/` is now a compatibility shim that re-exports packed, movement, ADFP envelope and resource codecs from `core/airdesk-protocol`; `core/airdesk-pairing` owns the AD-PAIR-1 transcript/SAS/HKDF/scrypt schedule but not SPAKE2+ group arithmetic; `core/airdesk-ffi` now generates a versioned Swift/Kotlin ABI smoke surface, while `core/airdesk-wasm` remains a browser-safe smoke boundary.
+- `protocol/rust/` is now a compatibility shim that re-exports packed, movement, ADFP envelope and resource codecs from `core/airdesk-protocol`; `core/airdesk-pairing` owns the AD-PAIR-1 transcript/SAS/HKDF/scrypt schedule but not SPAKE2+ group arithmetic; `core/airdesk-ffi` now generates a versioned Swift/Kotlin ABI smoke surface, and `core/airdesk-wasm` builds a deterministic browser-safe smoke module with a flag-gated adapter.
 - `libghostty-vt`, WebMCP, UWB discovery and zero-copy media capture are not present in tracked source. ADR-027 evaluated `libghostty-vt` and retained WTerm plus the `@wterm/ghostty` core; OSC 133 handling and `renderingPaused` are present in the WTerm path. ResourceCompound and BLAKE3 blob handles, plus the one-euro pointer filter, are implemented and covered by cross-language fixtures.
 - The current app target is iOS 17.5 with Mac Catalyst disabled. `ScreenCaptureKit` is a macOS API and cannot be used by the current iOS host target. The host strategy must choose ReplayKit/broadcast extension, a separate macOS host target, or an external host process before implementation.
 - ADR-013 is `Proposed`; `XPORT-02` cannot be signed off without measurements.
@@ -198,7 +198,7 @@ Compatibility rules:
 | P3-04 | Extract pairing transcript/key schedule | New `core/airdesk-pairing/**`; `protocol/fixtures/ad-pair-1.json` | AD-PAIR-1 transcript, HKDF schedule, SAS and scrypt registration match existing Swift/TS/Kotlin fixtures | P3-01 | Verified, committed; transcript/SAS/HKDF/scrypt fixture parity; SPAKE2+ remains P3-05 |
 | P3-05 | Evaluate Rust SPAKE2+ implementation | `core/airdesk-pairing/**`; RFC 9383 vectors | `confirmV`-first, cofactor/subgroup checks, zeroization and error handling proven; no product cutover until independent review | P3-04 | Research (RFC vectors + independent review required) |
 | P3-06 | UniFFI Swift/Kotlin bindings | `core/airdesk-ffi/**`, `scripts/build-core-apple.sh`, `scripts/build-core-android.sh`, `project.yml`, `android/app/build.gradle.kts` | Generated bindings build in CI; app can call a non-authoritative core smoke API behind a flag | P3-02, P3-03 | Verified; generated Swift/Kotlin ABI smoke bindings build, iOS test calls the generated API, Android debug call behind `BuildConfig.DEBUG` |
-| P3-07 | WASM component target | `core/airdesk-wasm/**`, `web/src/core/**` | Deterministic wasm builds; web uses only smoke/adapter path; no TypeScript crypto removal yet | P3-03 | Pending |
+| P3-07 | WASM component target | `core/airdesk-wasm/**`, `web/src/core/**` | Deterministic wasm builds; web uses only smoke/adapter path; no TypeScript crypto removal yet | P3-03 | Verified; deterministic wasm-bindgen build, checked-in smoke adapter, no TypeScript crypto removal |
 | P3-08 | Feature-flagged cutover | `AirDesk/Core/**`, `web/src/core/**`, `android/.../core/**`, settings/diagnostics | Per-feature flags for movement, envelope, pairing and sync; rollback to native path; telemetry reports active path | P3-06, P3-07 | Pending |
 | P3-09 | Remove duplicated implementations | Delete/replace only after equivalence and one release cycle; `README.md`, `milestones.md`, ADR updates | Duplicate code paths removed with no regressions; rollback tag retained | P3-08, P1-10 | Pending |
 
@@ -552,6 +552,15 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace --locked` and `cargo test --manifest-path core/airdeskd/Cargo.toml --locked` pass. The core workspace has 28 tests; the legacy shim has 1 re-export compatibility test; `airdeskd` retains 8.
 - Cross-language byte equality remains covered by the pre-existing Swift/TypeScript/Kotlin fixture suites; no product dependency or runtime path changed in this step.
 
+### P3-07 verification evidence
+
+- `core/airdesk-wasm` exports `coreAbiVersion`, `coreIsAbiCompatible` and `coreSmokeLabel` through `wasm-bindgen` 0.2.130 while keeping native filesystem, network, PTY and platform APIs out of the browser target.
+- `scripts/build-core-wasm.sh` builds `wasm32-unknown-unknown`, disables incremental compilation, pins `SOURCE_DATE_EPOCH`, runs wasm-bindgen and optionally rebuilds into a second directory for byte-for-byte comparison. Two release builds matched; the checked hashes are recorded in the generated `SHA256SUMS`.
+- `web/src/core/smoke.ts` is the only browser adapter for the shared core. It is inert unless `?coreSmoke=1` is present, dynamically imports the generated module, and reports only the ABI label/version and compatibility result.
+- Web tests cover the disabled path, enabled path, ABI result and dynamic module loading. Full `npm run check` passes with 315 tests across 48 files.
+- Rust `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace --locked` pass; the core workspace now has 34 tests.
+- No TypeScript crypto, protocol or sync implementation was removed or made authoritative. P3-08 feature flags and rollback remain pending.
+
 ### P3-06 verification evidence
 
 - `core/airdesk-ffi` exposes `coreAbiVersion`, `coreIsAbiCompatible` and `coreSmokeLabel` through UniFFI 0.31.2 proc-macro scaffolding with a `uniffi-bindgen` binary and checked-in generated Swift/Kotlin sources.
@@ -559,7 +568,7 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - `scripts/build-core-android.sh` generates Kotlin bindings and builds `arm64-v8a` and `x86_64` JNI libraries with `cargo-ndk`; the Android app source set and JNA dependency consume the generated outputs.
 - The iOS Debug configuration enables `AIRDESK_CORE_SMOKE`; `CoreFFISmokeTests` calls the generated Swift API and verifies ABI version 1. The Android debug application logs the generated smoke label and ABI compatibility behind `BuildConfig.DEBUG`.
 - Full iOS suite: 579 tests, 1 skipped, 0 failures, including the generated FFI smoke test. Android `testDebugUnitTest lintDebug assembleDebug` passes with 171 tests and packages `libairdesk_ffi.so` for both ABIs.
-- Rust `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace --locked` pass; the core workspace now has 33 tests.
+- Rust `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace --locked` pass; the core workspace had 33 tests at P3-06 completion and 34 after the P3-07 WASM test.
 - The surface remains non-authoritative: no packed input, movement, envelope, resource, pairing, sync or platform implementation was cut over, and P3-08 rollback gates remain in force.
 
 ### P3-04 verification evidence
@@ -568,7 +577,7 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - Copied the existing browser pairing fixture to `protocol/fixtures/ad-pair-1.json` and extended it with a deterministic scrypt registration vector computed from the browser implementation.
 - Core tests reproduce the fixture's transcript bytes, transcript hash, SAS, initiator-to-responder key, responder-to-initiator key, transport key and scrypt `w0`/`w1`; mismatched bindings, malformed PAKE evidence and empty passwords fail closed.
 - The crate stops at the SPAKE2+ boundary: no P-256 group arithmetic, SPAKE2+ confirmation algorithm, `L` registration point or product cutover is claimed. Those remain P3-05 and require RFC 9383 vectors, subgroup/cofactor checks, zeroization and independent review.
-- `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace --locked` pass; the core workspace had 32 tests at P3-04 completion and 33 after the P3-06 smoke test.
+- `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace --locked` pass; the core workspace had 32 tests at P3-04 completion, 33 after the P3-06 smoke test and 34 after P3-07.
 
 ### P4-07 verification evidence
 
