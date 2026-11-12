@@ -85,3 +85,5 @@ Adapter and app-integration validation passed on 2026-11-06 with Xcode 16.4 on t
 - the full `AirDeskTests` suite ran 256 tests with 255 passes, 1 skip and 0 failures.
 
 App wiring (`XPORT-05`) is complete. Physical-device pairing, direct-underlay and self-hosted-relay qualification remain open; the browser path and production release sequencing remain unchanged.
+
+P1-09 rechecked availability on 2026-11-12: the newest `iroh-ffi` release/tag is `v1.2.0` and Maven Central's newest `iroh-android` is `1.2.0`; no `1.3.x`/`1.4.x` product binding exists. The `1.2.0` Swift binding already exposes path/network watchers and path snapshots, so no pin change is needed for P4-04. Live roaming and relay failover remain unqualified; see `docs/research/iroh-product-upgrade-2026-11-12.md`.

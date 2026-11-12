@@ -23,7 +23,7 @@ struct RootView: View {
                         .transition(.opacity)
                 }
             case .failed:
-                if session.selectedDevice != nil {
+                if session.shouldPresentRecoveryFallback {
                     SessionRecoveryView()
                         .transition(.opacity)
                 } else {
@@ -43,15 +43,18 @@ struct RootView: View {
                     .accessibilityHidden(true)
             }
 
-            VStack {
+            VStack(spacing: 8) {
                 if let status = environment.workspaceStatusPresentation {
                     WorkspaceStatusBanner(presentation: status)
                         .padding(.horizontal, 16)
-                        .padding(.top, 8)
                 }
+                SessionContinuityPill()
+                    .padding(.horizontal, 16)
                 Spacer()
             }
+            .padding(.top, 8)
             .allowsHitTesting(false)
+            .animation(.easeInOut(duration: 0.22), value: session.sessionContinuity)
         }
         .animation(.easeInOut(duration: 0.28), value: session.phase)
         .sheet(isPresented: $environment.isSettingsPresented) {

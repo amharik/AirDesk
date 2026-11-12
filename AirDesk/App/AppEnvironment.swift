@@ -174,6 +174,14 @@ final class AppEnvironment: ObservableObject {
         fabric.onPeerDisconnected = { [weak self] remoteEndpointID in
             self?.session.fabricPeerDidDisconnect(remoteEndpointID)
         }
+        fabric.$paths
+            .receive(on: RunLoop.main)
+            .sink { [weak self] paths in
+                Task { @MainActor in
+                    self?.session.fabricPathsDidChange(paths)
+                }
+            }
+            .store(in: &cancellables)
         fabric.onSyncEnvelope = { [weak self] data in
             guard let self else { return }
             if (try? WorkspaceSyncKeyRotationCrypto.decode(data)) != nil {

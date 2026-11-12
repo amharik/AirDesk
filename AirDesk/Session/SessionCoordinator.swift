@@ -1,3 +1,4 @@
+import Combine
 import CoreGraphics
 import Foundation
 import OSLog
@@ -64,15 +65,25 @@ enum CursorAction: Equatable {
 
 @MainActor
 final class SessionCoordinator: ObservableObject {
-    @Published private(set) var phase: SessionPhase = .idle
-    @Published private(set) var stage: ConnectionStage = .idle
+    @Published private(set) var phase: SessionPhase = .idle {
+        didSet { refreshContinuity() }
+    }
+    @Published private(set) var stage: ConnectionStage = .idle {
+        didSet { refreshContinuity() }
+    }
     @Published private(set) var selectedDevice: DisplayDevice?
     @Published private(set) var mode: SessionMode = .preview
     @Published private(set) var profile: DisplayProfile = .preview
-    @Published private(set) var runtimeState: RuntimeState = .idle
+    @Published private(set) var runtimeState: RuntimeState = .idle {
+        didSet { refreshContinuity() }
+    }
     @Published private(set) var runtimeName = "Wanix"
-    @Published private(set) var capabilities: RuntimeCapabilities = .wanixDesktop
-    @Published private(set) var lastError: String?
+    @Published private(set) var capabilities: RuntimeCapabilities = .wanixDesktop {
+        didSet { refreshContinuity() }
+    }
+    @Published private(set) var lastError: String? {
+        didSet { refreshContinuity() }
+    }
     @Published private(set) var notice: String?
     @Published private(set) var sessionId = ""
     @Published private(set) var sessionGeneration = 0
@@ -81,7 +92,10 @@ final class SessionCoordinator: ObservableObject {
     private(set) var isDragging = false
     @Published private(set) var isDemoConnection = false
     @Published private(set) var isExternalConnected = false
-    @Published private(set) var recoveryAttempts = 0
+    @Published private(set) var recoveryAttempts = 0 {
+        didSet { refreshContinuity() }
+    }
+    @Published private(set) var sessionContinuity = SessionContinuityPresentation.hidden
     @Published var isPreviewPresented = false
     @Published private(set) var previewKeyboardShowRequest = 0
     @Published private(set) var previewKeyboardDismissRequest = 0
@@ -168,6 +182,9 @@ final class SessionCoordinator: ObservableObject {
     private var remoteTerminalRequested = false
     private var remoteTerminalResumeAfterBackground = false
     private var remoteTerminalLeaseId: String?
+    private var continuityModel = SessionContinuityModel()
+    private var fabricPaths: [IrohFabricPath] = []
+    private var cancellables = Set<AnyCancellable>()
 
     init(
         settings: AppSettings,
@@ -248,6 +265,12 @@ final class SessionCoordinator: ObservableObject {
         remoteTerminal.onEvent = { [weak self] event in
             self?.handleRemoteTerminalEvent(event)
         }
+        diagnostics.$lastLatency
+            .throttle(for: .seconds(1), scheduler: RunLoop.main, latest: true)
+            .sink { [weak self] _ in
+                Task { @MainActor in self?.refreshContinuity() }
+            }
+            .store(in: &cancellables)
         desktopSurface.onReady = { [weak self] in
             guard let self else { return }
             self.pushRemoteTerminalConfiguration()
@@ -359,9 +382,53 @@ final class SessionCoordinator: ObservableObject {
         phase == .ready ? .ready : stage
     }
 
+    var shouldPresentRecoveryFallback: Bool {
+        phase == .failed && recoveryAttempts > 0
+    }
+
     var sessionSummary: String {
         guard phase != .idle else { return "No active session" }
         return "\(effectiveMode.shortTitle) · \(runtimeName) · \(runtimeState.title)"
+    }
+
+    func fabricPathsDidChange(_ paths: [IrohFabricPath]) {
+        fabricPaths = paths
+        refreshContinuity()
+    }
+
+    private func refreshContinuity() {
+        let presentation = continuityModel.update(
+            phase: phase,
+            stage: stage,
+            runtimeState: runtimeState,
+            capabilities: capabilities,
+            recoveryAttempts: recoveryAttempts,
+            recoveryMaximumAttempts: recovery.maximumAttempts,
+            lastError: lastError,
+            selectedDeviceName: selectedDevice?.name,
+            paths: fabricPaths,
+            measuredLatencyMilliseconds: diagnostics.lastLatency
+        )
+        if presentation != sessionContinuity {
+            sessionContinuity = presentation
+        }
+        guard presentation.isVisible, settings.hapticsEnabled else { return }
+        switch presentation.haptic {
+        case .none:
+            break
+        case .sessionReady:
+            Haptics.shared.success()
+        case .pathUpgraded:
+            Haptics.shared.pathChanged()
+        case .pathDegraded:
+            Haptics.shared.warning()
+        case .pathChanged:
+            Haptics.shared.pathChanged()
+        case .recovery:
+            Haptics.shared.warning()
+        case .failure:
+            Haptics.shared.error()
+        }
     }
 
     func beginConnection(to device: DisplayDevice) {
@@ -381,6 +448,7 @@ final class SessionCoordinator: ObservableObject {
             setNotice("\(requestedRuntime.title) requires AirDesk Pro. Using Wanix Desktop for this session.")
         }
 
+        continuityModel.reset()
         phase = .connecting
         stage = .discovering
         sessionId = Self.makeSessionId()
@@ -451,6 +519,7 @@ final class SessionCoordinator: ObservableObject {
         isPreviewPresented = false
         sessionId = ""
         lastError = nil
+        continuityModel.reset()
         diagnostics.endSession()
         desktopSurface.returnHome()
     }
@@ -486,6 +555,7 @@ final class SessionCoordinator: ObservableObject {
         isDragging = false
         pointer.center()
         recovery.reset()
+        continuityModel.reset()
         diagnostics.endSession()
     }
 
@@ -1027,7 +1097,6 @@ final class SessionCoordinator: ObservableObject {
             recoveryAttempts = 0
             diagnostics.mark("session.ready")
             logger.info("Session ready: \(self.sessionId, privacy: .public)")
-            if settings.hapticsEnabled { Haptics.shared.tap() }
         } catch is CancellationError {
             return
         } catch {
@@ -1037,7 +1106,6 @@ final class SessionCoordinator: ObservableObject {
             runtimeState = .failed
             lastError = friendlyMessage(for: error)
             diagnostics.mark("session.failed")
-            if settings.hapticsEnabled { Haptics.shared.error() }
             stopRuntime()
             invalidateInputLease()
             inputTransport.route = .endpoint
@@ -1086,7 +1154,6 @@ final class SessionCoordinator: ObservableObject {
         inputTransport.route = .endpoint
         desktopSurface.returnHome()
         diagnostics.mark("session.recovery.failed")
-        if settings.hapticsEnabled { Haptics.shared.error() }
     }
 
     private func prepareForNewSession() {

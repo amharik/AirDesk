@@ -40,6 +40,20 @@ final class Haptics {
         selection.selectionChanged()
     }
 
+    func success() {
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(.success)
+    }
+
+    func warning() {
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(.warning)
+    }
+
+    func pathChanged() {
+        medium.impactOccurred(intensity: 0.55)
+    }
+
     func error() {
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.error)
