@@ -51,7 +51,7 @@ core/
 - The product does not depend on the core being present at runtime until its feature flag is enabled.
 - `core/` must be buildable and testable without Xcode, Android Studio or a browser.
 
-Implementation note (2026-11-12): the `core/` Cargo workspace now contains `airdesk-core`, `airdesk-protocol`, `airdesk-ffi` and `airdesk-wasm` crates with a shared ABI/version smoke surface. P3-02/P3-03 moved the packed input, movement/one-euro, ADFP envelope and resource compound/blob codecs into `core/airdesk-protocol`; the legacy `protocol/rust` crate is a compatibility shim that re-exports them. P3-04 added `core/airdesk-pairing` for the AD-PAIR-1 transcript, SAS, HKDF schedule and scrypt registration; SPAKE2+ group arithmetic remains out of scope until P3-05. The existing `core/airdeskd` daemon remains a separate workspace under the ADR-026 carve-out. No Swift, TypeScript, Kotlin or remaining production protocol code has moved, and this approval does not waive any acceptance gate.
+Implementation note (2026-11-12): the `core/` Cargo workspace now contains `airdesk-core`, `airdesk-protocol`, `airdesk-pairing`, `airdesk-ffi` and `airdesk-wasm` crates. P3-02/P3-03 moved the packed input, movement/one-euro, ADFP envelope and resource compound/blob codecs into `core/airdesk-protocol`; the legacy `protocol/rust` crate is a compatibility shim that re-exports them. P3-04 added `core/airdesk-pairing` for the AD-PAIR-1 transcript, SAS, HKDF schedule and scrypt registration; SPAKE2+ group arithmetic remains out of scope until P3-05. P3-06 adds generated UniFFI Swift/Kotlin bindings and a debug-only ABI smoke call, packaged through a local XCFramework package on Apple and generated JNI libraries on Android. The existing `core/airdeskd` daemon remains a separate workspace under the ADR-026 carve-out. No Swift, TypeScript, Kotlin or remaining production protocol code has moved, and this approval does not waive any acceptance gate.
 
 ### 2. Rust owns deterministic, platform-neutral logic first
 
@@ -211,7 +211,7 @@ One owner changes a boundary at a time. Platform owners do not edit the FFI surf
 
 ## Open questions
 
-- Which UniFFI version is pinned for the first FFI implementation? Rust is pinned to 1.98.1 in `core/rust-toolchain.toml`.
-- Does the iOS packaging path need an XCFramework or can a static library plus SwiftPM binary target be used?
+- Which UniFFI version is pinned for the first FFI implementation? UniFFI resolves to 0.31.2 from the 0.31.1 constraint; Rust is pinned to 1.98.1 in `core/rust-toolchain.toml`.
+- Does the iOS packaging path need an XCFramework or can a static library plus SwiftPM binary target be used? P3-06 uses a generated framework XCFramework exposed through a local Swift package.
 - Is Android 16 KB page-size support required for the first `airdesk-ffi` release?
 - Which benchmark corpus and thresholds gate a component cutover?

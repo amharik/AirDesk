@@ -7,7 +7,9 @@ on:
       - "AirDesk/**"
       - "AirDeskTests/**"
       - "AirDeskUITests/**"
+      - "core/airdesk-ffi/**"
       - "project.yml"
+      - "scripts/build-core-apple.sh"
       - "scripts/ci-ios.sh"
       - ".github/workflows/ios.yml"
   pull_request:
@@ -15,7 +17,9 @@ on:
       - "AirDesk/**"
       - "AirDeskTests/**"
       - "AirDeskUITests/**"
+      - "core/airdesk-ffi/**"
       - "project.yml"
+      - "scripts/build-core-apple.sh"
       - "scripts/ci-ios.sh"
       - ".github/workflows/ios.yml"
 
@@ -28,6 +32,10 @@ jobs:
         with:
           xcode-version: "16.4"
       - run: brew install xcodegen
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.98.1"
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
       - name: Run iOS tests
         run: |
           set -o pipefail

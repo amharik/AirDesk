@@ -18,3 +18,6 @@ research/iroh-probe/target/
 core/airdeskd/target/
 
 core/target/
+core/airdesk-ffi/apple/Artifacts/
+core/airdesk-ffi/apple/.build/
+core/airdesk-ffi/generated/jniLibs/

@@ -1,0 +1,6 @@
+[bindings.kotlin]
+package_name = "com.airdesk.core"
+cdylib_name = "airdesk_ffi"
+
+[bindings.swift]
+cdylib_name = "airdesk_ffi"

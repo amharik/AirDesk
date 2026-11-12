@@ -45,6 +45,8 @@ android {
     sourceSets {
         getByName("main") {
             java.srcDir("../../protocol/generated/kotlin")
+            java.srcDir("../../core/airdesk-ffi/generated/kotlin")
+            jniLibs.srcDir("../../core/airdesk-ffi/generated/jniLibs")
         }
     }
 
@@ -70,6 +72,7 @@ dependencies {
     implementation("androidx.webkit:webkit:1.12.1")
     implementation("com.github.mwiede:jsch:0.2.21")
     implementation("com.google.flatbuffers:flatbuffers-java:25.12.19")
+    implementation("net.java.dev.jna:jna:5.17.0@aar")
     implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")

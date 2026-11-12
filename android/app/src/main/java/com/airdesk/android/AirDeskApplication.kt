@@ -2,6 +2,8 @@ package com.airdesk.android
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
+import com.airdesk.android.core.CoreFFISmoke
 import com.airdesk.android.fabric.IrohFabricPeer
 import com.airdesk.android.identity.DeviceIdentity
 import com.airdesk.android.identity.DeviceIdentityStore
@@ -15,6 +17,9 @@ class AirDeskApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         IrohAndroid.installAndroidContext(this)
+        if (BuildConfig.DEBUG) {
+            Log.d("CoreFFISmoke", "${CoreFFISmoke.label()} abi=${CoreFFISmoke.isCurrentAbiCompatible()}")
+        }
     }
 
     val container: AppContainer by lazy { AppContainer(this) }

@@ -40,6 +40,8 @@ packages:
   OpenSSL:
     url: https://github.com/krzyzanowskim/OpenSSL-Package.git
     exactVersion: 3.6.5000
+  AirDeskCore:
+    path: core/airdesk-ffi/apple
 targets:
   AirDesk:
     type: application
@@ -68,7 +70,12 @@ targets:
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         ENABLE_PREVIEWS: NO
         OTHER_LDFLAGS: "$(inherited) -framework Network"
+      configs:
+        Debug:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) AIRDESK_CORE_SMOKE"
     dependencies:
+      - package: AirDeskCore
+        product: AirDeskCore
       - package: GoogleCast
         product: GoogleCastDynamic
       - package: FlatBuffers
@@ -106,6 +113,9 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/AirDesk.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/AirDesk"
         BUNDLE_LOADER: "$(TEST_HOST)"
+      configs:
+        Debug:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) AIRDESK_CORE_SMOKE"
   AirDeskUITests:
     type: bundle.ui-testing
     platform: iOS

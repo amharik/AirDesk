@@ -6,6 +6,10 @@ DESTINATION="${AIRDESK_DESTINATION:-platform=iOS Simulator,name=iPhone 16 Pro,OS
 
 cd "$ROOT"
 
+if [[ ! -d core/airdesk-ffi/apple/Artifacts/airdesk_ffiFFI.xcframework ]]; then
+    ./scripts/build-core-apple.sh
+fi
+
 if ! command -v xcodegen >/dev/null 2>&1; then
     echo "xcodegen is required. Install it with: brew install xcodegen" >&2
     exit 1

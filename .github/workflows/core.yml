@@ -6,12 +6,16 @@ on:
       - "core/**"
       - "protocol/generated/rust/**"
       - "protocol/fixtures/**"
+      - "scripts/build-core-apple.sh"
+      - "scripts/build-core-android.sh"
       - ".github/workflows/core.yml"
   pull_request:
     paths:
       - "core/**"
       - "protocol/generated/rust/**"
       - "protocol/fixtures/**"
+      - "scripts/build-core-apple.sh"
+      - "scripts/build-core-android.sh"
       - ".github/workflows/core.yml"
 
 jobs:
@@ -29,6 +33,28 @@ jobs:
         run: cargo clippy --manifest-path core/Cargo.toml --workspace --all-targets -- -D warnings
       - name: Test
         run: cargo test --manifest-path core/Cargo.toml --workspace --locked
+
+  bindings:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.98.1"
+      - name: Build host uniffi library
+        run: cargo build --manifest-path core/Cargo.toml -p airdesk-ffi --lib
+      - name: Generate and verify checked-in bindings
+        run: |
+          set -euo pipefail
+          cd core
+          LIB="$(find target/debug/deps -maxdepth 1 -name 'libairdesk_ffi.so' | head -1)"
+          cargo run --quiet -p airdesk-ffi --bin uniffi-bindgen -- \
+            generate --library "$LIB" --language swift --out-dir /tmp/airdesk-swift
+          cargo run --quiet -p airdesk-ffi --bin uniffi-bindgen -- \
+            generate --library "$LIB" --language kotlin --out-dir /tmp/airdesk-kotlin
+          cmp /tmp/airdesk-swift/airdesk_ffi.swift \
+            airdesk-ffi/apple/Sources/AirDeskCore/AirDeskCore.swift
+          diff -ru /tmp/airdesk-kotlin/com airdesk-ffi/generated/kotlin/com
 
   daemon:
     runs-on: ubuntu-24.04
