@@ -479,6 +479,7 @@ enum SessionPhase {
     AwaitingShare,
     AwaitingConfirmation,
     Completed,
+    Failed,
 }
 
 pub struct ProverSession {
@@ -539,7 +540,7 @@ impl ProverSession {
             .init
             .as_ref()
             .ok_or(Spake2PlusError::InvalidState("missing prover init"))?;
-        let result = prover_finish(ProverFinishInput {
+        let result = match prover_finish(ProverFinishInput {
             w0: &self.w0,
             w1: &self.w1,
             x: &init.x,
@@ -547,10 +548,26 @@ impl ProverSession {
             context: &self.context,
             id_prover: &self.id_prover,
             id_verifier: &self.id_verifier,
-        })?;
-        assert_confirmation(&result.expected_confirmation, confirmation_v)?;
+        }) {
+            Ok(result) => result,
+            Err(error) => {
+                self.burn();
+                return Err(error);
+            }
+        };
+        if let Err(error) = assert_confirmation(&result.expected_confirmation, confirmation_v) {
+            self.burn();
+            return Err(error);
+        }
         self.phase = SessionPhase::Completed;
         Ok(result)
+    }
+
+    fn burn(&mut self) {
+        self.init = None;
+        self.w0.zeroize();
+        self.w1.zeroize();
+        self.phase = SessionPhase::Failed;
     }
 }
 
@@ -626,17 +643,22 @@ impl VerifierSession {
                 "verifier is not awaiting a prover confirmation",
             ));
         }
-        let pending = self
-            .pending
-            .as_ref()
-            .ok_or(Spake2PlusError::InvalidState("missing verifier result"))?;
-        assert_confirmation(&pending.expected_confirmation, confirmation_p)?;
         let result = self
             .pending
             .take()
             .ok_or(Spake2PlusError::InvalidState("missing verifier result"))?;
+        if let Err(error) = assert_confirmation(&result.expected_confirmation, confirmation_p) {
+            self.burn();
+            return Err(error);
+        }
         self.phase = SessionPhase::Completed;
         Ok(result)
+    }
+
+    fn burn(&mut self) {
+        self.pending = None;
+        self.w0.zeroize();
+        self.phase = SessionPhase::Failed;
     }
 }
 
@@ -800,22 +822,9 @@ mod tests {
         let share_p = prover.start().unwrap();
         let response = verifier.respond(&share_p).unwrap();
 
-        let mut tampered = response.confirmation;
-        tampered[0] ^= 0x01;
-        assert!(matches!(
-            prover.finish(&response.share_v, &tampered),
-            Err(Spake2PlusError::ConfirmationMismatch)
-        ));
-
         let prover_result = prover
             .finish(&response.share_v, &response.confirmation)
             .unwrap();
-        let mut tampered_p = prover_result.confirmation;
-        tampered_p[0] ^= 0x01;
-        assert!(matches!(
-            verifier.finish(&tampered_p),
-            Err(Spake2PlusError::ConfirmationMismatch)
-        ));
         let verifier_result = verifier.finish(&prover_result.confirmation).unwrap();
 
         assert_eq!(prover_result.keys, verifier_result.keys);
@@ -823,6 +832,52 @@ mod tests {
             prover_result.transcript.as_slice(),
             verifier_result.transcript.as_slice()
         );
+    }
+
+    #[test]
+    fn confirmation_mismatch_burns_sessions() {
+        let vector = vector();
+        let w0 = hex(&vector.w0);
+        let w1 = hex(&vector.w1);
+        let l = hex(&vector.l);
+        let context = vector.context.as_bytes();
+        let id_prover = vector.id_prover.as_bytes();
+        let id_verifier = vector.id_verifier.as_bytes();
+
+        let mut prover = ProverSession::new(context, id_prover, id_verifier, &w0, &w1).unwrap();
+        let mut verifier = VerifierSession::new(context, id_prover, id_verifier, &w0, &l).unwrap();
+        let share_p = prover.start().unwrap();
+        let response = verifier.respond(&share_p).unwrap();
+
+        let mut tampered = response.confirmation;
+        tampered[0] ^= 0x01;
+        assert!(matches!(
+            prover.finish(&response.share_v, &tampered),
+            Err(Spake2PlusError::ConfirmationMismatch)
+        ));
+        assert!(matches!(
+            prover.finish(&response.share_v, &response.confirmation),
+            Err(Spake2PlusError::InvalidState(_))
+        ));
+
+        let mut prover = ProverSession::new(context, id_prover, id_verifier, &w0, &w1).unwrap();
+        let mut verifier = VerifierSession::new(context, id_prover, id_verifier, &w0, &l).unwrap();
+        let share_p = prover.start().unwrap();
+        let response = verifier.respond(&share_p).unwrap();
+        let prover_result = prover
+            .finish(&response.share_v, &response.confirmation)
+            .unwrap();
+
+        let mut tampered = prover_result.confirmation;
+        tampered[0] ^= 0x01;
+        assert!(matches!(
+            verifier.finish(&tampered),
+            Err(Spake2PlusError::ConfirmationMismatch)
+        ));
+        assert!(matches!(
+            verifier.finish(&prover_result.confirmation),
+            Err(Spake2PlusError::InvalidState(_))
+        ));
     }
 
     #[test]
