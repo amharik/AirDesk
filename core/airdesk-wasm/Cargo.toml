@@ -1,0 +1,13 @@
+[package]
+name = "airdesk-wasm"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+airdesk-core.workspace = true
+airdesk-protocol.workspace = true

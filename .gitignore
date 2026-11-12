@@ -16,3 +16,5 @@ protocol/rust/target/
 research/iroh-probe/target/
 
 core/airdeskd/target/
+
+core/target/

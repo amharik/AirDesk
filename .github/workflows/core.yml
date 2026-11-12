@@ -1,0 +1,36 @@
+name: Core
+
+on:
+  push:
+    paths:
+      - "core/**"
+      - ".github/workflows/core.yml"
+  pull_request:
+    paths:
+      - "core/**"
+      - ".github/workflows/core.yml"
+
+jobs:
+  rust:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.98.1"
+          components: rustfmt, clippy
+      - name: Format
+        run: cargo fmt --manifest-path core/Cargo.toml --all -- --check
+      - name: Clippy
+        run: cargo clippy --manifest-path core/Cargo.toml --workspace --all-targets -- -D warnings
+      - name: Test
+        run: cargo test --manifest-path core/Cargo.toml --workspace --locked
+
+  daemon:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.98.1"
+      - run: cargo test --manifest-path core/airdeskd/Cargo.toml --locked

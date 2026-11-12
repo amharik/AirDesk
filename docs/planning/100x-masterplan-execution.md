@@ -136,7 +136,7 @@ Effort is in engineer-weeks and is approximate. Status is `Partial`, `Pending`, 
 | P0-02 | Verify or revert Android fabric/ADFP partials | `android/.../fabric/FabricTransport.kt`, `IrohFabricTransportAdapter.kt`, `protocol/AdfpFabricSession.kt`; `android/app/src/test/.../IrohFabricTransportAdapterTest.kt`, `AdfpFabricSessionTest.kt` | Remote `testDebugUnitTest`, `lintDebug`, `assembleDebug` pass; 1 MiB cap and channel routing enforced; pairing path unchanged | P0-04 | Verified, committed |
 | P0-03 | Verify or revert namespace partial | `AirDesk/Namespace/NamespaceImportService.swift`; `AirDeskTests/NamespaceImportServiceTests.swift` | Compiles in AirDeskTests; path/symlink/lease/fid tests pass; not wired into production | — | Verified, committed |
 | P0-04 | Add Android CI | `.github/workflows/android.yml`, `android/gradle.properties` if needed | JDK 17 + Android SDK 35; `testDebugUnitTest`, `lintDebug`, `assembleDebug` on push/PR paths | — | Verified, first run green |
-| P0-05 | Add shared-core boundary ADR | `docs/adr/024-shared-core-and-ffi-boundary.md`, `docs/adr/README.md` | ADR is `Proposed`; defines what may move into Rust, compatibility fixtures, rollback and ownership | P0-01..03 | Proposed |
+| P0-05 | Add shared-core boundary ADR | `docs/adr/024-shared-core-and-ffi-boundary.md`, `docs/adr/README.md` | ADR is `Accepted`; defines what may move into Rust, compatibility fixtures, rollback and ownership | P0-01..03 | Accepted |
 | P0-06 | Freeze Phase 1 contracts | `protocol/fixtures/**`, `docs/planning/100x-masterplan-execution.md`, `milestones.md` | ADFP envelope, remote runtime, DeviceAgent and WIT contracts have named owners and fixture paths | P0-01..05 | Contract paths frozen; ADFP, ResourceCompound/blob, movement/one-euro, remote runtime provider, DeviceAgent and WIT fixtures verified |
 
 #### Phase 1 contract freeze (P0-06)
@@ -169,7 +169,7 @@ Compatibility rules:
 | P1-06 | Placement integration and diagnostics | `AirDesk/Runtime/RuntimeRegistry.swift`, `AirDesk/Workspace/WorkspaceOrchestrator.swift`, `ApplicationLifecycleController.swift`; `web/src/remote/placement.ts` | Deterministic local/device/runtime selection; explicit device filter; typed unavailable/transport/authorization failures; diagnostics explain selection | P1-05 | Verified, committed |
 | P1-07 | Capability-scoped remote terminal | `AirDesk/Remote/CapabilityScopedTerminal.swift`, `RemoteTerminalController.swift`, `SessionCoordinator.swift`; `AirDeskTests/CapabilityScopedTerminalTests.swift` | Connect requires matching unexpired lease; denied/revoked/busy are typed and auditable; no capability bypass through terminal profile | P1-03, P1-05 | Verified, committed |
 | P1-08 | Resource RPC and scoped namespace import | `AirDesk/Protocol/ResourceRPCClient.swift`, `ResourceRPCServer.swift`, `AirDesk/Namespace/NamespaceImportService.swift`; `AirDeskTests/ResourceRPCTests.swift`, `NamespaceImportTests.swift` | All opcodes, fid lifecycle, path confinement, symlink escape, size caps and lease denial/revocation covered; no 9P2000 tunneling; chunked transfer for large payloads | P0-03, P1-04 | Verified, committed |
-| P1-09 | Iroh product upgrade spike | `project.yml`, `android/app/build.gradle.kts`, `AirDesk/Fabric/**`, `research/iroh-probe/` | Verify IrohLib/FFI 1.4.x availability; document API gaps; test path migration/roaming and relay diagnostics on loopback before product pin changes | P0-04 | Research (availability verified; no pin change) |
+| P1-09 | Iroh product upgrade spike | `project.yml`, `android/app/build.gradle.kts`, `AirDesk/Fabric/**`, `research/iroh-probe/` | Verify IrohLib/FFI 1.4.x availability; document API gaps; test path migration/roaming and relay diagnostics on loopback before product pin changes | P0-04 | Research (no pin change; self-built 1.4 allowed only with existing language targets and qualification) |
 | P1-10 | Transport evidence upgrade | `scripts/research/transport_bench.ts`, `run-transport.sh`, `run-iroh*.sh`, `research/scenarios/**`, `docs/research/runs/**` | `cpu_percent`, build/runtime/network/device metadata; p50/p95/p99 recorded; no claim without method | P0-04 | Verified, committed |
 
 ### Phase 2 — Agent parity and ABI (16–22 engineer-weeks)
@@ -192,11 +192,11 @@ Compatibility rules:
 
 | ID | Task | Files | Done when | Depends | Status |
 | --- | --- | --- | --- | --- | --- |
-| P3-01 | Create core workspace | New `core/Cargo.toml`, `core/airdesk-core/`, `core/airdesk-ffi/`, `core/airdesk-wasm/`, `core/airdesk-protocol/`; `.github/workflows/core.yml` | ADR-024 approved for implementation; crates build; no existing code deleted | P0-05 | Pending |
+| P3-01 | Create core workspace | New `core/Cargo.toml`, `core/rust-toolchain.toml`, `core/airdesk-core/`, `core/airdesk-ffi/`, `core/airdesk-wasm/`, `core/airdesk-protocol/`; `.github/workflows/core.yml` | ADR-024 approved for implementation; crates build; no existing code deleted | P0-05 | Verified, committed |
 | P3-02 | Move low-risk codecs | `protocol/rust/src/packed.rs`, `movement.rs`, `lib.rs`; `core/airdesk-protocol/**`; fixtures | Packed/movement byte equality across Swift/TS/Rust; existing tests continue; protocol crate re-exports or compatibility shim | P3-01 | Pending |
 | P3-03 | Move ADFP envelope/resource codec | New `core/airdesk-protocol/src/envelope.rs`, `resource.rs`; shared fixtures | Golden bytes and malformed-frame corpus match Swift/TS/Kotlin; Rust becomes reference but not yet sole source | P1-03, P1-04, P3-02 | Pending |
 | P3-04 | Extract pairing transcript/key schedule | New `core/airdesk-pairing/**`; `protocol/fixtures/ad-pair-1.json` | AD-PAIR-1 transcript, HKDF schedule, SAS and scrypt registration match existing Swift/TS/Kotlin fixtures | P3-01 | Pending |
-| P3-05 | Evaluate Rust SPAKE2+ implementation | `core/airdesk-pairing/**`; RFC 9383 vectors | `confirmV`-first, cofactor/subgroup checks, zeroization and error handling proven; no product cutover until independent review | P3-04 | Research |
+| P3-05 | Evaluate Rust SPAKE2+ implementation | `core/airdesk-pairing/**`; RFC 9383 vectors | `confirmV`-first, cofactor/subgroup checks, zeroization and error handling proven; no product cutover until independent review | P3-04 | Research (RFC vectors + independent review required) |
 | P3-06 | UniFFI Swift/Kotlin bindings | `core/airdesk-ffi/**`, `scripts/build-core-apple.sh`, `scripts/build-core-android.sh`, `project.yml`, `android/app/build.gradle.kts` | Generated bindings build in CI; app can call a non-authoritative core smoke API behind a flag | P3-02, P3-03 | Pending |
 | P3-07 | WASM component target | `core/airdesk-wasm/**`, `web/src/core/**` | Deterministic wasm builds; web uses only smoke/adapter path; no TypeScript crypto removal yet | P3-03 | Pending |
 | P3-08 | Feature-flagged cutover | `AirDesk/Core/**`, `web/src/core/**`, `android/.../core/**`, settings/diagnostics | Per-feature flags for movement, envelope, pairing and sync; rollback to native path; telemetry reports active path | P3-06, P3-07 | Pending |
@@ -210,13 +210,13 @@ Compatibility rules:
 | P4-02 | Decoupled local cursor and host suppression | `AirDesk/Input/AirCursorView.swift`, `MacTrackpadView.swift`, `InputDispatcher.swift`, `AirDesk/Display/**`; protocol cursor shape/hotspot | Local cursor renders at display rate; remote cursor shape/hotspot arrives out of band; no double cursor; host suppression verified | P4-01 | Verified, committed |
 | P4-03 | Semantic input deck | `AirDesk/Features/Keyboard/SemanticInputDeck.swift`, `KeyboardBar.swift`, `MacInputDeck.swift`, `HardwareKeyboardCapture.swift`; OSC 133 state input | Context modes A/B/C/D drive bars and gestures; no modal preview dependency; all actions have capability/lease checks | P4-02 | Verified, committed |
 | P4-04 | Continuity pill and haptics | `AirDesk/Features/Session/SessionContinuity.swift`, `SessionContinuityPill.swift`, `SessionRecoveryView.swift`, `RootView`/`AppEnvironment`, `AirDesk/Design/Haptics.swift`; telemetry overlay | Non-blocking connection/latency/capability pill; path migration status; haptics only for semantic events; recovery screen removed or fallback-only | P1-05, P1-09 | Verified, committed |
-| P4-05 | Ambient proximity pairing | `AirDesk/Discovery/BonjourDiscovery.swift`, new `NearbyInteractionDiscovery.swift`; `android/.../discovery/UwbDiscovery.kt`; `web/src/identity/pairing-signaling.ts` | Bonjour and UWB proximity offer gated by distance/angle; manual code remains fallback; privacy/threat model covers proximity leakage | P0-01, P4-04 | Research |
+| P4-05 | Ambient proximity pairing | `AirDesk/Discovery/BonjourDiscovery.swift`, new `NearbyInteractionDiscovery.swift`; `android/.../discovery/UwbDiscovery.kt`; `web/src/identity/pairing-signaling.ts` | Bonjour and UWB proximity offer gated by distance/angle; manual code remains fallback; privacy/threat model covers proximity leakage | P0-01, P4-04 | Research (physical UWB matrix required) |
 | P4-06 | Onboarding collapse | `AirDesk/Features/Onboarding/*`, `AirDesk/Identity/PairingCoordinator.swift`, `Settings/PairingSettingsView` | Proximity/one-tap path reaches workspace without five screens; manual flow remains in advanced fallback; accessibility tests | P4-05 | Code complete (one-tap); proximity gate pending |
 | P4-07 | Terminal engine decision and standardization | `web/src/terminal/**`, `web/package.json`, `AirDesk/Web/TerminalBridge.swift`; research ADR | Benchmark libghostty-vt/@wterm/ghostty against current engine for size, VT coverage, selection, accessibility and license; decide before replacement | P0-06 | Verified, committed (ADR-027) |
 | P4-08 | Semantic command blocks | `web/src/terminal/terminal-engine.ts`, `wterm-engine.ts`, new `semantic-blocks.ts`; `AirDesk/Web/TerminalBridge.swift` | OSC 133 blocks, exit aura, copy output, markdown view and unconfirmed-input safety; no automatic retry | P4-07 | Verified, committed (web) |
 | P4-09 | Read-only agent supervision | `web/src/terminal/**`, `web/src/desktop/**`, `AirDesk/Workspace/ApplicationLifecycleController.swift` | Agent state badges; read-only text snapshots; write/inject requires explicit capability; no prompt/secret leakage | P4-08, P2-04 | Verified, committed (web + native model) |
 | P4-10 | WinBox rendering and tiling | `web/src/desktop/winbox.ts`, `window-manager.ts`, `shell-runtime.css` | GPU-transform-only movement, layout/style/paint containment, `renderingPaused` for inactive panes, BSP/ribbon layout | P4-07 | Verified, committed (web + desktop shell) |
-| P4-11 | Operation-based workspace sync | `AirDesk/Sync/WorkspaceSyncMerge.swift`, `web/src/sync/merge.ts`, `protocol/airdesk.fbs`; new core sync crate | Operation log with Lamport/actor ordering; deterministic offline/multi-writer convergence; existing merge fixtures preserved or migrated with ADR | P3-03, P1-02 | Research |
+| P4-11 | Operation-based workspace sync | `AirDesk/Sync/WorkspaceSyncMerge.swift`, `web/src/sync/merge.ts`, `protocol/airdesk.fbs`; new core sync crate | Operation log with Lamport/actor ordering; deterministic offline/multi-writer convergence; existing merge fixtures preserved or migrated with ADR | P3-03, P1-02 | Research (wait for P3-03) |
 | P4-12 | Window sling | `web/src/remote/placement.ts`, `web/src/remote/window-projection.ts`, `AirDesk/Cast/WindowProjection.swift`, `AirDesk/Cast/CastSessionCoordinator.swift`, `android/.../workspace/WindowProjection.kt`, `android/.../PresentationScreen.kt` | Window detach/project to paired Cast/browser/Android target; compute stays on host; reconnect restores window identity; hardware gate | P1-06, P4-10 | Code complete (lifecycle model); live projection + hardware gate pending |
 
 ### Phase 5 — Media, persistent PTY and qualification (12–20 engineer-weeks)
@@ -526,6 +526,15 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - Swift: full `xcodebuild test` passed; 554 tests, 1 skipped, 0 failures, including 7 `RemoteSSHReattachTests` covering phases/exit codes, attach-after-ack replay, independent clients, truncated gaps, command/byte separation and wrong-session rejection.
 - No SSH/Iroh/WebSocket transport is wired to `PersistentTerminalSession`, and no controller or web bridge consumes it yet. Live second-device handoff, physical-device qualification and zero-lost-byte claims over a deployed transport remain gated.
 
+### P3-01 verification evidence
+
+- Added the additive `core/` Cargo workspace with `airdesk-core`, `airdesk-protocol`, `airdesk-ffi` and `airdesk-wasm`, plus `core/rust-toolchain.toml` pinning Rust 1.98.1 and `core/Cargo.lock`.
+- `airdesk-core` exposes the versioned ABI smoke surface; `airdesk-protocol` exposes the current `ADEN`/v1/1 MiB compatibility check; `airdesk-ffi` re-exports the typed boundary; `airdesk-wasm` exposes only the browser-safe subset.
+- The existing `core/airdeskd` daemon remains an excluded, standalone workspace under the ADR-026 carve-out. No existing codec, Swift, TypeScript, Kotlin or production crate code was moved or deleted.
+- Added `.github/workflows/core.yml` for format, clippy, workspace tests and the separate daemon tests.
+- `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace --locked` and `cargo test --manifest-path core/airdeskd/Cargo.toml --locked` pass. The core workspace has 6 tests; `airdeskd` retains 8.
+- Decision recorded: ADR-024 is accepted for the full shared-core boundary, but every fixture-equality, platform, rollback and cutover gate remains in force.
+
 ### P4-07 verification evidence
 
 - ADR-027 records the decision to retain WTerm plus the `@wterm/ghostty` WASM core. `docs/research/terminal-engine-benchmark-2026-11-12.md` records the method and measurements.
@@ -591,6 +600,14 @@ Do not start P3-04/05 crypto extraction before P3-03 fixture equality and P0-05 
 - Web: full `npm run check` remains green at 306 tests across 46 files; no web source changed.
 - P4-04 uses current selected-path diagnostics only. It does not claim live Wi-Fi/cellular roaming, multipath, relay failover qualification or physical-device haptic verification.
 
+### Research qualification decisions (2026-11-12)
+
+- P1-09: a self-built Iroh 1.4 FFI path may be evaluated only if the existing Swift/Kotlin language targets exist and the normal loopback, relay, roaming and rollback evidence is produced. The product pins remain 1.2.0 until then.
+- P4-05: physical UWB distance/angle tests, privacy/threat review and false-positive limits are required before proximity claims. Bonjour and manual pairing remain the fallback.
+- P4-11: no Loro/CRDT decision until P3-03 and the shared-core fixture gates are complete.
+- P3-05: a Rust SPAKE2+ path requires RFC 9383 vectors, `confirmV`-first flow, subgroup/cofactor and zeroization checks, fixture parity and independent review. No product cutover follows from passing vectors alone.
+- ADR-024: user direction accepted the full shared-core boundary. Only the additive workspace scaffold exists; no native/web implementation has moved.
+
 ### Environment notes
 
 - The local container has no `node`, `npm`, `cargo`, `swift`, `xcodebuild`, `python3`, `perl`, `sqlite3` or `adb`; it is not a verification environment.
@@ -633,6 +650,7 @@ These are not code-level tasks and must not be marked done from simulator or loo
 5. P5-03 is code-level only until transport/UI wiring and physical-display qualification exist; do not claim glass-to-glass latency. P5-04 and P5-05 do not claim live-network process survival, deployed second-device handoff or zero lost bytes. P4-08 is web-local and does not claim native retry/execution or secret export. P4-09 is web/native-model code only: there is no live external agent, remote agent transport or WebMCP dependency, and write/inject remains inert without an explicit live grant.
 6. Keep `milestones.md` unchanged until a task actually passes its gate.
 7. P4-06 now supplies a one-tap display/route recommendation with the manual selector retained as advanced setup. P4-05 UWB proximity remains research/hardware-gated, so P4-06 does not claim proximity qualification.
+8. P3-01 is complete with an accepted ADR-024 and a green additive core workspace. P3-02 is now the next extraction step: move packed/movement codecs with byte-for-byte fixture parity, keep the legacy crate as a compatibility re-export, and do not delete either path.
 
 ## 11. ADR and documentation updates
 

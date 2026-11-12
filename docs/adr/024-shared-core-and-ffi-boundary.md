@@ -1,7 +1,8 @@
 # ADR-024: Shared core and FFI boundary
 
-- **Status:** Proposed — implementation and fixture-equality gates required
+- **Status:** Accepted — additive implementation; fixture-equality and cutover gates remain
 - **Date:** 2026-11-09
+- **Updated:** 2026-11-12 — user direction approved the full shared-core boundary; only the workspace scaffold exists and no product implementation has moved
 - **Deciders:** Engineering lead, security owner, platform owners
 - **Scope:** Shared Rust core, Swift/Kotlin/wasm bindings, compatibility fixtures, cutover, rollback and ownership
 - **Supersedes:** None
@@ -49,6 +50,8 @@ core/
 - No existing native implementation is deleted in the same change that introduces its Rust replacement.
 - The product does not depend on the core being present at runtime until its feature flag is enabled.
 - `core/` must be buildable and testable without Xcode, Android Studio or a browser.
+
+Implementation note (2026-11-12): the `core/` Cargo workspace now contains additive `airdesk-core`, `airdesk-protocol`, `airdesk-ffi` and `airdesk-wasm` crates with a shared ABI/version smoke surface. The existing `core/airdeskd` daemon remains a separate workspace under the ADR-026 carve-out. No Swift, TypeScript, Kotlin or production protocol code has been moved, and this approval does not waive any acceptance gate.
 
 ### 2. Rust owns deterministic, platform-neutral logic first
 
@@ -208,7 +211,7 @@ One owner changes a boundary at a time. Platform owners do not edit the FFI surf
 
 ## Open questions
 
-- Which UniFFI version and Rust toolchain are pinned for the first implementation?
+- Which UniFFI version is pinned for the first FFI implementation? Rust is pinned to 1.98.1 in `core/rust-toolchain.toml`.
 - Does the iOS packaging path need an XCFramework or can a static library plus SwiftPM binary target be used?
 - Is Android 16 KB page-size support required for the first `airdesk-ffi` release?
 - Which benchmark corpus and thresholds gate a component cutover?

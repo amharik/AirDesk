@@ -95,3 +95,11 @@ as current-path diagnostics, not claim automatic roaming or multipath support.
    cellular and tailnet paths before claiming automatic roaming.
 4. Keep diagnostics truthful: selected path and RTT are current observations,
    not a guarantee of future migration.
+
+## Qualification decision (2026-11-12)
+
+User direction allows a self-built Iroh 1.4 FFI path only when the existing
+Swift/Kotlin language targets are present. That path still needs the normal
+loopback, relay, roaming, rollback and physical/live-network evidence before a
+product pin changes. Until then the `1.2.0` pins are the qualified product
+baseline and no `1.4.x` availability or roaming claim is permitted.

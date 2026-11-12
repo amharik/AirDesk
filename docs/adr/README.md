@@ -21,6 +21,8 @@ This index is the authoritative map of which decision is in force. An ADR's orig
 > **Execution note (2026-11-11):** ADR-026 records the standalone `core/airdeskd` persistent PTY daemon as a carve-out from ADR-024 while leaving SSH, local PTY and process spawning out of the shared core. Terminal ADFP payloads, bounded replay, multi-client attach and local lease enforcement are implemented and covered by Rust and Swift codec tests; a deployed transport, live-network survival and physical-device qualification remain pending.
 >
 > **Execution note (2026-11-12):** ADR-027 standardizes the terminal on WTerm plus the `@wterm/ghostty` WASM core after the P4-07 benchmark. `libghostty-vt` 0.6.3 is retained as a research reference only because it is a Bun/native FFI binding with no browser/WASM, DOM selection, accessibility or iOS target; the current engine remains the production path and no replacement is scheduled.
+>
+> **Execution note (2026-11-12):** User direction approved ADR-024 for the full shared-core boundary. The additive `core/` Cargo workspace and CI gate now exist with `airdesk-core`, `airdesk-protocol`, `airdesk-ffi` and `airdesk-wasm`; `core/airdeskd` remains a separate ADR-026 carve-out. No native or web implementation has moved and every fixture-equality, platform, rollback and cutover gate remains in force.
 
 | ADR | Decision | Decision status | Implementation status | Effective note |
 | --- | --- | --- | --- | --- |
@@ -47,7 +49,7 @@ This index is the authoritative map of which decision is in force. An ADR's orig
 | [021](021-iroh-native-transport.md) | Iroh native transport adoption | Accepted | In progress | Official `IrohLib` 1.2.0, iOS 17.5, explicit self-hosted relay policy, browser remains WebSocket |
 | [022](022-openssl-p256-group-arithmetic.md) | OpenSSL P-256 group arithmetic for native AD-PAIR-1 | Accepted | Implemented | OpenSSL 3.6.5 via `OpenSSL-Package` 3.6.5000, isolated to P-256 group operations; CryptoKit remains the general crypto provider |
 | [023](023-openssl-scrypt-password-registration.md) | OpenSSL scrypt for native SPAKE2+ password registration | Accepted | Implemented | Same pinned OpenSSL distribution; fixed scrypt profile `N=32768, r=8, p=1, dkLen=80`, browser-compatible material and P-256 reduction |
-| [024](024-shared-core-and-ffi-boundary.md) | Shared core and FFI boundary | Proposed | Not started | Additive Rust core; native implementations remain until fixture equality, platform tests and rollback are proven |
+| [024](024-shared-core-and-ffi-boundary.md) | Shared core and FFI boundary | Accepted | In progress | Additive `core/` workspace and CI scaffold exist; no implementation moved, and native paths remain until fixture equality, platform tests and rollback are proven |
 | [025](025-host-capture-platform.md) | Host capture and media pipeline platform | Accepted | Not started | Initial iOS path is in-app ReplayKit capture of AirDesk-owned surfaces; whole-device broadcast extension and macOS ScreenCaptureKit host remain separately gated; no zero-copy or glass-to-glass claim |
 | [026](026-persistent-pty-daemon.md) | Persistent PTY daemon boundary | Proposed | In progress | `core/airdeskd` is an isolated daemon, not shared-core/FFI; additive ADFP `TerminalMessage`, bounded sequence replay, multi-client attach and local lease checks exist; deployed transport and physical/live-network gates remain pending |
 | [027](027-terminal-engine-standardization.md) | Terminal engine standardization | Accepted | WTerm + Ghostty WASM production | WTerm remains the renderer and `@wterm/ghostty` 0.5.7 the production core; `libghostty-vt` is a research reference only because it is a Bun/native FFI binding without browser, selection, accessibility or iOS support |
@@ -66,6 +68,7 @@ This index is the authoritative map of which decision is in force. An ADR's orig
 - **Capabilities:** scoped, time-bounded, revocable leases; advertisement is not permission.
 - **Input:** multiple controllers may attach; one keyboard focus owner at a time; this is not multi-user collaboration.
 - **Persistent terminal:** `core/airdeskd` is a standalone, locally protected daemon outside the shared core/FFI boundary; terminal attachment uses additive ADFP `TerminalMessage` frames, bounded sequence replay, explicit client lifecycle and local lease checks. It does not own workspace authority, identity or transport authentication.
+- **Shared core:** ADR-024 is accepted for an additive Rust workspace under `core/`; platform I/O and authority stay native, and no component may cut over until fixture equality, platform tests and rollback are proven.
 
 ## Delivery phase and lineage
 
