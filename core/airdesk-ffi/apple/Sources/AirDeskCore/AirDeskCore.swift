@@ -501,6 +501,594 @@ fileprivate struct FfiConverterString: FfiConverter {
         writeBytes(&buf, value.utf8)
     }
 }
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterData: FfiConverterRustBuffer {
+    typealias SwiftType = Data
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Data {
+        let len: Int32 = try readInt(&buf)
+        return Data(try readBytes(&buf, count: Int(len)))
+    }
+
+    public static func write(_ value: Data, into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        writeBytes(&buf, value)
+    }
+}
+
+
+
+
+/**
+ * Non-authoritative stateful prover preview. Product use remains behind P3-08.
+ */
+public protocol CoreSpake2PlusProverSessionProtocol: AnyObject, Sendable {
+    
+    func finish(shareV: Data, confirmationV: Data) throws  -> CoreSpake2PlusFinishResult
+    
+    func start() throws  -> Data
+    
+}
+/**
+ * Non-authoritative stateful prover preview. Product use remains behind P3-08.
+ */
+open class CoreSpake2PlusProverSession: CoreSpake2PlusProverSessionProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_airdesk_ffi_fn_clone_corespake2plusproversession(self.handle, $0) }
+    }
+public convenience init(context: Data, idProver: Data, idVerifier: Data, w0: Data, w1: Data)throws  {
+    let handle =
+        try rustCallWithError(FfiConverterTypeCoreSpake2PlusError_lift) {
+    uniffi_airdesk_ffi_fn_constructor_corespake2plusproversession_new(
+        FfiConverterData.lower(context),
+        FfiConverterData.lower(idProver),
+        FfiConverterData.lower(idVerifier),
+        FfiConverterData.lower(w0),
+        FfiConverterData.lower(w1),$0
+    )
+}
+    self.init(unsafeFromHandle: handle)
+}
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_airdesk_ffi_fn_free_corespake2plusproversession(handle, $0) }
+    }
+
+    
+
+    
+open func finish(shareV: Data, confirmationV: Data)throws  -> CoreSpake2PlusFinishResult  {
+    return try  FfiConverterTypeCoreSpake2PlusFinishResult_lift(try rustCallWithError(FfiConverterTypeCoreSpake2PlusError_lift) {
+    uniffi_airdesk_ffi_fn_method_corespake2plusproversession_finish(
+            self.uniffiCloneHandle(),
+        FfiConverterData.lower(shareV),
+        FfiConverterData.lower(confirmationV),$0
+    )
+})
+}
+    
+open func start()throws  -> Data  {
+    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeCoreSpake2PlusError_lift) {
+    uniffi_airdesk_ffi_fn_method_corespake2plusproversession_start(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCoreSpake2PlusProverSession: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = CoreSpake2PlusProverSession
+
+    public static func lift(_ handle: UInt64) throws -> CoreSpake2PlusProverSession {
+        return CoreSpake2PlusProverSession(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: CoreSpake2PlusProverSession) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CoreSpake2PlusProverSession {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: CoreSpake2PlusProverSession, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCoreSpake2PlusProverSession_lift(_ handle: UInt64) throws -> CoreSpake2PlusProverSession {
+    return try FfiConverterTypeCoreSpake2PlusProverSession.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCoreSpake2PlusProverSession_lower(_ value: CoreSpake2PlusProverSession) -> UInt64 {
+    return FfiConverterTypeCoreSpake2PlusProverSession.lower(value)
+}
+
+
+
+
+
+
+/**
+ * Non-authoritative stateful verifier preview. Product use remains behind P3-08.
+ */
+public protocol CoreSpake2PlusVerifierSessionProtocol: AnyObject, Sendable {
+    
+    func finish(confirmationP: Data) throws  -> CoreSpake2PlusFinishResult
+    
+    func respond(shareP: Data) throws  -> CoreSpake2PlusVerifierResponse
+    
+}
+/**
+ * Non-authoritative stateful verifier preview. Product use remains behind P3-08.
+ */
+open class CoreSpake2PlusVerifierSession: CoreSpake2PlusVerifierSessionProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_airdesk_ffi_fn_clone_corespake2plusverifiersession(self.handle, $0) }
+    }
+public convenience init(context: Data, idProver: Data, idVerifier: Data, w0: Data, l: Data)throws  {
+    let handle =
+        try rustCallWithError(FfiConverterTypeCoreSpake2PlusError_lift) {
+    uniffi_airdesk_ffi_fn_constructor_corespake2plusverifiersession_new(
+        FfiConverterData.lower(context),
+        FfiConverterData.lower(idProver),
+        FfiConverterData.lower(idVerifier),
+        FfiConverterData.lower(w0),
+        FfiConverterData.lower(l),$0
+    )
+}
+    self.init(unsafeFromHandle: handle)
+}
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_airdesk_ffi_fn_free_corespake2plusverifiersession(handle, $0) }
+    }
+
+    
+
+    
+open func finish(confirmationP: Data)throws  -> CoreSpake2PlusFinishResult  {
+    return try  FfiConverterTypeCoreSpake2PlusFinishResult_lift(try rustCallWithError(FfiConverterTypeCoreSpake2PlusError_lift) {
+    uniffi_airdesk_ffi_fn_method_corespake2plusverifiersession_finish(
+            self.uniffiCloneHandle(),
+        FfiConverterData.lower(confirmationP),$0
+    )
+})
+}
+    
+open func respond(shareP: Data)throws  -> CoreSpake2PlusVerifierResponse  {
+    return try  FfiConverterTypeCoreSpake2PlusVerifierResponse_lift(try rustCallWithError(FfiConverterTypeCoreSpake2PlusError_lift) {
+    uniffi_airdesk_ffi_fn_method_corespake2plusverifiersession_respond(
+            self.uniffiCloneHandle(),
+        FfiConverterData.lower(shareP),$0
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCoreSpake2PlusVerifierSession: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = CoreSpake2PlusVerifierSession
+
+    public static func lift(_ handle: UInt64) throws -> CoreSpake2PlusVerifierSession {
+        return CoreSpake2PlusVerifierSession(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: CoreSpake2PlusVerifierSession) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CoreSpake2PlusVerifierSession {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: CoreSpake2PlusVerifierSession, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCoreSpake2PlusVerifierSession_lift(_ handle: UInt64) throws -> CoreSpake2PlusVerifierSession {
+    return try FfiConverterTypeCoreSpake2PlusVerifierSession.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCoreSpake2PlusVerifierSession_lower(_ value: CoreSpake2PlusVerifierSession) -> UInt64 {
+    return FfiConverterTypeCoreSpake2PlusVerifierSession.lower(value)
+}
+
+
+
+
+public struct CoreSpake2PlusFinishResult: Equatable, Hashable {
+    public var shareP: Data
+    public var shareV: Data
+    public var z: Data
+    public var v: Data
+    public var transcript: Data
+    public var keys: CoreSpake2PlusKeys
+    public var confirmation: Data
+    public var expectedConfirmation: Data
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(shareP: Data, shareV: Data, z: Data, v: Data, transcript: Data, keys: CoreSpake2PlusKeys, confirmation: Data, expectedConfirmation: Data) {
+        self.shareP = shareP
+        self.shareV = shareV
+        self.z = z
+        self.v = v
+        self.transcript = transcript
+        self.keys = keys
+        self.confirmation = confirmation
+        self.expectedConfirmation = expectedConfirmation
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CoreSpake2PlusFinishResult: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCoreSpake2PlusFinishResult: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CoreSpake2PlusFinishResult {
+        return
+            try CoreSpake2PlusFinishResult(
+                shareP: FfiConverterData.read(from: &buf), 
+                shareV: FfiConverterData.read(from: &buf), 
+                z: FfiConverterData.read(from: &buf), 
+                v: FfiConverterData.read(from: &buf), 
+                transcript: FfiConverterData.read(from: &buf), 
+                keys: FfiConverterTypeCoreSpake2PlusKeys.read(from: &buf), 
+                confirmation: FfiConverterData.read(from: &buf), 
+                expectedConfirmation: FfiConverterData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CoreSpake2PlusFinishResult, into buf: inout [UInt8]) {
+        FfiConverterData.write(value.shareP, into: &buf)
+        FfiConverterData.write(value.shareV, into: &buf)
+        FfiConverterData.write(value.z, into: &buf)
+        FfiConverterData.write(value.v, into: &buf)
+        FfiConverterData.write(value.transcript, into: &buf)
+        FfiConverterTypeCoreSpake2PlusKeys.write(value.keys, into: &buf)
+        FfiConverterData.write(value.confirmation, into: &buf)
+        FfiConverterData.write(value.expectedConfirmation, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCoreSpake2PlusFinishResult_lift(_ buf: RustBuffer) throws -> CoreSpake2PlusFinishResult {
+    return try FfiConverterTypeCoreSpake2PlusFinishResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCoreSpake2PlusFinishResult_lower(_ value: CoreSpake2PlusFinishResult) -> RustBuffer {
+    return FfiConverterTypeCoreSpake2PlusFinishResult.lower(value)
+}
+
+
+public struct CoreSpake2PlusKeys: Equatable, Hashable {
+    public var kMain: Data
+    public var kConfirmP: Data
+    public var kConfirmV: Data
+    public var kShared: Data
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(kMain: Data, kConfirmP: Data, kConfirmV: Data, kShared: Data) {
+        self.kMain = kMain
+        self.kConfirmP = kConfirmP
+        self.kConfirmV = kConfirmV
+        self.kShared = kShared
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CoreSpake2PlusKeys: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCoreSpake2PlusKeys: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CoreSpake2PlusKeys {
+        return
+            try CoreSpake2PlusKeys(
+                kMain: FfiConverterData.read(from: &buf), 
+                kConfirmP: FfiConverterData.read(from: &buf), 
+                kConfirmV: FfiConverterData.read(from: &buf), 
+                kShared: FfiConverterData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CoreSpake2PlusKeys, into buf: inout [UInt8]) {
+        FfiConverterData.write(value.kMain, into: &buf)
+        FfiConverterData.write(value.kConfirmP, into: &buf)
+        FfiConverterData.write(value.kConfirmV, into: &buf)
+        FfiConverterData.write(value.kShared, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCoreSpake2PlusKeys_lift(_ buf: RustBuffer) throws -> CoreSpake2PlusKeys {
+    return try FfiConverterTypeCoreSpake2PlusKeys.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCoreSpake2PlusKeys_lower(_ value: CoreSpake2PlusKeys) -> RustBuffer {
+    return FfiConverterTypeCoreSpake2PlusKeys.lower(value)
+}
+
+
+public struct CoreSpake2PlusVerifierResponse: Equatable, Hashable {
+    public var shareV: Data
+    public var confirmation: Data
+    public var expectedConfirmation: Data
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(shareV: Data, confirmation: Data, expectedConfirmation: Data) {
+        self.shareV = shareV
+        self.confirmation = confirmation
+        self.expectedConfirmation = expectedConfirmation
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CoreSpake2PlusVerifierResponse: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCoreSpake2PlusVerifierResponse: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CoreSpake2PlusVerifierResponse {
+        return
+            try CoreSpake2PlusVerifierResponse(
+                shareV: FfiConverterData.read(from: &buf), 
+                confirmation: FfiConverterData.read(from: &buf), 
+                expectedConfirmation: FfiConverterData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CoreSpake2PlusVerifierResponse, into buf: inout [UInt8]) {
+        FfiConverterData.write(value.shareV, into: &buf)
+        FfiConverterData.write(value.confirmation, into: &buf)
+        FfiConverterData.write(value.expectedConfirmation, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCoreSpake2PlusVerifierResponse_lift(_ buf: RustBuffer) throws -> CoreSpake2PlusVerifierResponse {
+    return try FfiConverterTypeCoreSpake2PlusVerifierResponse.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCoreSpake2PlusVerifierResponse_lower(_ value: CoreSpake2PlusVerifierResponse) -> RustBuffer {
+    return FfiConverterTypeCoreSpake2PlusVerifierResponse.lower(value)
+}
+
+
+public enum CoreSpake2PlusError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+
+    
+    
+    case Invalid(String
+    )
+    case ConfirmationMismatch
+
+    
+
+    
+
+    
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+    
+}
+
+#if compiler(>=6)
+extension CoreSpake2PlusError: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCoreSpake2PlusError: FfiConverterRustBuffer {
+    typealias SwiftType = CoreSpake2PlusError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CoreSpake2PlusError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .Invalid(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .ConfirmationMismatch
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: CoreSpake2PlusError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .Invalid(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case .ConfirmationMismatch:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCoreSpake2PlusError_lift(_ buf: RustBuffer) throws -> CoreSpake2PlusError {
+    return try FfiConverterTypeCoreSpake2PlusError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCoreSpake2PlusError_lower(_ value: CoreSpake2PlusError) -> RustBuffer {
+    return FfiConverterTypeCoreSpake2PlusError.lower(value)
+}
 /**
  * Return the shared-core ABI version.
  */
@@ -529,6 +1117,16 @@ public func coreSmokeLabel() -> String  {
     )
 })
 }
+/**
+ * Build the verifier registration point `L = w1*P`.
+ */
+public func coreSpake2plusRegistrationRecord(w1: Data)throws  -> Data  {
+    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeCoreSpake2PlusError_lift) {
+    uniffi_airdesk_ffi_fn_func_core_spake2plus_registration_record(
+        FfiConverterData.lower(w1),$0
+    )
+})
+}
 
 private enum InitializationResult {
     case ok
@@ -552,6 +1150,27 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_airdesk_ffi_checksum_func_core_smoke_label() != 36581) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_airdesk_ffi_checksum_func_core_spake2plus_registration_record() != 34561) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_airdesk_ffi_checksum_method_corespake2plusproversession_finish() != 4872) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_airdesk_ffi_checksum_method_corespake2plusproversession_start() != 35676) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_airdesk_ffi_checksum_method_corespake2plusverifiersession_finish() != 3355) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_airdesk_ffi_checksum_method_corespake2plusverifiersession_respond() != 8690) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_airdesk_ffi_checksum_constructor_corespake2plusproversession_new() != 12037) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_airdesk_ffi_checksum_constructor_corespake2plusverifiersession_new() != 46309) {
         return InitializationResult.apiChecksumMismatch
     }
 

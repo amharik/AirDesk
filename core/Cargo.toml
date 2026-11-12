@@ -17,4 +17,5 @@ publish = false
 
 [workspace.dependencies]
 airdesk-core = { path = "airdesk-core" }
+airdesk-pairing = { path = "airdesk-pairing" }
 airdesk-protocol = { path = "airdesk-protocol" }

@@ -11,7 +11,11 @@ name = "airdesk-ffi"
 version = "0.1.0"
 dependencies = [
  "airdesk-core",
+ "airdesk-pairing",
  "airdesk-protocol",
+ "serde",
+ "serde_json",
+ "thiserror",
  "uniffi",
 ]
 

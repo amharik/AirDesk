@@ -4,6 +4,13 @@
 //! PTY, pairing and display paths remain in their existing implementations
 //! until P3-08 and its rollback gate.
 
+use std::sync::{Arc, Mutex};
+
+use airdesk_pairing::spake2plus::{
+    registration_record, ProverFinishResult, ProverSession, Spake2PlusError, Spake2PlusKeys,
+    VerifierFinishResult, VerifierSession,
+};
+
 uniffi::setup_scaffolding!();
 
 pub use airdesk_core::{abi_version, is_abi_compatible, CORE_ABI_VERSION};
@@ -30,9 +37,220 @@ pub fn core_smoke_label() -> String {
     format!("airdesk-core/{}", CORE_ABI_VERSION)
 }
 
+#[derive(Debug, thiserror::Error, uniffi::Error)]
+pub enum CoreSpake2PlusError {
+    #[error("{0}")]
+    Invalid(String),
+    #[error("confirmation mismatch")]
+    ConfirmationMismatch,
+}
+
+impl From<Spake2PlusError> for CoreSpake2PlusError {
+    fn from(error: Spake2PlusError) -> Self {
+        match error {
+            Spake2PlusError::ConfirmationMismatch => Self::ConfirmationMismatch,
+            other => Self::Invalid(other.to_string()),
+        }
+    }
+}
+
+#[derive(Clone, uniffi::Record)]
+pub struct CoreSpake2PlusKeys {
+    pub k_main: Vec<u8>,
+    pub k_confirm_p: Vec<u8>,
+    pub k_confirm_v: Vec<u8>,
+    pub k_shared: Vec<u8>,
+}
+
+#[derive(uniffi::Record)]
+pub struct CoreSpake2PlusFinishResult {
+    pub share_p: Vec<u8>,
+    pub share_v: Vec<u8>,
+    pub z: Vec<u8>,
+    pub v: Vec<u8>,
+    pub transcript: Vec<u8>,
+    pub keys: CoreSpake2PlusKeys,
+    pub confirmation: Vec<u8>,
+    pub expected_confirmation: Vec<u8>,
+}
+
+#[derive(Clone, uniffi::Record)]
+pub struct CoreSpake2PlusVerifierResponse {
+    pub share_v: Vec<u8>,
+    pub confirmation: Vec<u8>,
+    pub expected_confirmation: Vec<u8>,
+}
+
+fn keys_record(keys: &Spake2PlusKeys) -> CoreSpake2PlusKeys {
+    CoreSpake2PlusKeys {
+        k_main: keys.k_main.to_vec(),
+        k_confirm_p: keys.k_confirm_p.to_vec(),
+        k_confirm_v: keys.k_confirm_v.to_vec(),
+        k_shared: keys.k_shared.to_vec(),
+    }
+}
+
+fn prover_finish_record(result: ProverFinishResult) -> CoreSpake2PlusFinishResult {
+    CoreSpake2PlusFinishResult {
+        share_p: result.share_p.to_vec(),
+        share_v: result.share_v.to_vec(),
+        z: result.z.to_vec(),
+        v: result.v.to_vec(),
+        transcript: result.transcript.to_vec(),
+        keys: keys_record(&result.keys),
+        confirmation: result.confirmation.to_vec(),
+        expected_confirmation: result.expected_confirmation.to_vec(),
+    }
+}
+
+fn verifier_finish_record(result: VerifierFinishResult) -> CoreSpake2PlusFinishResult {
+    CoreSpake2PlusFinishResult {
+        share_p: result.share_p.to_vec(),
+        share_v: result.share_v.to_vec(),
+        z: result.z.to_vec(),
+        v: result.v.to_vec(),
+        transcript: result.transcript.to_vec(),
+        keys: keys_record(&result.keys),
+        confirmation: result.confirmation.to_vec(),
+        expected_confirmation: result.expected_confirmation.to_vec(),
+    }
+}
+
+fn lock_error<T>(_error: std::sync::PoisonError<T>) -> CoreSpake2PlusError {
+    CoreSpake2PlusError::Invalid("session lock poisoned".into())
+}
+
+/// Build the verifier registration point `L = w1*P`.
+#[uniffi::export]
+pub fn core_spake2plus_registration_record(w1: Vec<u8>) -> Result<Vec<u8>, CoreSpake2PlusError> {
+    Ok(registration_record(&w1)?.to_vec())
+}
+
+/// Non-authoritative stateful prover preview. Product use remains behind P3-08.
+#[derive(uniffi::Object)]
+pub struct CoreSpake2PlusProverSession {
+    inner: Mutex<ProverSession>,
+}
+
+#[uniffi::export]
+impl CoreSpake2PlusProverSession {
+    #[uniffi::constructor]
+    pub fn new(
+        context: Vec<u8>,
+        id_prover: Vec<u8>,
+        id_verifier: Vec<u8>,
+        w0: Vec<u8>,
+        w1: Vec<u8>,
+    ) -> Result<Arc<Self>, CoreSpake2PlusError> {
+        let session = ProverSession::new(&context, &id_prover, &id_verifier, &w0, &w1)
+            .map_err(CoreSpake2PlusError::from)?;
+        Ok(Arc::new(Self {
+            inner: Mutex::new(session),
+        }))
+    }
+
+    pub fn start(&self) -> Result<Vec<u8>, CoreSpake2PlusError> {
+        let mut session = self.inner.lock().map_err(lock_error)?;
+        Ok(session.start()?.to_vec())
+    }
+
+    pub fn finish(
+        &self,
+        share_v: Vec<u8>,
+        confirmation_v: Vec<u8>,
+    ) -> Result<CoreSpake2PlusFinishResult, CoreSpake2PlusError> {
+        let mut session = self.inner.lock().map_err(lock_error)?;
+        let result = session.finish(&share_v, &confirmation_v)?;
+        Ok(prover_finish_record(result))
+    }
+}
+
+/// Non-authoritative stateful verifier preview. Product use remains behind P3-08.
+#[derive(uniffi::Object)]
+pub struct CoreSpake2PlusVerifierSession {
+    inner: Mutex<VerifierSession>,
+}
+
+#[uniffi::export]
+impl CoreSpake2PlusVerifierSession {
+    #[uniffi::constructor]
+    pub fn new(
+        context: Vec<u8>,
+        id_prover: Vec<u8>,
+        id_verifier: Vec<u8>,
+        w0: Vec<u8>,
+        l: Vec<u8>,
+    ) -> Result<Arc<Self>, CoreSpake2PlusError> {
+        let session = VerifierSession::new(&context, &id_prover, &id_verifier, &w0, &l)
+            .map_err(CoreSpake2PlusError::from)?;
+        Ok(Arc::new(Self {
+            inner: Mutex::new(session),
+        }))
+    }
+
+    pub fn respond(
+        &self,
+        share_p: Vec<u8>,
+    ) -> Result<CoreSpake2PlusVerifierResponse, CoreSpake2PlusError> {
+        let mut session = self.inner.lock().map_err(lock_error)?;
+        let response = session.respond(&share_p)?;
+        Ok(CoreSpake2PlusVerifierResponse {
+            share_v: response.share_v.to_vec(),
+            confirmation: response.confirmation.to_vec(),
+            expected_confirmation: response.expected_confirmation.to_vec(),
+        })
+    }
+
+    pub fn finish(
+        &self,
+        confirmation_p: Vec<u8>,
+    ) -> Result<CoreSpake2PlusFinishResult, CoreSpake2PlusError> {
+        let mut session = self.inner.lock().map_err(lock_error)?;
+        let result = session.finish(&confirmation_p)?;
+        Ok(verifier_finish_record(result))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const SPAKE2PLUS_FIXTURE: &str =
+        include_str!("../../../protocol/fixtures/spake2plus-p256-rfc9383.json");
+
+    #[derive(serde::Deserialize)]
+    struct Spake2PlusVector {
+        context: String,
+        #[serde(rename = "idProver")]
+        id_prover: String,
+        #[serde(rename = "idVerifier")]
+        id_verifier: String,
+        w0: String,
+        w1: String,
+        #[serde(rename = "L")]
+        l: String,
+    }
+
+    fn hex(value: &str) -> Vec<u8> {
+        fn nibble(byte: u8) -> u8 {
+            match byte {
+                b'0'..=b'9' => byte - b'0',
+                b'a'..=b'f' => byte - b'a' + 10,
+                b'A'..=b'F' => byte - b'A' + 10,
+                _ => panic!("invalid hex digit"),
+            }
+        }
+        assert_eq!(value.len() % 2, 0);
+        let bytes = value.as_bytes();
+        (0..bytes.len())
+            .step_by(2)
+            .map(|index| (nibble(bytes[index]) << 4) | nibble(bytes[index + 1]))
+            .collect()
+    }
+
+    fn spake2plus_vector() -> Spake2PlusVector {
+        serde_json::from_str(SPAKE2PLUS_FIXTURE).expect("valid SPAKE2+ fixture")
+    }
 
     #[test]
     fn reexports_core_and_protocol_contract() {
@@ -52,5 +270,88 @@ mod tests {
         );
         assert!(core_is_abi_compatible(CORE_ABI_VERSION));
         assert!(!core_is_abi_compatible(CORE_ABI_VERSION + 1));
+    }
+
+    #[test]
+    fn spake2plus_preview_matches_registration_vector_and_round_trips() {
+        let vector = spake2plus_vector();
+        let w0 = hex(&vector.w0);
+        let w1 = hex(&vector.w1);
+        let l = hex(&vector.l);
+        let context = vector.context.into_bytes();
+        let id_prover = vector.id_prover.into_bytes();
+        let id_verifier = vector.id_verifier.into_bytes();
+
+        assert_eq!(core_spake2plus_registration_record(w1.clone()).unwrap(), l);
+
+        let prover = CoreSpake2PlusProverSession::new(
+            context.clone(),
+            id_prover.clone(),
+            id_verifier.clone(),
+            w0.clone(),
+            w1,
+        )
+        .unwrap();
+        let verifier =
+            CoreSpake2PlusVerifierSession::new(context, id_prover, id_verifier, w0, l).unwrap();
+
+        let share_p = prover.start().unwrap();
+        let response = verifier.respond(share_p).unwrap();
+        let prover_result = prover
+            .finish(response.share_v.clone(), response.confirmation.clone())
+            .unwrap();
+        let verifier_result = verifier.finish(prover_result.confirmation.clone()).unwrap();
+
+        assert_eq!(prover_result.share_v, response.share_v);
+        assert_eq!(
+            prover_result.transcript.as_slice(),
+            verifier_result.transcript.as_slice()
+        );
+        assert_eq!(prover_result.keys.k_main, verifier_result.keys.k_main);
+        assert_eq!(
+            prover_result.keys.k_confirm_p,
+            verifier_result.keys.k_confirm_p
+        );
+        assert_eq!(
+            prover_result.keys.k_confirm_v,
+            verifier_result.keys.k_confirm_v
+        );
+        assert_eq!(prover_result.keys.k_shared, verifier_result.keys.k_shared);
+        assert_eq!(prover_result.expected_confirmation, response.confirmation);
+    }
+
+    #[test]
+    fn spake2plus_preview_burns_failed_sessions() {
+        let vector = spake2plus_vector();
+        let w0 = hex(&vector.w0);
+        let w1 = hex(&vector.w1);
+        let l = hex(&vector.l);
+        let context = vector.context.into_bytes();
+        let id_prover = vector.id_prover.into_bytes();
+        let id_verifier = vector.id_verifier.into_bytes();
+
+        let prover = CoreSpake2PlusProverSession::new(
+            context.clone(),
+            id_prover.clone(),
+            id_verifier.clone(),
+            w0.clone(),
+            w1,
+        )
+        .unwrap();
+        let verifier =
+            CoreSpake2PlusVerifierSession::new(context, id_prover, id_verifier, w0, l).unwrap();
+        let share_p = prover.start().unwrap();
+        let response = verifier.respond(share_p).unwrap();
+
+        let mut tampered = response.confirmation.clone();
+        tampered[0] ^= 0x01;
+        assert!(matches!(
+            prover.finish(response.share_v.clone(), tampered),
+            Err(CoreSpake2PlusError::ConfirmationMismatch)
+        ));
+        assert!(matches!(
+            prover.finish(response.share_v, response.confirmation),
+            Err(CoreSpake2PlusError::Invalid(_))
+        ));
     }
 }

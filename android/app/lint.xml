@@ -3,4 +3,7 @@
     <issue id="SuspiciousIndentation">
         <ignore regexp=".*protocol/generated/kotlin/.*" />
     </issue>
+    <issue id="NewApi">
+        <ignore regexp=".*core/airdesk-ffi/generated/kotlin/.*" />
+    </issue>
 </lint>
