@@ -2,6 +2,7 @@
 members = [
   "airdesk-core",
   "airdesk-protocol",
+  "airdesk-pairing",
   "airdesk-ffi",
   "airdesk-wasm",
 ]
