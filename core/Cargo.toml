@@ -3,6 +3,7 @@ members = [
   "airdesk-core",
   "airdesk-protocol",
   "airdesk-pairing",
+  "airdesk-sync",
   "airdesk-ffi",
   "airdesk-wasm",
 ]
@@ -19,3 +20,4 @@ publish = false
 airdesk-core = { path = "airdesk-core" }
 airdesk-pairing = { path = "airdesk-pairing" }
 airdesk-protocol = { path = "airdesk-protocol" }
+airdesk-sync = { path = "airdesk-sync" }

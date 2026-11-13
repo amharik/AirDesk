@@ -45,6 +45,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "airdesk-sync"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "airdesk-wasm"
 version = "0.1.0"
 dependencies = [

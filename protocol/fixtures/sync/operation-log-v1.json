@@ -1,0 +1,108 @@
+{
+  "metadata": [
+    { "path": "layout.geometry", "merge": "lww" },
+    { "path": "instances", "merge": "append-log" },
+    { "path": "owner", "merge": "manual" }
+  ],
+  "logs": [
+    [
+      {
+        "id": "a1",
+        "actor": "dev-a",
+        "lamport": 1,
+        "kind": "set-field",
+        "path": "layout.geometry",
+        "value": { "x": 10 }
+      },
+      {
+        "id": "a2",
+        "actor": "dev-a",
+        "lamport": 2,
+        "kind": "append-entry",
+        "path": "instances",
+        "key": "win-1",
+        "value": { "id": "win-1", "title": "A" }
+      },
+      {
+        "id": "a3",
+        "actor": "dev-a",
+        "lamport": 3,
+        "kind": "set-field",
+        "path": "owner",
+        "value": "alice"
+      },
+      {
+        "id": "a4",
+        "actor": "dev-a",
+        "lamport": 4,
+        "kind": "append-entry",
+        "path": "instances",
+        "key": "win-2",
+        "value": { "id": "win-2", "title": "A" }
+      }
+    ],
+    [
+      {
+        "id": "b1",
+        "actor": "dev-b",
+        "lamport": 1,
+        "kind": "set-field",
+        "path": "layout.geometry",
+        "value": { "x": 20 }
+      },
+      {
+        "id": "b2",
+        "actor": "dev-b",
+        "lamport": 2,
+        "kind": "append-entry",
+        "path": "instances",
+        "key": "win-1",
+        "value": { "id": "win-1", "title": "A" }
+      },
+      {
+        "id": "b3",
+        "actor": "dev-b",
+        "lamport": 5,
+        "kind": "append-entry",
+        "path": "instances",
+        "key": "win-2",
+        "value": { "id": "win-2", "title": "B" }
+      },
+      {
+        "id": "b4",
+        "actor": "dev-b",
+        "lamport": 6,
+        "kind": "set-field",
+        "path": "owner",
+        "value": "bob"
+      }
+    ]
+  ],
+  "expected": {
+    "fields": {
+      "instances": [
+        { "id": "win-1", "value": { "id": "win-1", "title": "A" } },
+        { "id": "win-2", "value": { "id": "win-2", "title": "B" } }
+      ],
+      "layout.geometry": { "x": 20 },
+      "owner": "bob"
+    },
+    "conflicts": [
+      {
+        "path": "instances",
+        "merge": "append-log",
+        "reason": "append-key-conflict",
+        "key": "win-2",
+        "winner": "b3",
+        "losers": ["a4"]
+      },
+      {
+        "path": "owner",
+        "merge": "manual",
+        "reason": "manual-multi-writer",
+        "winner": "b4",
+        "losers": ["a3"]
+      }
+    ]
+  }
+}
