@@ -165,3 +165,25 @@ Swift/Kotlin language targets are present. That path still needs the normal
 loopback, relay, roaming, rollback and physical/live-network evidence before a
 product pin changes. Until then the `1.2.0` pins are the qualified product
 baseline and no `1.4.x` availability or roaming claim is permitted.
+
+## Live tailnet and relay probe (2026-11-13)
+
+The Rust `iroh` 1.4.1 probe was run from the macOS host to `sillyoci` over the
+tailnet, with five samples per payload. Evidence is under
+`docs/research/runs/2026-11-13T095647Z-iroh-tailnet-baseline` and
+`docs/research/runs/2026-11-13T100030Z-iroh-relay-fallback`.
+
+| Path | Payload | Delivered | Selected path | Relay addresses | p50 control RTT | Reconnect |
+| --- | ---: | ---: | --- | ---: | ---: | ---: |
+| Tailnet direct | 64 B | 5/5 | direct | 0 | 34.69 ms | 77.26 ms |
+| Tailnet direct | 1 KiB | 5/5 | direct | 0 | 34.55 ms | 70.52 ms |
+| Tailnet direct | 16 KiB | 5/5 | direct | 0 | 56.72 ms | 236.57 ms |
+| Public relay | 64 B | 5/5 | relay | 1 | 119.08 ms | 347.42 ms |
+| Public relay | 1 KiB | 5/5 | relay | 1 | 188.08 ms | 438.82 ms |
+| Public relay | 16 KiB | 5/5 | relay | 1 | 570.69 ms | 1269.19 ms |
+
+All runs reported the expected direct or relay path, no failures, and a
+reconnect measurement. This qualifies the current probe over a real tailnet and
+the public relay. It does not qualify Wi-Fi-to-cellular roaming, NAT rebinding,
+physical iPhone/Android path migration, or a product `iroh-ffi` pin change.
+Those remain P1-09/P5-06/P5-07/P5-08 gates.

@@ -1,0 +1,59 @@
+{
+  "build": "release",
+  "candidate": "iroh-quic",
+  "commit": "0df9309db8f8",
+  "date": "2026-11-13T10:00:50Z",
+  "decision": "trial",
+  "diagnostics": {
+    "alpn": "airdesk/iroh-probe/0",
+    "direct_addrs": [],
+    "direct_paths": 0,
+    "path_count": 1,
+    "payload_bytes": 16384,
+    "peer_addrs_count": 1,
+    "peer_id": "8e7bf02f413e6cacd21143ab81ddacc5f9f935f257ae4e2365a29ffc4c5601f4",
+    "relay_addrs": 1,
+    "relay_mode": "default",
+    "relay_paths": 1,
+    "selected_path": "relay",
+    "server_messages_received": null,
+    "timeout_ms": 5000
+  },
+  "dirty": false,
+  "environment": {
+    "browser": "n/a",
+    "controller": "cargo 1.98.1",
+    "host": "macOS 15.5 x86_64",
+    "network": "relay",
+    "host_model": "Macmini8,1",
+    "cpu": "Intel(R) Core(TM) i5-4278U CPU @ 2.60GHz",
+    "memory_bytes": 8589934592
+  },
+  "evidence_scope": "transport-baseline",
+  "failures": [],
+  "license_notes": "Iroh crate 1.4.1, MIT OR Apache-2.0; research-only pinned dependency outside the product graph.",
+  "metrics": {
+    "connect_ms": 199.854,
+    "control_rtt_ms": {
+      "max": 881.724,
+      "min": 373.08,
+      "p50": 570.686,
+      "p95": 881.724,
+      "p99": 881.724
+    },
+    "messages_delivered": 5,
+    "reconnect_connect_ms": 612.274,
+    "reconnect_echo_ms": 656.915,
+    "reconnect_ms": 1269.189,
+    "cpu_percent": 3.065,
+    "peak_memory_bytes": 18518016
+  },
+  "observations": "Research measurement; not a product commitment. Iroh default relay path with IP transports disabled. This uses the public n0 relay map and is not an Adopt signal.",
+  "pass": true,
+  "run_id": "2026-11-13T100030Z-iroh-relay-fallback-16384b",
+  "samples": 5,
+  "scenario": "T4",
+  "scenario_name": "iroh-quic-relay-fallback",
+  "schema_version": 1,
+  "transport": "iroh"
+}
