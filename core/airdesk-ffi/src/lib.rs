@@ -10,6 +10,9 @@ use airdesk_pairing::spake2plus::{
     registration_record, ProverFinishResult, ProverSession, Spake2PlusError, Spake2PlusKeys,
     VerifierFinishResult, VerifierSession,
 };
+use airdesk_protocol::movement::{
+    OneEuroFilter, OneEuroFilterError, OneEuroParameters, PackedMovementError, PackedMovementFrame,
+};
 
 uniffi::setup_scaffolding!();
 
@@ -35,6 +38,115 @@ pub fn core_is_abi_compatible(required: u32) -> bool {
 #[uniffi::export]
 pub fn core_smoke_label() -> String {
     format!("airdesk-core/{}", CORE_ABI_VERSION)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, uniffi::Record)]
+pub struct CorePoint {
+    pub x: f64,
+    pub y: f64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, uniffi::Record)]
+pub struct CorePackedMovement {
+    pub lease_epoch_low: u16,
+    pub seq: u32,
+    pub x: f32,
+    pub y: f32,
+    pub button_mask: u8,
+    pub modifiers: u8,
+}
+
+#[derive(Debug, PartialEq, thiserror::Error, uniffi::Error)]
+pub enum CoreMovementError {
+    #[error("invalid one-euro filter parameters")]
+    InvalidParameters,
+    #[error("movement input must be finite")]
+    NonFiniteInput,
+    #[error("invalid packed movement frame: {0}")]
+    InvalidPackedFrame(String),
+}
+
+impl From<OneEuroFilterError> for CoreMovementError {
+    fn from(error: OneEuroFilterError) -> Self {
+        match error {
+            OneEuroFilterError::InvalidParameters => Self::InvalidParameters,
+            OneEuroFilterError::NonFiniteInput => Self::NonFiniteInput,
+        }
+    }
+}
+
+impl From<PackedMovementError> for CoreMovementError {
+    fn from(error: PackedMovementError) -> Self {
+        Self::InvalidPackedFrame(error.to_string())
+    }
+}
+
+fn movement_lock_error<T>(_error: std::sync::PoisonError<T>) -> CoreMovementError {
+    CoreMovementError::InvalidParameters
+}
+
+/// A stateful one-euro pointer filter used by the P3-08 core path.
+#[derive(uniffi::Object)]
+pub struct CoreOneEuroFilter {
+    inner: Mutex<OneEuroFilter>,
+}
+
+#[uniffi::export]
+impl CoreOneEuroFilter {
+    #[uniffi::constructor]
+    pub fn new(min_cutoff: f64, beta: f64, d_cutoff: f64) -> Result<Arc<Self>, CoreMovementError> {
+        let filter = OneEuroFilter::new(OneEuroParameters {
+            min_cutoff,
+            beta,
+            d_cutoff,
+        })?;
+        Ok(Arc::new(Self {
+            inner: Mutex::new(filter),
+        }))
+    }
+
+    pub fn reset(&self) -> Result<(), CoreMovementError> {
+        let mut filter = self.inner.lock().map_err(movement_lock_error)?;
+        filter.reset();
+        Ok(())
+    }
+
+    pub fn filter(&self, x: f64, y: f64, timestamp: f64) -> Result<CorePoint, CoreMovementError> {
+        let mut filter = self.inner.lock().map_err(movement_lock_error)?;
+        let (x, y) = filter.filter(x, y, timestamp)?;
+        Ok(CorePoint { x, y })
+    }
+}
+
+/// Encode a packed movement frame with the shared core codec.
+#[uniffi::export]
+pub fn core_packed_movement_encode(
+    frame: CorePackedMovement,
+) -> Result<Vec<u8>, CoreMovementError> {
+    Ok(PackedMovementFrame {
+        lease_epoch_low: frame.lease_epoch_low,
+        seq: frame.seq,
+        x: frame.x,
+        y: frame.y,
+        button_mask: frame.button_mask,
+        modifiers: frame.modifiers,
+    }
+    .encode()?
+    .to_vec())
+}
+
+/// Decode a packed movement frame with the shared core codec.
+#[uniffi::export]
+pub fn core_packed_movement_decode(data: Vec<u8>) -> Result<CorePackedMovement, CoreMovementError> {
+    let frame = PackedMovementFrame::decode(&data)?;
+    Ok(CorePackedMovement {
+        lease_epoch_low: frame.lease_epoch_low,
+        seq: frame.seq,
+        x: frame.x,
+        y: frame.y,
+        button_mask: frame.button_mask,
+        modifiers: frame.modifiers,
+    })
 }
 
 #[derive(Debug, thiserror::Error, uniffi::Error)]
@@ -270,6 +382,33 @@ mod tests {
         );
         assert!(core_is_abi_compatible(CORE_ABI_VERSION));
         assert!(!core_is_abi_compatible(CORE_ABI_VERSION + 1));
+    }
+
+    #[test]
+    fn movement_exports_match_shared_fixtures() {
+        let filter = CoreOneEuroFilter::new(1.0, 160.0, 1.0).unwrap();
+        assert_eq!(
+            filter.filter(0.25, 0.75, 0.0).unwrap(),
+            CorePoint { x: 0.25, y: 0.75 }
+        );
+        let filtered = filter.filter(0.3, 0.7, 1.0 / 120.0).unwrap();
+        assert!(filtered.x.is_finite() && filtered.y.is_finite());
+        assert_eq!(
+            CoreOneEuroFilter::new(0.0, 160.0, 1.0).err(),
+            Some(CoreMovementError::InvalidParameters)
+        );
+
+        let frame = CorePackedMovement {
+            lease_epoch_low: 7,
+            seq: 42,
+            x: 0.25,
+            y: 0.75,
+            button_mask: 1,
+            modifiers: 1,
+        };
+        let bytes = core_packed_movement_encode(frame).unwrap();
+        assert_eq!(bytes, hex("a52407002a0000000000803e0000403f"),);
+        assert_eq!(core_packed_movement_decode(bytes).unwrap(), frame);
     }
 
     #[test]

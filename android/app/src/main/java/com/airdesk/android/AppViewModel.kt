@@ -16,6 +16,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.airdesk.android.capabilities.CapabilityCatalog
 import com.airdesk.android.capabilities.CapabilityDescriptor
+import com.airdesk.android.core.CoreFeature
+import com.airdesk.android.core.CoreFeaturePath
+import com.airdesk.android.core.CoreFeatureSelection
 import com.airdesk.android.identity.DeviceIdentity
 import com.airdesk.android.pairing.AdPairChannelBinding
 import com.airdesk.android.pairing.AdPairCodec
@@ -47,6 +50,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     val displaySession = DisplaySessionController()
     val windowProjections = WindowProjectionRegistry()
+
+    var coreCutover by mutableStateOf(container.coreCutover.snapshot())
+        private set
 
     var remoteTerminalProfile by mutableStateOf(RemoteTerminalProfileDraft())
         private set
@@ -202,6 +208,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun clearRemoteTerminalMessage() {
         remoteTerminalMessage = null
     }
+
+    fun setCorePath(feature: CoreFeature, path: CoreFeaturePath): CoreFeatureSelection {
+        val selection = container.coreCutover.set(feature, path)
+        coreCutover = container.coreCutover.snapshot()
+        return selection
+    }
+
+    fun coreCutoverTelemetry(): String = container.coreCutover.telemetry()
 
     fun refreshCapabilities() {
         val context = getApplication<Application>()

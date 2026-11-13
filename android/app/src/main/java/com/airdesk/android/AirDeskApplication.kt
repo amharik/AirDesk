@@ -31,6 +31,7 @@ class AppContainer(context: Context) {
     private val keyValueStore = SharedPreferencesKeyValueStore(prefs)
 
     val identityStore = DeviceIdentityStore(context)
+    val coreCutover = com.airdesk.android.core.CoreCutoverStore(keyValueStore)
     val identity: DeviceIdentity by lazy { identityStore.loadOrCreate() }
     val peerRegistry = PeerRegistry(keyValueStore)
     val nonceStore = NonceStore(keyValueStore)

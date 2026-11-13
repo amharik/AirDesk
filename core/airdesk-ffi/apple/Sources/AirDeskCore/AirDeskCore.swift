@@ -419,6 +419,38 @@ fileprivate final class UniffiHandleMap<T>: @unchecked Sendable {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterUInt8: FfiConverterPrimitive {
+    typealias FfiType = UInt8
+    typealias SwiftType = UInt8
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt8 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: UInt8, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterUInt16: FfiConverterPrimitive {
+    typealias FfiType = UInt16
+    typealias SwiftType = UInt16
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt16 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterUInt32: FfiConverterPrimitive {
     typealias FfiType = UInt32
     typealias SwiftType = UInt32
@@ -429,6 +461,38 @@ fileprivate struct FfiConverterUInt32: FfiConverterPrimitive {
 
     public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
         writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterFloat: FfiConverterPrimitive {
+    typealias FfiType = Float
+    typealias SwiftType = Float
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Float {
+        return try lift(readFloat(&buf))
+    }
+
+    public static func write(_ value: Float, into buf: inout [UInt8]) {
+        writeFloat(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterDouble: FfiConverterPrimitive {
+    typealias FfiType = Double
+    typealias SwiftType = Double
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Double {
+        return try lift(readDouble(&buf))
+    }
+
+    public static func write(_ value: Double, into buf: inout [UInt8]) {
+        writeDouble(&buf, lower(value))
     }
 }
 
@@ -519,6 +583,150 @@ fileprivate struct FfiConverterData: FfiConverterRustBuffer {
         writeBytes(&buf, value)
     }
 }
+
+
+
+
+/**
+ * A stateful one-euro pointer filter used by the P3-08 core path.
+ */
+public protocol CoreOneEuroFilterProtocol: AnyObject, Sendable {
+    
+    func filter(x: Double, y: Double, timestamp: Double) throws  -> CorePoint
+    
+    func reset() throws 
+    
+}
+/**
+ * A stateful one-euro pointer filter used by the P3-08 core path.
+ */
+open class CoreOneEuroFilter: CoreOneEuroFilterProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_airdesk_ffi_fn_clone_coreoneeurofilter(self.handle, $0) }
+    }
+public convenience init(minCutoff: Double, beta: Double, dCutoff: Double)throws  {
+    let handle =
+        try rustCallWithError(FfiConverterTypeCoreMovementError_lift) {
+    uniffi_airdesk_ffi_fn_constructor_coreoneeurofilter_new(
+        FfiConverterDouble.lower(minCutoff),
+        FfiConverterDouble.lower(beta),
+        FfiConverterDouble.lower(dCutoff),$0
+    )
+}
+    self.init(unsafeFromHandle: handle)
+}
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_airdesk_ffi_fn_free_coreoneeurofilter(handle, $0) }
+    }
+
+    
+
+    
+open func filter(x: Double, y: Double, timestamp: Double)throws  -> CorePoint  {
+    return try  FfiConverterTypeCorePoint_lift(try rustCallWithError(FfiConverterTypeCoreMovementError_lift) {
+    uniffi_airdesk_ffi_fn_method_coreoneeurofilter_filter(
+            self.uniffiCloneHandle(),
+        FfiConverterDouble.lower(x),
+        FfiConverterDouble.lower(y),
+        FfiConverterDouble.lower(timestamp),$0
+    )
+})
+}
+    
+open func reset()throws   {try rustCallWithError(FfiConverterTypeCoreMovementError_lift) {
+    uniffi_airdesk_ffi_fn_method_coreoneeurofilter_reset(
+            self.uniffiCloneHandle(),$0
+    )
+}
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCoreOneEuroFilter: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = CoreOneEuroFilter
+
+    public static func lift(_ handle: UInt64) throws -> CoreOneEuroFilter {
+        return CoreOneEuroFilter(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: CoreOneEuroFilter) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CoreOneEuroFilter {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: CoreOneEuroFilter, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCoreOneEuroFilter_lift(_ handle: UInt64) throws -> CoreOneEuroFilter {
+    return try FfiConverterTypeCoreOneEuroFilter.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCoreOneEuroFilter_lower(_ value: CoreOneEuroFilter) -> UInt64 {
+    return FfiConverterTypeCoreOneEuroFilter.lower(value)
+}
+
+
 
 
 
@@ -813,6 +1021,130 @@ public func FfiConverterTypeCoreSpake2PlusVerifierSession_lower(_ value: CoreSpa
 
 
 
+public struct CorePackedMovement: Equatable, Hashable {
+    public var leaseEpochLow: UInt16
+    public var seq: UInt32
+    public var x: Float
+    public var y: Float
+    public var buttonMask: UInt8
+    public var modifiers: UInt8
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(leaseEpochLow: UInt16, seq: UInt32, x: Float, y: Float, buttonMask: UInt8, modifiers: UInt8) {
+        self.leaseEpochLow = leaseEpochLow
+        self.seq = seq
+        self.x = x
+        self.y = y
+        self.buttonMask = buttonMask
+        self.modifiers = modifiers
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CorePackedMovement: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCorePackedMovement: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CorePackedMovement {
+        return
+            try CorePackedMovement(
+                leaseEpochLow: FfiConverterUInt16.read(from: &buf), 
+                seq: FfiConverterUInt32.read(from: &buf), 
+                x: FfiConverterFloat.read(from: &buf), 
+                y: FfiConverterFloat.read(from: &buf), 
+                buttonMask: FfiConverterUInt8.read(from: &buf), 
+                modifiers: FfiConverterUInt8.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CorePackedMovement, into buf: inout [UInt8]) {
+        FfiConverterUInt16.write(value.leaseEpochLow, into: &buf)
+        FfiConverterUInt32.write(value.seq, into: &buf)
+        FfiConverterFloat.write(value.x, into: &buf)
+        FfiConverterFloat.write(value.y, into: &buf)
+        FfiConverterUInt8.write(value.buttonMask, into: &buf)
+        FfiConverterUInt8.write(value.modifiers, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCorePackedMovement_lift(_ buf: RustBuffer) throws -> CorePackedMovement {
+    return try FfiConverterTypeCorePackedMovement.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCorePackedMovement_lower(_ value: CorePackedMovement) -> RustBuffer {
+    return FfiConverterTypeCorePackedMovement.lower(value)
+}
+
+
+public struct CorePoint: Equatable, Hashable {
+    public var x: Double
+    public var y: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(x: Double, y: Double) {
+        self.x = x
+        self.y = y
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CorePoint: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCorePoint: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CorePoint {
+        return
+            try CorePoint(
+                x: FfiConverterDouble.read(from: &buf), 
+                y: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CorePoint, into buf: inout [UInt8]) {
+        FfiConverterDouble.write(value.x, into: &buf)
+        FfiConverterDouble.write(value.y, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCorePoint_lift(_ buf: RustBuffer) throws -> CorePoint {
+    return try FfiConverterTypeCorePoint.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCorePoint_lower(_ value: CorePoint) -> RustBuffer {
+    return FfiConverterTypeCorePoint.lower(value)
+}
+
+
 public struct CoreSpake2PlusFinishResult: Equatable, Hashable {
     public var shareP: Data
     public var shareV: Data
@@ -1011,6 +1343,92 @@ public func FfiConverterTypeCoreSpake2PlusVerifierResponse_lower(_ value: CoreSp
 }
 
 
+public enum CoreMovementError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+
+    
+    
+    case InvalidParameters
+    case NonFiniteInput
+    case InvalidPackedFrame(String
+    )
+
+    
+
+    
+
+    
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+    
+}
+
+#if compiler(>=6)
+extension CoreMovementError: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCoreMovementError: FfiConverterRustBuffer {
+    typealias SwiftType = CoreMovementError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CoreMovementError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .InvalidParameters
+        case 2: return .NonFiniteInput
+        case 3: return .InvalidPackedFrame(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: CoreMovementError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case .InvalidParameters:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .NonFiniteInput:
+            writeInt(&buf, Int32(2))
+        
+        
+        case let .InvalidPackedFrame(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCoreMovementError_lift(_ buf: RustBuffer) throws -> CoreMovementError {
+    return try FfiConverterTypeCoreMovementError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCoreMovementError_lower(_ value: CoreMovementError) -> RustBuffer {
+    return FfiConverterTypeCoreMovementError.lower(value)
+}
+
+
 public enum CoreSpake2PlusError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
     
@@ -1109,6 +1527,26 @@ public func coreIsAbiCompatible(required: UInt32) -> Bool  {
 })
 }
 /**
+ * Decode a packed movement frame with the shared core codec.
+ */
+public func corePackedMovementDecode(data: Data)throws  -> CorePackedMovement  {
+    return try  FfiConverterTypeCorePackedMovement_lift(try rustCallWithError(FfiConverterTypeCoreMovementError_lift) {
+    uniffi_airdesk_ffi_fn_func_core_packed_movement_decode(
+        FfiConverterData.lower(data),$0
+    )
+})
+}
+/**
+ * Encode a packed movement frame with the shared core codec.
+ */
+public func corePackedMovementEncode(frame: CorePackedMovement)throws  -> Data  {
+    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeCoreMovementError_lift) {
+    uniffi_airdesk_ffi_fn_func_core_packed_movement_encode(
+        FfiConverterTypeCorePackedMovement_lower(frame),$0
+    )
+})
+}
+/**
  * Non-authoritative label used by the flag-gated iOS and Android smoke calls.
  */
 public func coreSmokeLabel() -> String  {
@@ -1149,10 +1587,22 @@ private let initializationResult: InitializationResult = {
     if (uniffi_airdesk_ffi_checksum_func_core_is_abi_compatible() != 2951) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_airdesk_ffi_checksum_func_core_packed_movement_decode() != 33382) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_airdesk_ffi_checksum_func_core_packed_movement_encode() != 62464) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_airdesk_ffi_checksum_func_core_smoke_label() != 36581) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_airdesk_ffi_checksum_func_core_spake2plus_registration_record() != 34561) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_airdesk_ffi_checksum_method_coreoneeurofilter_filter() != 27279) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_airdesk_ffi_checksum_method_coreoneeurofilter_reset() != 62955) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_airdesk_ffi_checksum_method_corespake2plusproversession_finish() != 4872) {
@@ -1165,6 +1615,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_airdesk_ffi_checksum_method_corespake2plusverifiersession_respond() != 8690) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_airdesk_ffi_checksum_constructor_coreoneeurofilter_new() != 29309) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_airdesk_ffi_checksum_constructor_corespake2plusproversession_new() != 12037) {

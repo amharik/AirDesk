@@ -21,6 +21,10 @@ final class AppSettings: ObservableObject {
         static let fabricInputForwarding = "airdesk.fabric.inputForwarding"
         static let fabricRelayURLs = "airdesk.fabric.relayURLs"
         static let browserEndpointEnabled = "airdesk.browserEndpoint.enabled"
+        static let coreMovement = "airdesk.core.movement"
+        static let coreEnvelope = "airdesk.core.envelope"
+        static let corePairing = "airdesk.core.pairing"
+        static let coreSync = "airdesk.core.sync"
     }
 
     private static let remoteTerminalKeychainService = "com.airdesk.ios.remote-terminal"
@@ -101,6 +105,11 @@ final class AppSettings: ObservableObject {
         didSet { defaults.set(browserEndpointEnabled, forKey: Key.browserEndpointEnabled) }
     }
 
+    @Published private(set) var coreMovementPath: CoreFeaturePath
+    @Published private(set) var coreEnvelopePath: CoreFeaturePath
+    @Published private(set) var corePairingPath: CoreFeaturePath
+    @Published private(set) var coreSyncPath: CoreFeaturePath
+
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
@@ -128,6 +137,10 @@ final class AppSettings: ObservableObject {
         fabricInputForwardingEnabled = defaults.object(forKey: Key.fabricInputForwarding) as? Bool ?? false
         fabricRelayURLs = defaults.string(forKey: Key.fabricRelayURLs) ?? ""
         browserEndpointEnabled = defaults.object(forKey: Key.browserEndpointEnabled) as? Bool ?? false
+        coreMovementPath = CoreFeaturePath(rawValue: defaults.string(forKey: Key.coreMovement) ?? "") ?? .native
+        coreEnvelopePath = CoreFeaturePath(rawValue: defaults.string(forKey: Key.coreEnvelope) ?? "") ?? .native
+        corePairingPath = CoreFeaturePath(rawValue: defaults.string(forKey: Key.corePairing) ?? "") ?? .native
+        coreSyncPath = CoreFeaturePath(rawValue: defaults.string(forKey: Key.coreSync) ?? "") ?? .native
         if let raw = defaults.string(forKey: Key.displayMode), let mode = DisplayPresentationMode(rawValue: raw) {
             displayMode = mode
         } else {
@@ -142,6 +155,40 @@ final class AppSettings: ObservableObject {
 
     var availableRuntimes: [RuntimeChoice] {
         [.wanixDesktop, .wanixKernel]
+    }
+
+    var coreSelections: [CoreFeatureSelection] {
+        CoreFeature.allCases.map(coreSelection)
+    }
+
+    func corePath(for feature: CoreFeature) -> CoreFeaturePath {
+        switch feature {
+        case .movement: return coreMovementPath
+        case .envelope: return coreEnvelopePath
+        case .pairing: return corePairingPath
+        case .sync: return coreSyncPath
+        }
+    }
+
+    func coreSelection(for feature: CoreFeature) -> CoreFeatureSelection {
+        CoreCutoverPolicy.resolve(feature: feature, requested: corePath(for: feature))
+    }
+
+    func setCorePath(_ path: CoreFeaturePath, for feature: CoreFeature) {
+        switch feature {
+        case .movement:
+            coreMovementPath = path
+            defaults.set(path.rawValue, forKey: Key.coreMovement)
+        case .envelope:
+            coreEnvelopePath = path
+            defaults.set(path.rawValue, forKey: Key.coreEnvelope)
+        case .pairing:
+            corePairingPath = path
+            defaults.set(path.rawValue, forKey: Key.corePairing)
+        case .sync:
+            coreSyncPath = path
+            defaults.set(path.rawValue, forKey: Key.coreSync)
+        }
     }
 
     var remoteTerminalProfile: RemoteTerminalProfile {
@@ -206,5 +253,13 @@ final class AppSettings: ObservableObject {
         fabricInputForwardingEnabled = false
         fabricRelayURLs = ""
         browserEndpointEnabled = false
+        coreMovementPath = .native
+        coreEnvelopePath = .native
+        corePairingPath = .native
+        coreSyncPath = .native
+        defaults.removeObject(forKey: Key.coreMovement)
+        defaults.removeObject(forKey: Key.coreEnvelope)
+        defaults.removeObject(forKey: Key.corePairing)
+        defaults.removeObject(forKey: Key.coreSync)
     }
 }

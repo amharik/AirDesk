@@ -1,6 +1,6 @@
 # ADR-028: Operation-based workspace sync
 
-- **Status:** Accepted — core operation log only; platform cutover pending P3-08
+- **Status:** Accepted — core operation log only; platform cutover pending sync exports and fixture migration
 - **Date:** 2026-11-13
 - **Deciders:** Workspace and shared-core engineering
 - **Related:** ADR-009, ADR-016, ADR-020, ADR-024, P3-03, P4-11
@@ -86,9 +86,10 @@ additive Rust core the place for platform-neutral deterministic logic.
 - Operation kinds must match their registered merge class.
 - Existing workspace sync fixtures and platform tests remain green.
 - Core `fmt`, `clippy -D warnings` and locked tests pass.
-- Platform cutover additionally requires P3-08 flags, UniFFI/WASM exports,
-  cross-language fixture parity and a rollback path. None of those is claimed
-  by this core-only decision.
+- Platform cutover additionally requires UniFFI/WASM sync exports,
+  cross-language fixture parity and a rollback path. P3-08 supplies the
+  per-feature flag and native fallback, but this core-only decision does not
+  claim the exports, fixture migration or platform cutover.
 
 ## Out of scope
 

@@ -19,6 +19,7 @@ struct SettingsView: View {
                 remoteTerminalSection
                 displaySection
                 browserEndpointSection
+                coreCutoverSection
                 pairingSection
                 cursorSection
                 runtimeSection
@@ -245,6 +246,44 @@ struct SettingsView: View {
             sectionHeader("Browser presentation")
         } footer: {
             Text("The loopback host only accepts the configured local asset origin. A production browser presentation page is not bundled yet.")
+        }
+        .listRowBackground(rowBackground)
+    }
+
+    private var coreCutoverSection: some View {
+        Section {
+            ForEach(CoreFeature.allCases, id: \.self) { feature in
+                let selection = settings.coreSelection(for: feature)
+                VStack(alignment: .leading, spacing: 6) {
+                    Picker(
+                        feature.title,
+                        selection: Binding(
+                            get: { settings.corePath(for: feature) },
+                            set: { settings.setCorePath($0, for: feature) }
+                        )
+                    ) {
+                        ForEach(CoreFeaturePath.allCases, id: \.self) { path in
+                            Text(path.title).tag(path)
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    HStack(spacing: 6) {
+                        Text("Active: \(selection.active.title)")
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundStyle(selection.isFallback ? ADTheme.amber : ADTheme.accent)
+                        if selection.isFallback {
+                            Text("· \(selection.reason.title)")
+                                .font(.system(size: 11))
+                                .foregroundStyle(ADTheme.textTertiary)
+                        }
+                    }
+                }
+            }
+        } header: {
+            sectionHeader("Shared core cutover")
+        } footer: {
+            Text("Native rollback is always available. Pairing stays native until independent cryptographic review; envelope and sync stay native until their bindings and fixture migrations land.")
         }
         .listRowBackground(rowBackground)
     }

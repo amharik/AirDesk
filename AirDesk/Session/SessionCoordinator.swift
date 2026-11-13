@@ -284,6 +284,19 @@ final class SessionCoordinator: ObservableObject {
                 self.beginRecovery()
             }
         }
+        pointer.setFilterBackend(settings.coreSelection(for: .movement).active)
+        settings.$coreMovementPath
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                Task { @MainActor in
+                    guard let self else { return }
+                    self.pointer.setFilterBackend(
+                        self.settings.coreSelection(for: .movement).active
+                    )
+                }
+            }
+            .store(in: &cancellables)
     }
 
     var isBusy: Bool {

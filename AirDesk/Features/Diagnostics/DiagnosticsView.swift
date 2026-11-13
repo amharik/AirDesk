@@ -16,6 +16,7 @@ struct DiagnosticsView: View {
                 sessionSection
                 fabricSection
                 browserEndpointSection
+                coreCutoverSection
                 performanceSection
                 runtimeSection
                 transitionsSection
@@ -129,6 +130,22 @@ struct DiagnosticsView: View {
 
     private var browserEndpointSection: some View {
         BrowserEndpointDiagnosticsSection(service: environment.browserEndpoint)
+    }
+
+    private var coreCutoverSection: some View {
+        Section {
+            ForEach(environment.settings.coreSelections, id: \.feature) { selection in
+                infoRow(
+                    selection.feature.title,
+                    "\(selection.active.title) · requested \(selection.requested.title) · \(selection.reason.title)"
+                )
+            }
+        } header: {
+            sectionHeader("Shared core cutover")
+        } footer: {
+            Text("The active path is reported per feature. A requested core path that cannot run falls back to native without changing wire data or local workspace state.")
+        }
+        .listRowBackground(rowBackground)
     }
 
     private var remoteInputState: String {
@@ -293,6 +310,7 @@ struct DiagnosticsView: View {
         pairedPeers=\(environment.deviceRegistry?.pairedCount ?? 0)
         trustedPeers=\(environment.deviceRegistry?.trustedCount ?? 0)
         revokedPeers=\(environment.deviceRegistry?.revokedCount ?? 0)
+        coreCutover=\(environment.settings.coreSelections.map(\.telemetry).joined(separator: ";"))
         """
         UIPasteboard.general.string = report
         copied = true

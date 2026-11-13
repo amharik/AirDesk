@@ -8,21 +8,31 @@ struct PointerState: Equatable, Sendable {
     var sensitivity: Double
     var accelerationEnabled: Bool
     let filterEnabled: Bool
-    private var oneEuroFilter: OneEuroFilter
+    private var filter: AdaptivePointerFilter
 
     init(
         position: CGPoint = CGPoint(x: 0.5, y: 0.5),
         sensitivity: Double = 0.9,
         accelerationEnabled: Bool = true,
         filterEnabled: Bool = true,
-        filterParameters: OneEuroFilterParameters = .pointer
+        filterParameters: OneEuroFilterParameters = .pointer,
+        filterBackend: CoreFeaturePath = .native
     ) {
         self.position = position
         self.sensitivity = sensitivity
         self.accelerationEnabled = accelerationEnabled
         self.filterEnabled = filterEnabled
-        self.oneEuroFilter = OneEuroFilter(parameters: filterParameters)
+        self.filter = AdaptivePointerFilter(backend: filterBackend, parameters: filterParameters)
         self.lastMoveTime = 0
+    }
+
+    static func == (left: PointerState, right: PointerState) -> Bool {
+        left.position == right.position
+            && left.lastMoveTime == right.lastMoveTime
+            && left.sensitivity == right.sensitivity
+            && left.accelerationEnabled == right.accelerationEnabled
+            && left.filterEnabled == right.filterEnabled
+            && left.filter.backend == right.filter.backend
     }
 
     static let baseGain: Double = 2.0
@@ -51,7 +61,7 @@ struct PointerState: Equatable, Sendable {
         let targetX = min(max(position.x + clampedDX, 0), 1)
         let targetY = min(max(position.y + clampedDY, 0), 1)
         if filterEnabled {
-            let filtered = oneEuroFilter.filter(
+            let filtered = filter.filter(
                 x: Double(targetX),
                 y: Double(targetY),
                 timestamp: timestamp
@@ -71,13 +81,21 @@ struct PointerState: Equatable, Sendable {
             x: min(max(point.x, 0), 1),
             y: min(max(point.y, 0), 1)
         )
-        oneEuroFilter.reset()
+        filter.reset()
     }
 
     mutating func center() {
         position = CGPoint(x: 0.5, y: 0.5)
         lastMoveTime = 0
-        oneEuroFilter.reset()
+        filter.reset()
+    }
+
+    mutating func setFilterBackend(_ backend: CoreFeaturePath) {
+        filter.setBackend(backend)
+    }
+
+    var activeFilterBackend: CoreFeaturePath {
+        filter.backend
     }
 
     static func scrollDelta(dx: Double, dy: Double, naturalScrolling: Bool) -> (Double, Double) {

@@ -6,6 +6,7 @@ import android.os.Build
 import android.webkit.WebView
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -13,6 +14,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -23,6 +25,7 @@ import com.airdesk.android.AppViewModel
 import com.airdesk.android.BuildConfig
 import com.airdesk.android.capabilities.Authorization
 import com.airdesk.android.capabilities.Availability
+import com.airdesk.android.core.CoreFeaturePath
 import com.airdesk.android.protocol.AdfpProtocol
 import com.airdesk.android.ui.components.LabeledValue
 import com.airdesk.android.ui.components.SectionCard
@@ -163,6 +166,38 @@ fun DiagnosticsScreen(viewModel: AppViewModel) {
             LabeledValue("minSdk / targetSdk / compileSdk", "26 / 35 / 35")
             LabeledValue("Runtime Android SDK", Build.VERSION.SDK_INT.toString())
             LabeledValue("Device", "${Build.MANUFACTURER} ${Build.MODEL}".trim())
+        }
+
+        SectionCard(
+            title = "Shared core cutover",
+            subtitle = "Requested paths persist. Unavailable or review-gated core paths fall back to native.",
+        ) {
+            viewModel.coreCutover.forEach { selection ->
+                Text(
+                    "${selection.feature.label}: active ${selection.active.label}, " +
+                        "requested ${selection.requested.label}",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                if (selection.isFallback) {
+                    Text(
+                        selection.reason.label,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    CoreFeaturePath.entries.forEach { path ->
+                        TextButton(
+                            onClick = { viewModel.setCorePath(selection.feature, path) },
+                        ) {
+                            Text(path.label)
+                        }
+                    }
+                }
+            }
+            SelectionContainer {
+                LabeledValue("Telemetry", viewModel.coreCutoverTelemetry(), monospace = true)
+            }
         }
 
         SectionCard(title = "Security baseline") {
