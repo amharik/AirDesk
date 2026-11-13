@@ -494,7 +494,8 @@ final class AppEnvironment: ObservableObject {
             host: bootstrapper.host,
             fabric: fabric,
             stateURL: bootstrapper.store.syncStateURL,
-            keyStore: KeychainWorkspaceSyncKeyStore()
+            keyStore: KeychainWorkspaceSyncKeyStore(),
+            backend: settings.coreSelection(for: .sync).active
         )
         workspaceSyncRuntime = runtime
         try runtime.publishLocalSnapshot()

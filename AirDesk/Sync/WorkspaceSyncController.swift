@@ -19,12 +19,14 @@ final class WorkspaceSyncController {
     let session: WorkspaceSyncSession
 
     private let host: WorkspaceHost
+    private let backend: CoreFeaturePath
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
 
-    init(session: WorkspaceSyncSession, host: WorkspaceHost) {
+    init(session: WorkspaceSyncSession, host: WorkspaceHost, backend: CoreFeaturePath = .native) {
         self.session = session
         self.host = host
+        self.backend = backend
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         self.encoder = encoder
@@ -73,7 +75,11 @@ final class WorkspaceSyncController {
         }
 
         let local = try manifest.syncSnapshot()
-        let result = WorkspaceSyncMerge.mergeSnapshots(local: local, remote: remote)
+        let result = WorkspaceSyncMerge.mergeSnapshots(
+            local: local,
+            remote: remote,
+            backend: backend
+        )
 
         guard result.status == .applied else {
             if result.status != .rejected {

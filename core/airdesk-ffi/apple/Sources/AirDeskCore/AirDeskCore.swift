@@ -1507,6 +1507,80 @@ public func FfiConverterTypeCoreSpake2PlusError_lift(_ buf: RustBuffer) throws -
 public func FfiConverterTypeCoreSpake2PlusError_lower(_ value: CoreSpake2PlusError) -> RustBuffer {
     return FfiConverterTypeCoreSpake2PlusError.lower(value)
 }
+
+
+public enum CoreSyncError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+
+    
+    
+    case InvalidInput(String
+    )
+
+    
+
+    
+
+    
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+    
+}
+
+#if compiler(>=6)
+extension CoreSyncError: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCoreSyncError: FfiConverterRustBuffer {
+    typealias SwiftType = CoreSyncError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CoreSyncError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .InvalidInput(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: CoreSyncError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .InvalidInput(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCoreSyncError_lift(_ buf: RustBuffer) throws -> CoreSyncError {
+    return try FfiConverterTypeCoreSyncError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCoreSyncError_lower(_ value: CoreSyncError) -> RustBuffer {
+    return FfiConverterTypeCoreSyncError.lower(value)
+}
 /**
  * Return the shared-core ABI version.
  */
@@ -1565,6 +1639,17 @@ public func coreSpake2plusRegistrationRecord(w1: Data)throws  -> Data  {
     )
 })
 }
+/**
+ * Merge two platform workspace snapshots through the shared operation log.
+ */
+public func coreSyncMergeSnapshots(localJson: String, remoteJson: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeCoreSyncError_lift) {
+    uniffi_airdesk_ffi_fn_func_core_sync_merge_snapshots(
+        FfiConverterString.lower(localJson),
+        FfiConverterString.lower(remoteJson),$0
+    )
+})
+}
 
 private enum InitializationResult {
     case ok
@@ -1597,6 +1682,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_airdesk_ffi_checksum_func_core_spake2plus_registration_record() != 34561) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_airdesk_ffi_checksum_func_core_sync_merge_snapshots() != 46107) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_airdesk_ffi_checksum_method_coreoneeurofilter_filter() != 27279) {

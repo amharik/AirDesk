@@ -1,6 +1,6 @@
 # ADR-028: Operation-based workspace sync
 
-- **Status:** Accepted — core operation log only; platform cutover pending sync exports and fixture migration
+- **Status:** Accepted — core operation log and snapshot facade implemented; iOS/web cutover landed; Android has no workspace sync runtime
 - **Date:** 2026-11-13
 - **Deciders:** Workspace and shared-core engineering
 - **Related:** ADR-009, ADR-016, ADR-020, ADR-024, P3-03, P4-11
@@ -56,6 +56,22 @@ additive Rust core the place for platform-neutral deterministic logic.
    model, rich-text collaboration or tombstone scheme requires a new ADR and a
    migration corpus.
 
+## Implementation note (2026-11-13)
+
+`core/airdesk-sync/src/merge.rs` adds the temporary snapshot-to-operation
+facade required by the platform flag cutover. It validates workspace/epoch
+coordinates, preserves the existing field metadata and empty-field behavior,
+translates `lww`/`append-log` values into operations, and emits the existing
+platform-shaped apply result. Manual fields remain explicit conflicts.
+
+UniFFI exposes `coreSyncMergeSnapshots` and WASM exposes
+`core_sync_merge_snapshots`. iOS routes `WorkspaceSyncMerge.mergeSnapshots`
+through the core when the sync flag selects it and falls back to native on a
+binding error or when field-by-field apply hooks are required. Web exposes an
+optional `WorkspaceSyncCoreBridge` with the same fallback. Android has no
+workspace sync runtime, so only its generated binding changes. Native
+implementations remain until P3-09 proves equivalence and one release rollback.
+
 ## Consequences
 
 ### Positive
@@ -87,9 +103,10 @@ additive Rust core the place for platform-neutral deterministic logic.
 - Existing workspace sync fixtures and platform tests remain green.
 - Core `fmt`, `clippy -D warnings` and locked tests pass.
 - Platform cutover additionally requires UniFFI/WASM sync exports,
-  cross-language fixture parity and a rollback path. P3-08 supplies the
-  per-feature flag and native fallback, but this core-only decision does not
-  claim the exports, fixture migration or platform cutover.
+  cross-language fixture parity and a rollback path. The exports, shared
+  snapshot facade, fixture and iOS/web flag paths now exist with native
+  fallback. Android has no workspace sync runtime, the translation layer is
+  still temporary, and P3-09 removal remains gated on one release rollback.
 
 ## Out of scope
 

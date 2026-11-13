@@ -1,0 +1,84 @@
+{
+  "cases": [
+    {
+      "id": "lww-append-and-equal-manual",
+      "local": {
+        "workspaceId": "ws-1",
+        "hostEpoch": 3,
+        "workspaceSeq": 4,
+        "revision": 4,
+        "fields": {
+          "layout.geometry": { "value": { "x": 1 }, "revision": 4, "deviceId": "dev-a" },
+          "instances": [
+            { "id": "win-1", "value": { "title": "A" }, "revision": 1 }
+          ],
+          "owner": "alice"
+        },
+        "metadata": [
+          { "path": "layout.geometry", "merge": "lww", "sinceSchemaVersion": 1 },
+          { "path": "instances", "merge": "append-log", "sinceSchemaVersion": 1 },
+          { "path": "owner", "merge": "manual", "sinceSchemaVersion": 1 }
+        ]
+      },
+      "remote": {
+        "workspaceId": "ws-1",
+        "hostEpoch": 3,
+        "workspaceSeq": 6,
+        "revision": 7,
+        "fields": {
+          "layout.geometry": { "value": { "x": 2 }, "revision": 4, "deviceId": "dev-b" },
+          "instances": [
+            { "id": "win-1", "value": { "title": "A" }, "revision": 1 },
+            { "id": "win-2", "value": { "title": "B" }, "revision": 2 }
+          ],
+          "owner": "alice"
+        },
+        "metadata": [
+          { "path": "layout.geometry", "merge": "lww", "sinceSchemaVersion": 1 },
+          { "path": "instances", "merge": "append-log", "sinceSchemaVersion": 1 },
+          { "path": "owner", "merge": "manual", "sinceSchemaVersion": 1 }
+        ]
+      },
+      "expectedStatus": "applied",
+      "expectedFields": {
+        "layout.geometry": { "value": { "x": 2 }, "revision": 4, "deviceId": "dev-b" },
+        "instances": [
+          { "id": "win-1", "value": { "title": "A" }, "revision": 1 },
+          { "id": "win-2", "value": { "title": "B" }, "revision": 2 }
+        ],
+        "owner": "alice"
+      }
+    },
+    {
+      "id": "manual-conflict-keeps-local",
+      "local": {
+        "workspaceId": "ws-1",
+        "hostEpoch": 3,
+        "workspaceSeq": 1,
+        "revision": 2,
+        "fields": {
+          "owner": "alice"
+        },
+        "metadata": [
+          { "path": "owner", "merge": "manual", "sinceSchemaVersion": 1 }
+        ]
+      },
+      "remote": {
+        "workspaceId": "ws-1",
+        "hostEpoch": 3,
+        "workspaceSeq": 2,
+        "revision": 3,
+        "fields": {
+          "owner": "bob"
+        },
+        "metadata": [
+          { "path": "owner", "merge": "manual", "sinceSchemaVersion": 1 }
+        ]
+      },
+      "expectedStatus": "conflict",
+      "expectedFields": {
+        "owner": "alice"
+      }
+    }
+  ]
+}

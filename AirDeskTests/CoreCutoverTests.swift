@@ -34,8 +34,12 @@ final class CoreCutoverTests: XCTestCase {
             .independentReviewRequired
         )
         XCTAssertEqual(
-            CoreCutoverPolicy.resolve(feature: .sync, requested: .core).reason,
-            .fixtureMigrationPending
+            CoreCutoverPolicy.resolve(feature: .sync, requested: .core).active,
+            .core
+        )
+        XCTAssertEqual(
+            CoreCutoverPolicy.resolve(feature: .sync, requested: .core, syncAvailable: false).reason,
+            .bindingUnavailable
         )
         XCTAssertTrue(
             CoreCutoverPolicy.resolve(feature: .pairing, requested: .core).isFallback

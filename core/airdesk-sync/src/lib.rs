@@ -1,15 +1,17 @@
 //! Deterministic operation-log convergence for workspace synchronization.
 //!
 //! P4-11 adds a core operation log with Lamport/actor ordering. The platform
-//! field-merge implementations remain the production path until P3-08; this
-//! crate proves the operation ordering, replay and projection rules against a
-//! shared fixture without cutting over native or browser synchronization.
+//! merge entry points call [`merge_snapshots_json`] behind a feature flag and
+//! fall back to the native implementation if the binding fails.
 
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use thiserror::Error;
+
+mod merge;
+pub use merge::{merge_snapshots, merge_snapshots_json, SyncApplyResult, SyncSnapshot};
 
 pub const MAX_OPERATION_ID_BYTES: usize = 256;
 pub const MAX_ACTOR_BYTES: usize = 128;
@@ -483,6 +485,10 @@ pub enum SyncError {
     ConflictingOperationId(String),
     #[error("field {path} uses {merge:?} but contains the wrong operation kind")]
     MergeClassMismatch { path: String, merge: MergeClass },
+    #[error("invalid sync snapshot: {0}")]
+    InvalidSnapshot(String),
+    #[error("sync JSON serialization failed: {0}")]
+    Serialization(String),
 }
 
 fn validate_bounded(field: &'static str, value: &str, limit: usize) -> Result<(), SyncError> {

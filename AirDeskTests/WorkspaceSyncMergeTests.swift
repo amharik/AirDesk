@@ -158,6 +158,28 @@ final class WorkspaceSyncMergeTests: XCTestCase {
         XCTAssertEqual(conflict.snapshot.fields["settings"], .string("local"))
     }
 
+    func testCoreBackendMatchesNativeSnapshotMerge() throws {
+        var local = makeSnapshot(fields: [
+            "metadata.name": lww("local", revision: 1, deviceId: "a"),
+            "layout.focusOrder": .array([.string("window-a")])
+        ])
+        local.workspaceSeq = 4
+        local.revision = 4
+        var remote = makeSnapshot(fields: [
+            "metadata.name": lww("remote", revision: 2, deviceId: "b"),
+            "preferences": lww("dark", revision: 1, deviceId: "b")
+        ])
+        remote.workspaceSeq = 7
+        remote.revision = 7
+
+        let native = WorkspaceSyncMerge.mergeSnapshots(local: local, remote: remote)
+        let core = try WorkspaceSyncCoreMerge.mergeSnapshots(local: local, remote: remote)
+        XCTAssertEqual(core.status, native.status)
+        XCTAssertEqual(core.snapshot, native.snapshot)
+        XCTAssertEqual(core.fieldResults, native.fieldResults)
+        XCTAssertEqual(core.conflicts, native.conflicts)
+    }
+
     func testOfflineQueueHaltsAndRetriesRemainingEdits() {
         let queue = WorkspaceSyncOfflineQueue()
         for index in 0 ..< 3 {

@@ -11,4 +11,5 @@ crate-type = ["rlib", "cdylib"]
 [dependencies]
 airdesk-core.workspace = true
 airdesk-protocol.workspace = true
+airdesk-sync.workspace = true
 wasm-bindgen = "0.2.130"

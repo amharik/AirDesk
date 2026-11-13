@@ -81,6 +81,30 @@ impl From<PackedMovementError> for CoreMovementError {
     }
 }
 
+#[derive(Debug, PartialEq, thiserror::Error, uniffi::Error)]
+pub enum CoreSyncError {
+    #[error("invalid sync input: {0}")]
+    InvalidInput(String),
+}
+
+impl From<airdesk_sync::SyncError> for CoreSyncError {
+    fn from(error: airdesk_sync::SyncError) -> Self {
+        Self::InvalidInput(error.to_string())
+    }
+}
+
+/// Merge two platform workspace snapshots through the shared operation log.
+#[uniffi::export]
+pub fn core_sync_merge_snapshots(
+    local_json: String,
+    remote_json: String,
+) -> Result<String, CoreSyncError> {
+    Ok(airdesk_sync::merge_snapshots_json(
+        &local_json,
+        &remote_json,
+    )?)
+}
+
 fn movement_lock_error<T>(_error: std::sync::PoisonError<T>) -> CoreMovementError {
     CoreMovementError::InvalidParameters
 }
@@ -382,6 +406,43 @@ mod tests {
         );
         assert!(core_is_abi_compatible(CORE_ABI_VERSION));
         assert!(!core_is_abi_compatible(CORE_ABI_VERSION + 1));
+    }
+
+    #[test]
+    fn sync_export_merges_platform_snapshots() {
+        let local = serde_json::json!({
+            "workspaceId": "ws-1",
+            "hostEpoch": 3,
+            "workspaceSeq": 4,
+            "revision": 4,
+            "fields": {
+                "layout.geometry": {"value": {"x": 1}, "revision": 4, "deviceId": "dev-a"}
+            },
+            "metadata": [
+                {"path": "layout.geometry", "merge": "lww", "sinceSchemaVersion": 1}
+            ]
+        });
+        let remote = serde_json::json!({
+            "workspaceId": "ws-1",
+            "hostEpoch": 3,
+            "workspaceSeq": 6,
+            "revision": 7,
+            "fields": {
+                "layout.geometry": {"value": {"x": 2}, "revision": 4, "deviceId": "dev-b"}
+            },
+            "metadata": [
+                {"path": "layout.geometry", "merge": "lww", "sinceSchemaVersion": 1}
+            ]
+        });
+
+        let merged = core_sync_merge_snapshots(local.to_string(), remote.to_string()).unwrap();
+        let merged: serde_json::Value = serde_json::from_str(&merged).unwrap();
+        assert_eq!(merged["status"], "applied");
+        assert_eq!(
+            merged["snapshot"]["fields"]["layout.geometry"]["deviceId"],
+            "dev-b"
+        );
+        assert!(core_sync_merge_snapshots("{".into(), "{}".into()).is_err());
     }
 
     #[test]

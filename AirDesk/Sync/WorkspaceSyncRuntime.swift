@@ -24,6 +24,7 @@ final class WorkspaceSyncRuntime {
         stateURL: URL,
         keyStore: WorkspaceSyncKeyStoring? = nil,
         keyGeneration: UInt64? = nil,
+        backend: CoreFeaturePath = .native,
         fileManager: FileManager = .default
     ) throws {
         let state = try WorkspaceSyncStateStore.load(from: stateURL, fileManager: fileManager)
@@ -36,7 +37,7 @@ final class WorkspaceSyncRuntime {
             hostEpoch: hostEpoch,
             state: state
         )
-        self.controller = WorkspaceSyncController(session: session, host: host)
+        self.controller = WorkspaceSyncController(session: session, host: host, backend: backend)
         self.fabric = fabric
         self.stateURL = stateURL
         self.fileManager = fileManager

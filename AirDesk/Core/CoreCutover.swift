@@ -66,11 +66,16 @@ enum CoreMovementSupport {
     }()
 }
 
+enum CoreSyncSupport {
+    static let isAvailable = true
+}
+
 enum CoreCutoverPolicy {
     static func resolve(
         feature: CoreFeature,
         requested: CoreFeaturePath,
-        movementAvailable: Bool = CoreMovementSupport.isAvailable
+        movementAvailable: Bool = CoreMovementSupport.isAvailable,
+        syncAvailable: Bool = CoreSyncSupport.isAvailable
     ) -> CoreFeatureSelection {
         guard requested == .core else {
             return CoreFeatureSelection(
@@ -107,8 +112,8 @@ enum CoreCutoverPolicy {
             return CoreFeatureSelection(
                 feature: feature,
                 requested: requested,
-                active: .native,
-                reason: .fixtureMigrationPending
+                active: syncAvailable ? .core : .native,
+                reason: syncAvailable ? .none : .bindingUnavailable
             )
         }
     }

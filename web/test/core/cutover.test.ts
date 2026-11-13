@@ -30,7 +30,7 @@ describe('core cutover control plane', () => {
   it('honors query requests and reports gated fallbacks', () => {
     const store = new CoreCutoverStore({
       search: '?coreMovement=core&corePairing=core&coreEnvelope=core&coreSync=core',
-      availability: { ...DEFAULT_CORE_AVAILABILITY, movement: true }
+      availability: { ...DEFAULT_CORE_AVAILABILITY, movement: true, sync: true }
     });
 
     expect(store.get('movement')).toMatchObject({ active: 'core', reason: 'none' });
@@ -43,9 +43,13 @@ describe('core cutover control plane', () => {
       active: 'native',
       reason: 'binding-unavailable'
     });
-    expect(store.get('sync')).toMatchObject({
+    expect(store.get('sync')).toMatchObject({ active: 'core', reason: 'none' });
+  });
+
+  it('falls sync back when the browser binding is unavailable', () => {
+    expect(resolveCoreSelection('sync', 'core')).toMatchObject({
       active: 'native',
-      reason: 'fixture-migration-pending'
+      reason: 'binding-unavailable'
     });
   });
 

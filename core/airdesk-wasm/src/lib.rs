@@ -27,6 +27,13 @@ pub fn core_smoke_label() -> String {
     format!("airdesk-core/{}", CORE_ABI_VERSION)
 }
 
+/// Merge two workspace snapshots through the shared operation log.
+#[wasm_bindgen]
+pub fn core_sync_merge_snapshots(local_json: &str, remote_json: &str) -> Result<String, JsValue> {
+    airdesk_sync::merge_snapshots_json(local_json, remote_json)
+        .map_err(|error| JsValue::from_str(&error.to_string()))
+}
+
 /// Browser one-euro filter used only when the P3-08 movement flag selects core.
 #[wasm_bindgen]
 pub struct CoreOneEuroFilter {
@@ -79,6 +86,17 @@ mod tests {
         assert!(filtered.iter().all(|value| value.is_finite()));
         filter.reset();
         assert_eq!(filter.filter(0.4, 0.6, 1.0).unwrap(), vec![0.4, 0.6]);
+    }
+
+    #[test]
+    fn sync_export_merges_platform_snapshots() {
+        let local = r#"{"workspaceId":"ws-1","hostEpoch":3,"workspaceSeq":4,"revision":4,"fields":{"layout.geometry":{"value":{"x":1},"revision":4,"deviceId":"dev-a"}},"metadata":[{"path":"layout.geometry","merge":"lww","sinceSchemaVersion":1}]}"#;
+        let remote = r#"{"workspaceId":"ws-1","hostEpoch":3,"workspaceSeq":6,"revision":7,"fields":{"layout.geometry":{"value":{"x":2},"revision":4,"deviceId":"dev-b"}},"metadata":[{"path":"layout.geometry","merge":"lww","sinceSchemaVersion":1}]}"#;
+
+        let merged = core_sync_merge_snapshots(local, remote).unwrap();
+        assert!(merged.contains(r#""status":"applied""#));
+        assert!(merged.contains(r#""deviceId":"dev-b""#));
+        assert!(airdesk_sync::merge_snapshots_json("{", "{}").is_err());
     }
 
     #[test]

@@ -648,6 +648,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_airdesk_ffi_checksum_func_core_spake2plus_registration_record(
     ): Int
+    external fun uniffi_airdesk_ffi_checksum_func_core_sync_merge_snapshots(
+    ): Int
     external fun uniffi_airdesk_ffi_checksum_method_coreoneeurofilter_filter(
     ): Int
     external fun uniffi_airdesk_ffi_checksum_method_coreoneeurofilter_reset(
@@ -725,6 +727,8 @@ internal object UniffiLib {
     external fun uniffi_airdesk_ffi_fn_func_core_smoke_label(uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun uniffi_airdesk_ffi_fn_func_core_spake2plus_registration_record(`w1`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun uniffi_airdesk_ffi_fn_func_core_sync_merge_snapshots(`localJson`: RustBuffer.ByValue,`remoteJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun ffi_airdesk_ffi_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
@@ -861,6 +865,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_airdesk_ffi_checksum_func_core_spake2plus_registration_record() != 34561) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_airdesk_ffi_checksum_func_core_sync_merge_snapshots() != 46107) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_airdesk_ffi_checksum_method_coreoneeurofilter_filter() != 27279) {
@@ -2534,6 +2541,68 @@ public object FfiConverterTypeCoreSpake2PlusError : FfiConverterRustBuffer<CoreS
     }
 
 }
+
+
+
+
+
+sealed class CoreSyncException: kotlin.Exception() {
+    
+    class InvalidInput(
+        
+        val v1: kotlin.String
+        ) : CoreSyncException() {
+        override val message
+            get() = "v1=${ v1 }"
+    }
+    
+
+    
+
+
+    companion object ErrorHandler : UniffiRustCallStatusErrorHandler<CoreSyncException> {
+        override fun lift(error_buf: RustBuffer.ByValue): CoreSyncException = FfiConverterTypeCoreSyncError.lift(error_buf)
+    }
+
+    
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeCoreSyncError : FfiConverterRustBuffer<CoreSyncException> {
+    override fun read(buf: ByteBuffer): CoreSyncException {
+        
+
+        return when(buf.getInt()) {
+            1 -> CoreSyncException.InvalidInput(
+                FfiConverterString.read(buf),
+                )
+            else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
+        }
+    }
+
+    override fun allocationSize(value: CoreSyncException): ULong {
+        return when(value) {
+            is CoreSyncException.InvalidInput -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.v1)
+            )
+        }
+    }
+
+    override fun write(value: CoreSyncException, buf: ByteBuffer) {
+        when(value) {
+            is CoreSyncException.InvalidInput -> {
+                buf.putInt(1)
+                FfiConverterString.write(value.v1, buf)
+                Unit
+            }
+        }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
+    }
+
+}
         /**
          * Return the shared-core ABI version.
          */ fun `coreAbiVersion`(): kotlin.UInt {
@@ -2610,6 +2679,20 @@ public object FfiConverterTypeCoreSpake2PlusError : FfiConverterRustBuffer<CoreS
     UniffiLib.uniffi_airdesk_ffi_fn_func_core_spake2plus_registration_record(
     
         FfiConverterByteArray.lower(`w1`),_status)
+}
+    )
+    }
+    
+
+        /**
+         * Merge two platform workspace snapshots through the shared operation log.
+         */
+    @Throws(CoreSyncException::class) fun `coreSyncMergeSnapshots`(`localJson`: kotlin.String, `remoteJson`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    uniffiRustCallWithError(CoreSyncException) { _status ->
+    UniffiLib.uniffi_airdesk_ffi_fn_func_core_sync_merge_snapshots(
+    
+        FfiConverterString.lower(`localJson`),FfiConverterString.lower(`remoteJson`),_status)
 }
     )
     }

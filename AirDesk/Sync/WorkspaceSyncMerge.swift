@@ -1,3 +1,4 @@
+import AirDeskCore
 import Foundation
 
 indirect enum WorkspaceSyncJSONValue: Codable, Equatable, Sendable {
@@ -274,7 +275,7 @@ struct WorkspaceSyncApplyHooks {
     }
 }
 
-struct WorkspaceSyncApplyResult: Sendable {
+struct WorkspaceSyncApplyResult: Codable, Sendable {
     var status: WorkspaceSyncApplyStatus
     var snapshot: WorkspaceSyncSnapshot
     var fieldResults: [WorkspaceSyncFieldResult]
@@ -589,7 +590,21 @@ enum WorkspaceSyncMerge {
     static func mergeSnapshots(
         local: WorkspaceSyncSnapshot,
         remote: WorkspaceSyncSnapshot,
+        backend: CoreFeaturePath = .native,
         hooks: WorkspaceSyncApplyHooks = WorkspaceSyncApplyHooks()
+    ) -> WorkspaceSyncApplyResult {
+        if backend == .core, hooks.afterField == nil {
+            if let result = try? WorkspaceSyncCoreMerge.mergeSnapshots(local: local, remote: remote) {
+                return result
+            }
+        }
+        return mergeSnapshotsNative(local: local, remote: remote, hooks: hooks)
+    }
+
+    private static func mergeSnapshotsNative(
+        local: WorkspaceSyncSnapshot,
+        remote: WorkspaceSyncSnapshot,
+        hooks: WorkspaceSyncApplyHooks
     ) -> WorkspaceSyncApplyResult {
         if local.workspaceId != remote.workspaceId {
             return rejected(local, reason: .workspaceMismatch)
@@ -792,6 +807,23 @@ enum WorkspaceSyncMerge {
             fieldResults: fieldResults,
             conflicts: fieldResults.flatMap(\.conflicts),
             reason: reason
+        )
+    }
+}
+
+enum WorkspaceSyncCoreMerge {
+    static func mergeSnapshots(
+        local: WorkspaceSyncSnapshot,
+        remote: WorkspaceSyncSnapshot
+    ) throws -> WorkspaceSyncApplyResult {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let localJSON = String(decoding: try encoder.encode(local), as: UTF8.self)
+        let remoteJSON = String(decoding: try encoder.encode(remote), as: UTF8.self)
+        let resultJSON = try coreSyncMergeSnapshots(localJson: localJSON, remoteJson: remoteJSON)
+        return try JSONDecoder().decode(
+            WorkspaceSyncApplyResult.self,
+            from: Data(resultJSON.utf8)
         )
     }
 }

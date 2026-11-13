@@ -16,6 +16,7 @@ path = "uniffi-bindgen.rs"
 airdesk-core.workspace = true
 airdesk-pairing.workspace = true
 airdesk-protocol.workspace = true
+airdesk-sync.workspace = true
 thiserror = "2"
 uniffi = { version = "0.31.1", features = ["cli"] }
 

@@ -1,3 +1,4 @@
+import type { WorkspaceSyncCoreBridge } from './core';
 import {
   MergeMetadataRegistry,
   mergeAppendLog,
@@ -8,6 +9,7 @@ import {
   type FieldMetadata,
   type MergeClass
 } from './merge';
+import { mergeWorkspaceSnapshotsWithCore } from './core';
 
 export interface WorkspaceSnapshot {
   workspaceId: string;
@@ -275,8 +277,17 @@ export function applyWorkspacePatch(
 export function mergeWorkspaceSnapshots(
   local: WorkspaceSnapshot,
   remote: WorkspaceSnapshot,
-  hooks: WorkspaceApplyHooks = {}
+  hooks: WorkspaceApplyHooks = {},
+  core: WorkspaceSyncCoreBridge | null = null
 ): MergeWorkspaceResult {
+  if (core && !hooks.afterField) {
+    try {
+      return mergeWorkspaceSnapshotsWithCore(local, remote, core);
+    } catch {
+      // Fall back to the native merge when the binding rejects the payload.
+    }
+  }
+
   if (local.workspaceId !== remote.workspaceId) {
     return {
       status: 'rejected',

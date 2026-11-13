@@ -71,8 +71,10 @@ export function resolveCoreSelection(
         reason = 'independent-review-required';
         break;
       case 'sync':
-        active = 'native';
-        reason = 'fixture-migration-pending';
+        if (!availability.sync) {
+          active = 'native';
+          reason = 'binding-unavailable';
+        }
         break;
     }
   }
